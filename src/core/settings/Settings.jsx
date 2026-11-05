@@ -120,6 +120,9 @@ export default function Settings() {
       payload.exercice_start_month = Number(form.exercice_start_month) || 1
       // Civilité du signataire non choisie : vide n'est pas une valeur permise en base (0459, homme ou femme ou rien)
       payload.dirigeant_gender = form.dirigeant_gender || null
+      // Booléens qui peuvent être vides en base : jamais de texte vide envoyé
+      payload.tva_applicable = form.tva_applicable !== false
+      payload.qualiopi_certified = !!form.qualiopi_certified
       payload.caces_activity = !!form.caces_activity
       payload.bank_overdraft = Math.max(0, Number(String(form.bank_overdraft ?? '').replace(',', '.')) || 0)
       payload.ai_profile = form.ai_profile && typeof form.ai_profile === 'object' ? form.ai_profile : {}
