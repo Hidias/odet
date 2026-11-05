@@ -23,31 +23,35 @@ permissions:
   pull-requests: write
 
 jobs:
-  feu-vert:
-    name: feu-vert
-    if: (github.event.action == 'labeled' && github.event.label.name == 'feu-vert') || (github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'feu-vert'))
+  # Nouveau commit sur une PR qui porte feu-vert : on retire l'étiquette (job à part, pour ne jamais afficher
+  # une coche « feu-vert » sur un commit qui n'en a pas). Seul « étiquette déjà absente » est toléré.
+  retrait-feu-vert:
+    name: retrait-feu-vert
+    if: github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'feu-vert')
     runs-on: ubuntu-24.04
     steps:
       - name: Retirer le feu vert après un nouveau commit
-        if: github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'feu-vert')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
-          gh api -X DELETE "repos/$REPO/issues/$PR/labels/feu-vert" || true
-          echo "Nouveau commit : le feu vert est retiré, à redonner après relecture."
-      - name: Feu vert présent
-        if: github.event.action != 'synchronize'
-        env:
-          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
-        run: |
-          if echo "$LABELS" | grep -q '"feu-vert"'; then
-            echo "Feu vert donné : fusion possible."
+          if sortie="$(gh api -X DELETE "repos/$REPO/issues/$PR/labels/feu-vert" 2>&1)"; then
+            echo "Nouveau commit : le feu vert est retiré, à redonner après relecture."
+          elif printf '%s' "$sortie" | grep -q 'HTTP 404'; then
+            echo "Étiquette déjà absente."
           else
-            echo "Pas encore de feu vert : attendre la relecture (et la mise en base s'il y a une migration)."
-            exit 1
+            echo "::error::Retrait du feu vert impossible : $sortie"; exit 1
           fi
+
+  feu-vert:
+    name: feu-vert
+    if: github.event.action == 'labeled' && github.event.label.name == 'feu-vert'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Feu vert présent
+        run: |
+          echo "Feu vert donné, fusion possible."
 
   migrations-en-base:
     name: migrations-en-base
