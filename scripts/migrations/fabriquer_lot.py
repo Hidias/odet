@@ -133,7 +133,7 @@ def instructions(texte):
                 j += 1
             propre.append(texte[i:j + 1]); i = j + 1; continue
         m = re.match(r'\$([A-Za-z_][A-Za-z0-9_]*)?\$', texte[i:])
-        if m and not (i > 0 and (texte[i - 1].isalnum() or texte[i - 1] == '_')):
+        if m and not (i > 0 and (texte[i - 1].isalnum() or texte[i - 1] in '_$')):
             tag = m.group(0); j = texte.find(tag, i + len(tag))
             assert j >= 0, f'bloc {tag} non refermé'
             propre.append(texte[i:j + len(tag)]); i = j + len(tag); continue
