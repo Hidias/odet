@@ -8,7 +8,7 @@
 #   RETOUR=       retour arrière réel, joué automatiquement si les tests échouent après application
 #   TESTS=        tests rejoués après application (défaut : supabase/tests/droits_chantier2.sql)
 #
-# Étapes : 1 essai, 2 essai du retour arrière, 3 application si MODE=appliquer et 1 et 2 verts (0 échec, 0 écart),
+# Étapes : 1 essai (migrations, essai propre de chaque migration, tests de droits), 2 essai du retour arrière, 3 application si MODE=appliquer et 1 et 2 verts (0 échec, 0 écart),
 # 4 tests rejoués, retour arrière immédiat s'ils échouent. La sauvegarde de nuit est vérifiée par le workflow avant.
 # Variables : SUPABASE_DB_URL (secret), LOT, MODE (essai | appliquer), RAPPORT (fichier markdown à écrire).
 # Le secret n'est jamais affiché : psql le lit dans l'environnement (PGDATABASE ne s'affiche pas dans les erreurs).

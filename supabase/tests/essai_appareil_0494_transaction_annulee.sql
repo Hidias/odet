@@ -68,9 +68,6 @@ insert into public.schema_migrations (version) values ('0494_portail_appareil_co
 
 -- ===== essai propre supabase/tests/portail_appareil_0494.sql (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====
 savepoint essai_propre;
--- Essai local de 0494 : première visite d'un appareil dans l'espace client, deux appels au même instant.
--- La course est simulée par un déclencheur d'essai qui insère la même ligne juste avant l'insertion de la fonction
--- (comme un second onglet qui gagne entre la recherche et l'insertion). Sans 0494 : erreur de doublon.
 
 set local client_min_messages = warning;
 
@@ -137,7 +134,6 @@ begin
     raise exception '12. 0494 non inscrite';
   end if;
 end $$;
-
 select 'ESSAI PROPRE VERT : supabase/tests/portail_appareil_0494.sql' as resultat;
 rollback to savepoint essai_propre;
 

@@ -9,7 +9,9 @@ Utilisation :
 L'essai propre d'une migration (supabase/tests/<sujet>_<NNNN>.sql, rouge sans elle) est obligatoire : il est rejoué
 sur la production par l'action, après les migrations et avant les tests de droits, dans un point de sauvegarde
 annulé ensuite (ses données d'essai ne faussent pas les tests de droits). S'il échoue, l'essai du lot est rouge
-et rien n'est appliqué. Ses lignes « begin; » et « rollback; » de premier niveau sont retirées.
+et rien n'est appliqué. Sa première instruction « begin; » et sa dernière « rollback; » sont retirées ; tout autre
+contrôle de transaction de premier niveau (commit, rollback, end, abort, savepoint...) est refusé, dans l'essai
+propre comme dans les migrations et le retour arrière.
 
 Écrit :
   supabase/tests/essai_<lot>_transaction_annulee.sql : migrations puis tests de droits (droits_chantier2.sql),
@@ -102,14 +104,63 @@ def bloc(f):
     return f"\n-- ===== {f.relative_to(root)} =====\n" + f.read_text(encoding='utf-8')
 
 
+CONTROLE = re.compile(r'(begin|start|commit|end|rollback|abort|savepoint|release|prepare)\b', re.I)
+
+
+def instructions(texte):
+    """Découpe un script SQL en instructions de premier niveau : (début, fin, texte sans commentaires).
+    Tient compte des commentaires (-- et /* */), des chaînes ('...', E'...', "...") et des blocs $tag$ ... $tag$."""
+    res, i, n, debut, propre = [], 0, len(texte), 0, []
+    while i < n:
+        c = texte[i]
+        if texte.startswith('--', i):
+            j = texte.find('\n', i); i = n if j < 0 else j; propre.append(' '); continue
+        if texte.startswith('/*', i):
+            prof, i = 1, i + 2
+            while i < n and prof:
+                if texte.startswith('/*', i): prof, i = prof + 1, i + 2
+                elif texte.startswith('*/', i): prof, i = prof - 1, i + 2
+                else: i += 1
+            propre.append(' '); continue
+        if c in "'\"":
+            j = i + 1
+            while j < n:
+                if texte[j] == '\\' and c == "'" and i > 0 and texte[i - 1] in 'eE': j += 2; continue
+                if texte[j] == c:
+                    if j + 1 < n and texte[j + 1] == c: j += 2; continue
+                    break
+                j += 1
+            propre.append(texte[i:j + 1]); i = j + 1; continue
+        m = re.match(r'\$([A-Za-z_][A-Za-z0-9_]*)?\$', texte[i:])
+        if m and not (i > 0 and (texte[i - 1].isalnum() or texte[i - 1] == '_')):
+            tag = m.group(0); j = texte.find(tag, i + len(tag))
+            assert j >= 0, f'bloc {tag} non refermé'
+            propre.append(texte[i:j + len(tag)]); i = j + len(tag); continue
+        if c == ';':
+            res.append((debut, i + 1, ''.join(propre).strip())); propre, debut = [], i + 1; i += 1; continue
+        propre.append(c); i += 1
+    reste = ''.join(propre).strip()
+    if reste:
+        res.append((debut, n, reste))
+    return res
+
+
+def sans_transaction(texte, nom):
+    """Refuse tout contrôle de transaction de premier niveau (il casserait l'annulation de l'essai)."""
+    for _, _, inst in instructions(texte):
+        assert not CONTROLE.match(inst), f'{nom} : contrôle de transaction interdit au premier niveau : {inst[:60]!r}'
+
+
 def essai_propre(f):
-    """Essai propre rejoué dans l'essai du lot, isolé dans un point de sauvegarde."""
+    """Essai propre rejoué dans l'essai du lot, isolé dans un point de sauvegarde.
+    Exigé : première instruction « begin; », dernière « rollback; », aucun autre contrôle de transaction entre les deux."""
     texte = f.read_text(encoding='utf-8')
-    assert re.search(r'^\s*begin\s*;\s*$', texte, re.I | re.M) and re.search(r'^\s*rollback\s*;\s*$', texte, re.I | re.M), \
-        f'{f} : essai propre attendu entre « begin; » et « rollback; »'
-    assert not re.search(r'^\s*commit\s*;', texte, re.I | re.M), f'COMMIT interdit : {f}'
-    corps = re.sub(r'^\s*(begin|rollback)\s*;\s*$', '', texte, flags=re.I | re.M)
     nom = f.relative_to(root)
+    inst = instructions(texte)
+    assert len(inst) >= 2 and re.fullmatch(r'begin', inst[0][2], re.I) and re.fullmatch(r'rollback', inst[-1][2], re.I), \
+        f'{nom} : essai propre attendu entre « begin; » (première instruction) et « rollback; » (dernière)'
+    corps = texte[inst[0][1]:inst[-1][0]]
+    sans_transaction(corps, nom)
     return (f"\n-- ===== essai propre {nom} (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====\n"
             "savepoint essai_propre;\n" + corps
             + f"\nselect 'ESSAI PROPRE VERT : {nom}' as resultat;\nrollback to savepoint essai_propre;\n")
@@ -140,6 +191,8 @@ def main():
     propres = [(root / e).resolve() for e in essais]
     for f in [retour, *mig, *propres]:
         assert f.is_file(), f
+    for f in [retour, *mig]:
+        sans_transaction(f.read_text(encoding='utf-8'), f.relative_to(root))
     tests = root / 'supabase' / 'tests' / 'droits_chantier2.sql'
     noms = ', '.join(f.name for f in mig)
     gen = f"-- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py ({lot}) : ne pas modifier à la main.\n"

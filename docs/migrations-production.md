@@ -22,8 +22,11 @@ Fabriquer un lot : `python3 scripts/migrations/fabriquer_lot.py <lot> <retour> <
 L'essai propre de la migration (`supabase/tests/<sujet>_<NNNN>.sql`, entre `begin;` et `rollback;`, rouge sans elle)
 est obligatoire depuis le 05/11/2026 : il est rejoué sur la production dans l'essai du lot, après les migrations et
 avant les tests de droits, dans un point de sauvegarde annulé ensuite. S'il échoue, l'essai est rouge et rien n'est
-appliqué ; le rapport indique « Essai propre : vert (n sur n) ». Il ne doit dépendre d'aucune donnée de la production
-(il crée ses propres lignes).
+appliqué ; le rapport indique « Essai propre : vert (n sur n) ». Il crée ses propres lignes et ne suppose rien des
+données de la production, sauf l'existence d'au moins une société. Une seule paire `begin;` (première instruction) et
+`rollback;` (dernière) : tout autre contrôle de transaction de premier niveau est refusé par le script, dans l'essai
+propre, les migrations et le retour arrière. Un essai fait de plusieurs parties se joue en un seul bloc : chaque
+partie voit les données des précédentes.
 
 ## Lancer
 
