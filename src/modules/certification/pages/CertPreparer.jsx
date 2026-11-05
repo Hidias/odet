@@ -1,5 +1,5 @@
 // Onglet « Préparer l'audit » : ce qu'il faut pouvoir montrer à l'auditeur, tiré de la pratique réelle
-// (opérations faites, sessions complètes), et ce qui reste à reprendre avant l'audit.
+// (opérations faites, conventions des sessions terminées), et ce qui reste à reprendre avant l'audit.
 
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -65,7 +65,7 @@ export default function CertPreparer({ referentiel = null }) {
         <p className="text-ui-sm text-gray-600 flex-1 min-w-[16rem]">
           {referentiel
             ? 'L\'auditeur veut voir la pratique réelle : des opérations vraiment faites, par des personnes qualifiées. Il choisit lui-même les sites et les appareils : tout ce qui est « à reprendre » peut tomber.'
-            : 'L\'auditeur veut voir la pratique réelle : des opérations vraiment faites, des sessions complètes. Il choisit lui-même son échantillon : tout ce qui est « à reprendre » peut tomber.'}
+            : 'L\'auditeur veut voir la pratique réelle : des opérations vraiment faites, des sessions au dossier complet. Ici, seule la convention est vérifiée ; le reste du dossier se voit dans « Dossiers à compléter ». Il choisit lui-même son échantillon : tout ce qui est « à reprendre » peut tomber.'}
         </p>
         <label className="flex items-center gap-2 text-ui-sm">
           <span>Période</span>
@@ -170,11 +170,11 @@ export default function CertPreparer({ referentiel = null }) {
       )}
 
       {qualiopi && (
-        <Bloc titre="Sessions terminées : échantillon possible" aside={<span className="text-ui-sm muted">{qualiopi.completes.length} complète{qualiopi.completes.length > 1 ? 's' : ''} sur {qualiopi.total}</span>}>
+        <Bloc titre="Sessions terminées : échantillon possible" aside={<span className="text-ui-sm muted">convention en règle : {qualiopi.completes.length} sur {qualiopi.total}</span>}>
           {qualiopi.total === 0 && <p className="px-4 pb-4 text-ui-sm text-gray-700">Aucune session terminée sur la période.</p>}
           {qualiopi.aCompleter.length > 0 && (
             <>
-              <p className="px-4 pb-2 text-ui-sm text-gray-700">À reprendre avant l'audit (dossiers incomplets) :</p>
+              <p className="px-4 pb-2 text-ui-sm text-gray-700">Convention à reprendre avant l'audit :</p>
               <ul className="divide-y divide-gray-100">
                 {qualiopi.aCompleter.slice(0, 20).map((s) => (
                   <li key={s.id}>
@@ -183,16 +183,17 @@ export default function CertPreparer({ referentiel = null }) {
                         <span className="text-ui font-semibold">{s.courses?.title || s.reference}</span>
                         <span className="block text-ui-sm text-gray-600">{[s.reference, s.clients?.name, s.end_date ? `fin le ${frDate(s.end_date)}` : null].filter(Boolean).join(' · ')}</span>
                       </span>
-                      <span className="badge badge-warning">{s.alertes} point{s.alertes > 1 ? 's' : ''}</span>
+                      <span className="badge badge-warning">{s.motif}</span>
                       <ChevronRight className="w-4 h-4 text-gray-400" aria-hidden="true" />
                     </Link>
                   </li>
                 ))}
               </ul>
+              {qualiopi.aCompleter.length > 20 && <p className="px-4 py-2 text-ui-sm text-gray-600">Et {qualiopi.aCompleter.length - 20} autre{qualiopi.aCompleter.length - 20 > 1 ? 's' : ''} à reprendre.</p>}
             </>
           )}
           {qualiopi.total > 0 && qualiopi.aCompleter.length === 0 && (
-            <p className="px-4 pb-4 text-ui-sm text-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" aria-hidden="true" />Toutes les sessions terminées sont complètes.</p>
+            <p className="px-4 pb-4 text-ui-sm text-gray-700 flex items-center gap-2"><CheckCircle className="w-4 h-4" aria-hidden="true" />Convention en règle pour toutes les sessions terminées. Le reste du dossier se vérifie dans « Dossiers à compléter ».</p>
           )}
         </Bloc>
       )}

@@ -4,7 +4,8 @@
 // échantillon). Lecture seule, droits de la base ; aucune donnée de la face interne.
 
 import { supabase } from '../../../core/supabase'
-import { fetchAll } from '../../../core/fetchAll'
+import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
+import { etatConvention, groupesParSession, libelleConvention, CONVENTION } from '../../formation/lib/etatConvention'
 import { periodicOperations, PERIODIC_OPERATIONS } from '../../interventions/lib/schedule'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -55,18 +56,24 @@ export function operationsEnRetard(equipements, faites, annee = new Date().getFu
   return [...parClient.values()].sort((a, b) => b.retard - a.retard || b.dues - a.dues)
 }
 
-/** Sessions terminées depuis la date : complètes (aucune alerte ouverte) ou à compléter (avec leurs alertes) */
-export function sessionsEchantillon(sessions, alertes, depuis, aujourdhui = new Date().toISOString().slice(0, 10)) {
-  const ouvertes = new Map()
-  for (const a of alertes || []) {
-    if (a.resolved_at || !a.entity_id) continue
-    ouvertes.set(a.entity_id, (ouvertes.get(a.entity_id) || 0) + 1)
-  }
+/**
+ * Sessions terminées depuis la date : convention en règle (signée, ou sans objet en sous-traitance) ou à reprendre
+ * (non envoyée, envoyée non signée). État lu par etatConvention, comme le dossier de session et la page Complétude.
+ */
+export function sessionsEchantillon(sessions, groupes, depuis, aujourdhui = new Date().toISOString().slice(0, 10)) {
+  const parSession = groupesParSession(groupes)
   const terminees = (sessions || []).filter((s) => s.end_date && s.end_date >= depuis && s.end_date < aujourdhui
     && !['cancelled', 'annulee'].includes(s.status))
-  const completes = terminees.filter((s) => !ouvertes.has(s.id))
-  const aCompleter = terminees.filter((s) => ouvertes.has(s.id)).map((s) => ({ ...s, alertes: ouvertes.get(s.id) }))
-    .sort((a, b) => b.alertes - a.alertes)
+  const completes = []
+  const aCompleter = []
+  for (const s of terminees) {
+    const etat = etatConvention(s, parSession.get(s.id) || [])
+    if (etat === CONVENTION.SIGNEE || etat === CONVENTION.SANS_OBJET) completes.push(s)
+    else aCompleter.push({ ...s, convention: etat, motif: `Convention : ${libelleConvention(etat).toLowerCase()}` })
+  }
+  // Non envoyées d'abord, puis les plus anciennes
+  aCompleter.sort((a, b) => (a.convention === b.convention ? 0 : a.convention === CONVENTION.A_ENVOYER ? -1 : 1)
+    || String(a.end_date).localeCompare(String(b.end_date)))
   return { total: terminees.length, completes, aCompleter }
 }
 
@@ -101,10 +108,13 @@ export async function chargerApsad(depuis, familles = null) {
 
 export async function chargerQualiopi(depuis) {
   const sessions = must(await fetchAll(() => supabase.from('sessions')
-    .select('id, reference, start_date, end_date, status, courses(title), clients(name)')
+    .select('id, reference, start_date, end_date, status, session_type, convention_sent, convention_signed, courses(title), clients(name)')
     .gte('end_date', depuis)))
-  const alertes = must(await fetchAll(() => supabase.from('completude_alerts').select('id, entity_id, resolved_at').is('resolved_at', null)))
-  return sessionsEchantillon(sessions, alertes, depuis)
+  const interIds = sessions.filter((s) => s.session_type === 'inter').map((s) => s.id)
+  const groupes = interIds.length
+    ? must(await fetchAllIn(() => supabase.from('session_groups').select('id, session_id, doc_status, status'), 'session_id', interIds))
+    : []
+  return sessionsEchantillon(sessions, groupes, depuis)
 }
 
 /**

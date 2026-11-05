@@ -28,16 +28,27 @@ describe('Préparer l\'audit', () => {
     expect(r).toEqual([{ client_id: 'c1', client: 'A', dues: 2, retard: 0 }])
   })
 
-  it('sessions terminées : complètes ou à compléter selon les alertes ouvertes', () => {
+  it('échantillon : sessions terminées, convention en règle ou à reprendre (etatConvention)', () => {
     const r = sessionsEchantillon([
-      { id: 's1', end_date: '2026-09-01', status: 'completed' },
-      { id: 's2', end_date: '2026-09-10', status: 'completed' },
+      { id: 's1', end_date: '2026-09-01', status: 'completed', convention_signed: true },
+      { id: 's2', end_date: '2026-09-10', status: 'completed', convention_sent: true },
       { id: 's3', end_date: '2026-09-12', status: 'cancelled' },
       { id: 's4', end_date: '2026-12-01', status: 'planned' },
-    ], [{ entity_id: 's2', resolved_at: null }, { entity_id: 's2', resolved_at: null }, { entity_id: 's1', resolved_at: '2026-09-20' }], '2025-10-19', '2026-10-19')
-    expect(r.total).toBe(2)
-    expect(r.completes.map((s) => s.id)).toEqual(['s1'])
-    expect(r.aCompleter).toEqual([{ id: 's2', end_date: '2026-09-10', status: 'completed', alertes: 2 }])
+      { id: 's5', end_date: '2026-09-05', status: 'completed', session_type: 'subcontract' },
+      { id: 's6', end_date: '2026-09-15', status: 'completed', session_type: 'inter' },
+      { id: 's7', end_date: '2026-09-20', status: 'completed', session_type: 'inter' },
+      { id: 's8', end_date: '2026-09-25', status: 'completed' },
+    ], [
+      { session_id: 's6', doc_status: 'signe' }, { session_id: 's6', doc_status: 'a_envoyer', status: 'cancelled' },
+      { session_id: 's7', doc_status: 'signe' }, { session_id: 's7', doc_status: 'envoye' },
+    ], '2025-10-19', '2026-10-19')
+    expect(r.total).toBe(6)
+    expect(r.completes.map((s) => s.id)).toEqual(['s1', 's5', 's6'])
+    expect(r.aCompleter.map((s) => [s.id, s.motif])).toEqual([
+      ['s8', 'Convention : non envoyée'],
+      ['s2', 'Convention : envoyée, non signée'],
+      ['s7', 'Convention : envoyée, non signée'],
+    ])
   })
 
   it('date il y a n mois', () => {
