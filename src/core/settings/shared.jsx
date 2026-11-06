@@ -46,7 +46,7 @@ export function Field({ label, hint, children, className = '' }) {
 export function Toggle({ checked, onChange, label, hint, disabled = false }) {
   return (
     <label className={`flex items-start gap-3 ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
-      <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => !disabled && onChange(!checked)}
+      <button type="button" role="switch" aria-checked={checked} aria-label={label || undefined} disabled={disabled} onClick={() => !disabled && onChange(!checked)}
         className={`mt-0.5 relative w-10 h-6 rounded-full transition-colors flex-none ${checked ? 'bg-accent-500' : 'bg-gray-300'}`}>
         <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : ''}`} />
       </button>

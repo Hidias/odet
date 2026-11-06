@@ -35,6 +35,7 @@ import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { confirmer } from '../../../ui/Confirm'
 import { useCapacites } from '../../../core/capacites'
 import { CHOIX_CIVILITE_CONTACT, civilite as civiliteDe } from '../../../core/genre'
+import { telephoneLisible, lienTelephone } from '../../../core/telephone.js'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
@@ -1348,7 +1349,7 @@ export default function ClientDetail() {
               )}
               {client.contact_phone && (
                 <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-gray-400 shrink-0" />
-                  <a href={'tel:' + client.contact_phone} className="text-primary-600 hover:underline">{client.contact_phone}</a></div>
+                  <a href={lienTelephone(client.contact_phone)} className="text-primary-600 hover:underline">{telephoneLisible(client.contact_phone)}</a></div>
               )}
               {client.contact_email && (
                 <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-gray-400 shrink-0" />
@@ -1556,7 +1557,7 @@ export default function ClientDetail() {
                       {c.role && <p className="text-ui-sm text-primary-600 font-medium mt-0.5">{c.role}</p>}
                       <div className="flex flex-col gap-0.5 mt-1">
                         {c.email && <a href={'mailto:' + c.email} className="text-ui-sm text-gray-500 hover:text-primary-600 truncate"> {c.email}</a>}
-                        {c.phone && <a href={'tel:' + c.phone} className="text-ui-sm text-gray-500 hover:text-primary-600"> {c.phone}</a>}
+                        {c.phone && <a href={lienTelephone(c.phone)} className="text-ui-sm text-gray-500 hover:text-primary-600"> {telephoneLisible(c.phone)}</a>}
                       </div>
                     </div>
                     <div className="flex gap-0.5 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0 ml-2">

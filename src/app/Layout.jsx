@@ -617,7 +617,7 @@ export default function Layout() {
             <div className="flex-1" />
             {creations.length > 0 && (
               <div className="relative">
-                <button type="button" onClick={() => { const v = !showNouveau; closeMenus(); setShowNouveau(v) }} aria-haspopup="menu" aria-expanded={showNouveau}
+                <button type="button" onClick={() => { const v = !showNouveau; closeMenus(); setShowNouveau(v) }} aria-haspopup="menu" aria-expanded={showNouveau} aria-label="Nouveau" title="Nouveau"
                   className="btn btn-primary h-9 px-3"><Plus className="w-4 h-4" /><span className="hidden sm:inline">Nouveau</span></button>
                 {showNouveau && (
                   <div role="menu" className="absolute right-0 top-11 w-56 bg-white rounded-ui border border-gray-200 shadow-md z-50 py-1 animate-fadeIn">
