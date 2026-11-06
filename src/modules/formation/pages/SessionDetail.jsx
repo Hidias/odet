@@ -71,6 +71,7 @@ import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/ale
 import { pluriel } from '../../../core/genre'
 import ChoixFormateurs from '../components/ChoixFormateurs'
 import { formateursAEnvoyer } from '../../../core/session/formateursSession'
+import { money } from '../../../core/utils'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -3124,7 +3125,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     {(() => {
                       const days = session.start_date === session.end_date ? 1 : Math.ceil((new Date(session.end_date) - new Date(session.start_date)) / (1000 * 60 * 60 * 24)) + 1
                       const rate = parseFloat(session.subcontract_daily_rate) || 0
-                      return `${days}j × ${rate.toFixed(0)}€ = ${(days * rate).toFixed(2)}€ HT`
+                      return `${days}j × ${rate.toFixed(0)}€ = ${money((days * rate))} HT`
                     })()}
                   </p>
                 </div>
@@ -4561,7 +4562,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           <div className="font-medium">{cost.label}</div>
                           {cost.notes && <div className="text-ui-sm text-gray-500">{cost.notes}</div>}
                         </td>
-                        <td className="py-2 px-3 text-right">{parseFloat(cost.amount).toFixed(2)} €</td>
+                        <td className="py-2 px-3 text-right">{money(parseFloat(cost.amount))}</td>
                         <td className="py-2 px-3 text-center">
                           {cost.per_trainee ? (
                             <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-2 py-1 rounded">
@@ -4571,7 +4572,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                             <span className="text-gray-400">-</span>
                           )}
                         </td>
-                        <td className="py-2 px-3 text-right font-medium">{totalAmount.toFixed(2)} €</td>
+                        <td className="py-2 px-3 text-right font-medium">{money(totalAmount)}</td>
                         <td className="py-2 px-3">
                           {d.couts && <button
                             onClick={() => handleDeleteCost(cost.id)}
@@ -4587,7 +4588,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan="4" className="py-2 px-3 text-right font-semibold">Total coûts supplémentaires</td>
-                    <td className="py-2 px-3 text-right font-bold text-primary-600">{calculateTotalCosts().toFixed(2)} €</td>
+                    <td className="py-2 px-3 text-right font-bold text-primary-600">{money(calculateTotalCosts())}</td>
                     <td></td>
                   </tr>
                 </tfoot>
@@ -4598,7 +4599,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                    Ces coûts seront ajoutés au prix de la formation dans la convention.
                   {session?.total_price && (
                     <span className="block mt-1 font-medium">
-                      Total convention : {(parseFloat(session.total_price || 0) + calculateTotalCosts()).toFixed(2)} € HT
+                      Total convention : {money(parseFloat(session.total_price || 0) + calculateTotalCosts())} HT
                     </span>
                   )}
                 </p>
@@ -4665,7 +4666,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                     </div>
                     {costForm.per_trainee && costForm.amount && (
                       <p className="text-ui text-[rgb(var(--c-info))] bg-[rgb(var(--c-info-bg))] p-2 rounded">
-                        Total calculé : {(parseFloat(costForm.amount) * sessionTrainees.length).toFixed(2)} €
+                        Total calculé : {money(parseFloat(costForm.amount) * sessionTrainees.length)}
                       </p>
                     )}
                     <div>
@@ -4723,7 +4724,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 <div className="flex items-center justify-between text-ui mb-2">
                   <span className="font-medium">Couverture financière</span>
                   <span className={`font-bold ${isExact ? 'text-[rgb(var(--c-success))]' : isOver ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-warning))]'}`}>
-                    {fundingTotal.toFixed(2)} € / {totalHT.toFixed(2)} € HT ({coverage}%)
+                    {money(fundingTotal)} sur {money(totalHT)} HT ({coverage} %)
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
@@ -4735,8 +4736,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 {!isExact && (
                   <p className={`text-ui-sm mt-1 ${isOver ? 'text-[rgb(var(--c-danger))]' : 'text-[rgb(var(--c-warning))]'}`}>
                     {isOver 
-                      ? ` Surfinancement de ${(fundingTotal - totalHT).toFixed(2)} €` 
-                      : ` Reste à financer : ${diff.toFixed(2)} € HT`}
+                      ? ` Surfinancement de ${money(fundingTotal - totalHT)}` 
+                      : ` Reste à financer : ${money(diff)} HT`}
                   </p>
                 )}
                 {isExact && sessionFundings.length > 0 && (
@@ -4748,7 +4749,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
           {/* Liste des financeurs */}
           {sessionFundings.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Aucun financement renseigné - cliquez sur "Ajouter un financeur" pour commencer</p>
+            <p className="text-gray-500 text-center py-8">Aucun financement renseigné. Cliquez sur « Ajouter un financeur » pour commencer.</p>
           ) : (
             <div className="space-y-3">
               <table className="w-full text-ui">
@@ -4793,7 +4794,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           {funding.funder_siret && <div className="text-ui-sm text-gray-400">SIRET: {funding.funder_siret}</div>}
                           {funding.funder_contact_email && <div className="text-ui-sm text-gray-400">{funding.funder_contact_email}</div>}
                         </td>
-                        <td className="py-2 px-3 text-right font-medium">{parseFloat(funding.amount_ht).toFixed(2)} €</td>
+                        <td className="py-2 px-3 text-right font-medium">{money(parseFloat(funding.amount_ht))}</td>
                         <td className="py-2 px-3 text-center text-gray-500">{funding.percentage ? `${funding.percentage}%` : '-'}</td>
                         <td className="py-2 px-3">
                           {funding.dossier_number ? (
@@ -4845,7 +4846,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 <tfoot className="bg-gray-50">
                   <tr>
                     <td colSpan="2" className="py-2 px-3 text-right font-semibold">Total financements</td>
-                    <td className="py-2 px-3 text-right font-bold text-primary-600">{getFundingTotal().toFixed(2)} €</td>
+                    <td className="py-2 px-3 text-right font-bold text-primary-600">{money(getFundingTotal())}</td>
                     <td className="py-2 px-3 text-center font-bold text-primary-600">{getFundingCoverage()}%</td>
                     <td colSpan="4"></td>
                   </tr>
@@ -4973,7 +4974,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           </div>
                           {fundingForm.percentage && getSessionTotalHT() > 0 && (
                             <p className="text-ui-sm text-[rgb(var(--c-info))] mt-1">
-                              = {(getSessionTotalHT() * parseFloat(fundingForm.percentage) / 100).toFixed(2)} € HT
+                              = {money(getSessionTotalHT() * parseFloat(fundingForm.percentage) / 100)} HT
                             </p>
                           )}
                         </div>

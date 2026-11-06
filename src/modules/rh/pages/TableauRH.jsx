@@ -103,8 +103,17 @@ export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peut
 
   return (
     <div className="space-y-3">
+      {d.annuaire.length === 0 && (
+        <div className="card p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-medium text-gray-900">Aucune fiche du personnel pour l'instant</p>
+            <p className="text-ui-sm text-gray-600">Commencez par ajouter chaque personne dans l'annuaire : les absences, les heures et les échéances apparaîtront ensuite ici.</p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={() => navigate('/collaborateurs/annuaire')}>Ouvrir l'annuaire</button>
+        </div>
+      )}
       <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
-        <Chiffre label="En poste" valeur={enPoste.length} aide={absentsAujourdhui.length ? `${absentsAujourdhui.length} absent${absentsAujourdhui.length > 1 ? 's' : ''} aujourd'hui` : 'Personne d\'absent aujourd\'hui'} />
+        <Chiffre label="En poste" valeur={enPoste.length} aide={d.annuaire.length === 0 ? 'Aucune fiche créée' : absentsAujourdhui.length ? `${absentsAujourdhui.length} absent${absentsAujourdhui.length > 1 ? 's' : ''} aujourd'hui` : 'Personne d\'absent aujourd\'hui'} />
         {(peutValiderAbsences || peutValiderHeures) && <Chiffre label="À valider" valeur={nbValidations} aide={[d.demandes.length && `${d.demandes.length} absence${d.demandes.length > 1 ? 's' : ''}`, d.semaines.length && `${d.semaines.length} semaine${d.semaines.length > 1 ? 's' : ''}`].filter(Boolean).join(', ') || 'Rien en attente'} />}
         <Chiffre label="Congés à venir" valeur={aVenir.length} aide="30 prochains jours" />
         <Chiffre label="Échéances" valeur={d.echeances.length} aide="dépassées ou à 60 jours" />

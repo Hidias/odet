@@ -1,3 +1,4 @@
+import { money } from '../../../core/utils'
 import { useState, useEffect } from 'react'
 import { X, Plus, Trash2, Building2, Users, FileCheck, ChevronRight, ChevronLeft, Search, CheckCircle, AlertCircle, Loader2, Euro } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
@@ -652,9 +653,9 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                           const totalTraineesCount = groups.reduce((sum, g) => sum + g.trainees.length, 0)
                           if (common.price_mode === 'global' && totalTraineesCount > 0) {
                             const perHead = amount / totalTraineesCount
-                            return `→ ${perHead.toFixed(2)}€ par stagiaire × ${totalTraineesCount} stagiaires = ${amount.toFixed(2)}€ HT`
+                            return `→ ${money(perHead)} par stagiaire × ${totalTraineesCount} stagiaires = ${money(amount)} HT`
                           } else if (common.price_mode === 'per_trainee' && totalTraineesCount > 0) {
-                            return `→ ${amount.toFixed(2)}€ × ${totalTraineesCount} stagiaires = ${(amount * totalTraineesCount).toFixed(2)}€ HT total`
+                            return `→ ${money(amount)} × ${totalTraineesCount} stagiaires = ${money((amount * totalTraineesCount))} HT total`
                           }
                           return ''
                         })()}
@@ -998,7 +999,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                       const groupTotal = Math.round(perHead * group.trainees.length * 100) / 100
                       return (
                         <p className="text-ui font-medium text-[rgb(var(--c-success))] mb-2">
-                           {groupTotal.toFixed(2)}€ HT ({group.trainees.length} × {perHead.toFixed(2)}€/stagiaire)
+                           {money(groupTotal)} HT ({group.trainees.length} × {money(perHead)}/stagiaire)
                         </p>
                       )
                     })()}
@@ -1019,7 +1020,7 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
                     {common.price_amount && (() => {
                       const amount = parseFloat(common.price_amount) || 0
                       const total = common.price_mode === 'global' ? amount : amount * totalTrainees
-                      return ` • ${total.toFixed(2)}€ HT total`
+                      return ` • ${money(total)} HT total`
                     })()}
                   </p>
                 </div>

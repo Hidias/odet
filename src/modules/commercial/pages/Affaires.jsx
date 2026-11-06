@@ -1,3 +1,4 @@
+import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -209,7 +210,7 @@ export default function Affaires() {
                       </div>
                       <div className="flex gap-2 flex-none items-center">
                         {a.ne_pas_appeler ? <StatusBadge tone="neutral">Ne pas appeler</StatusBadge>
-                          : a.contact_phone && <a className="btn btn-secondary btn-sm" href={`tel:${a.contact_phone.replace(/\s+/g, '')}`}><Phone className="w-4 h-4" />{a.contact_phone}</a>}
+                          : a.contact_phone && <a className="btn btn-secondary btn-sm" href={lienTelephone(a.contact_phone)}><Phone className="w-4 h-4" aria-hidden="true" />{telephoneLisible(a.contact_phone)}</a>}
                         {peutNoter && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEchange({ clientId: a.client_id, clientName: a.client_name, type: 'call' })}>Noter</button>}
                         {peutModifier && !a.affaire_en_cours && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdition({ clientId: a.client_id, affaire: { client_id: a.client_id, title: `Échéance ${(a.natures || []).map((n) => NATURES[n] || n).join(', ').toLowerCase()}`, metier: (a.natures || []).includes('formation') ? 'formation' : 'maintenance' } })}>Affaire</button>}
                       </div>

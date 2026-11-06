@@ -1,3 +1,4 @@
+import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, MapPin, Clock, Users, Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
@@ -100,7 +101,7 @@ function Contenu({ integre }) {
       {aInscrire && <InscriptionEnLigne session={aInscrire} mention={data.mention_maintien} onFermer={() => setAInscrire(null)} />}
       {data.mention_maintien && <p className="text-ui-sm text-gray-500">{data.mention_maintien}</p>}
       {(o.phone || o.email) && (
-        <p className="text-ui-sm text-gray-600">Renseignements : {[o.phone && <a key="t" href={`tel:${o.phone}`} className="text-accent-700 underline">{o.phone}</a>, o.email && <a key="m" href={`mailto:${o.email}`} className="text-accent-700 underline">{o.email}</a>].filter(Boolean).reduce((acc, x, i) => (i ? [...acc, ' · ', x] : [x]), [])}</p>
+        <p className="text-ui-sm text-gray-600">Renseignements : {[o.phone && <a key="t" href={lienTelephone(o.phone)} className="text-accent-700 underline">{telephoneLisible(o.phone)}</a>, o.email && <a key="m" href={`mailto:${o.email}`} className="text-accent-700 underline">{o.email}</a>].filter(Boolean).reduce((acc, x, i) => (i ? [...acc, ' · ', x] : [x]), [])}</p>
       )}
     </div>
   )

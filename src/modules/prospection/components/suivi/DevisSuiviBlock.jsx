@@ -4,6 +4,7 @@
 // Gagné / perdu : devis par devis (un devis = un besoin).
 // ════════════════════════════════════════════════════════════════
 
+import { telephoneLisible, lienTelephone } from '../../../../core/telephone'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Phone, Mail, Moon, CheckCircle2, XCircle, ExternalLink, Loader2, X } from 'lucide-react'
@@ -192,9 +193,9 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
         {badge && <span className={`text-ui-sm px-2 py-0.5 rounded-ui-sm ${badge.cls}`}>{badge.text}</span>}
         <div className="flex items-center gap-1.5 flex-wrap">
           {phone && (
-            <a href={`tel:${phone.replace(/\s/g, '')}`}
+            <a href={lienTelephone(phone)}
               className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">
-              <Phone className="w-3.5 h-3.5" /> {phone}
+              <Phone className="w-3.5 h-3.5" aria-hidden="true" /> {telephoneLisible(phone)}
             </a>
           )}
           <button onClick={relanceFaite} disabled={busy}

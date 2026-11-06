@@ -3,6 +3,7 @@
 // Onglet Conformité du DUERP - Équipements, Habilitations, Obligations
 // ══════════════════════════════════════════════════════════════
 
+import { lienTelephone } from '../../../core/telephone'
 import { orgName, orgPhone } from '../../../core/org/currentOrg'
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -461,7 +462,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
                     <p className="font-bold text-ui text-[rgb(var(--c-warning))]">Besoin de former vos équipes ?</p>
                     <p className="text-ui-sm text-[rgb(var(--c-warning))]">{orgName()} : SST, incendie, habilitation électrique, conduite d'engins</p>
                   </div>
-                  <a href={`tel:${orgPhone().replace(/\s/g, '')}`} className="flex items-center gap-1.5 btn btn-secondary text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))]">
+                  <a href={lienTelephone(orgPhone())} className="flex items-center gap-1.5 btn btn-secondary text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))]">
                     <Phone className="w-3.5 h-3.5" /> Nous contacter
                   </a>
                 </div>

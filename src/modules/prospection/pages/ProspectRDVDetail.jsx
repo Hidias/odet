@@ -1,3 +1,4 @@
+import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
@@ -722,10 +723,10 @@ export default function ProspectRDVDetail() {
                   </div>
                 )}
                 {(selectedClient.contact_phone || selectedClient.mobile) && (
-                  <a href={'tel:' + (selectedClient.contact_phone || selectedClient.mobile)}
+                  <a href={lienTelephone(selectedClient.contact_phone || selectedClient.mobile)}
                     className="flex items-center gap-2 text-primary-600 hover:underline">
                     <Phone className="w-3.5 h-3.5 flex-shrink-0" />
-                    {selectedClient.contact_phone || selectedClient.mobile}
+                    {telephoneLisible(selectedClient.contact_phone || selectedClient.mobile)}
                   </a>
                 )}
                 {selectedClient.email && (
@@ -795,9 +796,9 @@ export default function ProspectRDVDetail() {
                         </div>
                       )}
                       {item.contact_mobile && (
-                        <a href={'tel:' + item.contact_mobile}
+                        <a href={lienTelephone(item.contact_mobile)}
                           className="flex items-center gap-1.5 hover:underline">
-                          <Phone className="w-3 h-3" /> {item.contact_mobile}
+                          <Phone className="w-3 h-3" aria-hidden="true" /> {telephoneLisible(item.contact_mobile)}
                         </a>
                       )}
                       {item.contact_email && (

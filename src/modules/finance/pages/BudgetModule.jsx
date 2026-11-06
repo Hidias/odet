@@ -1,3 +1,4 @@
+import { money } from '../../../core/utils'
 import { toneStyle } from '../../../ui/StatusBadge'
 import { apiFetch } from '../../../core/api'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
@@ -1437,7 +1438,7 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
     const expected = Math.round((opening - debits + credits) * 100) / 100
     const delta = Math.round((expected - closing) * 100) / 100
     const ok = Math.abs(delta) < 0.01
-    if (!ok && !await confirmer(`Le contrôle arithmétique ne tombe pas juste (écart de ${delta.toFixed(2)} €).\n\nEnregistrer quand même ?`)) return
+    if (!ok && !await confirmer(`Le contrôle arithmétique ne tombe pas juste (écart de ${money(delta)}).\n\nEnregistrer quand même ?`)) return
 
     setSaving(true)
     try {

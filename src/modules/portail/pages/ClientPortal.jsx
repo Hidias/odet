@@ -1,3 +1,4 @@
+import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Lock, KeyRound, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap, Printer } from 'lucide-react'
@@ -634,7 +635,7 @@ export default function ClientPortal() {
               )}
             </div>
             <div className="flex flex-col gap-2 min-w-0">
-              {org.phone && <a href={`tel:${String(org.phone).replace(/\s/g, '')}`} className="btn btn-primary justify-center gap-2"><Phone className="w-4 h-4" aria-hidden="true" />{org.phone}</a>}
+              {org.phone && <a href={lienTelephone(org.phone)} className="btn btn-primary justify-center gap-2"><Phone className="w-4 h-4" aria-hidden="true" />{telephoneLisible(org.phone)}</a>}
               {org.email && <a href={`mailto:${org.email}`} className="btn btn-secondary justify-center gap-2 truncate"><Mail className="w-4 h-4" aria-hidden="true" />{org.email}</a>}
               {site && <a href={`https://${site}`} target="_blank" rel="noreferrer" className="text-sm text-gray-500 hover:text-gray-800 flex items-center justify-center gap-1.5"><Globe className="w-4 h-4" aria-hidden="true" />{site}</a>}
             </div>

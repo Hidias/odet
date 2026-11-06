@@ -1675,7 +1675,7 @@ export default function Invoices() {
                           <tr key={s.id} className={`border-t ${s.subcontract_invoiced ? 'bg-[rgb(var(--c-success-bg))] opacity-60' : ''}`}>
                             <td className="px-3 py-2 whitespace-nowrap">{fmtDateShort(s.start_date)}</td>
                             <td className="px-3 py-2 truncate max-w-[180px]">{s.subcontract_course_title || 'Formation'}</td>
-                            <td className="px-3 py-2 text-right font-mono">{total.toFixed(2)} €</td>
+                            <td className="px-3 py-2 text-right font-mono">{money(total)}</td>
                             <td className="px-3 py-2 text-center">
                               {s.subcontract_invoiced
                                 ? <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-2 py-0.5 rounded-full">Facturée</span>

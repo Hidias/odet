@@ -1,5 +1,6 @@
 // Ma journée : visites du technicien pour un jour, dans l'ordre fixé au bureau.
 
+import { lienTelephone } from '../../../core/telephone'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Navigation, Phone, Loader2 } from 'lucide-react'
@@ -111,7 +112,7 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
                 {!done && (
                   <div className="flex gap-2">
                     <a className="btn btn-secondary flex-1" href={mapsUrl(v.sites)} target="_blank" rel="noreferrer"><Navigation className="w-4 h-4" />{facile ? 'Y aller' : 'Itinéraire'}</a>
-                    {contacts[v.client_id] && <a className="btn btn-secondary flex-1" href={`tel:${String(contacts[v.client_id]).replace(/\s/g, '')}`}><Phone className="w-4 h-4" />{facile ? 'Appeler le client' : 'Appeler'}</a>}
+                    {contacts[v.client_id] && <a className="btn btn-secondary flex-1" href={lienTelephone(contacts[v.client_id])}><Phone className="w-4 h-4" />{facile ? 'Appeler le client' : 'Appeler'}</a>}
                   </div>
                 )}
                 {v.sites?.access_notes && !done && <div className="text-ui-sm text-gray-600 bg-gray-50 rounded-ui-sm px-3 py-2">{facile ? '🚪 Pour entrer : ' : 'Accès : '}{v.sites.access_notes}</div>}
