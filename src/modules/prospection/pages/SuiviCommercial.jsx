@@ -8,6 +8,7 @@
 // Aucun statut existant n'est renommé : seuls les libellés changent.
 // ════════════════════════════════════════════════════════════════
 
+import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -93,9 +94,9 @@ function Btn({ onClick, children, primary = false }) {
 function PhoneLink({ phone }) {
   if (!phone) return null
   return (
-    <a href={`tel:${String(phone).replace(/\s/g, '')}`}
+    <a href={lienTelephone(phone)}
       className="flex items-center gap-1 px-2.5 py-1.5 text-ui-sm border border-gray-300 rounded-ui-sm hover:bg-gray-50">
-      <Phone className="w-3.5 h-3.5" /> {phone}
+      <Phone className="w-3.5 h-3.5" aria-hidden="true" /> {telephoneLisible(phone)}
     </a>
   )
 }

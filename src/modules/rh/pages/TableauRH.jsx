@@ -42,7 +42,7 @@ function Chiffre({ label, valeur, aide }) {
   )
 }
 
-export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peutRestreints }) {
+export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peutRestreints, peutGerer = false }) {
   const navigate = useNavigate()
   const [d, setD] = useState(null)
   const aujourdhui = new Date().toISOString().slice(0, 10)
@@ -52,7 +52,8 @@ export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peut
   const charger = useCallback(async () => {
     try {
       const [annuaire, fiche, demandes, semaines, absences, echeances, vigilance] = await Promise.all([
-        chargerAnnuaire().catch(() => []),
+        // null = annuaire illisible (réseau, droits) : ne pas le confondre avec un annuaire vide
+        chargerAnnuaire().catch(() => null),
         chargerMaFiche().catch(() => null),
         peutValiderAbsences ? chargerDemandes({ statut: 'demandee' }).catch(() => []) : [],
         peutValiderHeures ? chargerSemainesAValider().catch(() => []) : [],
@@ -75,7 +76,8 @@ export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peut
   const noms = useMemo(() => Object.fromEntries((d?.annuaire || []).map((p) => [p.id, nomComplet(p)])), [d])
   if (!d) return <Spinner />
 
-  const enPoste = d.annuaire.filter((p) => p.statut === 'actif')
+  const annuaireVide = Array.isArray(d.annuaire) && d.annuaire.length === 0
+  const enPoste = (d.annuaire || []).filter((p) => p.statut === 'actif')
   const absentsAujourdhui = d.absences.filter((a) => a.start_on <= aujourdhui && a.end_on >= aujourdhui)
   const aVenir = d.absences.filter((a) => a.start_on > aujourdhui)
   const supEnAttente = d.semaines.reduce((t, s) => t + (s.overtime_minutes || 0), 0)
@@ -103,8 +105,19 @@ export default function TableauRH({ peutValiderAbsences, peutValiderHeures, peut
 
   return (
     <div className="space-y-3">
+      {annuaireVide && (
+        <div className="card p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-medium text-gray-900">Aucune fiche du personnel pour l'instant</p>
+            <p className="text-ui-sm text-gray-600">{peutGerer
+              ? 'Commencez par ajouter chaque personne dans l\'annuaire : les absences, les heures et les échéances apparaîtront ensuite ici.'
+              : 'Les fiches sont créées par la personne chargée des dossiers du personnel. Les absences, les heures et les échéances apparaîtront ensuite ici.'}</p>
+          </div>
+          {peutGerer && <button type="button" className="btn btn-primary" onClick={() => navigate('/collaborateurs/annuaire')}>Ouvrir l'annuaire</button>}
+        </div>
+      )}
       <div className="grid gap-2 grid-cols-2 lg:grid-cols-4">
-        <Chiffre label="En poste" valeur={enPoste.length} aide={absentsAujourdhui.length ? `${absentsAujourdhui.length} absent${absentsAujourdhui.length > 1 ? 's' : ''} aujourd'hui` : 'Personne d\'absent aujourd\'hui'} />
+        <Chiffre label="En poste" valeur={enPoste.length} aide={annuaireVide ? 'Aucune fiche créée' : d.annuaire == null ? 'Annuaire non chargé' : absentsAujourdhui.length ? `${absentsAujourdhui.length} absent${absentsAujourdhui.length > 1 ? 's' : ''} aujourd'hui` : 'Personne d\'absent aujourd\'hui'} />
         {(peutValiderAbsences || peutValiderHeures) && <Chiffre label="À valider" valeur={nbValidations} aide={[d.demandes.length && `${d.demandes.length} absence${d.demandes.length > 1 ? 's' : ''}`, d.semaines.length && `${d.semaines.length} semaine${d.semaines.length > 1 ? 's' : ''}`].filter(Boolean).join(', ') || 'Rien en attente'} />}
         <Chiffre label="Congés à venir" valeur={aVenir.length} aide="30 prochains jours" />
         <Chiffre label="Échéances" valeur={d.echeances.length} aide="dépassées ou à 60 jours" />

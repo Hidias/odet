@@ -1,3 +1,4 @@
+import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
@@ -224,7 +225,7 @@ function Accueil({ a, aller }) {
       )}
       <Carte className="text-sm text-gray-600 space-y-0.5">
         <div className="font-medium text-gray-900">{a.org?.name}</div>
-        {a.org?.phone && <div><a href={`tel:${a.org.phone}`} className="text-primary-700">{a.org.phone}</a></div>}
+        {a.org?.phone && <div><a href={lienTelephone(a.org.phone)} className="text-primary-700">{telephoneLisible(a.org.phone)}</a></div>}
         {a.org?.email && <div><a href={`mailto:${a.org.email}`} className="text-primary-700">{a.org.email}</a></div>}
       </Carte>
     </div>

@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 
 import toast from 'react-hot-toast'
+// Date d'un fait déjà passé (convention envoyée, convention signée reçue) : une date future est refusée,
+// une faute de frappe sur l'année (2029 au lieu de 2026) ne doit pas s'enregistrer.
 export default function DateTimePickerModal({ isOpen, onClose, onSave, title, currentDate = null }) {
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -31,6 +33,14 @@ export default function DateTimePickerModal({ isOpen, onClose, onSave, title, cu
 
     // Combiner date et heure
     const datetime = new Date(`${date}T${time}:00`)
+    if (Number.isNaN(datetime.getTime())) {
+      toast.error('Date ou heure invalide')
+      return
+    }
+    if (datetime.getTime() > Date.now() + 5 * 60 * 1000) {
+      toast.error('Cette date est dans le futur : vérifiez le jour et l\'année')
+      return
+    }
     onSave(datetime.toISOString())
     onClose()
   }
@@ -44,10 +54,12 @@ export default function DateTimePickerModal({ isOpen, onClose, onSave, title, cu
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            aria-label="Fermer"
+            className="p-2 -m-2 text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -55,11 +67,13 @@ export default function DateTimePickerModal({ isOpen, onClose, onSave, title, cu
         <div className="space-y-4">
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-               Date
+            <label htmlFor="dtp-date" className="block text-sm font-medium text-gray-700 mb-1">
+              Date
             </label>
             <input
+              id="dtp-date"
               type="date"
+              max={format(new Date(), 'yyyy-MM-dd')}
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -68,10 +82,11 @@ export default function DateTimePickerModal({ isOpen, onClose, onSave, title, cu
 
           {/* Heure */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-               Heure
+            <label htmlFor="dtp-heure" className="block text-sm font-medium text-gray-700 mb-1">
+              Heure
             </label>
             <input
+              id="dtp-heure"
               type="time"
               value={time}
               onChange={(e) => setTime(e.target.value)}

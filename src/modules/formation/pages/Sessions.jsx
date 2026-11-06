@@ -1,3 +1,4 @@
+import { money } from '../../../core/utils'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { apiFetch } from '../../../core/api'
 import { useEffect, useState, useMemo, useRef } from 'react'
@@ -993,8 +994,8 @@ export default function Sessions() {
                             const total = days * parseFloat(formData.subcontract_daily_rate || 0)
                             return (
                               <div className="flex justify-between items-center">
-                                <span className="text-[rgb(var(--c-success))]">{days} jour{days > 1 ? 's' : ''} × {parseFloat(formData.subcontract_daily_rate).toFixed(2)} €</span>
-                                <span className="font-bold text-[rgb(var(--c-success))] text-lg">{total.toFixed(2)} € HT</span>
+                                <span className="text-[rgb(var(--c-success))]">{days} jour{days > 1 ? 's' : ''} × {money(parseFloat(formData.subcontract_daily_rate))}</span>
+                                <span className="font-bold text-[rgb(var(--c-success))] text-lg">{money(total)} HT</span>
                               </div>
                             )
                           })()}
@@ -1043,7 +1044,7 @@ export default function Sessions() {
                             {line.start_date && (
                               <div className="col-span-full flex justify-between text-ui-sm text-gray-400 -mt-1 px-1">
                                 <span>{formData.subcontract_course_title ? `${formData.subcontract_course_title} - Réf. ${line.client_ref || '…'}` : `Réf. ${line.client_ref || '…'}`}{endDate ? ` · → ${endDate}` : ''}</span>
-                                {lineTotal > 0 && <span className="text-[rgb(var(--c-success))] font-medium">{dur}j × {rate.toFixed(0)}€ = {lineTotal.toFixed(2)}€</span>}
+                                {lineTotal > 0 && <span className="text-[rgb(var(--c-success))] font-medium">{dur}j × {rate.toFixed(0)}€ = {money(lineTotal)}</span>}
                               </div>
                             )}
                           </div>
@@ -1064,7 +1065,7 @@ export default function Sessions() {
                               const totalAmount = totalDays * rate
                               return (
                                 <span className="text-[rgb(var(--c-success))]">
-                                  <strong>{validLines.length}</strong> session{validLines.length > 1 ? 's' : ''} · {totalDays}j · <strong className="text-[rgb(var(--c-success))]">{totalAmount.toFixed(2)} € HT</strong>
+                                  <strong>{validLines.length}</strong> session{validLines.length > 1 ? 's' : ''} · {totalDays}j · <strong className="text-[rgb(var(--c-success))]">{money(totalAmount)} HT</strong>
                                 </span>
                               )
                             })()}
@@ -1580,7 +1581,7 @@ export default function Sessions() {
                           <td className="px-3 py-2 text-right">
                             {formData.subcontract_daily_rate && (
                               <span className="text-[rgb(var(--c-success))]">
-                                {importChecked.length} × {parseFloat(formData.subcontract_daily_rate).toFixed(0)}€ = <strong>{(importChecked.length * parseFloat(formData.subcontract_daily_rate)).toFixed(2)}€ HT</strong>
+                                {importChecked.length} × {parseFloat(formData.subcontract_daily_rate).toFixed(0)}€ = <strong>{money((importChecked.length * parseFloat(formData.subcontract_daily_rate)))} HT</strong>
                               </span>
                             )}
                           </td>

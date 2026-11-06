@@ -4,6 +4,7 @@
 // Actions : appel loggué, rappel, RDV, email, comme le phoning
 // ═══════════════════════════════════════════════════════════════
 
+import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { teamFirstNames, teamFirstNameByEmail } from '../../../core/org/currentOrg'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
@@ -485,9 +486,9 @@ export default function ProspectionTerrain() {
               <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm p-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4 text-[rgb(var(--c-warning))]" />
-                  <span className="font-bold text-lg text-gray-900 tracking-wide">{selectedProspect.phone}</span>
+                  <span className="font-bold text-lg text-gray-900 tracking-wide">{telephoneLisible(selectedProspect.phone)}</span>
                 </div>
-                <a href={`tel:${selectedProspect.phone}`}
+                <a href={lienTelephone(selectedProspect.phone)}
                   className="btn btn-secondary text-ui-sm font-medium hover:bg-[rgb(var(--c-warning))] transition-colors">
                   Appeler
                 </a>

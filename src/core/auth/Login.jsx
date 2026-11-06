@@ -14,9 +14,11 @@ export default function Login() {
   const { user, login, error } = useAuthStore()
   const { branding } = useBranding()
   const location = useLocation()
-  // Déconnexion automatique après une heure sans activité : message une fois, à l'arrivée sur la page
+  // Déconnexion automatique après une heure sans activité : message affiché jusqu'à la reconnexion. Le repère n'est
+  // effacé qu'à la connexion réussie : la page peut être montée deux fois de suite à la déconnexion, et l'effacer à
+  // la première lecture faisait disparaître le message (vu le 06/11).
   const [parInactivite] = useState(() => {
-    try { const v = sessionStorage.getItem('odet_deconnexion_inactivite') === '1'; sessionStorage.removeItem('odet_deconnexion_inactivite'); return v } catch { return false }
+    try { return sessionStorage.getItem('odet_deconnexion_inactivite') === '1' } catch { return false }
   })
 
   // Page demandée avant la connexion (par exemple la signature sur le téléphone du formateur)
@@ -33,7 +35,9 @@ export default function Login() {
     if (result.error) {
       toast.error(result.error)
       setIsLoading(false)
+      return
     }
+    try { sessionStorage.removeItem('odet_deconnexion_inactivite') } catch { /* sans message */ }
     // Connexion réussie : la redirection est faite par <Navigate> ci-dessus dès que l'utilisateur est en mémoire
   }
 
