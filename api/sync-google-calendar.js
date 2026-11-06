@@ -26,6 +26,7 @@ import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getOrg, isTestEnvironment } from './_lib/mailer.js'
 import { loadTeam, leaders, profileFirstName } from './_lib/team.js'
 import { withErrorLog } from './_lib/errors.js'
+import { sessionsDuFormateur } from './_lib/sessionsFormateur.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -286,16 +287,17 @@ async function buildExpectedEvents(trainerConfig, pastDate, futureDate) {
   const flagTruncation = (rows) => { if (rows.length >= SUPABASE_ROW_LIMIT) truncated = true }
 
   // ═══ SESSIONS ═══
-  // Sessions du formateur relié au compte (aucune si le compte n'a pas de fiche formateur)
-  const sessions = trainerConfig.trainerId ? checkSupabase('sessions', await supabase
-    .from('sessions')
-    .select('id, reference, start_date, end_date, start_time, end_time, location_city, location_name, location_address, status, course_id, client_id, notes')
-    .eq('trainer_id', trainerConfig.trainerId)
-    .neq('status', 'cancelled')
-    .gte('end_date', pastDate)
-    .lte('start_date', futureDate)
-    .order('start_date')) : []
-  flagTruncation(sessions)
+  // Sessions du formateur relié au compte, principal ou autre formateur (C6) ; aucune si le compte n'a pas de fiche formateur
+  // Lecture peut-être coupée : truncated, donc aucune suppression dans Google à ce passage (étape 6)
+  let sessions = []
+  if (trainerConfig.trainerId) {
+    const lu = await sessionsDuFormateur(supabase, trainerConfig.trainerId, {
+      colonnes: 'id, reference, start_date, end_date, start_time, end_time, location_city, location_name, location_address, status, course_id, client_id, notes',
+      filtres: (q) => q.neq('status', 'cancelled').gte('end_date', pastDate).lte('start_date', futureDate).order('start_date'),
+    })
+    sessions = lu.sessions
+    if (lu.tronque) truncated = true
+  }
 
   const courseIds = [...new Set(sessions.map(s => s.course_id).filter(Boolean))]
   const clientIds = [...new Set(sessions.map(s => s.client_id).filter(Boolean))]

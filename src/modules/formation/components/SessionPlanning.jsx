@@ -1,3 +1,5 @@
+import { formateursDuPlanning } from '../../../core/session/formateursSession'
+import { pluriel } from '../../../core/genre'
 import { useState, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -117,13 +119,11 @@ export default function SessionPlanning({ sessions, trainers }) {
     activeTrainers.forEach(t => map.set(t.id, []))
     map.set('unassigned', [])
 
+    // Une session paraît sur la ligne de chacun de ses formateurs (principal et autres, C6). Principal absent du
+    // planning (aucun, ou formateur externe) : la session reste aussi signalée « Non assigné », comme avant.
     sessionsInPeriod.forEach(s => {
-      const tid = s.trainer_id
-      if (tid && map.has(tid)) {
-        map.get(tid).push(s)
-      } else {
-        map.get('unassigned').push(s)
-      }
+      formateursDuPlanning(s).filter(tid => map.has(tid)).forEach(tid => map.get(tid).push(s))
+      if (!s.trainer_id || !map.has(s.trainer_id)) map.get('unassigned').push(s)
     })
 
     return map
@@ -511,7 +511,7 @@ export default function SessionPlanning({ sessions, trainers }) {
                 <div className="w-44 flex-shrink-0 px-3 py-2 border-r border-gray-200">
                   <div className="text-ui font-medium text-[rgb(var(--c-danger))]">Non assigné</div>
                   <div className="text-ui-sm text-[rgb(var(--c-danger))]">
-                    {sessionsByTrainer.get('unassigned').length} session(s)
+                    {pluriel(sessionsByTrainer.get('unassigned').length, 'session')}
                   </div>
                 </div>
                 <div className="flex-1 relative py-1">
@@ -627,7 +627,7 @@ export default function SessionPlanning({ sessions, trainers }) {
         })}
         {(sessionsByTrainer.get('unassigned') || []).length > 0 && (
           <span className="text-[rgb(var(--c-danger))]">
-             {sessionsByTrainer.get('unassigned').length} non assignée(s)
+             {pluriel(sessionsByTrainer.get('unassigned').length, 'session non assignée', 'sessions non assignées')}
           </span>
         )}
       </div>
