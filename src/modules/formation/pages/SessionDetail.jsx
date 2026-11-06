@@ -68,7 +68,7 @@ import QuizFlashSession from '../components/QuizFlashSession'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { etatConvention, CONVENTION } from '../lib/etatConvention'
-import { envoiParGroupe, sessionDuGroupe, groupesActifs, inscritsDuGroupe, refusPublicationGroupe, signataireDuGroupe, SELECT_GROUPE } from '../lib/conventionGroupe'
+import { envoiParGroupe, sessionDuGroupe, groupesActifs, inscritsDuGroupe, refusPublicationGroupe, signataireDuGroupe, groupeDuStagiaire, SELECT_GROUPE } from '../lib/conventionGroupe'
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 import { pluriel } from '../../../core/genre'
 import ChoixFormateurs from '../components/ChoixFormateurs'
@@ -2191,6 +2191,19 @@ export default function SessionDetail() {
     }
   }
   
+  // Inter : un stagiaire inscrit rejoint d'office le seul groupe de son entreprise (groupeDuStagiaire) ; sinon il
+  // reste sans groupe et l'onglet Groupes le signale. Renvoie le nom du groupe, ou null
+  const rattacherAuGroupe = async (traineeId, clientId) => {
+    if (session?.session_type !== 'inter' || !clientId) return null
+    const { data: gs, error } = await supabase.from('session_groups').select('id, client_id, status, doc_status, group_name').eq('session_id', session.id)
+    if (error || !gs) return null
+    const g = groupeDuStagiaire(gs, clientId)
+    if (!g) return null
+    const { error: eMaj } = await supabase.from('session_trainees').update({ group_id: g.id })
+      .eq('session_id', session.id).eq('trainee_id', traineeId).is('group_id', null)
+    return eMaj ? null : (g.group_name || 'son entreprise')
+  }
+
   const handleAddTrainee = async (traineeId) => {
     const alerteAjout = alerteConventionSignee(session, 'ajout')
     if (alerteAjout && !await confirmer(alerteAjout)) return
@@ -2200,7 +2213,8 @@ export default function SessionDetail() {
       toast.error(error.code === '23514' ? error.message : 'Erreur lors de l\'ajout')
       console.error(error)
     } else {
-      toast.success('Stagiaire ajouté')
+      const groupe = await rattacherAuGroupe(traineeId, trainees.find((t) => t.id === traineeId)?.client_id)
+      toast.success(groupe ? `Stagiaire ajouté au groupe ${groupe}` : 'Stagiaire ajouté')
       // Recharger la session pour afficher le stagiaire
       const { data } = await getSession(id)
       if (data) setSession(data)
@@ -3088,6 +3102,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     // Ajouter le stagiaire à la session (effectif imposé, 0479 : la fiche stagiaire reste créée, l'ajout est refusé)
     const { error: errAjout } = await addTraineeToSession(session.id, newTrainee.id)
     if (errAjout) toast.error(errAjout.code === '23514' ? errAjout.message : 'Stagiaire créé, mais pas ajouté à la session')
+    const groupe = errAjout ? null : await rattacherAuGroupe(newTrainee.id, newTrainee.client_id)
     
     // Recharger la session
     const { data } = await getSession(id)
@@ -3096,7 +3111,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     // Réinitialiser le formulaire
     setNewTraineeForm({ first_name: '', last_name: '', email: '', phone: '', client_id: '', gender: '' })
     setShowNewTraineeModal(false)
-    toast.success(`${newTrainee.first_name} ${newTrainee.last_name} créé et ajouté à la session`)
+    if (!errAjout) toast.success(`${newTrainee.first_name} ${newTrainee.last_name} créé et ajouté ${groupe ? `au groupe ${groupe}` : 'à la session'}`)
   }
   
   const copyAttendanceLink = () => {

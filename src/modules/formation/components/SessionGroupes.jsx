@@ -95,7 +95,8 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     await chargerClients()
     // Signataire (C3) : pour un groupe d'entreprise sans signataire, le contact « documents » ou principal est proposé
     const cs = g?.kind === 'entreprise' ? await chargerContacts(g.client_id) : (setContacts([]), [])
-    if (g) { setEdition({ ...g, contact_id: g.contact_id || (g.kind === 'entreprise' ? contactPropose(cs) : '') }); return }
+    // Prix total à 0 (prix par personne seul) : champ laissé vide plutôt que « 0 »
+    if (g) { setEdition({ ...g, price_total: Number(g.price_total) ? g.price_total : '', contact_id: g.contact_id || (g.kind === 'entreprise' ? contactPropose(cs) : '') }); return }
     setEdition({ kind: 'entreprise', client_id: '', payer_kind: 'entreprise', payer_client_id: '', dossier_number: '', price_total: '', price_per_person: '', notes: '', doc_status: 'a_envoyer', contact_id: '' })
   }
 
@@ -112,7 +113,8 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       payer_client_id: ['opco', 'autre', 'france_travail'].includes(e.payer_kind) ? e.payer_client_id || null : null,
       dossier_number: e.dossier_number || null, notes: e.notes || null,
       contact_id: e.kind === 'entreprise' && contacts.some((c) => c.id === e.contact_id && c.client_id === e.client_id) ? e.contact_id : null,
-      price_total: e.price_total === '' || e.price_total == null ? null : Number(String(e.price_total).replace(',', '.')),
+      // Prix total vide : 0 (colonne obligatoire, 0 par défaut) ; prixDuGroupe prend alors le prix par personne
+      price_total: e.price_total === '' || e.price_total == null ? 0 : Number(String(e.price_total).replace(',', '.')),
       price_per_person: e.price_per_person === '' || e.price_per_person == null ? null : Number(String(e.price_per_person).replace(',', '.')),
       group_name: clients.find((c) => c.id === e.client_id)?.name || e.group_name || null,
     }
@@ -179,6 +181,18 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     }
   }
 
+  // Le client a-t-il un moyen d'ouvrir son espace (lien et code actifs, ou compte actif) ? Lecture en échec : on ne
+  // prévient pas (on ne sait pas), plutôt que d'affirmer à tort qu'il n'a pas d'accès
+  const clientSansAcces = async (clientId) => {
+    if (!clientId) return false
+    const [lien, comptes] = await Promise.all([
+      supabase.from('client_portal_access').select('id', { count: 'exact', head: true }).eq('client_id', clientId).eq('is_active', true),
+      supabase.from('client_accounts').select('id', { count: 'exact', head: true }).eq('client_id', clientId).eq('is_active', true),
+    ])
+    if (lien.error || comptes.error) return false
+    return (lien.count || 0) + (comptes.count || 0) === 0
+  }
+
   // Convention (entreprise) ou contrat (particulier) du groupe mis à disposition dans l'espace du client pour être
   // signé en ligne (0420) ; la signature passe le document du groupe à « signé » (la base)
   const signatureEnLigne = async (g) => {
@@ -186,7 +200,8 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     const signataire = signataireDuGroupe(g, [g.contact].filter(Boolean))
     const refus = g.doc_status === 'signe' ? null : refusPublicationGroupe(g, stagiaires.length, signataire)
     if (refus) return toast.error(refus, { duration: 6000 })
-    if (!(await confirmer(confirmationSignatureGroupe(g)))) return
+    const sansAcces = await clientSansAcces(g.client_id)
+    if (!(await confirmer(confirmationSignatureGroupe(g, { sansAcces })))) return
     setBusy(true)
     try {
       const doc = await documentDuGroupe(g, stagiaires)
@@ -195,7 +210,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       const r = await mettreADisposition({ objectType: 'session_group', objectId: g.id, kind: 'contrat', label, base64: doc.base64 })
       if (!r) throw new Error('Mise à disposition impossible')
       if (g.doc_status === 'a_envoyer') await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', g.id)
-      toast.success(r.signe ? 'Déjà signé : le document du client n\'est pas remplacé' : r.deja ? 'Déjà dans l\'espace du client, en attente de signature' : 'Document à signer dans l\'espace du client : donnez-lui son accès (fiche client, Espace client)')
+      toast.success(r.signe ? 'Déjà signé : le document du client n\'est pas remplacé' : r.deja ? 'Déjà dans l\'espace du client, en attente de signature' : sansAcces ? 'Document à signer dans l\'espace du client : créez son accès sur sa fiche (Accès entreprise)' : 'Document à signer dans l\'espace du client', { duration: sansAcces ? 7000 : 4000 })
       load()
     } catch (e) {
       toast.error(e.message || 'Signature en ligne impossible')

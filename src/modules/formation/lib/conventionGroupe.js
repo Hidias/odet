@@ -97,6 +97,14 @@ export function doublonDuGroupe(groupes = [], edition = {}) {
   }
 }
 
+/** Groupe où rattacher d'office un stagiaire inscrit sur une inter : le seul groupe actif de son entreprise, et
+ *  seulement si sa convention n'est pas signée (un document signé ne change pas en silence). Sinon null : à la main */
+export function groupeDuStagiaire(groupes = [], clientId) {
+  if (!clientId) return null
+  const siens = groupesActifs(groupes).filter((g) => g.client_id === clientId)
+  return siens.length === 1 && siens[0].doc_status !== 'signe' ? siens[0] : null
+}
+
 /** Contact proposé à l'ouverture d'un groupe sans signataire : contact « documents », sinon principal, sinon aucun */
 export function contactPropose(contacts = []) {
   const l = contacts || []
