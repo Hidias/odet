@@ -76,3 +76,28 @@ describe('compacterAsync (devis, facture)', () => {
     expect(r.filename).toBe('x.pdf')
   })
 })
+
+describe('Robustesse (relecture de #313)', () => {
+  const debordant = () => { let n = 2; while (pagesDe(document(n)) === 1) n++; return n }
+  it('un essai serré qui échoue rend le document d\'origine (synchrone)', () => {
+    const n = debordant()
+    let appel = 0
+    const d = compacter(() => { appel++; if (appel > 1) throw new Error('panne'); return document(n) })
+    expect(pagesDe(d)).toBe(2)
+    expect(appel).toBeGreaterThan(1)
+    // et la densité est revenue à 1
+    expect(startDocument(new jsPDF(), ORG, { code: 'X' }).densite).toBe(1)
+  })
+  it('un essai qui échoue rend le document d\'origine (asynchrone)', async () => {
+    const n = debordant()
+    const premier = document(n)
+    const d = await compacterAsync(async (densite, report) => { if (densite !== 1 || report) throw new Error('panne'); return premier }, { reportMax: 2 })
+    expect(d).toBe(premier)
+  })
+  it('un document qui tient sur une page sort à l\'identique, octet pour octet', () => {
+    const fige = (doc) => { doc.setCreationDate(new Date(Date.UTC(2026, 10, 6))); doc.setFileId('00000000000000000000000000000000'); return doc.output() }
+    const direct = fige(document(2))
+    const passe = fige(compacter(() => document(2)))
+    expect(passe).toBe(direct)
+  })
+})

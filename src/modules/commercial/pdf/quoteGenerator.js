@@ -71,10 +71,26 @@ async function infoAvenant(quote, items) {
   }
 }
 
+// Données lues une seule fois pour un devis (réglages, régime de TVA, mentions, avenant, lien de signature, photos) :
+// les essais de mise en page (compacterAsync) ne refont que le dessin, jamais les lectures (relecture de #313)
+async function prechargerDevis(quote, items, client, options, partial) {
+  const enLigneDu = !partial && options.enLigne !== false && !quote.signature_base64 && !['accepted', 'partial', 'refused', 'expired'].includes(quote.status)
+  const [L, regime, md, avenant, enLigne, photos] = await Promise.all([
+    orgFor(options.orgSettings),
+    regimeTva().charge ? regimeTva() : chargerRegimeTva(),
+    options.mentionsDevis || chargerMentionsDevis(),
+    options.avenant !== undefined ? options.avenant : infoAvenant(quote, items),
+    enLigneDu ? lienEspaceClient(client?.id || quote.client_id) : null,
+    options.photos || (typeof document !== 'undefined' ? photosDuDevis(items) : []),
+  ])
+  return { L, regime, md, avenant, enLigne, photos }
+}
+
 async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   options = options || {}
-  const L = await orgFor(options.orgSettings)
-  const regime = regimeTva().charge ? regimeTva() : await chargerRegimeTva()
+  const P = options.precharge || await prechargerDevis(quote, items, client, options, partial)
+  const L = P.L
+  const regime = P.regime
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true })
   const cb = contactFor(L, options)
 
@@ -96,8 +112,8 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
   const formation = devisDeFormation(quote, items)
   // Mentions selon le métier et le client (0444) : devis à distance, matériel, acompte, délai, éco-participation,
   // assurances et déchets des travaux, rétractation et garanties légales d'un particulier ; textes des réglages
-  const md = options.mentionsDevis || await chargerMentionsDevis()
-  const avenant = options.avenant !== undefined ? options.avenant : await infoAvenant(quote, items)
+  const md = P.md
+  const avenant = P.avenant
   const mm = mentionsDevis({ quote, items, client, textes: md.textes, pieces: md.pieces, avenant })
   const legal = [
     // Contrat de maintenance proposé (0460) : le client signe ces conditions avec le devis
@@ -112,8 +128,7 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
 
   // Devis à signer : encadré « Signer en ligne » si le client a un accès à son espace (pas sur un bon de commande
   // partiel ni sur un devis déjà signé ou accepté)
-  const enLigne = !partial && options.enLigne !== false && !quote.signature_base64 && !['accepted', 'partial', 'refused', 'expired'].includes(quote.status)
-    ? await lienEspaceClient(client?.id || quote.client_id) : null
+  const enLigne = P.enLigne
 
   renderCommercialDoc(doc, L, {
     densite: options.densite || 1,
@@ -151,7 +166,7 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     payment,
     legal,
     // Photos des lignes cochées « dans le PDF » (0445)
-    photos: options.photos || (typeof document !== 'undefined' ? await photosDuDevis(items) : []),
+    photos: P.photos,
   })
   // Particulier, contrat conclu hors établissement ou à distance : formulaire type de rétractation joint (0444)
   if (!partial && particulier && quote.hors_etablissement) {
@@ -178,7 +193,8 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
 export async function generateQuotePDF(quote, items, client, contact, options) {
   options = options || {}
   // Dernière page presque vide (mentions seules) : devis recomposé plus serré (compacterAsync, 06/11)
-  const doc = await compacterAsync((densite, report) => buildQuoteDoc(quote, items || [], client, contact || null, { ...options, densite, report }, false), { reportMax: Math.min(8, (items || []).length - 1) })
+  const precharge = await prechargerDevis(quote, items || [], client, options, false)
+  const doc = await compacterAsync((densite, report) => buildQuoteDoc(quote, items || [], client, contact || null, { ...options, precharge, densite, report }, false), { reportMax: Math.min(8, (items || []).length - 1) })
   if (!options.skipSave) doc.save(quote.reference + '.pdf')
   return doc
 }
@@ -192,7 +208,8 @@ export async function generatePartialAcceptancePDF(quote, allItems, client, cont
   if (acceptedItems.length === 0) {
     throw new Error('Aucune ligne acceptée dans ce devis')
   }
-  const doc = await compacterAsync((densite, report) => buildQuoteDoc(quote, acceptedItems, client, contact || null, { ...options, densite, report }, true), { reportMax: Math.min(8, acceptedItems.length - 1) })
+  const precharge = await prechargerDevis(quote, acceptedItems, client, options, true)
+  const doc = await compacterAsync((densite, report) => buildQuoteDoc(quote, acceptedItems, client, contact || null, { ...options, precharge, densite, report }, true), { reportMax: Math.min(8, acceptedItems.length - 1) })
   if (!options.skipSave) doc.save(quote.reference + '-PARTIEL.pdf')
   return doc
 }

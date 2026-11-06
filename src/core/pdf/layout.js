@@ -309,8 +309,9 @@ export function compacter(construire) {
   for (const d of DENSITES) {
     DENSITE = d
     let serre
-    try { serre = construire() } finally { DENSITE = 1 }
-    if (pagesDe(serre) < pagesDe(premier)) return serre
+    // Un essai qui échoue ne fait jamais perdre le document d'origine
+    try { serre = construire() } catch { serre = null } finally { DENSITE = 1 }
+    if (serre && pagesDe(serre) < pagesDe(premier)) return serre
   }
   return premier
 }
@@ -321,13 +322,14 @@ export function compacter(construire) {
 export async function compacterAsync(construire, { reportMax = 0 } = {}) {
   const premier = await construire(1, 0)
   if (!dernierePagePeuRemplie(premier)) return premier
+  const essai = async (d, k) => { try { return await construire(d, k) } catch { return null } }
   for (const d of DENSITES) {
-    const serre = await construire(d, 0)
-    if (pagesDe(serre) < pagesDe(premier)) return serre
+    const serre = await essai(d, 0)
+    if (serre && pagesDe(serre) < pagesDe(premier)) return serre
   }
   for (let k = 1; k <= reportMax; k++) {
-    const equilibre = await construire(1, k)
-    if (pagesDe(equilibre) === pagesDe(premier) && !dernierePagePeuRemplie(equilibre)) return equilibre
+    const equilibre = await essai(1, k)
+    if (equilibre && pagesDe(equilibre) === pagesDe(premier) && !dernierePagePeuRemplie(equilibre)) return equilibre
   }
   return premier
 }

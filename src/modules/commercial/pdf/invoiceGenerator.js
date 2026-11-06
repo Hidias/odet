@@ -108,7 +108,9 @@ export function isDraftDoc(invoice) {
 // Dernière page presque vide (mentions seules) : facture recomposée plus serrée (compacterAsync, 06/11)
 export async function generateInvoicePDF(invoice, items, client, contact, options) {
   options = options || {}
-  const doc = await compacterAsync((densite, report) => construireFacture(invoice, items, client, contact, { ...options, densite, report, skipSave: true }), { reportMax: Math.min(8, (items || []).length - 1) })
+  // Logo lu une seule fois : les essais de mise en page ne refont que le dessin (relecture de #313)
+  const logo = options.logoOverride !== undefined ? options.logoOverride : await loadLogo(applyOrgSettings(options.orgSettings))
+  const doc = await compacterAsync((densite, report) => construireFacture(invoice, items, client, contact, { ...options, logoOverride: logo, densite, report, skipSave: true }), { reportMax: Math.min(8, (items || []).length - 1) })
   if (!options.skipSave) doc.save((isDraftDoc(invoice) ? 'brouillon' : invoice.reference) + '.pdf')
   return doc
 }
