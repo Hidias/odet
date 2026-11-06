@@ -8,7 +8,7 @@ import { mot } from '../../../core/genre'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
 
 import 'jspdf-autotable'
-import { startDocument } from '../../../core/pdf/layout'
+import { startDocument, compacter } from '../../../core/pdf/layout'
 
 // Identité de l'organisme : uniquement depuis organization_settings (aucun repli)
 let ORG = buildORG({})
@@ -197,9 +197,10 @@ function generateAutorisation(d = {}) {
 // ═══════════════════════════════════════════════════════════
 export function generatePasseportPreventionPDF(version = 'stagiaire', orgSettings = null, donnees = {}) {
   applyOrgSettings(orgSettings)
-  if (version === 'decharge') return generateDecharge(donnees)
-  if (version === 'autorisation') return generateAutorisation(donnees)
-  return version === 'entreprise' ? generateVersionEntreprise() : generateVersionStagiaire()
+  // Dernière page presque vide : recomposée plus serrée (compacter, 06/11)
+  if (version === 'decharge') return compacter(() => generateDecharge(donnees))
+  if (version === 'autorisation') return compacter(() => generateAutorisation(donnees))
+  return compacter(() => (version === 'entreprise' ? generateVersionEntreprise() : generateVersionStagiaire()))
 }
 
 export async function downloadPasseportPrevention(version = 'stagiaire', orgSettings = null) {

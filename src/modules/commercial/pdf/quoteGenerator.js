@@ -8,6 +8,7 @@ import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
 import { renderCommercialDoc, itemRow, fmtEuro, fmtRate, issuerLines, recipientLines, bankRows } from './commercialLayout'
+import { compacterAsync } from '../../../core/pdf/layout'
 import { devisDeFormation } from '../lib/metierDevis'
 import { mentionsDevis, chargerMentionsDevis, formulaireRetractation } from '../lib/mentionsDevis'
 import { photosDuDevis } from '../lib/photosDevis'
@@ -115,6 +116,8 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
     ? await lienEspaceClient(client?.id || quote.client_id) : null
 
   renderCommercialDoc(doc, L, {
+    densite: options.densite || 1,
+    report: options.report || 0,
     enLigne,
     formation,
     ref: partial ? quote.reference + '-P' : quote.reference,
@@ -174,7 +177,8 @@ async function buildQuoteDoc(quote, items, client, contact, options, partial) {
 // ============================================================
 export async function generateQuotePDF(quote, items, client, contact, options) {
   options = options || {}
-  const doc = await buildQuoteDoc(quote, items || [], client, contact || null, options, false)
+  // Dernière page presque vide (mentions seules) : devis recomposé plus serré (compacterAsync, 06/11)
+  const doc = await compacterAsync((densite, report) => buildQuoteDoc(quote, items || [], client, contact || null, { ...options, densite, report }, false), { reportMax: Math.min(8, (items || []).length - 1) })
   if (!options.skipSave) doc.save(quote.reference + '.pdf')
   return doc
 }
@@ -188,7 +192,7 @@ export async function generatePartialAcceptancePDF(quote, allItems, client, cont
   if (acceptedItems.length === 0) {
     throw new Error('Aucune ligne acceptée dans ce devis')
   }
-  const doc = await buildQuoteDoc(quote, acceptedItems, client, contact || null, options, true)
+  const doc = await compacterAsync((densite, report) => buildQuoteDoc(quote, acceptedItems, client, contact || null, { ...options, densite, report }, true), { reportMax: Math.min(8, acceptedItems.length - 1) })
   if (!options.skipSave) doc.save(quote.reference + '-PARTIEL.pdf')
   return doc
 }

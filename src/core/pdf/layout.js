@@ -265,52 +265,108 @@ export function drawCheckbox(doc, ORG, x, y, size = 3.4, checked = false, color 
 
 /** Styles jspdf-autotable communs : en-tête couleur principale, lignes alternées, filets fins */
 export function tableTheme(ORG, extraIn = {}) {
-  const { font, ...extra } = extraIn
+  const { font, densite = 1, ...extra } = extraIn
   const t = ORG.theme
   return {
     theme: 'grid',
     margin: { left: PAGE_MARGIN, right: PAGE_MARGIN, top: 24, bottom: 22 },
-    styles: { font: font || 'helvetica', fontSize: 8.5, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 2.2, overflow: 'linebreak', valign: 'middle' },
-    headStyles: { fillColor: t.primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: 2.4 },
+    styles: { font: font || 'helvetica', fontSize: 8.5, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 2.2 * densite, overflow: 'linebreak', valign: 'middle' },
+    headStyles: { fillColor: t.primary, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, cellPadding: 2.4 * densite },
     alternateRowStyles: { fillColor: t.surface },
     ...extra,
   }
 }
 
 /** Début de document : bandeau, titre, et flux prêt à écrire */
-export function startDocument(doc, ORG, { ref = null, docLabel = '', code = 'DOC', title = '', subtitle = null, bottom } = {}) {
+export function startDocument(doc, ORG, { ref = null, docLabel = '', code = 'DOC', title = '', subtitle = null, bottom, densite } = {}) {
   let y = drawHeaderBand(doc, ORG, { ref, docLabel })
   if (title) y = drawDocTitle(doc, ORG, title, subtitle, y)
-  return createFlow(doc, ORG, { ref, docLabel, code, startY: y, bottom })
+  return createFlow(doc, ORG, { ref, docLabel, code, startY: y, bottom, densite })
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Dernière page presque vide (06/11, demande de H) : un document de plusieurs pages dont la dernière n'a que quelques
+// lignes (mentions, encadré, signatures) est recomposé avec des espacements plus serrés, jamais un texte plus petit ;
+// la version serrée n'est gardée que si elle a moins de pages. Le flux note la mesure dans doc.__odetMesure (finish).
+// ───────────────────────────────────────────────────────────────────────────────
+export const SEUIL_DERNIERE_PAGE = 0.35
+const DENSITES = [0.85, 0.72]
+let DENSITE = 1
+
+const docDe = (r) => (r && r.doc) || r
+const pagesDe = (r) => { const d = docDe(r); return d && d.getNumberOfPages ? d.getNumberOfPages() : 0 }
+
+/** Vrai si le document a plusieurs pages et une dernière page remplie à moins de SEUIL_DERNIERE_PAGE */
+export function dernierePagePeuRemplie(r) {
+  const m = docDe(r)?.__odetMesure
+  return !!m && m.pages > 1 && m.pages === pagesDe(r) && m.remplissage < SEUIL_DERNIERE_PAGE
+}
+
+/** Construction synchrone (aucun await entre la création du document et finish) : densité passée par le module */
+export function compacter(construire) {
+  const premier = construire()
+  if (!dernierePagePeuRemplie(premier)) return premier
+  for (const d of DENSITES) {
+    DENSITE = d
+    let serre
+    try { serre = construire() } finally { DENSITE = 1 }
+    if (pagesDe(serre) < pagesDe(premier)) return serre
+  }
+  return premier
+}
+
+/** Construction asynchrone : construire(densite, report) ; la densité est transmise à startDocument. Si le
+ *  resserrement ne retire pas la page, `report` (1, 2, ...) demande au document de faire passer ses dernières lignes de
+ *  tableau sur la page suivante, pour que totaux et signature n'y soient pas seuls (reportMax : nombre de lignes) */
+export async function compacterAsync(construire, { reportMax = 0 } = {}) {
+  const premier = await construire(1, 0)
+  if (!dernierePagePeuRemplie(premier)) return premier
+  for (const d of DENSITES) {
+    const serre = await construire(d, 0)
+    if (pagesDe(serre) < pagesDe(premier)) return serre
+  }
+  for (let k = 1; k <= reportMax; k++) {
+    const equilibre = await construire(1, k)
+    if (pagesDe(equilibre) === pagesDe(premier) && !dernierePagePeuRemplie(equilibre)) return equilibre
+  }
+  return premier
 }
 
 /**
  * Flux de mise en page avec saut de page automatique.
  * f.y : position courante ; f.ensure(h) : saute de page si h ne tient pas.
  */
-export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', startY = 42, bottom } = {}) {
+export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', startY = 42, bottom, densite } = {}) {
   const t = ORG.theme
   const M = PAGE_MARGIN
   const W = doc.internal.pageSize.getWidth() - M * 2
   const BOTTOM = bottom || (doc.internal.pageSize.getHeight() - 19)
-  const LINE = 4.1
-  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1 }
+  // Densité : 1 en temps normal ; plus serrée quand compacter() recompose (espacements, interlignes au plus -10 %)
+  const D = densite || DENSITE
+  const T = Math.max(D, 0.9)
+  const LINE = 4.1 * T
+  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1, densite: D, haut: startY }
   f.body = (size = 9) => { setF(doc, 'normal'); doc.setFontSize(size); doc.setTextColor(...t.text) }
   f.newPage = () => {
     drawFooter(doc, ORG, code)
     doc.addPage()
     f.pages += 1
     f.y = drawRunningHeader(doc, ORG, { ref, docLabel })
+    f.haut = f.y
   }
   f.ensure = (h) => { if (f.y + h > BOTTOM) f.newPage() }
-  f.finish = () => { drawFooter(doc, ORG, code) }
-  f.space = (h = 3) => { f.y += h }
+  f.finish = () => {
+    drawFooter(doc, ORG, code)
+    const pages = doc.getNumberOfPages()
+    doc.__odetMesure = { pages, remplissage: pages > 1 ? Math.max(0, f.y - f.haut) / Math.max(1, BOTTOM - f.haut) : 1 }
+  }
+  f.space = (h = 3) => { f.y += h * D }
 
   f.para = (text, { x = M, w = W, size = 9, after = 2.5, style = 'normal', color = null, align = 'left' } = {}) => {
     f.body(size)
     setF(doc, style)
     const lines = doc.splitTextToSize(String(text ?? ''), w)
-    const lh = size * 0.455
+    const lh = size * 0.455 * T
     f.ensure(Math.min(lines.length, 3) * lh)
     lines.forEach(l => {
       f.ensure(lh)
@@ -319,7 +375,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       else doc.text(l, x, f.y)
       f.y += lh
     })
-    f.y += after
+    f.y += after * D
     doc.setTextColor(...t.text)
   }
   f.note = (text, opts = {}) => f.para(text, { size: 7.5, color: t.muted, ...opts })
@@ -333,10 +389,10 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       doc.setFillColor(...t.highlight); doc.circle(x + 1.5, f.y - 1.1, 0.7, 'F')
       lines.forEach(l => { doc.text(l, x + 5, f.y); f.y += LINE })
     })
-    f.y += 2
+    f.y += 2 * D
   }
 
-  f.section = (label) => { f.ensure(11 + LINE * 3); f.y += 3; f.y = drawSectionTitle(doc, ORG, label, f.y) }
+  f.section = (label) => { f.ensure(11 + LINE * 3); f.y += 3 * D; f.y = drawSectionTitle(doc, ORG, label, f.y) - 8 + 8 * T }
 
   // Petit intertitre en capitales discrètes (comme « OBJECTIFS » sur la convocation)
   f.label = (label) => {
@@ -344,7 +400,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     setF(doc, 'bold'); doc.setFontSize(7.5); doc.setTextColor(...t.muted)
     doc.text(String(label).toUpperCase(), M, f.y, { charSpace: 0.2 })
     doc.setTextColor(...t.text)
-    f.y += 4.5
+    f.y += 4.5 * T
   }
 
   f.kv = (rows, { labelW = 34 } = {}) => {
@@ -367,7 +423,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     cards.forEach((c, i) => {
       bottomY = Math.max(bottomY, drawPartyCard(doc, ORG, M + i * (colW + gap), f.y, colW, c.label, c.lines, c.footnote))
     })
-    f.y = bottomY + 6
+    f.y = bottomY + 6 * D
   }
 
   // Encadré : fond de surface, liseré d'accent, étiquette et texte
@@ -375,20 +431,21 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     const color = tone === 'muted' ? t.muted : (tone === 'highlight' ? t.highlight : t.accent)
     setF(doc, 'normal'); doc.setFontSize(9)
     const lines = doc.splitTextToSize(String(text ?? ''), W - 10)
-    const h = (label ? 10 : 5) + lines.length * 4.2 + 3
+    const lh = 4.2 * T
+    const h = (label ? 10 : 5) * T + lines.length * lh + 3 * D
     f.ensure(h + 2)
     const by = f.y
     doc.setFillColor(...t.surface); doc.rect(M, by, W, h, 'F')
     doc.setFillColor(...color); doc.rect(M, by, 1.2, h, 'F')
-    let yy = by + 5.5
+    let yy = by + 5.5 * T
     if (label) {
       setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(...color)
       doc.text(String(label).toUpperCase(), M + 4, yy, { charSpace: 0.4 })
-      yy += 5.5
+      yy += 5.5 * T
     }
     setF(doc, 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
-    lines.forEach((l, i) => doc.text(l, M + 4, yy + i * 4.2))
-    f.y = by + h + 5
+    lines.forEach((l, i) => doc.text(l, M + 4, yy + i * lh))
+    f.y = by + h + 5 * D
   }
 
   // Champs à remplir (ou remplis) sur une ligne : [{ label, value, w }] ; w en fraction de la largeur
@@ -410,7 +467,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       x += w + gap
     })
     doc.setTextColor(...t.text)
-    f.y += height + 3
+    f.y += height + 3 * D
   }
 
   // Liste de cases : [{ label, checked, muted }] ; inline: true pour une seule ligne
@@ -573,7 +630,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       startY: f.y,
       head: head ? [head] : undefined,
       body,
-      ...tableTheme(ORG, { font: fontOf(doc), ...opts }),
+      ...tableTheme(ORG, { font: fontOf(doc), densite: D, ...opts }),
       didDrawPage: (data) => {
         if (data.pageNumber > 1) drawRunningHeader(doc, ORG, { ref, docLabel })
         if (opts.didDrawPage) opts.didDrawPage(data)
@@ -585,8 +642,9 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       for (let p = f.pages; p < pagesNow; p++) { doc.setPage(p); drawFooter(doc, ORG, code) }
       doc.setPage(pagesNow)
       f.pages = pagesNow
+      f.haut = 24
     }
-    f.y = doc.lastAutoTable.finalY + 5
+    f.y = doc.lastAutoTable.finalY + 5 * D
   }
 
   // Lieu, date et signataire (dirigeant) alignés à droite, comme la convocation
@@ -602,7 +660,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     setF(doc, 'normal'); doc.setTextColor(...t.muted)
     doc.text([ORG.dirigeant_title, ORG.name].filter(Boolean).join(', '), rx, f.y + 4.5, { align: 'right' })
     doc.setTextColor(...t.text)
-    f.y += 12
+    f.y += 12 * T
   }
 
   return f

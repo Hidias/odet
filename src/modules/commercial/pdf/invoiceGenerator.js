@@ -7,6 +7,7 @@ import { LiberationSans_Bold } from '../../../core/pdf/fonts/LiberationSans-Bold
 import { buildORG } from '../../../core/org/orgUtils'
 import { computeDocumentTotals, round2 } from '../../../core/billing/totals'
 import { renderCommercialDoc, itemRow, fmtMoney, fmtEuro, fmtRate, issuerLines, recipientLines, bankRows } from './commercialLayout'
+import { compacterAsync } from '../../../core/pdf/layout'
 
 // Facture et avoir sur la mise en page commune des documents.
 // Polices Liberation Sans intégrées et logo aplati sur fond blanc : le PDF reste valide PDF/A-3b
@@ -104,7 +105,15 @@ export function isDraftDoc(invoice) {
   return invoice.status === 'draft'
 }
 
+// Dernière page presque vide (mentions seules) : facture recomposée plus serrée (compacterAsync, 06/11)
 export async function generateInvoicePDF(invoice, items, client, contact, options) {
+  options = options || {}
+  const doc = await compacterAsync((densite, report) => construireFacture(invoice, items, client, contact, { ...options, densite, report, skipSave: true }), { reportMax: Math.min(8, (items || []).length - 1) })
+  if (!options.skipSave) doc.save((isDraftDoc(invoice) ? 'brouillon' : invoice.reference) + '.pdf')
+  return doc
+}
+
+async function construireFacture(invoice, items, client, contact, options) {
   options = options || {}
   contact = contact || null
   var L = applyOrgSettings(options.orgSettings)
@@ -174,6 +183,8 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
   if (invoice.parent_reference) subtitle = (isCredit ? 'Avoir sur la facture ' : 'Document parent : ') + invoice.parent_reference
 
   renderCommercialDoc(doc, L, {
+    densite: options.densite || 1,
+    report: options.report || 0,
     ref: isDraftDoc(invoice) ? 'Brouillon' : invoice.reference,
     docLabel: isCredit ? 'Avoir' : invoice.invoice_kind === 'acompte' ? "Facture d'acompte" : 'Facture',
     code: isCredit ? 'AVR' : 'FACT',
@@ -222,10 +233,6 @@ export async function generateInvoicePDF(invoice, items, client, contact, option
     }
     doc.setTextColor(0, 0, 0)
   }
-  if (!options.skipSave) {
-    doc.save((isDraftDoc(invoice) ? 'brouillon' : invoice.reference) + '.pdf')
-  }
-
   return doc
 }
 
