@@ -17,7 +17,7 @@ import { getOrg } from './_lib/mailer.js'
 import { loadTeam, profileFirstName } from './_lib/team.js'
 import { appUrl } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
-import { sessionsCoFormateur, filtreFormateur } from './_lib/sessionsFormateur.js'
+import { sessionsDuFormateur } from './_lib/sessionsFormateur.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -167,17 +167,12 @@ async function handler(req, res) {
     const pastDate = sixMonthsAgo.toISOString().split('T')[0]
 
     // ─── 1. Sessions ──────────────────────────────────────────
-    let sessionsQuery = supabase
-      .from('sessions')
-      .select('*')
-      .neq('status', 'cancelled')
-      .gte('end_date', pastDate)
-      .order('start_date', { ascending: true })
-
-    if (!isAll) {
-      // Principal ou autre formateur de la session (C6)
-      sessionsQuery = sessionsQuery.or(filtreFormateur(trainer, await sessionsCoFormateur(supabase, trainer)))
-    }
+    const filtresSessions = (q) => q.neq('status', 'cancelled').gte('end_date', pastDate).order('start_date', { ascending: true })
+    // Un formateur : principal ou autre formateur de la session (C6), lu en deux fois puis fusionné
+    const sessionsQuery = isAll
+      ? filtresSessions(supabase.from('sessions').select('*'))
+      : sessionsDuFormateur(supabase, trainer, { filtres: filtresSessions })
+          .then(({ sessions }) => ({ data: sessions, error: null }), (error) => ({ data: null, error }))
 
     // ─── 2. RDV prospects ─────────────────────────────────────
     let rdvQuery = supabase

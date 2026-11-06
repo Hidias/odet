@@ -119,11 +119,11 @@ export default function SessionPlanning({ sessions, trainers }) {
     activeTrainers.forEach(t => map.set(t.id, []))
     map.set('unassigned', [])
 
-    // Une session paraît sur la ligne de chacun de ses formateurs (principal et autres, C6)
+    // Une session paraît sur la ligne de chacun de ses formateurs (principal et autres, C6). Principal absent du
+    // planning (aucun, ou formateur externe) : la session reste aussi signalée « Non assigné », comme avant.
     sessionsInPeriod.forEach(s => {
-      const lignes = formateursDuPlanning(s).filter(tid => map.has(tid))
-      if (lignes.length) lignes.forEach(tid => map.get(tid).push(s))
-      else map.get('unassigned').push(s)
+      formateursDuPlanning(s).filter(tid => map.has(tid)).forEach(tid => map.get(tid).push(s))
+      if (!s.trainer_id || !map.has(s.trainer_id)) map.get('unassigned').push(s)
     })
 
     return map
