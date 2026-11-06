@@ -76,4 +76,11 @@ describe('Même client deux fois sur une inter (06/11)', () => {
     expect(doublonDuGroupe(groupes, { kind: 'entreprise', client_id: '' })).toBeNull()
     expect(doublonDuGroupe(null, { kind: 'entreprise', client_id: 'A' })).toBeNull()
   })
+  it('modifier un groupe d\'un client qui en a déjà un autre ne redemande rien ; changer son client, si', () => {
+    const deux = [...groupes, { id: 'g4', client_id: 'A', kind: 'entreprise', status: 'confirmed' }]
+    expect(doublonDuGroupe(deux, { id: 'g4', kind: 'entreprise', client_id: 'A', notes: 'OPCO' })).toBeNull()
+    expect(doublonDuGroupe(deux, { id: 'g1', kind: 'entreprise', client_id: 'A' })).toBeNull()
+    const devenuA = doublonDuGroupe([...groupes, { id: 'g5', client_id: 'Z', kind: 'entreprise', status: 'confirmed' }], { id: 'g5', kind: 'entreprise', client_id: 'A' })
+    expect(devenuA?.refus).toBe(false)
+  })
 })

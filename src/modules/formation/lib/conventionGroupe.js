@@ -79,8 +79,12 @@ export function destinataireDuGroupe(groupe) {
 
 // Même entreprise deux fois sur une inter (06/11, décision de H) : un particulier est refusé ; une entreprise passe
 // après une alerte (cas légitime : deux financements différents, par exemple OPCO pour une partie des stagiaires)
+// Seulement à la création d'un groupe ou quand son client change : modifier un groupe existant (prix, signataire,
+// notes) ne redemande rien
 export function doublonDuGroupe(groupes = [], edition = {}) {
   if (!edition?.client_id) return null
+  const avant = edition.id ? (groupes || []).find((g) => g && g.id === edition.id) : null
+  if (avant && avant.client_id === edition.client_id) return null
   const deja = (groupes || []).find((g) => g && g.id !== edition.id && g.status !== 'cancelled' && g.client_id === edition.client_id)
   if (!deja) return null
   const nom = deja.clients?.name || deja.group_name || 'Ce client'
