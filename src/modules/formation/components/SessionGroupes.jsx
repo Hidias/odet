@@ -12,7 +12,7 @@ import { downloadDocument, generatePDF } from '../pdf/pdfGenerator'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
 import { confirmationSignatureGroupe } from '../../../core/portail/alertesPublication'
 import { signaturesDesDocuments, telechargerAvecPreuve } from '../../../core/portail/documentSigne'
-import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact } from '../lib/conventionGroupe'
+import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact, sessionDuGroupe, SELECT_GROUPE } from '../lib/conventionGroupe'
 import InscriptionsEnLigne from './InscriptionsEnLigne'
 
 // Groupes d'une session inter (lot 2, 0044) : une entreprise (convention à son nom) ou un particulier qui paie
@@ -38,7 +38,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
 
   const load = async () => {
     const [{ data: g, error }, { data: st }] = await Promise.all([
-      supabase.from('session_groups').select('*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone, siret), contact:contact_id(id, client_id, name, first_name, last_name, fonction, role)')
+      supabase.from('session_groups').select(SELECT_GROUPE)
         .eq('session_id', session.id).order('created_at'),
       supabase.from('session_trainees').select('id, trainee_id, group_id, trainees(id, first_name, last_name, client_id)').eq('session_id', session.id),
     ])
@@ -155,6 +155,24 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     }
   }
 
+  // Document du groupe (06/11) : session vue du groupe (son client, son signataire, son prix, ses stagiaires, son espace
+  // client dans l'encadré « Signer en ligne »), la même règle que l'envoi « Avant formation » par groupe
+  const documentDuGroupe = (g, stagiaires) => (g.kind === 'particulier'
+    ? generatePDF('contratParticulier', session, { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })
+    : generatePDF('convention', sessionDuGroupe({ ...session, session_trainees: parGroupe[g.id] || [] }, g), { trainees: stagiaires, trainer: session.trainers || null }))
+
+  // Convention d'une entreprise à télécharger (envoi papier ou relecture), refusée sans signataire ni stagiaire
+  const conventionPapier = async (g) => {
+    const stagiaires = (parGroupe[g.id] || []).map((i) => i.trainees).filter(Boolean)
+    const refus = refusPublicationGroupe(g, stagiaires.length, signataireDuGroupe(g, [g.contact].filter(Boolean)))
+    if (refus) return toast.error(refus, { duration: 6000 })
+    try {
+      await downloadDocument('convention', sessionDuGroupe({ ...session, session_trainees: parGroupe[g.id] || [] }, g), { trainees: stagiaires, trainer: session.trainers || null })
+    } catch (e) {
+      toast.error(e.message || 'Convention impossible à générer')
+    }
+  }
+
   // Convention (entreprise) ou contrat (particulier) du groupe mis à disposition dans l'espace du client pour être
   // signé en ligne (0420) ; la signature passe le document du groupe à « signé » (la base)
   const signatureEnLigne = async (g) => {
@@ -165,12 +183,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     if (!(await confirmer(confirmationSignatureGroupe(g)))) return
     setBusy(true)
     try {
-      const nb = Math.max(1, stagiaires.length)
-      const prixGroupe = parseFloat(g.price_total) || (parseFloat(g.price_per_person) ? parseFloat(g.price_per_person) * nb : null)
-      const doc = g.kind === 'particulier'
-        ? await generatePDF('contratParticulier', session, { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })
-        // Le signataire est celui du groupe, jamais celui du client principal de la session (C3)
-        : await generatePDF('convention', { ...session, clients: g.clients || session.clients, contact: null, signatory_name: signataire.name, signatory_role: signataire.role, total_price: prixGroupe ?? session.total_price }, { trainees: stagiaires, trainer: session.trainers || null })
+      const doc = await documentDuGroupe(g, stagiaires)
       if (!doc?.base64) throw new Error('Document impossible à générer')
       const label = `${g.kind === 'particulier' ? 'Contrat de formation' : 'Convention de formation'} ${session.reference || ''}`.trim()
       const r = await mettreADisposition({ objectType: 'session_group', objectId: g.id, kind: 'contrat', label, base64: doc.base64 })
@@ -235,6 +248,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
                 {peutModifier && (
                   <div className="flex flex-wrap gap-1.5">
                     {g.kind === 'particulier' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => contrat(g)}><FileSignature className="w-4 h-4" /> Contrat</button>}
+                    {g.kind !== 'particulier' && g.client_id && <button type="button" className="btn btn-ghost btn-sm" onClick={() => conventionPapier(g)}><FileSignature className="w-4 h-4" /> Convention</button>}
                     {g.doc_status !== 'signe' && g.client_id && <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => signatureEnLigne(g)}><PenLine className="w-4 h-4" /> Signature en ligne</button>}
                     {g.doc_status === 'a_envoyer' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => docStatut(g, 'envoye')}>Marquer envoyé</button>}
                     {g.doc_status !== 'signe' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => docStatut(g, 'signe')}>Marquer signé</button>}

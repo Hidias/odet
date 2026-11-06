@@ -16,6 +16,7 @@ import { lienEspaceClient } from '../../../core/portail/lienEspace'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { signaturesFormateur } from '../lib/emargementControle'
+import { destinataireDuGroupe, groupesActifs } from '../lib/conventionGroupe'
 
 // ════════════════════════════════════════════════════════════
 // MiniSignaturePad - Mini canvas signature inline pour formateur
@@ -144,7 +145,9 @@ function MiniSignaturePad({ onValidate, onCancel }) {
   )
 }
 
-export default function SessionEmailModal({ session, emailType, sessionCosts, questions, traineeResults, onClose }) {
+// groupe : session inter suivie par groupes (06/11) ; `session` est alors la session vue du groupe (sessionDuGroupe) :
+// son client, son contact, son signataire, son prix et ses seuls stagiaires
+export default function SessionEmailModal({ session, emailType, sessionCosts, questions, traineeResults, onClose, groupe = null }) {
   // Stagiaires notés absents sur toute la session (feuille d'émargement)
   const absentTraineeIds = () => (session?.session_trainees || []).filter(st => st.absent).map(st => st.trainee_id)
 
@@ -213,7 +216,9 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
         .select('trainee_id')
         .eq('session_id', session.id)
         .then(({ data: stData }) => {
-          const validIds = (stData || []).map(st => st.trainee_id)
+          // Envoi d'un groupe : seulement les évaluations de ses stagiaires
+          const duGroupe = new Set((session?.session_trainees || []).map((st) => st.trainee_id))
+          const validIds = (stData || []).map(st => st.trainee_id).filter((tid) => !groupe || duGroupe.has(tid))
           // Puis charger les évals et filtrer sur ces IDs uniquement
           supabase
             .from('trainee_evaluations')
@@ -425,7 +430,8 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
     const sessionContact = session?.contact
     const primaryContact = session?.clients?.contacts?.find(c => c.is_primary)
     const firstContact = session?.clients?.contacts?.[0]
-    const contactEmail = sessionContact?.email || primaryContact?.email || firstContact?.email || session?.clients?.email || ''
+    const contactEmail = groupe ? destinataireDuGroupe(groupe)
+      : (sessionContact?.email || primaryContact?.email || firstContact?.email || session?.clients?.email || '')
     setToEmail(contactEmail)
 
     const ref = session?.reference || ''
@@ -437,7 +443,7 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
 
 Veuillez trouver ci-joints les documents relatifs à la formation "${courseTitle}" :
 
-- Convention de formation
+- ${groupe?.kind === 'particulier' ? 'Contrat' : 'Convention'} de formation
 - Programme de formation
 - Convocations des stagiaires
 - Analyse du besoin de formation
@@ -445,11 +451,11 @@ Veuillez trouver ci-joints les documents relatifs à la formation "${courseTitle
 - Notice employeur - Passeport de Prévention
 - Décharge de refus de communication du NIR
 
-Merci de nous retourner la convention signée ainsi que l'analyse du besoin complétée et signée avant le début de la formation.
+Merci de nous retourner ${groupe?.kind === 'particulier' ? 'le contrat signé' : 'la convention signée'} ainsi que l'analyse du besoin complétée et signée avant le début de la formation.
 
 Concernant le Passeport de Prévention : conformément au Décret n° 2025-748 du 1er août 2025, nous déclarons les formations santé-sécurité dans le Passeport de prévention national. La notice stagiaire est à remettre à chaque participant. Un salarié qui ne souhaite pas communiquer son numéro de sécurité sociale signe la décharge en ligne depuis son portail stagiaire ; à défaut, merci de lui faire signer la décharge jointe.
 
-Concernant les convocations, chacune contient un QR code et un lien permettant aux stagiaires de se connecter à notre portail en ligne. Ils pourront y renseigner leurs informations personnelles, indiquer leurs attentes et participer à un test de positionnement avant le début de la formation. Ce test n'a aucun caractère certificatif : il vise uniquement à évaluer leur niveau de connaissances préalable afin de mieux adapter la formation à leur niveau.${espace ? "\n\nLa convention peut aussi être signée en ligne depuis votre espace client : l'adresse, le QR code et votre code d'accès figurent dans l'encadré « Signer en ligne » en fin de convention." : ''}
+Concernant les convocations, chacune contient un QR code et un lien permettant aux stagiaires de se connecter à notre portail en ligne. Ils pourront y renseigner leurs informations personnelles, indiquer leurs attentes et participer à un test de positionnement avant le début de la formation. Ce test n'a aucun caractère certificatif : il vise uniquement à évaluer leur niveau de connaissances préalable afin de mieux adapter la formation à leur niveau.${espace ? "\n\nLa convention peut aussi être signée en ligne depuis votre espace client : l'adresse, le QR code et votre code d'accès figurent dans l'encadré « Signer en ligne » en fin de document." : ''}
 
 Restant à votre disposition pour toute information complémentaire.`)
     } else {
@@ -487,13 +493,17 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         // ── CONVENTION ──
         addLog('Convention...')
         // Convention déjà signée en ligne : jointe avec la signature du client dans son cadre (27/10)
-        const { data: sigConv } = await supabase.from('document_signatures').select('*').eq('session_id', session.id).eq('document_type', 'convention')
+        // Envoi d'un groupe : la convention (ou le contrat du particulier) du groupe ; la signature en ligne de la
+        // session n'est jamais celle du groupe
+        const { data: sigConv } = groupe ? { data: [] } : await supabase.from('document_signatures').select('*').eq('session_id', session.id).eq('document_type', 'convention')
           .eq('signer_type', 'client').eq('status', 'valid').order('signed_at', { ascending: false }).limit(1)
-        const convention = await generatePDF('convention', { ...session, signature_client: sigConv?.[0] || null }, {
-          trainees: traineesWithResult,
-          trainer,
-          costs: sessionCosts || []
-        })
+        const convention = groupe?.kind === 'particulier'
+          ? await generatePDF('contratParticulier', session, { trainees: traineesWithResult, trainer, particulier: { group: groupe, client: groupe.clients || {} } })
+          : await generatePDF('convention', { ...session, signature_client: sigConv?.[0] || null }, {
+            trainees: traineesWithResult,
+            trainer,
+            costs: groupe ? [] : (sessionCosts || [])
+          })
         if (convention) {
           files.push({ id: 'convention', name: convention.filename, base64: convention.base64, size: convention.size })
           addLog('Convention générée')
@@ -854,8 +864,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         }
       }
 
-      // Sync aussi les colonnes sur la table sessions (utilisées par le bloc "Suivi Convention")
-      if (codes.includes('convention_envoyee')) {
+      // Sync aussi les colonnes sur la table sessions (utilisées par le bloc "Suivi Convention") ; jamais pour un envoi
+      // de groupe : la session inter suit ses conventions groupe par groupe
+      if (codes.includes('convention_envoyee') && !groupe) {
         await supabase
           .from('sessions')
           .update({ convention_sent: true, convention_sent_date: now })
@@ -863,6 +874,29 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       }
     } catch (err) {
       console.error('Erreur mise à jour checklist:', err)
+    }
+  }
+
+  // ─── Envoi d'un groupe : le document du groupe passe « envoyé » ; les cases de la session se cochent quand tous les
+  // groupes ont leur convention envoyée et tous les stagiaires leur convocation (après formation : rien de coché
+  // seul, la case se coche à la main quand tous les groupes ont reçu leurs documents) ───
+  const apresEnvoiGroupe = async () => {
+    if (emailType !== 'before' || !groupe?.id) return
+    try {
+      if ((groupe.doc_status || 'a_envoyer') === 'a_envoyer') {
+        await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', groupe.id).eq('doc_status', 'a_envoyer')
+      }
+      const [{ data: gs, error: eG }, { data: sts, error: eS }] = await Promise.all([
+        supabase.from('session_groups').select('id, doc_status, status').eq('session_id', session.id),
+        supabase.from('session_trainees').select('trainee_id, convocation_sent_at, absent').eq('session_id', session.id),
+      ])
+      if (eG || eS || !gs || !sts) return
+      const codes = []
+      if (groupesActifs(gs).every((g) => g.doc_status === 'envoye' || g.doc_status === 'signe')) codes.push('convention_envoyee')
+      if (sts.filter((x) => !x.absent).every((x) => x.convocation_sent_at)) codes.push('convocations_envoyees')
+      if (codes.length) await updateChecklistItems(codes)
+    } catch (e) {
+      console.error('Suivi après envoi du groupe :', e)
     }
   }
 
@@ -1052,6 +1086,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           body: emailBody,
           attachmentPaths: uploadedPaths.map(({ path, filename }) => ({ path, filename })),
           sessionId: session.id,
+          groupId: groupe?.id || null,
           emailType,
           convocationsStagiaires,
         })
@@ -1064,13 +1099,15 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       const checklistCodes = emailType === 'before'
         ? ['convention_envoyee', 'convocations_envoyees']
         : ['certificats_envoyes']
-      await updateChecklistItems(checklistCodes)
+      if (!groupe) await updateChecklistItems(checklistCodes)
       // Convocations jointes et vraiment envoyées : « envoyée » noté ici seulement (plus au simple téléchargement, 21/10)
       if (emailType === 'before' && session?.id && generatedFiles.some((f) => String(f.id).startsWith('convocation_'))) {
         const ids = generatedFiles.filter((f) => String(f.id).startsWith('convocation_')).map((f) => String(f.id).slice('convocation_'.length))
         await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
           .eq('session_id', session.id).in('trainee_id', ids).is('convocation_sent_at', null)
       }
+      // Envoi d'un groupe : après les convocations notées, pour que la case de la session lise le bon état
+      if (groupe) await apresEnvoiGroupe()
 
       setStep('sent')
       const st = result.stagiaires

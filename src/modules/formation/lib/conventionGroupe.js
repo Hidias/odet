@@ -13,6 +13,56 @@ export function signataireDuGroupe(groupe, contacts = []) {
   return name ? { name, role: String(c.fonction || c.role || '').trim() } : null
 }
 
+// Lecture d'un groupe avec son client et son contact (onglet Groupes, fiche session, envoi par groupe)
+export const SELECT_GROUPE = '*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone, siret), contact:contact_id(id, client_id, name, first_name, last_name, fonction, role, email, phone)'
+
+/** Groupes qui comptent : les groupes annulés sont ignorés */
+export const groupesActifs = (groupes = []) => (groupes || []).filter((g) => g && g.status !== 'cancelled')
+
+// Session inter suivie par groupes (06/11, décision de H : un envoi par groupe) : la convention, les convocations et
+// les documents d'après formation se font groupe par groupe ; jamais au client principal pour tous les inscrits.
+export const envoiParGroupe = (session, groupes = []) => session?.session_type === 'inter' && groupesActifs(groupes).length > 0
+
+/** Prix du document du groupe : prix total du groupe, sinon prix par personne × inscrits, sinon null */
+export function prixDuGroupe(groupe, nbStagiaires) {
+  const total = parseFloat(groupe?.price_total)
+  if (total) return total
+  const pp = parseFloat(groupe?.price_per_person)
+  return pp ? pp * Math.max(1, nbStagiaires || 0) : null
+}
+
+/** Inscriptions d'un groupe parmi celles de la session */
+export const inscritsDuGroupe = (session, groupe) => (session?.session_trainees || []).filter((st) => groupe?.id && st.group_id === groupe.id)
+
+/**
+ * Session vue d'un groupe : entreprise (ou particulier), contact, signataire, prix et inscrits du seul groupe.
+ * `client_id` est celui du groupe : l'encadré « Signer en ligne » mène à l'espace de ce client, jamais à celui du
+ * client principal de la session.
+ */
+export function sessionDuGroupe(session, groupe, contacts = []) {
+  const inscrits = inscritsDuGroupe(session, groupe)
+  const signataire = signataireDuGroupe(groupe, contacts.length ? contacts : [groupe?.contact].filter(Boolean))
+  const prix = prixDuGroupe(groupe, inscrits.length)
+  return {
+    ...session,
+    client_id: groupe?.client_id || null,
+    clients: groupe?.clients || null,
+    contact_id: groupe?.kind === 'particulier' ? null : (groupe?.contact_id || null),
+    contact: groupe?.kind === 'particulier' ? null : (groupe?.contact || null),
+    signatory_name: signataire?.name || '',
+    signatory_role: signataire?.role || '',
+    total_price: prix ?? session?.total_price,
+    session_trainees: inscrits,
+  }
+}
+
+/** Destinataire d'un envoi pour le groupe : contact choisi, sinon e-mail de l'entreprise ou du particulier */
+export function destinataireDuGroupe(groupe) {
+  const valide = (m) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(m || '').trim())
+  const c = groupe?.kind === 'particulier' ? null : groupe?.contact
+  return [c?.email, groupe?.clients?.email, groupe?.clients?.contact_email].map((m) => String(m || '').trim()).find(valide) || ''
+}
+
 /** Contact proposé à l'ouverture d'un groupe sans signataire : contact « documents », sinon principal, sinon aucun */
 export function contactPropose(contacts = []) {
   const l = contacts || []

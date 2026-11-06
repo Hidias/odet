@@ -38,6 +38,7 @@ import DateTimePickerModal from '../../../ui/DateTimePickerModal'
 import SessionChecklist from '../components/SessionChecklist'
 import SessionNeedsAnalysis from '../components/SessionNeedsAnalysis'
 import SessionEmailModal from '../components/SessionEmailModal'
+import ChoixGroupeEnvoi from '../components/ChoixGroupeEnvoi'
 import CircuitSession from '../components/CircuitSession'
 import DemandesNirSession from '../components/DemandesNirSession'
 import DepotsClient from '../../../core/signature/DepotsClient'
@@ -67,6 +68,7 @@ import QuizFlashSession from '../components/QuizFlashSession'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { etatConvention, CONVENTION } from '../lib/etatConvention'
+import { envoiParGroupe, sessionDuGroupe, groupesActifs, inscritsDuGroupe, SELECT_GROUPE } from '../lib/conventionGroupe'
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 import { pluriel } from '../../../core/genre'
 import ChoixFormateurs from '../components/ChoixFormateurs'
@@ -180,13 +182,18 @@ export default function SessionDetail() {
   const [session, setSession] = useState(null)
   // Conventions des groupes d'une session inter (angle mort A2) : l'en-tête suit l'état groupe par groupe
   const [groupesConvention, setGroupesConvention] = useState([])
+  // Relu après un envoi par groupe (état « envoyé » du groupe)
+  const [rechargeGroupes, setRechargeGroupes] = useState(0)
   useEffect(() => {
     if (!session?.id || session.session_type !== 'inter') { setGroupesConvention([]); return }
     let actif = true
-    supabase.from('session_groups').select('id, session_id, doc_status, status').eq('session_id', session.id)
+    supabase.from('session_groups').select(SELECT_GROUPE).eq('session_id', session.id).order('created_at')
       .then(({ data, error }) => { if (actif && !error) setGroupesConvention(data || []) })
     return () => { actif = false }
-  }, [session?.id, session?.session_type])
+  }, [session?.id, session?.session_type, rechargeGroupes])
+  // Envoi d'une session inter suivie par groupes : type d'envoi dont on choisit le groupe, puis groupe choisi
+  const [choixGroupeEnvoi, setChoixGroupeEnvoi] = useState(null)
+  const [groupeEnvoi, setGroupeEnvoi] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [showAddTrainee, setShowAddTrainee] = useState(false)
@@ -2281,9 +2288,13 @@ export default function SessionDetail() {
         access_code: st.access_code
       })) || []
 
-      // 1. Convention (non signée toujours)
-      const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
-      if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
+      // 1. Convention (non signée toujours) ; inter suivie par groupes : une par groupe
+      if (envoiParGroupe(session, groupesConvention)) {
+        for (const f of await conventionsDesGroupes(trainer)) zip.file(f.name, f.base64, { base64: true })
+      } else {
+        const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
+        if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
+      }
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
       let programmeAdded = false
@@ -2415,8 +2426,12 @@ export default function SessionDetail() {
         } catch { /* fallback */ }
       }
       if (!zip.file(`Convention_${ref}.pdf`)) {
-        const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
-        if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
+        if (envoiParGroupe(session, groupesConvention)) {
+          for (const f of await conventionsDesGroupes(trainer)) zip.file(f.name, f.base64, { base64: true })
+        } else {
+          const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
+          if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
+        }
       }
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
@@ -2597,6 +2612,25 @@ export default function SessionDetail() {
     }
   }
 
+  // Conventions (ou contrats) des groupes d'une inter, pour les dossiers ZIP : session vue de chaque groupe
+  const conventionsDesGroupes = async (trainer) => {
+    const out = []
+    for (const g of groupesActifs(groupesConvention)) {
+      const inscrits = inscritsDuGroupe(session, g)
+      const stagiaires = inscrits.map((st) => ({ ...st.trainees, result: st.result || traineeResults[st.trainee_id] || null, access_code: st.access_code }))
+      const nom = String(g.clients?.name || g.group_name || 'groupe').replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60)
+      try {
+        const doc = g.kind === 'particulier'
+          ? await generatePDF('contratParticulier', session, { trainees: stagiaires, trainer, particulier: { group: g, client: g.clients || {} }, enLigne: false })
+          : await generatePDF('convention', sessionDuGroupe(session, g), { trainees: stagiaires, trainer, enLigne: false })
+        if (doc?.base64) out.push({ name: `${g.kind === 'particulier' ? 'Contrat' : 'Convention'}_${session.reference || 'SESSION'}_${nom}.pdf`, base64: doc.base64 })
+      } catch (e) {
+        console.error('Convention du groupe :', e)
+      }
+    }
+    return out
+  }
+
   // Helper : merger plusieurs PDFs base64 en un seul via pdf-lib
   const mergeMultiplePDFs = async (base64Array) => {
     try {
@@ -2626,6 +2660,13 @@ export default function SessionDetail() {
     const missing = missingOrgFields(organization, kind)
     if (missing.length > 0) {
       toast.error(`Paramètres de l'organisme incomplets : ${missing.join(', ')}. Complétez-les dans Paramètres.`, { duration: 7000 })
+      return
+    }
+    // Session inter suivie par groupes : une convention par groupe, au nom de son entreprise (jamais une convention
+    // du client principal qui listerait les stagiaires des autres entreprises)
+    if (docType === 'convention' && envoiParGroupe(session, groupesConvention)) {
+      toast('Session inter : chaque groupe a sa convention. Téléchargez-la dans l\'onglet Groupes.', { icon: 'ℹ️', duration: 6000 })
+      setActiveTab('groupes')
       return
     }
     const trainer = session.trainers
@@ -2850,12 +2891,14 @@ export default function SessionDetail() {
   
   // Ouvrir modal email "Avant formation"
   const handleSendEmailBefore = () => {
+    if (envoiParGroupe(session, groupesConvention)) return setChoixGroupeEnvoi('before')
     setSessionEmailType('before')
     setShowSessionEmailModal(true)
   }
   
   // Ouvrir modal email "Après formation"
   const handleSendEmailAfter = () => {
+    if (envoiParGroupe(session, groupesConvention)) return setChoixGroupeEnvoi('after')
     setSessionEmailType('after')
     setShowSessionEmailModal(true)
   }
@@ -6624,9 +6667,20 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       />
 
       {/* Modal Email Session */}
+      {choixGroupeEnvoi && (
+        <ChoixGroupeEnvoi session={session} groupes={groupesConvention} emailType={choixGroupeEnvoi}
+          onClose={() => setChoixGroupeEnvoi(null)}
+          onChoisir={(g) => {
+            setGroupeEnvoi(g)
+            setSessionEmailType(choixGroupeEnvoi)
+            setChoixGroupeEnvoi(null)
+            setShowSessionEmailModal(true)
+          }} />
+      )}
       {showSessionEmailModal && (
         <SessionEmailModal 
-          session={session}
+          session={groupeEnvoi ? sessionDuGroupe(session, groupeEnvoi) : session}
+          groupe={groupeEnvoi}
           emailType={sessionEmailType}
           sessionCosts={sessionCosts}
           questions={questions}
@@ -6635,6 +6689,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             const wasAfter = sessionEmailType === 'after'
             setShowSessionEmailModal(false)
             setSessionEmailType(null)
+            if (groupeEnvoi) { setGroupeEnvoi(null); setRechargeGroupes((n) => n + 1) }
             // Recharger la session pour refléter les mises à jour (convention_sent, etc.)
             const { data } = await getSession(id)
             if (data) setSession(data)
