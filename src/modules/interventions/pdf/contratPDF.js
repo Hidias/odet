@@ -6,7 +6,7 @@
 import { jsPDF } from 'jspdf'
 import 'jspdf-autotable'
 import { PDFDocument } from 'pdf-lib'
-import { startDocument, numberPages } from '../../../core/pdf/layout'
+import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { monthLabel } from '../lib/schedule'
@@ -28,54 +28,60 @@ export const MESSAGE_CGV_MANQUANTE = "Les conditions générales de maintenance 
  */
 export async function buildContratPDF({ contract, client, sites = [], types = [], parc = [], quoteRef = null, org = null, avecCgv = true }) {
   const ORG = orgHorsFormation(org || await loadPdfOrg())
-  const doc = new jsPDF({ compress: true })
   const ref = contract.reference || quoteRef || null
-  const f = startDocument(doc, ORG, { ref, docLabel: 'Contrat de maintenance', code: 'CTR', title: contract.label || 'Contrat de maintenance', subtitle: 'Conditions particulières' })
+  // Construction synchrone, recomposée plus serrée si la dernière page est presque vide (compacter, 06/11) ;
+  // f.finish() pose le pied de page légal sur la dernière page (il manquait)
+  const doc = compacter(() => {
+    const doc = new jsPDF({ compress: true })
+    const f = startDocument(doc, ORG, { ref, docLabel: 'Contrat de maintenance', code: 'CTR', title: contract.label || 'Contrat de maintenance', subtitle: 'Conditions particulières' })
 
-  f.cards([
-    { label: 'Prestataire', lines: [ORG.name, ORG.addressFull || '', ORG.siret ? `SIRET ${ORG.siret}` : ''].filter(Boolean) },
-    { label: 'Client', lines: [client?.name || '', client?.address || '', [client?.postal_code, client?.city].filter(Boolean).join(' '), client?.siret ? `SIRET ${client.siret}` : ''].filter(Boolean) },
-  ])
+    f.cards([
+      { label: 'Prestataire', lines: [ORG.name, ORG.addressFull || '', ORG.siret ? `SIRET ${ORG.siret}` : ''].filter(Boolean) },
+      { label: 'Client', lines: [client?.name || '', client?.address || '', [client?.postal_code, client?.city].filter(Boolean).join(' '), client?.siret ? `SIRET ${client.siret}` : ''].filter(Boolean) },
+    ])
 
-  const couverts = (contract.site_ids || []).length ? sites.filter((s) => contract.site_ids.includes(s.id)) : sites
-  const typesCouverts = (contract.type_ids || []).length ? types.filter((t) => contract.type_ids.includes(t.id)) : []
-  const conds = { duree_ans: contract.duration_years || 1, reconduction: !!contract.tacit_renewal, reconduction_ans: contract.renewal_years || 1, preavis_mois: contract.notice_months ?? 0, periodicite: contract.billing_period || 'annuel' }
+    const couverts = (contract.site_ids || []).length ? sites.filter((s) => contract.site_ids.includes(s.id)) : sites
+    const typesCouverts = (contract.type_ids || []).length ? types.filter((t) => contract.type_ids.includes(t.id)) : []
+    const conds = { duree_ans: contract.duration_years || 1, reconduction: !!contract.tacit_renewal, reconduction_ans: contract.renewal_years || 1, preavis_mois: contract.notice_months ?? 0, periodicite: contract.billing_period || 'annuel' }
 
-  f.section('Objet et périmètre')
-  f.kv([
-    ['Sites couverts', couverts.length ? couverts.map((s) => [s.name, s.city].filter(Boolean).join(', ')).join(' ; ') : 'Tous les sites du client'],
-    ['Matériel couvert', typesCouverts.length ? typesCouverts.map((t) => t.name).join(', ') : 'Tout le matériel de sécurité inscrit au parc'],
-    ['Visites', `${(contract.visit_months || []).map(monthLabel).join(', ') || 'à convenir'} (avis de passage avant chaque visite)`],
-    ...(contract.emergency_hours ? [['Dépannage urgent', `arrivée sur site sous ${contract.emergency_hours} heures après la demande`]] : []),
-    ...(quoteRef ? [['Devis d\'origine', quoteRef]] : []),
-  ], { labelW: 40 })
+    f.section('Objet et périmètre')
+    f.kv([
+      ['Sites couverts', couverts.length ? couverts.map((s) => [s.name, s.city].filter(Boolean).join(', ')).join(' ; ') : 'Tous les sites du client'],
+      ['Matériel couvert', typesCouverts.length ? typesCouverts.map((t) => t.name).join(', ') : 'Tout le matériel de sécurité inscrit au parc'],
+      ['Visites', `${(contract.visit_months || []).map(monthLabel).join(', ') || 'à convenir'} (avis de passage avant chaque visite)`],
+      ...(contract.emergency_hours ? [['Dépannage urgent', `arrivée sur site sous ${contract.emergency_hours} heures après la demande`]] : []),
+      ...(quoteRef ? [['Devis d\'origine', quoteRef]] : []),
+    ], { labelW: 40 })
 
-  if (parc.length) {
-    f.section('Parc couvert à la signature')
-    const parType = new Map()
-    for (const e of parc) parType.set(e.type_name || 'Autre', (parType.get(e.type_name || 'Autre') || 0) + 1)
-    f.table(['Matériel', 'Nombre'], [...parType.entries()].map(([k, n]) => [k, String(n)]), { columnStyles: { 1: { halign: 'right', cellWidth: 30 } } })
-  }
+    if (parc.length) {
+      f.section('Parc couvert à la signature')
+      const parType = new Map()
+      for (const e of parc) parType.set(e.type_name || 'Autre', (parType.get(e.type_name || 'Autre') || 0) + 1)
+      f.table(['Matériel', 'Nombre'], [...parType.entries()].map(([k, n]) => [k, String(n)]), { columnStyles: { 1: { halign: 'right', cellWidth: 30 } }, reportable: true })
+    }
 
-  f.section('Prix, durée et facturation')
-  const echeance = contract.term_on || null
-  f.kv([
-    ['Prix annuel', euros(contract.annual_price_ht)],
-    ['Facturation', libellePeriodicite(conds.periodicite)],
-    ['Prise d\'effet', dateFr(contract.start_on)],
-    ['Durée', `${conds.duree_ans} an${conds.duree_ans > 1 ? 's' : ''}${echeance ? `, échéance le ${dateFr(echeance)}` : ''}`],
-    ['À l\'échéance', conds.reconduction
-      ? `reconduction tacite par périodes de ${conds.reconduction_ans} an${conds.reconduction_ans > 1 ? 's' : ''}${echeance ? ` ; refus possible jusqu'au ${dateFr(limiteRefus(echeance, conds.preavis_mois))}` : ''}`
-      : 'fin du contrat, sans reconduction'],
-  ], { labelW: 40 })
-  f.para(phraseConditions(conds), { size: 8.5, after: 2 })
-  f.para('Le présent contrat est régi par les conditions particulières ci-dessus et par les conditions générales de maintenance et de vérification jointes, dont le client reconnaît avoir pris connaissance. En cas de contradiction, les conditions particulières prévalent.', { size: 8.5, after: 4 })
+    f.section('Prix, durée et facturation')
+    const echeance = contract.term_on || null
+    f.kv([
+      ['Prix annuel', euros(contract.annual_price_ht)],
+      ['Facturation', libellePeriodicite(conds.periodicite)],
+      ['Prise d\'effet', dateFr(contract.start_on)],
+      ['Durée', `${conds.duree_ans} an${conds.duree_ans > 1 ? 's' : ''}${echeance ? `, échéance le ${dateFr(echeance)}` : ''}`],
+      ['À l\'échéance', conds.reconduction
+        ? `reconduction tacite par périodes de ${conds.reconduction_ans} an${conds.reconduction_ans > 1 ? 's' : ''}${echeance ? ` ; refus possible jusqu'au ${dateFr(limiteRefus(echeance, conds.preavis_mois))}` : ''}`
+        : 'fin du contrat, sans reconduction'],
+    ], { labelW: 40 })
+    f.para(phraseConditions(conds), { size: 8.5, after: 2 })
+    f.para('Le présent contrat est régi par les conditions particulières ci-dessus et par les conditions générales de maintenance et de vérification jointes, dont le client reconnaît avoir pris connaissance. En cas de contradiction, les conditions particulières prévalent.', { size: 8.5, after: 4 })
 
-  f.signatures([
-    { label: 'Pour le prestataire', name: [ORG.dirigeant, ORG.dirigeant_title].filter(Boolean).join(', '), hint: 'Date et signature', image: ORG.dirigeant_signature_base64 || null, stamp: ORG.stamp_base64 || null },
-    { label: 'Pour le client', name: contract.signed_name || '', hint: 'Nom, fonction, date, signature et cachet' },
-  ], { height: 34 })
-  numberPages(doc, ORG)
+    f.signatures([
+      { label: 'Pour le prestataire', name: [ORG.dirigeant, ORG.dirigeant_title].filter(Boolean).join(', '), hint: 'Date et signature', image: ORG.dirigeant_signature_base64 || null, stamp: ORG.stamp_base64 || null },
+      { label: 'Pour le client', name: contract.signed_name || '', hint: 'Nom, fonction, date, signature et cachet' },
+    ], { height: 34 })
+    f.finish()
+    numberPages(doc, ORG)
+    return doc
+  }, { reportMax: 8 })
   const base = doc.output('datauristring').split(',')[1]
 
   if (!avecCgv) return { base64: base, cgv: null }

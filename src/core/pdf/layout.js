@@ -292,6 +292,9 @@ export function startDocument(doc, ORG, { ref = null, docLabel = '', code = 'DOC
 export const SEUIL_DERNIERE_PAGE = 0.35
 const DENSITES = [0.85, 0.72]
 let DENSITE = 1
+// Report de lignes (compacter avec reportMax) : nombre de dernières lignes du tableau marqué `reportable` qui passent
+// sur la page suivante, pour que la fin du document (signatures, mentions) n'y soit jamais seule
+let REPORT = 0
 
 const docDe = (r) => (r && r.doc) || r
 const pagesDe = (r) => { const d = docDe(r); return d && d.getNumberOfPages ? d.getNumberOfPages() : 0 }
@@ -302,16 +305,24 @@ export function dernierePagePeuRemplie(r) {
   return !!m && m.pages > 1 && m.pages === pagesDe(r) && m.remplissage < SEUIL_DERNIERE_PAGE
 }
 
-/** Construction synchrone (aucun await entre la création du document et finish) : densité passée par le module */
-export function compacter(construire) {
+/** Construction synchrone (aucun await entre la création du document et finish) : densité passée par le module.
+ *  reportMax (facultatif) : si serrer ne retire pas la page, les dernières lignes (1 à reportMax) du tableau marqué
+ *  `reportable` passent sur la page suivante avec la fin du document (même nombre de pages, dernière page remplie) */
+export function compacter(construire, { reportMax = 0 } = {}) {
   const premier = construire()
   if (!dernierePagePeuRemplie(premier)) return premier
+  // Un essai qui échoue ne fait jamais perdre le document d'origine
+  const essai = (d, k) => {
+    DENSITE = d; REPORT = k
+    try { return construire() } catch (e) { console.warn('Mise en page resserrée impossible, document d\'origine gardé :', e); return null } finally { DENSITE = 1; REPORT = 0 }
+  }
   for (const d of DENSITES) {
-    DENSITE = d
-    let serre
-    // Un essai qui échoue ne fait jamais perdre le document d'origine
-    try { serre = construire() } catch (e) { console.warn('Mise en page resserrée impossible, document d\'origine gardé :', e); serre = null } finally { DENSITE = 1 }
+    const serre = essai(d, 0)
     if (serre && pagesDe(serre) < pagesDe(premier)) return serre
+  }
+  for (let k = 1; k <= reportMax; k++) {
+    const equilibre = essai(1, k)
+    if (equilibre && pagesDe(equilibre) === pagesDe(premier) && !dernierePagePeuRemplie(equilibre)) return equilibre
   }
   return premier
 }
@@ -347,7 +358,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   const D = densite || DENSITE
   const T = Math.max(D, 0.9)
   const LINE = 4.1 * T
-  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1, densite: D, haut: startY }
+  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1, densite: D, haut: startY, report: REPORT }
   f.body = (size = 9) => { setF(doc, 'normal'); doc.setFontSize(size); doc.setTextColor(...t.text) }
   f.newPage = () => {
     drawFooter(doc, ORG, code)
@@ -626,7 +637,17 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   }
 
   // Tableau jspdf-autotable aux couleurs de l'instance ; continue le flux après le tableau
-  f.table = (head, body, opts = {}) => {
+  f.table = (head, body, optsIn = {}) => {
+    const { reportable, ...opts } = optsIn
+    // Tableau marqué `reportable` pendant un essai de compacter : ses f.report dernières lignes passent page suivante
+    if (reportable && f.report > 0 && body.length > f.report) {
+      const k = f.report
+      f.report = 0
+      f.table(head, body.slice(0, -k), opts)
+      f.newPage()
+      f.table(head, body.slice(-k), opts)
+      return
+    }
     f.ensure(16)
     doc.autoTable({
       startY: f.y,
