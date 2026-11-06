@@ -650,7 +650,8 @@ export default function DuerpProjects() {
 
                       {/* Menu contextuel */}
                       <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu(contextMenu === p.id ? null : p.id) }}
-                        className="p-1.5 rounded-ui-sm hover:bg-gray-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition">
+                        aria-label="Actions du DUERP" title="Actions du DUERP" aria-haspopup="menu" aria-expanded={contextMenu === p.id}
+                        className="p-2.5 -m-1 rounded-ui-sm hover:bg-gray-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition">
                         <MoreVertical className="w-4 h-4 text-gray-400" />
                       </button>
                     </div>

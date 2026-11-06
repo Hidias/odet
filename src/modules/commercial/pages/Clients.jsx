@@ -871,7 +871,8 @@ export default function Clients() {
                   <td className="px-4 py-3">
                     <div className="relative">
                       <button onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === client.id ? null : client.id) }}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        aria-label="Actions du client" title="Actions du client" aria-haspopup="menu" aria-expanded={actionMenuId === client.id}
+                        className="p-2.5 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       {actionMenuId === client.id && (

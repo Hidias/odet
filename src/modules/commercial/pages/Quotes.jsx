@@ -1457,7 +1457,8 @@ export default function Quotes() {
                     <p className="text-ui-sm text-gray-400">{money(q.total_ht)} HT</p>
                     <div className="relative mt-2 flex justify-end" ref={actionMenuId === q.id ? actionMenuRef : null}>
                       <button onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === q.id ? null : q.id) }}
-                        className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                        aria-label="Actions du devis" title="Actions du devis" aria-haspopup="menu" aria-expanded={actionMenuId === q.id}
+                        className="p-2.5 -m-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
                         <MoreHorizontal size={18} />
                       </button>
                       {actionMenuId === q.id && (
@@ -1598,7 +1599,8 @@ export default function Quotes() {
             </button>
             <div className="relative ml-auto sm:ml-0" ref={actionMenuId === 'view' ? actionMenuRef : null}>
               <button onClick={() => setActionMenuId(actionMenuId === 'view' ? null : 'view')}
-                className="p-2 hover:bg-gray-100 rounded-ui-sm transition-colors">
+                aria-label="Actions du devis" title="Actions du devis" aria-haspopup="menu" aria-expanded={actionMenuId === 'view'}
+                className="p-2.5 hover:bg-gray-100 rounded-ui-sm transition-colors">
                 <MoreHorizontal size={20} />
               </button>
               {actionMenuId === 'view' && (

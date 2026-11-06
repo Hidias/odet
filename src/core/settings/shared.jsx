@@ -43,10 +43,11 @@ export function Field({ label, hint, children, className = '' }) {
   )
 }
 
-export function Toggle({ checked, onChange, label, hint, disabled = false }) {
+// ariaLabel : nom lu par le lecteur d'écran quand aucun libellé n'est affiché (tableau, liste)
+export function Toggle({ checked, onChange, label, hint, ariaLabel, disabled = false }) {
   return (
     <label className={`flex items-start gap-3 ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
-      <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => !disabled && onChange(!checked)}
+      <button type="button" role="switch" aria-checked={checked} aria-label={ariaLabel || label || undefined} disabled={disabled} onClick={() => !disabled && onChange(!checked)}
         className={`mt-0.5 relative w-10 h-6 rounded-full transition-colors flex-none ${checked ? 'bg-accent-500' : 'bg-gray-300'}`}>
         <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-4' : ''}`} />
       </button>
@@ -101,7 +102,7 @@ export function ModulesSection({ onChanged, compact = false }) {
               <div className="text-ui font-medium">{m.label}</div>
               {m.description ? <div className="text-ui-sm text-gray-500">{m.description}</div> : <div className="text-ui-sm text-gray-400">{m.key}</div>}
             </div>
-            <Toggle checked={m.enabled} onChange={() => toggle(m)} />
+            <Toggle checked={m.enabled} onChange={() => toggle(m)} ariaLabel={`Module ${m.label || m.key}`} />
             {!compact && m.key === 'prospection' && m.enabled && (
               <div className="basis-full pl-4 border-l-2 border-gray-100">
                 <Toggle checked={m.settings?.auto_import === true} onChange={(v) => setOption(m, 'auto_import', v)}

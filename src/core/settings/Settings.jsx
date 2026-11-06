@@ -599,7 +599,7 @@ function GcalCell({ profile, onSave }) {
   useEffect(() => { setValue(profile.gcal_id || '') }, [profile.gcal_id])
   return (
     <div className="flex items-center gap-2" style={{ minWidth: 230 }}>
-      <Toggle checked={!!profile.gcal_enabled} onChange={(v) => onSave({ gcal_enabled: v, gcal_id: value.trim() || profile.gcal_id || profile.email })} label="" />
+      <Toggle checked={!!profile.gcal_enabled} onChange={(v) => onSave({ gcal_enabled: v, gcal_id: value.trim() || profile.gcal_id || profile.email })} label="" ariaLabel={`Synchroniser l'agenda Google de ${profile.display_name || profile.email}`} />
       {profile.gcal_enabled && (
         <input className="input" style={{ minHeight: 32 }} aria-label={`Agenda Google de ${profile.display_name || profile.email}`}
           placeholder={profile.email} value={value} onChange={(e) => setValue(e.target.value)}
@@ -733,7 +733,7 @@ function UsersSection({ isSuperadmin }) {
                     </label>
                   </td>
                 )}
-                <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" /></td>
+                <td><Toggle checked={p.is_active} onChange={(v) => update(p.id, { is_active: v })} label="" ariaLabel={`Compte actif : ${p.display_name || p.email}`} /></td>
                 <td className="text-right whitespace-nowrap">
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => reset(p.email)} disabled={busy}><KeyRound className="w-4 h-4" />Mot de passe</button>
                 </td>
