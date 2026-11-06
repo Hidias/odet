@@ -4,7 +4,7 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { startDocument, numberPages } from '../../../core/pdf/layout'
+import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 
 const PRIO = { bloquant: { label: 'Bloquant', color: [200, 30, 45] }, important: { label: 'Important', color: [217, 119, 6] }, mineur: { label: 'Mineur', color: [107, 114, 128] } }
 
@@ -12,7 +12,7 @@ const PRIO = { bloquant: { label: 'Bloquant', color: [200, 30, 45] }, important:
  * @param {object} ORG identité (loadPdfOrg)
  * @param {object} p { issues: [{ priority, categoryLabel, element, detail, client, since }], stats: { total, bloquant, important, mineur } }
  */
-export function buildCompletudePDF(ORG, { issues = [], stats = {} } = {}) {
+function construireBuildCompletudePDF(ORG, { issues = [], stats = {} } = {}) {
   const doc = new jsPDF({ orientation: 'landscape', compress: true })
   const f = startDocument(doc, ORG, { docLabel: 'Système qualité', code: 'COMPL', title: 'Rapport de complétude', subtitle: `Édité le ${format(new Date(), "dd/MM/yyyy 'à' HH:mm", { locale: fr })}` })
   f.cards([
@@ -44,4 +44,9 @@ export function buildCompletudePDF(ORG, { issues = [], stats = {} } = {}) {
   f.finish()
   if (doc.getNumberOfPages() > 1) numberPages(doc, ORG)
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildCompletudePDF(...args) {
+  return compacter(() => construireBuildCompletudePDF(...args))
 }

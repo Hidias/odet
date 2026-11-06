@@ -5,7 +5,7 @@
 
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import { startDocument } from '../../../core/pdf/layout'
+import { startDocument, compacter } from '../../../core/pdf/layout'
 import { modalityLabel, modalityShort } from '../lib/sequenceTemplates'
 import { STATUSES, statusOf, effectiveStatus, indexEvaluations, computeCoverage, hasRoles, principalRole } from '../lib/sfData'
 
@@ -18,7 +18,7 @@ const fullName = (t) => `${t.first_name || ''} ${(t.last_name || '').toUpperCase
  * @param {object} p { session, sequences, evaluations, trainees, version, archivedAt }
  * @returns jsPDF
  */
-export function buildFicheSuiviPDF(ORG, { session = {}, sequences = [], evaluations = [], trainees = [], version = null, archivedAt = null } = {}) {
+function construireBuildFicheSuiviPDF(ORG, { session = {}, sequences = [], evaluations = [], trainees = [], version = null, archivedAt = null } = {}) {
   const wide = sequences.length > 14
   const doc = new jsPDF({ compress: true, orientation: wide ? 'landscape' : 'portrait' })
   const subtitle = [session.courses?.title, version ? `Version ${version}${archivedAt ? ` archivée le ${fr(archivedAt)}` : ''}` : `État au ${fr(new Date())}`].filter(Boolean).join('  ·  ')
@@ -114,4 +114,9 @@ export function buildFicheSuiviPDF(ORG, { session = {}, sequences = [], evaluati
   f.signatures([{ label: 'Le formateur', name: trainer || ' ', hint: 'Date et signature' }], { height: 24 })
   f.finish()
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildFicheSuiviPDF(...args) {
+  return compacter(() => construireBuildFicheSuiviPDF(...args))
 }

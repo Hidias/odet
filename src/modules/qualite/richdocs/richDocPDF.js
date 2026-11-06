@@ -3,7 +3,7 @@
 
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import { startDocument, numberPages, setF } from '../../../core/pdf/layout'
+import { startDocument, numberPages, setF, compacter } from '../../../core/pdf/layout'
 import { visibleSections, fillText, frDate } from './model'
 
 const strip = (s) => String(s ?? '').replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -106,7 +106,7 @@ export function writeRichDoc(f, content, ctx, { titles = true, numeroter = false
  * @param {object} ORG identité (loadPdfOrg)
  * @param {object} p { tpl (code, name, indicators, pilote), code (avec initiales), content, ctx, history: versions validées }
  */
-export function buildRichDocPDF(ORG, { tpl, code, content, ctx, history = [] }) {
+function construireBuildRichDocPDF(ORG, { tpl, code, content, ctx, history = [] }) {
   const doc = new jsPDF({ compress: true })
   const validated = content.status === 'valide'
   const version = validated ? content.version : (content.version || 0) + 1
@@ -145,4 +145,9 @@ export function buildRichDocPDF(ORG, { tpl, code, content, ctx, history = [] }) 
   numberPages(doc, ORG)
   const safe = String(tpl.name).replace(/^[PD]\d\d /, '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 50)
   return { doc, filename: `${code}-V${version}_${safe}.pdf` }
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildRichDocPDF(...args) {
+  return compacter(() => construireBuildRichDocPDF(...args))
 }

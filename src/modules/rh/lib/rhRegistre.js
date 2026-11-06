@@ -10,7 +10,7 @@ import 'jspdf-autotable'
 import * as XLSX from 'xlsx-js-style'
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
-import { startDocument, numberPages } from '../../../core/pdf/layout'
+import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { appName } from '../../../core/org/currentOrg'
@@ -63,24 +63,28 @@ export function lignesRegistre(rows) {
 
 export async function telechargerRegistrePDF(rows, { enregistrer = true } = {}) {
   const ORG = orgHorsFormation(await loadPdfOrg(true))
-  const doc = new jsPDF({ orientation: 'landscape', compress: true })
-  const f = startDocument(doc, ORG, {
-    docLabel: 'Registre unique du personnel', code: 'RUP',
-    title: 'Registre unique du personnel', subtitle: `Articles L1221-13 et D1221-23 du Code du travail, édité le ${new Date().toLocaleDateString('fr-FR')}`,
+  // Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+  const doc = compacter(() => {
+    const doc = new jsPDF({ orientation: 'landscape', compress: true })
+    const f = startDocument(doc, ORG, {
+      docLabel: 'Registre unique du personnel', code: 'RUP',
+      title: 'Registre unique du personnel', subtitle: `Articles L1221-13 et D1221-23 du Code du travail, édité le ${new Date().toLocaleDateString('fr-FR')}`,
+    })
+    const tete = ['N°', 'Nom et prénoms', 'Nationalité', 'Né(e) le', 'Sexe', 'Emploi et qualification', 'Entrée', 'Sortie', 'Contrat', 'Autorisation']
+    const ligne = (r) => [String(r.numero), r.nom, r.nationalite, r.naissance, r.sexe, r.emploi, r.entree, r.sortie, r.contrat, r.autorisation]
+    const salaries = rows.filter((r) => !r.stagiaire)
+    const stagiaires = rows.filter((r) => r.stagiaire)
+    f.section('Salariés, dans l\'ordre des embauches')
+    if (salaries.length) f.table(tete, salaries.map(ligne), { styles: { fontSize: 7.5 }, columnStyles: { 0: { cellWidth: 9 }, 4: { cellWidth: 11 } } })
+    else f.para('Aucun salarié.')
+    if (stagiaires.length) {
+      f.section('Stagiaires (partie distincte, L1221-13)')
+      f.table(tete, stagiaires.map(ligne), { styles: { fontSize: 7.5 }, columnStyles: { 0: { cellWidth: 9 }, 4: { cellWidth: 11 } } })
+    }
+    f.note(`Les mentions sont tenues de façon indélébile et conservées 5 ans à compter du départ du salarié. Registre établi à partir des fiches du personnel et des contrats enregistrés dans ${appName() || "l'outil de gestion"}.`)
+    f.finish()
+    return doc
   })
-  const tete = ['N°', 'Nom et prénoms', 'Nationalité', 'Né(e) le', 'Sexe', 'Emploi et qualification', 'Entrée', 'Sortie', 'Contrat', 'Autorisation']
-  const ligne = (r) => [String(r.numero), r.nom, r.nationalite, r.naissance, r.sexe, r.emploi, r.entree, r.sortie, r.contrat, r.autorisation]
-  const salaries = rows.filter((r) => !r.stagiaire)
-  const stagiaires = rows.filter((r) => r.stagiaire)
-  f.section('Salariés, dans l\'ordre des embauches')
-  if (salaries.length) f.table(tete, salaries.map(ligne), { styles: { fontSize: 7.5 }, columnStyles: { 0: { cellWidth: 9 }, 4: { cellWidth: 11 } } })
-  else f.para('Aucun salarié.')
-  if (stagiaires.length) {
-    f.section('Stagiaires (partie distincte, L1221-13)')
-    f.table(tete, stagiaires.map(ligne), { styles: { fontSize: 7.5 }, columnStyles: { 0: { cellWidth: 9 }, 4: { cellWidth: 11 } } })
-  }
-  f.note(`Les mentions sont tenues de façon indélébile et conservées 5 ans à compter du départ du salarié. Registre établi à partir des fiches du personnel et des contrats enregistrés dans ${appName() || "l'outil de gestion"}.`)
-  f.finish()
   numberPages(doc, ORG)
   if (enregistrer) doc.save(`registre-unique-du-personnel-${new Date().toISOString().slice(0, 10)}.pdf`)
   return doc

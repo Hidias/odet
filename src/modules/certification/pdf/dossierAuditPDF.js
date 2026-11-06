@@ -5,11 +5,11 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { startDocument, numberPages } from '../../../core/pdf/layout'
+import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 import { STATUS_LABEL } from '../lib/proofs'
 import { etatConvention, libelleConvention, groupesParSession } from '../../formation/lib/etatConvention'
 
-export function buildCriterionPDF(ORG, { criterion, indicators, referential, includeNa = true, proofFileName = () => '' }) {
+function construireBuildCriterionPDF(ORG, { criterion, indicators, referential, includeNa = true, proofFileName = () => '' }) {
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, {
     docLabel: 'Dossier d\'audit Qualiopi', code: `AUDIT-C${criterion.number}`,
@@ -50,7 +50,12 @@ export function buildCriterionPDF(ORG, { criterion, indicators, referential, inc
   return doc
 }
 
-export function buildSamplePDF(ORG, { sessions = [], groupes = [] }) {
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildCriterionPDF(...args) {
+  return compacter(() => construireBuildCriterionPDF(...args))
+}
+
+function construireBuildSamplePDF(ORG, { sessions = [], groupes = [] }) {
   const parSession = groupesParSession(groupes)
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, {
@@ -67,4 +72,9 @@ export function buildSamplePDF(ORG, { sessions = [], groupes = [] }) {
   f.finish()
   numberPages(doc, ORG)
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildSamplePDF(...args) {
+  return compacter(() => construireBuildSamplePDF(...args))
 }

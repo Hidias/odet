@@ -4,12 +4,12 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { startDocument, numberPages } from '../../../core/pdf/layout'
+import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 import { publishedLines } from '../lib/results'
 
 const frDay = (iso) => (iso ? format(new Date(`${iso}T12:00:00`), 'd MMMM yyyy', { locale: fr }) : '')
 
-export function buildMethodePDF(ORG, results, show, { from = null, to = null } = {}) {
+function construireBuildMethodePDF(ORG, results, show, { from = null, to = null } = {}) {
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, {
     docLabel: 'Information du public', code: 'RESULTATS',
@@ -26,4 +26,9 @@ export function buildMethodePDF(ORG, results, show, { from = null, to = null } =
   f.finish()
   numberPages(doc, ORG)
   return { doc, filename: `Resultats_methode_de_calcul_${format(new Date(), 'yyyy-MM-dd')}.pdf` }
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildMethodePDF(...args) {
+  return compacter(() => construireBuildMethodePDF(...args))
 }

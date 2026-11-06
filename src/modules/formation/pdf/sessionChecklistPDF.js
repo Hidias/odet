@@ -3,7 +3,7 @@
 
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import { startDocument, drawCheckbox } from '../../../core/pdf/layout'
+import { startDocument, drawCheckbox, compacter } from '../../../core/pdf/layout'
 
 const fr = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '')
 
@@ -11,7 +11,7 @@ const fr = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '')
  * @param {object} ORG identité (loadPdfOrg)
  * @param {object} p { session, traineeCount, phases: [{ title, items: [{ code, label, sst }] }], data: { [code]: { is_checked, date_realized, comment } }, blank }
  */
-export function buildSessionChecklistPDF(ORG, { session = {}, traineeCount = 0, phases = [], data = {}, blank = false, location = '' } = {}) {
+function construireBuildSessionChecklistPDF(ORG, { session = {}, traineeCount = 0, phases = [], data = {}, blank = false, location = '' } = {}) {
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, { ref: session.reference || null, docLabel: 'Fiche de contrôle', code: 'CTRL', title: 'Fiche de contrôle de la session', subtitle: blank ? 'Version vierge pour archivage papier' : `État au ${fr(new Date())}` })
   const trainer = [session.trainers?.first_name, session.trainers?.last_name].filter(Boolean).join(' ')
@@ -48,4 +48,9 @@ export function buildSessionChecklistPDF(ORG, { session = {}, traineeCount = 0, 
   ], { height: 22 })
   f.finish()
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildSessionChecklistPDF(...args) {
+  return compacter(() => construireBuildSessionChecklistPDF(...args))
 }
