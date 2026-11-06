@@ -460,9 +460,7 @@ export const useDataStore = create((set, get) => ({
   deleteTrainer: async (id) => {
     const { error } = await supabase.from('trainers').delete().eq('id', id)
     if (!error) {
-      // Pas de clé étrangère en cascade sur session_trainers : retirer ses lignes (C6)
-      const { error: errSessions } = await supabase.from('session_trainers').delete().eq('trainer_id', id)
-      if (errSessions) console.error('deleteTrainer (sessions) :', errSessions)
+      // Ses lignes de session_trainers partent avec lui (clé étrangère en cascade, 0495)
       set({ trainers: get().trainers.filter(t => t.id !== id) })
     }
     return { error }
@@ -969,12 +967,10 @@ export const useDataStore = create((set, get) => ({
   
   deleteSession: async (id) => {
     // Les inscriptions partent avec la session (clé étrangère en cascade) : la base trace alors une seule
-    // suppression de session (0485) au lieu d'autant de retraits que de stagiaires.
+    // suppression de session (0485) au lieu d'autant de retraits que de stagiaires. Ses formateurs (session_trainers)
+    // partent de même (0495).
     const { error } = await supabase.from('sessions').delete().eq('id', id)
     if (!error) {
-      // session_trainers n'a pas de clé étrangère en cascade : ses lignes partent après la session (C6)
-      const { error: errFormateurs } = await supabase.from('session_trainers').delete().eq('session_id', id)
-      if (errFormateurs) console.error('deleteSession (formateurs) :', errFormateurs)
       set({ sessions: get().sessions.filter(s => s.id !== id) })
     }
     return { error }
