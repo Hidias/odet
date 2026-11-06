@@ -4795,7 +4795,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                           {funding.funder_contact_email && <div className="text-ui-sm text-gray-400">{funding.funder_contact_email}</div>}
                         </td>
                         <td className="py-2 px-3 text-right font-medium">{money(parseFloat(funding.amount_ht))}</td>
-                        <td className="py-2 px-3 text-center text-gray-500">{funding.percentage ? `${funding.percentage}%` : '-'}</td>
+                        <td className="py-2 px-3 text-center text-gray-500">{funding.percentage ? `${funding.percentage} %` : '-'}</td>
                         <td className="py-2 px-3">
                           {funding.dossier_number ? (
                             <span className="text-ui-sm bg-gray-100 px-2 py-1 rounded">{funding.dossier_number}</span>
@@ -4847,7 +4847,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   <tr>
                     <td colSpan="2" className="py-2 px-3 text-right font-semibold">Total financements</td>
                     <td className="py-2 px-3 text-right font-bold text-primary-600">{money(getFundingTotal())}</td>
-                    <td className="py-2 px-3 text-center font-bold text-primary-600">{getFundingCoverage()}%</td>
+                    <td className="py-2 px-3 text-center font-bold text-primary-600">{getFundingCoverage()} %</td>
                     <td colSpan="4"></td>
                   </tr>
                 </tfoot>

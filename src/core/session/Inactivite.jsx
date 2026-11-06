@@ -25,6 +25,9 @@ export function SurveillanceInactivite() {
 
   useEffect(() => {
     if (!userId) return undefined
+    // Connecté, quel que soit le chemin (formulaire, autre onglet, lien de mot de passe) : le message de déconnexion
+    // pour inactivité ne doit plus s'afficher à la prochaine déconnexion volontaire
+    try { sessionStorage.removeItem('odet_deconnexion_inactivite') } catch { /* sans message */ }
     noterActivite()
     let dernierEnvoi = 0
     const activite = () => {

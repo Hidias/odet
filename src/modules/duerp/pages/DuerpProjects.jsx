@@ -657,7 +657,7 @@ export default function DuerpProjects() {
                 {/* Menu contextuel */}
                 <button type="button" onClick={() => setContextMenu(contextMenu === p.id ? null : p.id)}
                   aria-label={`Actions du DUERP ${p.company_name || ''}`.trim()} title="Actions du DUERP" aria-haspopup="menu" aria-expanded={contextMenu === p.id}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-ui-sm hover:bg-gray-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition">
+                  className="absolute right-3 top-3 p-2.5 rounded-ui-sm hover:bg-gray-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100 transition">
                   <MoreVertical className="w-4 h-4 text-gray-400" aria-hidden="true" />
                 </button>
 

@@ -436,7 +436,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
           : <span className="text-[rgb(var(--c-danger))] font-medium">Sans dérogation en cours : pas de travaux électriques ni de conduite</span>)}
         {ligne('Téléphone professionnel', p.work_phone && <a href={lienTelephone(p.work_phone)}>{telephoneLisible(p.work_phone)}</a>)}
         {ligne('Email professionnel', p.work_email && <a href={`mailto:${p.work_email}`}>{p.work_email}</a>)}
-        {ligne('Téléphone personnel', p.personal_phone)}
+        {ligne('Téléphone personnel', p.personal_phone && telephoneLisible(p.personal_phone))}
         {ligne('Email personnel', p.personal_email)}
         {ligne('Adresse', [p.personal_address, [p.personal_postal_code, p.personal_city].filter(Boolean).join(' ')].filter(Boolean).join(', '))}
         {ligne('Contact d\'urgence', [p.emergency_name, p.emergency_relation, p.emergency_phone].filter(Boolean).join(' · '))}
@@ -701,7 +701,7 @@ export default function Personnel() {
           : peutTableau ? <Navigate to="tableau" replace />
           : responsableConnu ? <Navigate to="annuaire" replace /> : null} />
         <Route path="annuaire" element={<Annuaire peutGerer={peutGerer} />} />
-        {peutTableau && <Route path="tableau" element={<TableauRH peutValiderAbsences={peutValiderAbs} peutValiderHeures={peutValiderHeures} peutRestreints={peutRestreints} />} />}
+        {peutTableau && <Route path="tableau" element={<TableauRH peutValiderAbsences={peutValiderAbs} peutValiderHeures={peutValiderHeures} peutRestreints={peutRestreints} peutGerer={peutGerer} />} />}
         <Route path="mon-espace" element={<MonEspace />} />
         {peutVoirTout && <Route path="registre" element={<RegistrePaie />} />}
         <Route path="absences" element={<Absences peutValider={peutValiderAbs} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
