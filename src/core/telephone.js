@@ -10,7 +10,11 @@ export function telephoneLisible(valeur) {
   return brut.replace(/\s+/g, ' ')
 }
 
-// Lien d'appel : chiffres et « + » seulement
+// Lien d'appel : chiffres et « + » de tête seulement. Une extension (« poste 12 ») est coupée ; le « (0) » ou le 0
+// placé après +33 est retiré (+33 (0)6... appelle +336...).
 export function lienTelephone(valeur) {
-  return 'tel:' + String(valeur ?? '').replace(/[^\d+]/g, '')
+  const debut = String(valeur ?? '').trim().match(/^\+?[\d\s.\-()]*/)[0]
+  let n = debut.replace(/\(0\)/g, '').replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '')
+  if (n.startsWith('+330')) n = '+33' + n.slice(4)
+  return 'tel:' + n
 }

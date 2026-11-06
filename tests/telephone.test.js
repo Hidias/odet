@@ -25,4 +25,10 @@ describe('lienTelephone', () => {
     expect(lienTelephone('+33 6 12.34')).toBe('tel:+3361234')
     expect(lienTelephone(null)).toBe('tel:')
   })
+  it('retire le 0 après +33 et coupe une extension', () => {
+    expect(lienTelephone('+33 (0)6 12 34 56 78')).toBe('tel:+33612345678')
+    expect(lienTelephone('+33 06 12 34 56 78')).toBe('tel:+33612345678')
+    expect(lienTelephone('06 12 34 56 78 poste 12')).toBe('tel:0612345678')
+    expect(telephoneLisible('   ')).toBe('')
+  })
 })
