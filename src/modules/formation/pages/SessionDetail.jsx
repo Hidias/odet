@@ -38,6 +38,7 @@ import DateTimePickerModal from '../../../ui/DateTimePickerModal'
 import SessionChecklist from '../components/SessionChecklist'
 import SessionNeedsAnalysis from '../components/SessionNeedsAnalysis'
 import SessionEmailModal from '../components/SessionEmailModal'
+import ChoixGroupeEnvoi from '../components/ChoixGroupeEnvoi'
 import CircuitSession from '../components/CircuitSession'
 import DemandesNirSession from '../components/DemandesNirSession'
 import DepotsClient from '../../../core/signature/DepotsClient'
@@ -67,6 +68,7 @@ import QuizFlashSession from '../components/QuizFlashSession'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { etatConvention, CONVENTION } from '../lib/etatConvention'
+import { envoiParGroupe, sessionDuGroupe, groupesActifs, inscritsDuGroupe, refusPublicationGroupe, signataireDuGroupe, SELECT_GROUPE } from '../lib/conventionGroupe'
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 import { pluriel } from '../../../core/genre'
 import ChoixFormateurs from '../components/ChoixFormateurs'
@@ -180,13 +182,46 @@ export default function SessionDetail() {
   const [session, setSession] = useState(null)
   // Conventions des groupes d'une session inter (angle mort A2) : l'en-tête suit l'état groupe par groupe
   const [groupesConvention, setGroupesConvention] = useState([])
+  // Relu après un envoi par groupe (état « envoyé » du groupe)
+  const [rechargeGroupes, setRechargeGroupes] = useState(0)
   useEffect(() => {
     if (!session?.id || session.session_type !== 'inter') { setGroupesConvention([]); return }
     let actif = true
-    supabase.from('session_groups').select('id, session_id, doc_status, status').eq('session_id', session.id)
+    supabase.from('session_groups').select(SELECT_GROUPE).eq('session_id', session.id).order('created_at')
       .then(({ data, error }) => { if (actif && !error) setGroupesConvention(data || []) })
     return () => { actif = false }
-  }, [session?.id, session?.session_type])
+  }, [session?.id, session?.session_type, rechargeGroupes])
+  // Envoi d'une session inter suivie par groupes : { type, groupes, session } relus en base à l'ouverture, puis
+  // { groupe, session vue du groupe } une fois le groupe choisi
+  const [choixGroupeEnvoi, setChoixGroupeEnvoi] = useState(null)
+  const [groupeEnvoi, setGroupeEnvoi] = useState(null)
+
+  // Groupes et rattachements relus en base (jamais une liste en mémoire, qui peut dater d'avant un déplacement de
+  // stagiaire) ; null si la lecture échoue : rien n'est préparé
+  const lireGroupesEtRattachements = async () => {
+    const [{ data: gs, error: eG }, { data: rs, error: eR }] = await Promise.all([
+      supabase.from('session_groups').select(SELECT_GROUPE).eq('session_id', session.id).order('created_at'),
+      supabase.from('session_trainees').select('trainee_id, group_id').eq('session_id', session.id),
+    ])
+    if (eG || eR || !gs || !rs) return null
+    const rattache = new Map(rs.map((r) => [r.trainee_id, r.group_id || null]))
+    return {
+      groupes: gs,
+      session: { ...session, session_trainees: (session.session_trainees || []).map((st) => ({ ...st, group_id: rattache.get(st.trainee_id) ?? null })) },
+    }
+  }
+
+  // « Avant formation » et « Après formation » : une inter qui a des groupes s'envoie groupe par groupe
+  const ouvrirEnvoi = async (type) => {
+    if (session?.session_type === 'inter') {
+      const lu = await lireGroupesEtRattachements()
+      if (!lu) return toast.error('Groupes de la session illisibles : réessayez dans un instant.')
+      setGroupesConvention(lu.groupes)
+      if (envoiParGroupe(lu.session, lu.groupes)) return setChoixGroupeEnvoi({ type, ...lu })
+    }
+    setSessionEmailType(type)
+    setShowSessionEmailModal(true)
+  }
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [showAddTrainee, setShowAddTrainee] = useState(false)
@@ -2281,9 +2316,14 @@ export default function SessionDetail() {
         access_code: st.access_code
       })) || []
 
-      // 1. Convention (non signée toujours)
-      const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
-      if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
+      // 1. Convention (non signée toujours) ; inter suivie par groupes : une par groupe
+      const parGroupes = await conventionsSiGroupes(trainer)
+      if (parGroupes) {
+        for (const f of parGroupes) zip.file(f.name, f.base64, { base64: true })
+      } else {
+        const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
+        if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
+      }
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
       let programmeAdded = false
@@ -2383,7 +2423,7 @@ export default function SessionDetail() {
       toast.success('ZIP téléchargé avec succès !', { id: toastId })
     } catch (err) {
       console.error('Erreur génération ZIP:', err)
-      toast.error('Erreur lors de la génération du ZIP', { id: toastId })
+      toast.error(String(err?.message || '').startsWith('Groupes de la session') ? err.message : 'Erreur lors de la génération du ZIP', { id: toastId })
     } finally {
       setGeneratingZip(false)
     }
@@ -2415,8 +2455,13 @@ export default function SessionDetail() {
         } catch { /* fallback */ }
       }
       if (!zip.file(`Convention_${ref}.pdf`)) {
-        const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
-        if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
+        const parGroupes = await conventionsSiGroupes(trainer)
+        if (parGroupes) {
+          for (const f of parGroupes) zip.file(f.name, f.base64, { base64: true })
+        } else {
+          const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
+          if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
+        }
       }
 
       // 2. Programme - fichier uploadé en priorité, sinon pdfGenerator
@@ -2591,10 +2636,43 @@ export default function SessionDetail() {
       toast.success('Dossier de la session téléchargé', { id: toastId })
     } catch (err) {
       console.error('Erreur génération ZIP rempli:', err)
-      toast.error('Erreur lors de la génération du ZIP', { id: toastId })
+      toast.error(String(err?.message || '').startsWith('Groupes de la session') ? err.message : 'Erreur lors de la génération du ZIP', { id: toastId })
     } finally {
       setGeneratingZip(false)
     }
+  }
+
+  // Conventions (ou contrats) des groupes d'une inter, pour les dossiers ZIP : session vue de chaque groupe
+  // Inter suivie par groupes : liste des conventions des groupes ; null pour une autre session (convention de la
+  // session) ; groupes illisibles : erreur, le dossier n'est pas fait (jamais la convention du client principal)
+  const conventionsSiGroupes = async (trainer) => {
+    if (session?.session_type !== 'inter') return null
+    const lu = await lireGroupesEtRattachements()
+    if (!lu) throw new Error('Groupes de la session illisibles : dossier non créé, réessayez.')
+    if (!envoiParGroupe(lu.session, lu.groupes)) return null
+    const out = []
+    const sautes = []
+    for (const [rang, g] of groupesActifs(lu.groupes).entries()) {
+      const inscrits = inscritsDuGroupe(lu.session, g)
+      if (!inscrits.length || refusPublicationGroupe(g, inscrits.length, signataireDuGroupe(g, [g.contact].filter(Boolean)))) {
+        sautes.push(g.clients?.name || g.group_name || 'groupe')
+        continue
+      }
+      const stagiaires = inscrits.map((st) => ({ ...st.trainees, result: st.result || traineeResults[st.trainee_id] || null, access_code: st.access_code }))
+      const nom = String(g.clients?.name || g.group_name || 'groupe').replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60)
+      try {
+        const doc = g.kind === 'particulier'
+          ? await generatePDF('contratParticulier', sessionDuGroupe(lu.session, g), { trainees: stagiaires, trainer, particulier: { group: g, client: g.clients || {} }, enLigne: false })
+          : await generatePDF('convention', sessionDuGroupe(lu.session, g), { trainees: stagiaires, trainer, enLigne: false })
+        // Numéro du groupe dans le nom : deux groupes d'un même client ne s'écrasent pas dans le dossier
+        if (doc?.base64) out.push({ name: `${g.kind === 'particulier' ? 'Contrat' : 'Convention'}_${session.reference || 'SESSION'}_${rang + 1}_${nom}.pdf`, base64: doc.base64 })
+      } catch (e) {
+        console.error('Convention du groupe :', e)
+        sautes.push(g.clients?.name || g.group_name || 'groupe')
+      }
+    }
+    if (sautes.length) toast(`Convention non jointe (stagiaires, prix ou signataire manquant) : ${sautes.join(', ')}`, { icon: '⚠️', duration: 8000 })
+    return out
   }
 
   // Helper : merger plusieurs PDFs base64 en un seul via pdf-lib
@@ -2627,6 +2705,17 @@ export default function SessionDetail() {
     if (missing.length > 0) {
       toast.error(`Paramètres de l'organisme incomplets : ${missing.join(', ')}. Complétez-les dans Paramètres.`, { duration: 7000 })
       return
+    }
+    // Session inter suivie par groupes : une convention par groupe, au nom de son entreprise (jamais une convention
+    // du client principal qui listerait les stagiaires des autres entreprises)
+    if (docType === 'convention' && session?.session_type === 'inter') {
+      const lu = await lireGroupesEtRattachements()
+      if (!lu) return toast.error('Groupes de la session illisibles : réessayez dans un instant.')
+      if (envoiParGroupe(lu.session, lu.groupes)) {
+        toast('Session inter : chaque groupe a sa convention. Téléchargez-la dans l\'onglet Groupes.', { icon: 'ℹ️', duration: 6000 })
+        setActiveTab('groupes')
+        return
+      }
     }
     const trainer = session.trainers
     const traineesWithResult = session.session_trainees?.map(st => ({ 
@@ -2849,16 +2938,10 @@ export default function SessionDetail() {
   }
   
   // Ouvrir modal email "Avant formation"
-  const handleSendEmailBefore = () => {
-    setSessionEmailType('before')
-    setShowSessionEmailModal(true)
-  }
+  const handleSendEmailBefore = () => ouvrirEnvoi('before')
   
   // Ouvrir modal email "Après formation"
-  const handleSendEmailAfter = () => {
-    setSessionEmailType('after')
-    setShowSessionEmailModal(true)
-  }
+  const handleSendEmailAfter = () => ouvrirEnvoi('after')
   
   // Envoyer relance évaluations à chaud aux non-répondants
   const handleSendHotEvalReminder = async () => {
@@ -6624,9 +6707,20 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       />
 
       {/* Modal Email Session */}
+      {choixGroupeEnvoi && (
+        <ChoixGroupeEnvoi session={choixGroupeEnvoi.session} groupes={choixGroupeEnvoi.groupes} emailType={choixGroupeEnvoi.type}
+          onClose={() => setChoixGroupeEnvoi(null)}
+          onChoisir={(g) => {
+            setGroupeEnvoi({ groupe: g, session: sessionDuGroupe(choixGroupeEnvoi.session, g) })
+            setSessionEmailType(choixGroupeEnvoi.type)
+            setChoixGroupeEnvoi(null)
+            setShowSessionEmailModal(true)
+          }} />
+      )}
       {showSessionEmailModal && (
         <SessionEmailModal 
-          session={session}
+          session={groupeEnvoi ? groupeEnvoi.session : session}
+          groupe={groupeEnvoi?.groupe || null}
           emailType={sessionEmailType}
           sessionCosts={sessionCosts}
           questions={questions}
@@ -6635,6 +6729,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             const wasAfter = sessionEmailType === 'after'
             setShowSessionEmailModal(false)
             setSessionEmailType(null)
+            if (groupeEnvoi) { setGroupeEnvoi(null); setRechargeGroupes((n) => n + 1) }
             // Recharger la session pour refléter les mises à jour (convention_sent, etc.)
             const { data } = await getSession(id)
             if (data) setSession(data)

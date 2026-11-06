@@ -1,5 +1,5 @@
 import { telephoneLisible, lienTelephone } from '../../../core/telephone'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Lock, KeyRound, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap, Printer } from 'lucide-react'
 import { format, parseISO, isAfter, startOfToday } from 'date-fns'
@@ -109,6 +109,20 @@ export default function ClientPortal() {
   const [signatures, setSignatures] = useState([])
   const [aSigner, setASigner] = useState(null)
   const [docASigner, setDocASigner] = useState(null)
+  // Signataire prévu par le document, lu en base avant d'ouvrir la signature (0496) ; illisible : nom vide, comme avant
+  // Un seul document à la fois : les clics pendant la lecture sont ignorés
+  const ouverture = useRef(false)
+  const ouvrirSignatureDocument = async (doc) => {
+    if (ouverture.current) return
+    ouverture.current = true
+    let prevu = null
+    try {
+      const { data, error } = await supabase.rpc('client_portal_signataire_prevu', { p_token: token, p_code: code, p_document: doc.id })
+      if (!error && data?.name) prevu = { name: data.name, role: data.role || '' }
+    } catch { /* nom vide */ }
+    ouverture.current = false
+    setDocASigner({ ...doc, prevu })
+  }
   const [tourDocs, setTourDocs] = useState(0)
   const [info, setInfo] = useState('')
   const [orgPdf, setOrgPdf] = useState(null)
@@ -617,7 +631,7 @@ export default function ClientPortal() {
           onDeposer={(d) => setADeposer({ doc: d })}
           depotDe={(d) => (d.object_type === 'quote' ? depotDe('quote', d.object_id) : null)}
           signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
-          onSigner={setDocASigner} aSignerEnPlus={rapportsASigner}
+          onSigner={ouvrirSignatureDocument} aSignerEnPlus={rapportsASigner}
           avecPreuve={(d, buf, sig) => signeAvecPreuve(d, buf, sig, orgPdf)}
           charger={async () => (await supabase.rpc('client_portal_mes_documents', { p_token: token, p_code: code })).data}
           lire={(d) => lireDocumentPortail({ token, code }, d.id)}
@@ -661,8 +675,8 @@ export default function ClientPortal() {
       )}
 
       {docASigner && (
-        <SignerConvention titre={nomSignable(docASigner).titre} nomDocument={nomSignable(docASigner).nom}
-          accord={rubriqueDocument(docASigner) === 'convention' ? ACCORD_SIGNATURE : docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{}}
+        <SignerConvention key={docASigner.id} titre={nomSignable(docASigner).titre} nomDocument={nomSignable(docASigner).nom}
+          accord={rubriqueDocument(docASigner) === 'convention' ? ACCORD_SIGNATURE : docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={docASigner.prevu || {}} prevu={docASigner.prevu}
           genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({ token, code }, docASigner.id)), filename: `${docASigner.label}.pdf` })}
           onSigner={async (p) => {
             const { data: r, error: e } = await supabase.rpc('client_portal_signer_document', { p_token: token, p_code: code, p_document: docASigner.id,
@@ -677,6 +691,7 @@ export default function ClientPortal() {
       )}
       {aSigner && (
         <SignerConvention session={aSigner} signataire={{ name: aSigner.signatory_name, role: aSigner.signatory_role }}
+          prevu={aSigner.signatory_name ? { name: aSigner.signatory_name, role: aSigner.signatory_role } : null}
           genererPdf={() => generatePDF('convention', toPdfSession(aSigner), { trainees: traineesOf(aSigner), trainer: aSigner.trainers || null, costs: [] })}
           onSigner={(p) => signer(aSigner, p)} onFermer={() => setASigner(null)} />
       )}

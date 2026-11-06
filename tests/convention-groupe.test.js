@@ -28,11 +28,12 @@ describe('Convention d\'un groupe inter (C3, C8)', () => {
     expect(contactPropose([{ id: 'c3' }])).toBe('')
     expect(contactPropose(null)).toBe('')
   })
-  it('publication refusée pour 0 participant ou sans signataire', () => {
-    const g = { kind: 'entreprise' }
+  it('publication refusée pour 0 participant, sans prix ou sans signataire', () => {
+    const g = { kind: 'entreprise', price_total: 600 }
     expect(refusPublicationGroupe(g, 0, { name: 'X' })).toMatch(/0 participant/)
     expect(refusPublicationGroupe(g, 2, null)).toMatch(/signataire/)
-    expect(refusPublicationGroupe({ kind: 'particulier' }, 1, null)).toMatch(/particulier/)
+    expect(refusPublicationGroupe({ kind: 'particulier', price_per_person: 300 }, 1, null)).toMatch(/particulier/)
+    expect(refusPublicationGroupe({ kind: 'entreprise' }, 2, { name: 'X' })).toMatch(/Aucun prix/)
     expect(refusPublicationGroupe(g, 2, { name: 'X' })).toBeNull()
   })
   it('nom d\'un contact', () => {
