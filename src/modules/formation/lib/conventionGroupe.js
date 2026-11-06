@@ -14,7 +14,7 @@ export function signataireDuGroupe(groupe, contacts = []) {
 }
 
 // Lecture d'un groupe avec son client et son contact (onglet Groupes, fiche session, envoi par groupe)
-export const SELECT_GROUPE = '*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone, siret), contact:contact_id(id, client_id, name, first_name, last_name, fonction, role, email, phone)'
+export const SELECT_GROUPE = '*, clients:client_id(id, name, client_type, address, postal_code, city, email, contact_email, contact_phone, siret), contact:contact_id(id, client_id, name, first_name, last_name, fonction, role, email, phone), payeur:payer_client_id(id, name)'
 
 /** Groupes qui comptent : les groupes annulés sont ignorés */
 export const groupesActifs = (groupes = []) => (groupes || []).filter((g) => g && g.status !== 'cancelled')
@@ -30,6 +30,18 @@ export function prixDuGroupe(groupe, nbStagiaires) {
   const pp = parseFloat(groupe?.price_per_person)
   return pp ? pp * Math.max(1, nbStagiaires || 0) : null
 }
+
+// Financement du groupe (payeur et numéro de dossier du groupe, jamais ceux du client principal)
+const FINANCEMENT = { opco: 'opco', france_travail: 'france_travail', autre: 'other' }
+export function financementDuGroupe(groupe) {
+  const type = FINANCEMENT[groupe?.payer_kind] || 'none'
+  if (type === 'none') return { funding_type: 'none', funding_details: '' }
+  const details = [groupe?.payeur?.name, groupe?.dossier_number ? `dossier ${groupe.dossier_number}` : ''].filter(Boolean).join(', ')
+  return { funding_type: type, funding_details: details }
+}
+
+/** Contact lisible par les documents (nom et fonction même saisis en prénom, nom et fonction) */
+const contactLisible = (c) => (c ? { ...c, name: nomContact(c), role: String(c.fonction || c.role || '').trim() } : null)
 
 /** Inscriptions d'un groupe parmi celles de la session */
 export const inscritsDuGroupe = (session, groupe) => (session?.session_trainees || []).filter((st) => groupe?.id && st.group_id === groupe.id)
@@ -48,10 +60,12 @@ export function sessionDuGroupe(session, groupe, contacts = []) {
     client_id: groupe?.client_id || null,
     clients: groupe?.clients || null,
     contact_id: groupe?.kind === 'particulier' ? null : (groupe?.contact_id || null),
-    contact: groupe?.kind === 'particulier' ? null : (groupe?.contact || null),
+    contact: groupe?.kind === 'particulier' ? null : contactLisible(groupe?.contact),
     signatory_name: signataire?.name || '',
     signatory_role: signataire?.role || '',
-    total_price: prix ?? session?.total_price,
+    // Jamais le prix de la session : un groupe sans prix est refusé avant tout document (refusPublicationGroupe)
+    total_price: prix,
+    ...financementDuGroupe(groupe),
     session_trainees: inscrits,
   }
 }
@@ -74,6 +88,7 @@ export function refusPublicationGroupe(groupe, nbStagiaires, signataire) {
   const particulier = groupe?.kind === 'particulier'
   const doc = particulier ? 'le contrat' : 'la convention'
   if (!nbStagiaires) return `Aucun stagiaire dans ce groupe : rattachez d'abord ses stagiaires (${doc} ne se publie pas pour 0 participant).`
+  if (prixDuGroupe(groupe, nbStagiaires) == null) return 'Aucun prix pour ce groupe : ouvrez le groupe et saisissez le prix total ou le prix par personne.'
   if (!signataire) {
     return particulier
       ? 'La fiche du particulier n\'a pas de nom : complétez-la avant de publier le contrat.'

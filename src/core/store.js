@@ -612,7 +612,7 @@ export const useDataStore = create((set, get) => ({
         fetchAll(() => supabase.from('clients').select('*')),
         fetchAll(() => supabase.from('trainers').select('*')),
         fetchAll(() => supabase.from('trainees').select('*')),
-        fetchAll(() => supabase.from('session_trainees').select('id, session_id, trainee_id, registration_date, result, admin_observation, expectations_notification_sent, presence_complete, early_departure, access_code, positioning_test_completed, positioning_test_completed_at, forprev_card_url, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, convocation_sent_at, absent, absent_reason')),
+        fetchAll(() => supabase.from('session_trainees').select('id, session_id, trainee_id, group_id, registration_date, result, admin_observation, expectations_notification_sent, presence_complete, early_departure, access_code, positioning_test_completed, positioning_test_completed_at, forprev_card_url, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, convocation_sent_at, absent, absent_reason')),
         fetchAll(() => supabase.from('client_contacts').select('*')),
         // Autres formateurs (C6)
         // Pas de colonne id dans session_trainers : tri sur sa clé

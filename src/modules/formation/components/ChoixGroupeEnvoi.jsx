@@ -1,7 +1,7 @@
 import { Send } from 'lucide-react'
 import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
-import { groupesActifs, inscritsDuGroupe, destinataireDuGroupe } from '../lib/conventionGroupe'
+import { groupesActifs, inscritsDuGroupe, destinataireDuGroupe, refusPublicationGroupe, signataireDuGroupe } from '../lib/conventionGroupe'
 import { pluriel } from '../../../core/genre'
 
 // Session inter suivie par groupes (06/11, décision de H) : on choisit le groupe avant de préparer l'envoi ; chaque
@@ -28,7 +28,9 @@ export default function ChoixGroupeEnvoi({ session, groupes, emailType, onChoisi
           {actifs.map((g) => {
             const nb = inscritsDuGroupe(session, g).length
             const mail = destinataireDuGroupe(g)
-            const raison = !nb ? 'Aucun stagiaire dans ce groupe' : !mail ? 'Pas d\'adresse e-mail pour ce groupe' : null
+            // Avant formation : la convention du groupe doit pouvoir être faite (stagiaires, prix, signataire)
+            const refus = emailType === 'after' ? null : refusPublicationGroupe(g, nb, signataireDuGroupe(g, [g.contact].filter(Boolean)))
+            const raison = !nb ? 'Aucun stagiaire dans ce groupe' : refus || (!mail ? 'Pas d\'adresse e-mail pour ce groupe : ajoutez-en une au contact ou à la fiche.' : null)
             return (
               <li key={g.id} className="py-2 flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">

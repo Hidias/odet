@@ -455,7 +455,7 @@ Merci de nous retourner ${groupe?.kind === 'particulier' ? 'le contrat signé' :
 
 Concernant le Passeport de Prévention : conformément au Décret n° 2025-748 du 1er août 2025, nous déclarons les formations santé-sécurité dans le Passeport de prévention national. La notice stagiaire est à remettre à chaque participant. Un salarié qui ne souhaite pas communiquer son numéro de sécurité sociale signe la décharge en ligne depuis son portail stagiaire ; à défaut, merci de lui faire signer la décharge jointe.
 
-Concernant les convocations, chacune contient un QR code et un lien permettant aux stagiaires de se connecter à notre portail en ligne. Ils pourront y renseigner leurs informations personnelles, indiquer leurs attentes et participer à un test de positionnement avant le début de la formation. Ce test n'a aucun caractère certificatif : il vise uniquement à évaluer leur niveau de connaissances préalable afin de mieux adapter la formation à leur niveau.${espace ? "\n\nLa convention peut aussi être signée en ligne depuis votre espace client : l'adresse, le QR code et votre code d'accès figurent dans l'encadré « Signer en ligne » en fin de document." : ''}
+Concernant les convocations, chacune contient un QR code et un lien permettant aux stagiaires de se connecter à notre portail en ligne. Ils pourront y renseigner leurs informations personnelles, indiquer leurs attentes et participer à un test de positionnement avant le début de la formation. Ce test n'a aucun caractère certificatif : il vise uniquement à évaluer leur niveau de connaissances préalable afin de mieux adapter la formation à leur niveau.${espace ? `\n\n${groupe?.kind === 'particulier' ? 'Le contrat peut aussi être signé' : 'La convention peut aussi être signée'} en ligne depuis votre espace client : l'adresse, le QR code et votre code d'accès figurent dans l'encadré « Signer en ligne » en fin de document.` : ''}
 
 Restant à votre disposition pour toute information complémentaire.`)
     } else {
@@ -986,6 +986,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
           body: ' Email de test envoyé à vous-même pour vérification du rendu.\n\n' + emailBody,
           attachmentPaths: uploadedPaths,
           sessionId: session.id,
+          groupId: groupe?.id || null,
           emailType: 'test'
         })
       })

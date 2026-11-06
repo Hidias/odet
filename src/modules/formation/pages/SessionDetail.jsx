@@ -68,7 +68,7 @@ import QuizFlashSession from '../components/QuizFlashSession'
 import { sommaireDossier } from '../lib/sommaireDossier'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { etatConvention, CONVENTION } from '../lib/etatConvention'
-import { envoiParGroupe, sessionDuGroupe, groupesActifs, inscritsDuGroupe, SELECT_GROUPE } from '../lib/conventionGroupe'
+import { envoiParGroupe, sessionDuGroupe, groupesActifs, inscritsDuGroupe, refusPublicationGroupe, signataireDuGroupe, SELECT_GROUPE } from '../lib/conventionGroupe'
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 import { pluriel } from '../../../core/genre'
 import ChoixFormateurs from '../components/ChoixFormateurs'
@@ -191,9 +191,37 @@ export default function SessionDetail() {
       .then(({ data, error }) => { if (actif && !error) setGroupesConvention(data || []) })
     return () => { actif = false }
   }, [session?.id, session?.session_type, rechargeGroupes])
-  // Envoi d'une session inter suivie par groupes : type d'envoi dont on choisit le groupe, puis groupe choisi
+  // Envoi d'une session inter suivie par groupes : { type, groupes, session } relus en base à l'ouverture, puis
+  // { groupe, session vue du groupe } une fois le groupe choisi
   const [choixGroupeEnvoi, setChoixGroupeEnvoi] = useState(null)
   const [groupeEnvoi, setGroupeEnvoi] = useState(null)
+
+  // Groupes et rattachements relus en base (jamais une liste en mémoire, qui peut dater d'avant un déplacement de
+  // stagiaire) ; null si la lecture échoue : rien n'est préparé
+  const lireGroupesEtRattachements = async () => {
+    const [{ data: gs, error: eG }, { data: rs, error: eR }] = await Promise.all([
+      supabase.from('session_groups').select(SELECT_GROUPE).eq('session_id', session.id).order('created_at'),
+      supabase.from('session_trainees').select('trainee_id, group_id').eq('session_id', session.id),
+    ])
+    if (eG || eR || !gs || !rs) return null
+    const rattache = new Map(rs.map((r) => [r.trainee_id, r.group_id || null]))
+    return {
+      groupes: gs,
+      session: { ...session, session_trainees: (session.session_trainees || []).map((st) => ({ ...st, group_id: rattache.get(st.trainee_id) ?? null })) },
+    }
+  }
+
+  // « Avant formation » et « Après formation » : une inter qui a des groupes s'envoie groupe par groupe
+  const ouvrirEnvoi = async (type) => {
+    if (session?.session_type === 'inter') {
+      const lu = await lireGroupesEtRattachements()
+      if (!lu) return toast.error('Groupes de la session illisibles : réessayez dans un instant.')
+      setGroupesConvention(lu.groupes)
+      if (envoiParGroupe(lu.session, lu.groupes)) return setChoixGroupeEnvoi({ type, ...lu })
+    }
+    setSessionEmailType(type)
+    setShowSessionEmailModal(true)
+  }
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [showAddTrainee, setShowAddTrainee] = useState(false)
@@ -2615,14 +2643,17 @@ export default function SessionDetail() {
   // Conventions (ou contrats) des groupes d'une inter, pour les dossiers ZIP : session vue de chaque groupe
   const conventionsDesGroupes = async (trainer) => {
     const out = []
-    for (const g of groupesActifs(groupesConvention)) {
-      const inscrits = inscritsDuGroupe(session, g)
+    const lu = await lireGroupesEtRattachements()
+    if (!lu) { toast.error('Groupes illisibles : conventions des groupes non jointes au dossier'); return out }
+    for (const g of groupesActifs(lu.groupes)) {
+      const inscrits = inscritsDuGroupe(lu.session, g)
+      if (!inscrits.length || refusPublicationGroupe(g, inscrits.length, signataireDuGroupe(g, [g.contact].filter(Boolean)))) continue
       const stagiaires = inscrits.map((st) => ({ ...st.trainees, result: st.result || traineeResults[st.trainee_id] || null, access_code: st.access_code }))
       const nom = String(g.clients?.name || g.group_name || 'groupe').replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60)
       try {
         const doc = g.kind === 'particulier'
           ? await generatePDF('contratParticulier', session, { trainees: stagiaires, trainer, particulier: { group: g, client: g.clients || {} }, enLigne: false })
-          : await generatePDF('convention', sessionDuGroupe(session, g), { trainees: stagiaires, trainer, enLigne: false })
+          : await generatePDF('convention', sessionDuGroupe(lu.session, g), { trainees: stagiaires, trainer, enLigne: false })
         if (doc?.base64) out.push({ name: `${g.kind === 'particulier' ? 'Contrat' : 'Convention'}_${session.reference || 'SESSION'}_${nom}.pdf`, base64: doc.base64 })
       } catch (e) {
         console.error('Convention du groupe :', e)
@@ -2890,18 +2921,10 @@ export default function SessionDetail() {
   }
   
   // Ouvrir modal email "Avant formation"
-  const handleSendEmailBefore = () => {
-    if (envoiParGroupe(session, groupesConvention)) return setChoixGroupeEnvoi('before')
-    setSessionEmailType('before')
-    setShowSessionEmailModal(true)
-  }
+  const handleSendEmailBefore = () => ouvrirEnvoi('before')
   
   // Ouvrir modal email "Après formation"
-  const handleSendEmailAfter = () => {
-    if (envoiParGroupe(session, groupesConvention)) return setChoixGroupeEnvoi('after')
-    setSessionEmailType('after')
-    setShowSessionEmailModal(true)
-  }
+  const handleSendEmailAfter = () => ouvrirEnvoi('after')
   
   // Envoyer relance évaluations à chaud aux non-répondants
   const handleSendHotEvalReminder = async () => {
@@ -6668,19 +6691,19 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
       {/* Modal Email Session */}
       {choixGroupeEnvoi && (
-        <ChoixGroupeEnvoi session={session} groupes={groupesConvention} emailType={choixGroupeEnvoi}
+        <ChoixGroupeEnvoi session={choixGroupeEnvoi.session} groupes={choixGroupeEnvoi.groupes} emailType={choixGroupeEnvoi.type}
           onClose={() => setChoixGroupeEnvoi(null)}
           onChoisir={(g) => {
-            setGroupeEnvoi(g)
-            setSessionEmailType(choixGroupeEnvoi)
+            setGroupeEnvoi({ groupe: g, session: sessionDuGroupe(choixGroupeEnvoi.session, g) })
+            setSessionEmailType(choixGroupeEnvoi.type)
             setChoixGroupeEnvoi(null)
             setShowSessionEmailModal(true)
           }} />
       )}
       {showSessionEmailModal && (
         <SessionEmailModal 
-          session={groupeEnvoi ? sessionDuGroupe(session, groupeEnvoi) : session}
-          groupe={groupeEnvoi}
+          session={groupeEnvoi ? groupeEnvoi.session : session}
+          groupe={groupeEnvoi?.groupe || null}
           emailType={sessionEmailType}
           sessionCosts={sessionCosts}
           questions={questions}

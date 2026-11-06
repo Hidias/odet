@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { envoiParGroupe, groupesActifs, prixDuGroupe, inscritsDuGroupe, sessionDuGroupe, destinataireDuGroupe } from '../src/modules/formation/lib/conventionGroupe'
+import { envoiParGroupe, groupesActifs, prixDuGroupe, inscritsDuGroupe, sessionDuGroupe, destinataireDuGroupe, financementDuGroupe, refusPublicationGroupe } from '../src/modules/formation/lib/conventionGroupe'
 
 // Session inter avec deux entreprises (Alpha, Beta) et un stagiaire sans groupe
 const session = {
   id: 's1', session_type: 'inter', client_id: 'principal', clients: { id: 'principal', name: 'Client principal' },
   contact: { id: 'cp', email: 'principal@exemple.fr' }, contact_id: 'cp', signatory_name: 'Signataire principal', signatory_role: 'Gérant',
-  total_price: 3000,
+  total_price: 3000, funding_type: 'opco', funding_details: 'OPCO du client principal, dossier 999',
   session_trainees: [
     { trainee_id: 't1', group_id: 'gA', trainees: { id: 't1' } },
     { trainee_id: 't2', group_id: 'gA', trainees: { id: 't2' } },
@@ -74,5 +74,25 @@ describe('Envoi d\'une session inter par groupe (06/11)', () => {
     expect(destinataireDuGroupe(beta)).toBe('contact@beta.fr')
     expect(destinataireDuGroupe({ kind: 'entreprise', contact: { email: 'pas une adresse' }, clients: {} })).toBe('')
     expect(inscritsDuGroupe(session, null)).toEqual([])
+  })
+
+  it('jamais le prix ni le financement du client principal dans la vue d\'un groupe', () => {
+    const sansPrix = { ...beta, price_total: null }
+    expect(sessionDuGroupe(session, sansPrix).total_price).toBeNull()
+    expect(sessionDuGroupe(session, alpha).funding_type).toBe('none')
+    expect(sessionDuGroupe(session, alpha).funding_details).toBe('')
+    const opco = { ...alpha, payer_kind: 'opco', payeur: { name: 'OPCO Alpha' }, dossier_number: 'D-12' }
+    expect(financementDuGroupe(opco)).toEqual({ funding_type: 'opco', funding_details: 'OPCO Alpha, dossier D-12' })
+    expect(financementDuGroupe({ payer_kind: 'autre' })).toEqual({ funding_type: 'other', funding_details: '' })
+  })
+
+  it('un groupe sans prix est refusé avant toute convention ; le contact est lisible même saisi en prénom et nom', () => {
+    const signataire = { name: 'Anne Alpha', role: 'DRH' }
+    expect(refusPublicationGroupe({ ...alpha, price_per_person: null }, 2, signataire)).toMatch(/Aucun prix/)
+    expect(refusPublicationGroupe(alpha, 2, signataire)).toBeNull()
+    expect(refusPublicationGroupe(beta, 1, null)).toMatch(/signataire/)
+    const vue = sessionDuGroupe(session, alpha)
+    expect(vue.contact.name).toBe('Anne Alpha')
+    expect(vue.contact.role).toBe('DRH')
   })
 })
