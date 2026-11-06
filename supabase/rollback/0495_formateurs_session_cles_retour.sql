@@ -1,5 +1,7 @@
 -- Retour arrière de 0495 : clés étrangères de session_trainers retirées, app.session_appliquer reprend sa définition
 -- de 0437 (relevée en production le 06/11, empreinte 490dddc7aa3a23eb2a86b6662af3921f). Aucune donnée n'est touchée.
+-- L'écran retire toujours lui-même les lignes de session_trainers d'une session ou d'un formateur supprimé : après ce
+-- retour, aucune ligne orpheline ne se crée, et 0495 peut être rejouée (elle échouerait sans rien appliquer sinon).
 
 alter table public.session_trainers drop constraint if exists session_trainers_trainer_fk;
 alter table public.session_trainers drop constraint if exists session_trainers_session_fk;

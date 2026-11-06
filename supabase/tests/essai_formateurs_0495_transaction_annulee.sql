@@ -73,7 +73,7 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; v_a uuid; v_b uuid; v_c uuid; v_s uuid; v_s2 uuid; v_liste text; v_refus boolean;
+  v_cie uuid; v_a uuid; v_b uuid; v_c uuid; v_s uuid; v_s2 uuid; v_s3 uuid; v_n int; v_liste text; v_refus boolean;
   v_data jsonb;
 begin
   select id into v_cie from public.companies limit 1;
@@ -91,13 +91,28 @@ begin
   select string_agg(t.last_name, ',' order by t.last_name) into v_liste
     from public.session_trainers st join public.trainers t on t.id = st.trainer_id where st.session_id = v_s;
   if v_liste is distinct from 'BRAVO,CHARLIE' then raise exception '1. formateurs après changement de principal : % (attendu BRAVO,CHARLIE)', v_liste; end if;
-  if (select trainer_id from public.sessions where id = v_s) <> v_c then raise exception '2. principal non posé'; end if;
+  if (select trainer_id from public.sessions where id = v_s) is distinct from v_c then raise exception '2. principal non posé'; end if;
 
   -- 2. Nouvelle confirmation, même principal : rien ne part
   perform app.session_appliquer(v_s, v_data);
   select string_agg(t.last_name, ',' order by t.last_name) into v_liste
     from public.session_trainers st join public.trainers t on t.id = st.trainer_id where st.session_id = v_s;
   if v_liste is distinct from 'BRAVO,CHARLIE' then raise exception '3. formateurs après confirmation identique : %', v_liste; end if;
+
+  -- 2 bis. Session sans principal, autres formateurs déjà là : rien ne part ; principal pris parmi eux : une seule ligne
+  insert into public.sessions (reference, start_date, end_date, validation_requise, company_id)
+    values ('ESSAI-0495-3', current_date + 35, current_date + 35, true, v_cie) returning id into v_s3;
+  insert into public.session_trainers (session_id, trainer_id) values (v_s3, v_a), (v_s3, v_b);
+  perform app.session_appliquer(v_s3, v_data || jsonb_build_object('trainer_id', v_b));
+  select string_agg(t.last_name, ',' order by t.last_name), count(*) into v_liste, v_n
+    from public.session_trainers st join public.trainers t on t.id = st.trainer_id where st.session_id = v_s3;
+  if v_liste is distinct from 'ALPHA,BRAVO' or v_n <> 2 then raise exception '3 bis. session sans principal : % (attendu ALPHA,BRAVO)', v_liste; end if;
+  -- Principal remplacé par un formateur déjà présent : l'ancien part, pas de doublon
+  perform app.session_appliquer(v_s3, v_data || jsonb_build_object('trainer_id', v_a));
+  select string_agg(t.last_name, ',' order by t.last_name) into v_liste
+    from public.session_trainers st join public.trainers t on t.id = st.trainer_id where st.session_id = v_s3;
+  if v_liste is distinct from 'ALPHA' then raise exception '3 ter. principal pris parmi les autres : % (attendu ALPHA)', v_liste; end if;
+  delete from public.sessions where id = v_s3;
 
   -- 3. Formateur supprimé : ses lignes partent avec lui
   insert into public.sessions (reference, start_date, end_date, trainer_id, company_id)
