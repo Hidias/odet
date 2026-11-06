@@ -1,12 +1,11 @@
 import { Send } from 'lucide-react'
 import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
-import { groupesActifs, inscritsDuGroupe, destinataireDuGroupe, refusPublicationGroupe, signataireDuGroupe } from '../lib/conventionGroupe'
+import { groupesActifs, inscritsDuGroupe, destinataireDuGroupe, refusPublicationGroupe, signataireDuGroupe, etatDocumentGroupe } from '../lib/conventionGroupe'
 import { pluriel } from '../../../core/genre'
 
 // Session inter suivie par groupes (06/11, décision de H) : on choisit le groupe avant de préparer l'envoi ; chaque
 // entreprise ou particulier ne reçoit que ses documents et les convocations ou attestations de ses propres stagiaires.
-const ETAT = { a_envoyer: 'À envoyer', envoye: 'Envoyé', signe: 'Signé' }
 
 export default function ChoixGroupeEnvoi({ session, groupes, emailType, onChoisir, onClose }) {
   const actifs = groupesActifs(groupes)
@@ -36,7 +35,7 @@ export default function ChoixGroupeEnvoi({ session, groupes, emailType, onChoisi
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 truncate">{g.clients?.name || g.group_name || 'Groupe'}</p>
                   <p className="text-ui-sm text-gray-500 break-words">
-                    {pluriel(nb, 'stagiaire')} · {mail || 'aucune adresse'}{emailType !== 'after' ? ` · ${g.kind === 'particulier' ? 'Contrat' : 'Convention'} : ${(ETAT[g.doc_status] || ETAT.a_envoyer).toLowerCase()}` : ''}
+                    {pluriel(nb, 'stagiaire')} · {mail || 'aucune adresse'}{emailType !== 'after' ? ` · ${etatDocumentGroupe(g).document} : ${etatDocumentGroupe(g).etat}` : ''}
                   </p>
                   {raison && <p className="text-ui-sm text-[rgb(var(--c-warning))]">{raison}</p>}
                 </div>

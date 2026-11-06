@@ -148,6 +148,42 @@ const champsDe = (s, base = {}) => ({
   end_time: base.end_time ?? hhmm(s.end_time),
 })
 
+/** Fin d'une session après un changement de date de début : la session se décale en bloc (même nombre de jours) ;
+ * début effacé : une session d'un jour perd aussi sa fin (elle suivra le prochain début), une session de plusieurs
+ * jours la garde, visible dans le champ « Fin » ; dates incohérentes au départ : fin gardée. */
+export function finApresDebut(v, debut) {
+  if (!v.end_date) return ''
+  if (!debut) return v.end_date === v.start_date ? '' : v.end_date
+  if (!v.start_date || v.end_date < v.start_date) return v.end_date
+  const jour = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10))
+  const fin = new Date(jour(debut) + (jour(v.end_date) - jour(v.start_date)))
+  return fin.toISOString().slice(0, 10)
+}
+
+/** Jour de week-end d'une date AAAA-MM-JJ : « samedi » ou « dimanche », sinon null */
+export function jourDeWeekEnd(date) {
+  if (!date) return null
+  const j = new Date(`${date}T12:00:00`).getDay()
+  return j === 6 ? 'samedi' : j === 0 ? 'dimanche' : null
+}
+
+/** Avertissement quand le début ou la fin d'une session tombe un samedi ou un dimanche, ou quand elle couvre un
+ * week-end, sinon null */
+export function alerteWeekEnd(v) {
+  const d = jourDeWeekEnd(v.start_date)
+  const plusieurs = v.end_date && v.start_date && v.end_date > v.start_date
+  const f = plusieurs ? jourDeWeekEnd(v.end_date) : null
+  if (d || f) return `${d ? `Le début tombe un ${d}` : `La fin tombe un ${f}`}${d && f ? ` et la fin un ${f}` : ''} : vérifiez la date avec le client.`
+  if (plusieurs) {
+    const j = new Date(`${v.start_date}T12:00:00`)
+    for (let n = 0; n < 62 && j.toISOString().slice(0, 10) < v.end_date; n++) {
+      j.setDate(j.getDate() + 1)
+      if (jourDeWeekEnd(j.toISOString().slice(0, 10))) return 'La session couvre un week-end : vérifiez les dates avec le client.'
+    }
+  }
+  return null
+}
+
 /** Valeurs d'une session à confirmer : erreurs bloquantes */
 export function erreursConfirmation(v) {
   const e = []
@@ -275,10 +311,11 @@ function FenetreConfirmation({ session, onFermer, onFait }) {
 
   const ligneDates = (v, set, prefixe) => (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-      <label className="text-ui-sm"><span className="text-gray-600">Date *</span><input type="date" className="input w-full mt-1" value={v.start_date} onChange={(e) => set('start_date', e.target.value)} aria-label={`${prefixe} : date`} /></label>
+      <label className="text-ui-sm"><span className="text-gray-600">Date *</span><input type="date" className="input w-full mt-1" value={v.start_date} onChange={(e) => { const fin = finApresDebut(v, e.target.value); set('start_date', e.target.value); if (fin !== v.end_date) set('end_date', fin) }} aria-label={`${prefixe} : date`} /></label>
       <label className="text-ui-sm"><span className="text-gray-600">Fin (si plusieurs jours)</span><input type="date" className="input w-full mt-1" value={v.end_date && v.end_date !== v.start_date ? v.end_date : ''} min={v.start_date} onChange={(e) => set('end_date', e.target.value)} aria-label={`${prefixe} : fin`} /></label>
       <label className="text-ui-sm"><span className="text-gray-600">Début *</span><input type="time" className="input w-full mt-1" value={v.start_time} onChange={(e) => set('start_time', e.target.value)} aria-label={`${prefixe} : heure de début`} /></label>
       <label className="text-ui-sm"><span className="text-gray-600">Fin *</span><input type="time" className="input w-full mt-1" value={v.end_time} onChange={(e) => set('end_time', e.target.value)} aria-label={`${prefixe} : heure de fin`} /></label>
+      {alerteWeekEnd(v) && <p className="col-span-full text-ui-sm text-[rgb(var(--c-warning))] flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 flex-none" aria-hidden="true" />{alerteWeekEnd(v)}</p>}
     </div>
   )
 

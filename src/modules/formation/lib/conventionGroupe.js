@@ -132,3 +132,11 @@ export function refusPublicationGroupe(groupe, nbStagiaires, signataire) {
   }
   return null
 }
+
+// Document d'un groupe et son état, accordés (convention au féminin, contrat au masculin) :
+// { document: 'Convention', etat: 'signée' }. État inconnu ou vide : « à envoyer ».
+export function etatDocumentGroupe(groupe) {
+  const contrat = groupe?.kind === 'particulier'
+  const etats = { a_envoyer: 'à envoyer', envoye: contrat ? 'envoyé' : 'envoyée', signe: contrat ? 'signé' : 'signée' }
+  return { document: contrat ? 'Contrat' : 'Convention', etat: etats[groupe?.doc_status] || etats.a_envoyer }
+}

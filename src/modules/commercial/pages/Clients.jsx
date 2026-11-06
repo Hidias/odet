@@ -1038,13 +1038,13 @@ export default function Clients() {
                     onChoisir={(v) => { setForm((f) => ({ ...f, ...v, tva: f.vat_exempt ? '' : v.tva })); setAutoFilled(true) }} />
                 )}
                 <div>
-                  <label className="label">{form.client_type === 'particulier' ? 'Nom et prénom *' : "Nom de l'entreprise *"}</label>
-                  <input className="input" value={form.name} onChange={(e) => setForm({...form, name: formatCompanyName(e.target.value)})} />
+                  <label htmlFor="client-nom" className="label">{form.client_type === 'particulier' ? 'Nom et prénom *' : "Nom de l'entreprise *"}</label>
+                  <input id="client-nom" className="input" value={form.name} onChange={(e) => setForm({...form, name: formatCompanyName(e.target.value)})} />
                 </div>
                 
                 {form.client_type !== 'particulier' && (
                 <div>
-                  <label className="label flex items-center justify-between gap-2">
+                  <label htmlFor="client-siret" className="label flex items-center justify-between gap-2">
                     SIRET
                     <span className="flex items-center gap-3">
                       {siretEnriching && <span className="text-ui-sm text-[rgb(var(--c-info))] font-normal flex items-center gap-1"><span className="animate-spin inline-block"></span> Recherche INSEE...</span>}
@@ -1054,7 +1054,7 @@ export default function Clients() {
                       )}
                     </span>
                   </label>
-                  <input className="input font-mono" value={form.siret}
+                  <input id="client-siret" aria-label="SIRET" className="input font-mono" value={form.siret}
                     onChange={(e) => {
                       const val = e.target.value
                       const computed = tvaFromSiren(val)
@@ -1068,32 +1068,32 @@ export default function Clients() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
-                    <label className="label">Adresse</label>
-                    <input className="input" value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} placeholder="Numéro et nom de voie" />
+                    <label htmlFor="client-adresse" className="label">Adresse</label>
+                    <input id="client-adresse" className="input" value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} placeholder="Numéro et nom de voie" />
                   </div>
                   <div>
-                    <label className="label">Code postal</label>
-                    <input className="input" value={form.postal_code} onChange={(e) => setForm({...form, postal_code: e.target.value})} placeholder="29000" />
+                    <label htmlFor="client-cp" className="label">Code postal</label>
+                    <input id="client-cp" className="input" value={form.postal_code} onChange={(e) => setForm({...form, postal_code: e.target.value})} placeholder="29000" />
                   </div>
                   <div>
-                    <label className="label">Ville</label>
-                    <input className="input" value={form.city} onChange={(e) => setForm({...form, city: e.target.value.toUpperCase()})} placeholder="VILLE" />
+                    <label htmlFor="client-ville" className="label">Ville</label>
+                    <input id="client-ville" className="input" value={form.city} onChange={(e) => setForm({...form, city: e.target.value.toUpperCase()})} placeholder="VILLE" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="label">Téléphone</label>
-                    <input type="tel" className="input" value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} />
+                    <label htmlFor="client-tel" className="label">Téléphone</label>
+                    <input id="client-tel" type="tel" className="input" value={form.phone} onChange={(e) => setForm({...form, phone: e.target.value})} />
                   </div>
                   <div>
-                    <label className="label">Email</label>
-                    <input type="email" className="input" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
+                    <label htmlFor="client-email" className="label">Email</label>
+                    <input id="client-email" type="email" className="input" value={form.email} onChange={(e) => setForm({...form, email: e.target.value})} />
                   </div>
                 </div>
                 {form.client_type !== 'particulier' && (
                 <div>
-                  <label className="label">N° TVA intracommunautaire</label>
-                  <input className="input font-mono disabled:bg-gray-50 disabled:text-gray-400" value={form.vat_exempt ? '' : form.tva} disabled={form.vat_exempt}
+                  <label htmlFor="client-tva" className="label">N° TVA intracommunautaire</label>
+                  <input id="client-tva" className="input font-mono disabled:bg-gray-50 disabled:text-gray-400" value={form.vat_exempt ? '' : form.tva} disabled={form.vat_exempt}
                     onChange={(e) => setForm({...form, tva: e.target.value.toUpperCase()})} placeholder={form.vat_exempt ? 'Non assujetti' : 'FR00000000000'} />
                   <p className="text-ui-sm text-gray-400 mt-1">Calculé depuis le SIREN pour une entreprise française. Saisie libre pour un client étranger.</p>
                   <label className="flex items-center gap-2 mt-2 text-ui text-gray-700 cursor-pointer">
@@ -1107,12 +1107,12 @@ export default function Clients() {
                 {form.client_type !== 'particulier' && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="label">Contact principal</label>
-                    <input className="input" placeholder="Nom du contact" value={form.contact_name} onChange={(e) => setForm({...form, contact_name: e.target.value})} />
+                    <label htmlFor="client-contact" className="label">Contact principal</label>
+                    <input id="client-contact" className="input" placeholder="Nom du contact" value={form.contact_name} onChange={(e) => setForm({...form, contact_name: e.target.value})} />
                   </div>
                   <div>
-                    <label className="label">Fonction</label>
-                    <input className="input" placeholder="Ex: Directeur" value={form.contact_function} onChange={(e) => setForm({...form, contact_function: e.target.value})} />
+                    <label htmlFor="client-fonction" className="label">Fonction</label>
+                    <input id="client-fonction" className="input" placeholder="Ex: Directeur" value={form.contact_function} onChange={(e) => setForm({...form, contact_function: e.target.value})} />
                   </div>
                 </div>
                 )}
@@ -1156,8 +1156,8 @@ export default function Clients() {
                 </div>
 
                 <div>
-                  <label className="label">Notes</label>
-                  <textarea className="input" rows={2} value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} />
+                  <label htmlFor="client-notes" className="label">Notes</label>
+                  <textarea id="client-notes" className="input" rows={2} value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} />
                 </div>
               </div>
               <div className="flex justify-end gap-2 p-4 border-t">
@@ -1473,11 +1473,11 @@ function ContactForm({ onAdd, onEdit, contact = null, buttonLabel = '+ Ajouter' 
             <select aria-label="Civilité" className="input text-ui" value={form.civilite} onChange={e => setForm({...form, civilite: e.target.value})}>
               {CHOIX_CIVILITE_CONTACT.map(([v, l]) => <option key={v} value={v}>{v ? l : 'Civilité'}</option>)}
             </select>
-            <input type="text" placeholder="Prénom Nom *" className="input text-ui" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+            <input type="text" aria-label="Prénom et nom" placeholder="Prénom Nom *" className="input text-ui" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
           </div>
-          <input type="text" placeholder="Fonction" className="input text-ui" value={form.role} onChange={e => setForm({...form, role: e.target.value})} />
-          <input type="email" placeholder="Email" className="input text-ui" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-          <input type="tel" placeholder="Téléphone" className="input text-ui" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
+          <input type="text" aria-label="Fonction" placeholder="Fonction" className="input text-ui" value={form.role} onChange={e => setForm({...form, role: e.target.value})} />
+          <input type="email" aria-label="Email" placeholder="Email" className="input text-ui" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
+          <input type="tel" aria-label="Téléphone" placeholder="Téléphone" className="input text-ui" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
           <label className="flex items-center gap-2 text-ui"><input type="checkbox" checked={form.is_primary} onChange={e => setForm({...form, is_primary: e.target.checked})} />Contact principal</label>
         </div>
         <div className="flex justify-end gap-2 mt-3">

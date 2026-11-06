@@ -12,7 +12,7 @@ import { downloadDocument, generatePDF } from '../pdf/pdfGenerator'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
 import { confirmationSignatureGroupe } from '../../../core/portail/alertesPublication'
 import { signaturesDesDocuments, telechargerAvecPreuve } from '../../../core/portail/documentSigne'
-import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact, sessionDuGroupe, SELECT_GROUPE, doublonDuGroupe, lireMontant } from '../lib/conventionGroupe'
+import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact, sessionDuGroupe, SELECT_GROUPE, doublonDuGroupe, lireMontant, etatDocumentGroupe } from '../lib/conventionGroupe'
 import { useAuthStore } from '../../../core/store'
 import InscriptionsEnLigne from './InscriptionsEnLigne'
 import { aLaPlaceDe } from '../../../core/portail/signataire'
@@ -23,7 +23,7 @@ import { aLaPlaceDe } from '../../../core/portail/signataire'
 
 const KINDS = { entreprise: 'Entreprise', particulier: 'Particulier' }
 const PAYEURS = { entreprise: 'L\'entreprise', opco: 'Un OPCO', particulier: 'Le particulier', france_travail: 'France Travail', autre: 'Autre' }
-const DOCS = { a_envoyer: ['neutral', 'À envoyer'], envoye: ['info', 'Envoyé'], signe: ['success', 'Signé'] }
+const TONS_DOC = { a_envoyer: 'neutral', envoye: 'info', signe: 'success' }
 const fmt = (d) => (d ? new Date(String(d).length === 10 ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR') : '')
 
 export default function SessionGroupes({ session, peutModifier, onGroupes }) {
@@ -249,7 +249,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
                 <button type="button" className="w-full text-left" onClick={() => ouvrir(g)}>
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-semibold text-gray-900">{g.clients?.name || g.group_name || 'Groupe'}</span>
-                    <StatusBadge tone={DOCS[g.doc_status]?.[0]}>{g.kind === 'particulier' ? 'Contrat' : 'Convention'} : {DOCS[g.doc_status]?.[1]}</StatusBadge>
+                    <StatusBadge tone={TONS_DOC[g.doc_status] || TONS_DOC.a_envoyer}>{(({ document, etat }) => `${document} : ${etat.charAt(0).toUpperCase()}${etat.slice(1)}`)(etatDocumentGroupe(g))}</StatusBadge>
                   </div>
                   <div className="text-ui-sm text-gray-500">
                     {KINDS[g.kind]} · {membres.length} stagiaire{membres.length > 1 ? 's' : ''} · payé par {PAYEURS[g.payer_kind] ? PAYEURS[g.payer_kind].toLowerCase() : '—'}

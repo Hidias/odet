@@ -1,5 +1,6 @@
 import { toneStyle } from '../../../ui/StatusBadge'
 import { nomContact } from '../../../core/genre'
+import { contactPropose } from '../../formation/lib/conventionGroupe'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
@@ -313,7 +314,7 @@ export default function Quotes() {
           const qDate = format(new Date(), 'yyyy-MM-dd')
           const vDate = calcValidityDate(qDate)
           setCurrentQuote({ ...emptyQuote, reference: ref, quote_date: qDate, validity_date: vDate, payment_deadline: '', client_id: client.id })
-          await loadClientContacts(client.id)
+          proposerContact(client.id, await loadClientContacts(client.id))
           setItems([])
           setMode('create')
           // Clean URL params
@@ -343,11 +344,22 @@ export default function Quotes() {
     return data || []
   }
 
+  // Dernier client demandé : une réponse arrivée après un changement de client est ignorée (liste et contact cohérents)
+  const contactsDemandes = useRef(null)
   async function loadClientContacts(clientId) {
-    if (!clientId) { setContacts([]); return }
+    contactsDemandes.current = clientId || null
+    if (!clientId) { setContacts([]); return [] }
     const { data } = await supabase.from('client_contacts').select('*').eq('client_id', clientId)
       .order('is_primary', { ascending: false }).order('name')
+    if (contactsDemandes.current !== clientId) return null
     setContacts(data || [])
+    return data || []
+  }
+  // A11 (06/11) : contact « documents », sinon principal, proposé d'office (règle commune des conventions de groupe),
+  // jamais à la place d'un contact déjà choisi
+  function proposerContact(clientId, liste) {
+    const propose = liste ? contactPropose(liste) : ''
+    if (propose) setCurrentQuote(prev => (prev.client_id === clientId && !prev.contact_id ? { ...prev, contact_id: propose } : prev))
   }
 
   async function generateReference() {
@@ -368,6 +380,7 @@ export default function Quotes() {
     const vDate = calcValidityDate(qDate)
     setCurrentQuote({ ...emptyQuote, reference: ref, quote_date: qDate, validity_date: vDate, payment_deadline: '' })
     setItems([])
+    contactsDemandes.current = null
     setContacts([])
     setMode('create')
   }
@@ -1151,7 +1164,7 @@ export default function Quotes() {
   }
   async function handleClientChange(clientId) {
     setCurrentQuote(prev => ({ ...prev, client_id: clientId, contact_id: '' }))
-    loadClientContacts(clientId)
+    loadClientContacts(clientId).then((liste) => proposerContact(clientId, liste))
     // Lignes restées au prix du catalogue : passées au tarif du nouveau client (jamais un prix modifié à la main)
     const t = await chargerTarifs(clientId)
     const [lignes, n] = appliquerTarifs(t, items, { courses, frais: FRAIS_CATALOGUE })
@@ -1894,8 +1907,8 @@ export default function Quotes() {
                   />
                 </div>
                 <div>
-                  <label className="block text-ui font-medium text-gray-700 mb-1">Contact</label>
-                  <select value={currentQuote.contact_id || ''}
+                  <label htmlFor="devis-contact" className="block text-ui font-medium text-gray-700 mb-1">Contact</label>
+                  <select id="devis-contact" value={currentQuote.contact_id || ''}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, contact_id: e.target.value || null }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
                     <option value="">- Aucun -</option>
