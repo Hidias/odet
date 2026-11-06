@@ -4,7 +4,7 @@
 // sans article relié, le montant n'est pas estimé (rien d'inventé).
 import { jsPDF } from 'jspdf'
 import 'jspdf-autotable'
-import { startDocument, numberPages } from '../../../core/pdf/layout'
+import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { endOfLife, summarize, frShort } from '../lib/schedule'
@@ -57,38 +57,44 @@ export function donneesBilan({ equipment = [], visits = [], types = [], prixType
 
 export async function buildBilanPDF({ client, contract, data, org = null }) {
   const ORG = orgHorsFormation(org || await loadPdfOrg())
-  const doc = new jsPDF({ compress: true })
   const annee = new Date().getFullYear()
-  const f = startDocument(doc, ORG, { ref: contract?.reference || null, docLabel: 'Bilan annuel', code: 'BIL', title: `Bilan annuel ${annee}`, subtitle: contract?.label || 'Maintenance du matériel de sécurité' })
-  f.cards([{ label: 'Client', lines: [client?.name || '', client?.address || '', [client?.postal_code, client?.city].filter(Boolean).join(' ')].filter(Boolean) }])
-  f.para(`Voici le point sur votre matériel de sécurité : ${data.appareils} appareil${data.appareils > 1 ? 's' : ''} suivi${data.appareils > 1 ? 's' : ''}, les visites des douze derniers mois et ce qui est à prévoir pour l'année qui vient.`, { after: 3 })
+  // Construction synchrone, recomposée plus serrée si la dernière page est presque vide (compacter, 06/11) ;
+  // f.finish() pose le pied de page légal sur la dernière page (il manquait)
+  const doc = compacter(() => {
+    const doc = new jsPDF({ compress: true })
+    const f = startDocument(doc, ORG, { ref: contract?.reference || null, docLabel: 'Bilan annuel', code: 'BIL', title: `Bilan annuel ${annee}`, subtitle: contract?.label || 'Maintenance du matériel de sécurité' })
+    f.cards([{ label: 'Client', lines: [client?.name || '', client?.address || '', [client?.postal_code, client?.city].filter(Boolean).join(' ')].filter(Boolean) }])
+    f.para(`Voici le point sur votre matériel de sécurité : ${data.appareils} appareil${data.appareils > 1 ? 's' : ''} suivi${data.appareils > 1 ? 's' : ''}, les visites des douze derniers mois et ce qui est à prévoir pour l'année qui vient.`, { after: 3 })
 
-  f.section('Visites des douze derniers mois')
-  if (data.visites.length) {
-    f.table(['Date', 'Site', 'Appareils', 'Conformes', 'À remplacer', 'Remplacés'],
-      data.visites.map((v) => [frShort(v.date), v.site, String(v.total), String(v.conforme), String(v.a_remplacer), String(v.remplace)]),
-      { columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } } })
-  } else f.para('Aucune visite terminée sur la période.')
-  if (data.remplaces) f.para(`${data.remplaces} appareil${data.remplaces > 1 ? 's' : ''} remplacé${data.remplaces > 1 ? 's' : ''} pendant les visites.`, { size: 8.5 })
+    f.section('Visites des douze derniers mois')
+    if (data.visites.length) {
+      f.table(['Date', 'Site', 'Appareils', 'Conformes', 'À remplacer', 'Remplacés'],
+        data.visites.map((v) => [frShort(v.date), v.site, String(v.total), String(v.conforme), String(v.a_remplacer), String(v.remplace)]),
+        { columnStyles: { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' } } })
+    } else f.para('Aucune visite terminée sur la période.')
+    if (data.remplaces) f.para(`${data.remplaces} appareil${data.remplaces > 1 ? 's' : ''} remplacé${data.remplaces > 1 ? 's' : ''} pendant les visites.`, { size: 8.5 })
 
-  f.section('Vérifications à venir')
-  if (data.enRetard) f.para(`${data.enRetard} appareil${data.enRetard > 1 ? 's ont' : ' a'} dépassé la date de vérification : à prévoir dès que possible.`)
-  if (data.aVerifier.length) f.table(['Mois', 'Appareils à vérifier'], data.aVerifier.map((x) => [moisDe(x.mois), String(x.nb)]), { columnStyles: { 1: { halign: 'right', cellWidth: 40 } } })
-  else f.para('Aucune vérification prévue dans les douze prochains mois.')
+    f.section('Vérifications à venir')
+    if (data.enRetard) f.para(`${data.enRetard} appareil${data.enRetard > 1 ? 's ont' : ' a'} dépassé la date de vérification : à prévoir dès que possible.`)
+    if (data.aVerifier.length) f.table(['Mois', 'Appareils à vérifier'], data.aVerifier.map((x) => [moisDe(x.mois), String(x.nb)]), { columnStyles: { 1: { halign: 'right', cellWidth: 40 } } })
+    else f.para('Aucune vérification prévue dans les douze prochains mois.')
 
-  f.section(`Appareils en fin de vie en ${data.anneeProchaine}`)
-  if (data.finsDeVie.length) {
-    f.table(['Matériel', 'Nombre', 'Prix unitaire', 'Total'], data.finsDeVie.map((x) => [x.type, String(x.nb), x.prix == null ? 'sur devis' : euros(x.prix), x.total == null ? 'sur devis' : euros(x.total)]),
-      { columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } } })
-  } else f.para('Aucun appareil n\'atteint sa durée de vie l\'an prochain.')
+    f.section(`Appareils en fin de vie en ${data.anneeProchaine}`)
+    if (data.finsDeVie.length) {
+      f.table(['Matériel', 'Nombre', 'Prix unitaire', 'Total'], data.finsDeVie.map((x) => [x.type, String(x.nb), x.prix == null ? 'sur devis' : euros(x.prix), x.total == null ? 'sur devis' : euros(x.total)]),
+        { columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } }, reportable: true })
+    } else f.para('Aucun appareil n\'atteint sa durée de vie l\'an prochain.')
 
-  f.section('Budget à prévoir sur douze mois')
-  f.kv([
-    ['Contrat de maintenance', data.budget.contrat ? euros(data.budget.contrat) : 'selon le contrat'],
-    ['Remplacements en fin de vie', data.budget.remplacement ? `${euros(data.budget.remplacement)}${data.budget.nonEstimes ? `, plus ${data.budget.nonEstimes} appareil${data.budget.nonEstimes > 1 ? 's' : ''} sur devis` : ''}` : data.budget.nonEstimes ? 'sur devis' : 'aucun'],
-  ], { labelW: 60 })
-  f.para('Montants indicatifs, aux prix actuels : un devis vous est remis avant tout remplacement. Les pièces et recharges constatées lors des visites s\'ajoutent selon les conditions de votre contrat.', { size: 8.5, after: 6 })
-  f.signOff()
-  numberPages(doc, ORG)
+    f.section('Budget à prévoir sur douze mois')
+    f.kv([
+      ['Contrat de maintenance', data.budget.contrat ? euros(data.budget.contrat) : 'selon le contrat'],
+      ['Remplacements en fin de vie', data.budget.remplacement ? `${euros(data.budget.remplacement)}${data.budget.nonEstimes ? `, plus ${data.budget.nonEstimes} appareil${data.budget.nonEstimes > 1 ? 's' : ''} sur devis` : ''}` : data.budget.nonEstimes ? 'sur devis' : 'aucun'],
+    ], { labelW: 60 })
+    f.para('Montants indicatifs, aux prix actuels : un devis vous est remis avant tout remplacement. Les pièces et recharges constatées lors des visites s\'ajoutent selon les conditions de votre contrat.', { size: 8.5, after: 6 })
+    f.signOff()
+    f.finish()
+    numberPages(doc, ORG)
+    return doc
+  }, { reportMax: 8 })
   return { doc, filename: `Bilan_annuel_${annee}_${(client?.name || 'client').replace(/[^A-Za-z0-9]+/g, '_')}.pdf` }
 }

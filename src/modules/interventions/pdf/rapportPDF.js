@@ -2,7 +2,7 @@
 
 import { jsPDF } from 'jspdf'
 import 'jspdf-autotable'
-import { startDocument, numberPages, drawImageFitted } from '../../../core/pdf/layout'
+import { startDocument, numberPages, drawImageFitted, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { RESULT_LABEL, REPLACE_REASON_LABEL, summarize, frShort, frMonthYear } from '../lib/schedule'
@@ -16,19 +16,23 @@ const hour = (ts) => (ts ? new Date(ts).toLocaleTimeString('fr-FR', { hour: '2-d
  */
 export async function buildRapportPDF({ visit, items, parts, equipmentById, settings, technicianName, org = null, photos = null }) {
   const ORG = orgHorsFormation(org || await loadPdfOrg())
-  const doc = new jsPDF({ compress: true })
+  // Photos (jusqu'à 6) lues avant : la construction est synchrone pour compacter (06/11)
+  const paths = (visit.photos || []).slice(0, 6)
+  const imgs = paths.length ? (photos || (await Promise.all(paths.map((p) => photoDataUrl(p)))).filter(Boolean)) : []
   const day = (visit.started_at || visit.finished_at || visit.planned_on || '').slice(0, 10)
   // Visite d'inventaire (0463) : procès-verbal d'inventaire. Autres natures (0465) : bon propre à la nature ;
   // le rapport de vérification reste réservé aux vérifications.
   const inventaire = visit.kind === 'inventaire'
   const nature = natureDe(visit)
   const titre = nature.bon || settings?.report_title || 'Rapport d\'intervention'
-  const f = startDocument(doc, ORG, {
-    ref: visit.reference, docLabel: titre, code: 'ITV',
-    title: titre,
-    subtitle: inventaire ? `Inventaire du matériel de sécurité du ${frShort(day)}`
-      : estVerification(visit) ? `Vérification du matériel de sécurité du ${frShort(day)}`
-        : `${nature.label} du ${frShort(day)}${visit.urgent ? ', intervention urgente' : ''}`,
+  const doc = compacter(() => {
+    const doc = new jsPDF({ compress: true })
+    const f = startDocument(doc, ORG, {
+      ref: visit.reference, docLabel: titre, code: 'ITV',
+      title: titre,
+      subtitle: inventaire ? `Inventaire du matériel de sécurité du ${frShort(day)}`
+        : estVerification(visit) ? `Vérification du matériel de sécurité du ${frShort(day)}`
+          : `${nature.label} du ${frShort(day)}${visit.urgent ? ', intervention urgente' : ''}`,
   })
 
   const site = visit.sites || {}
@@ -63,38 +67,36 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
       [i.defect, i.result === 'remplace' && i.replace_reason ? `Remplacé : ${i.replace_reason === 'autre' && i.replace_note ? i.replace_note : REPLACE_REASON_LABEL[i.replace_reason]}` : null, i.observation].filter(Boolean).join('. '),
       i.result === 'conforme' || i.result === 'remplace' ? frMonthYear(e.next_check_on) : i.result === 'a_remplacer' ? 'Remplacement' : 'À revoir',
     ])
-  f.table(['Étiquette', 'Appareil', 'Emplacement', 'Opération', 'Résultat', 'Observation', 'Prochaine'], rows, {
-    styles: { fontSize: 7.6 },
-    columnStyles: { 0: { cellWidth: 20 }, 3: { cellWidth: 24 }, 4: { cellWidth: 20, fontStyle: 'bold' }, 6: { cellWidth: 20 } },
-    didParseCell: (d) => {
-      if (d.section === 'body' && d.column.index === 4) {
-        const v = d.cell.raw
-        if (v === 'À remplacer') d.cell.styles.textColor = [146, 64, 14]
-        else if (v === 'Absent' || v === 'Inaccessible') d.cell.styles.textColor = [185, 28, 28]
-        else if (v === 'Remplacé') d.cell.styles.textColor = [29, 78, 216]
-      }
-    },
-  })
+    f.table(['Étiquette', 'Appareil', 'Emplacement', 'Opération', 'Résultat', 'Observation', 'Prochaine'], rows, {
+      styles: { fontSize: 7.6 },
+      reportable: true,
+      columnStyles: { 0: { cellWidth: 20 }, 3: { cellWidth: 24 }, 4: { cellWidth: 20, fontStyle: 'bold' }, 6: { cellWidth: 20 } },
+      didParseCell: (d) => {
+        if (d.section === 'body' && d.column.index === 4) {
+          const v = d.cell.raw
+          if (v === 'À remplacer') d.cell.styles.textColor = [146, 64, 14]
+          else if (v === 'Absent' || v === 'Inaccessible') d.cell.styles.textColor = [185, 28, 28]
+          else if (v === 'Remplacé') d.cell.styles.textColor = [29, 78, 216]
+        }
+      },
+    })
 
-  if (parts?.length) {
-    f.section('Pièces fournies')
-    f.table(['Pièce', 'Quantité'], parts.map((p) => [p.label, String(Number(p.quantity))]), { columnStyles: { 1: { cellWidth: 26, halign: 'center' } } })
-  }
+    if (parts?.length) {
+      f.section('Pièces fournies')
+      f.table(['Pièce', 'Quantité'], parts.map((p) => [p.label, String(Number(p.quantity))]), { columnStyles: { 1: { cellWidth: 26, halign: 'center' } } })
+    }
 
-  const obs = [...(visit.site_observations || [])]
-  // Délai promis d'un dépannage urgent (0465) ; les notes de l'intervention restent internes, hors du bon
-  const delai = delaiUrgence(visit)
-  if (delai) f.para(`Intervention urgente demandée le ${new Date(visit.requested_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' })}, arrivée promise avant le ${delai.avant.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' })}${delai.respecte === true ? ' : délai tenu.' : delai.respecte === false ? ' : délai dépassé.' : '.'}`, { size: 9 })
-  if (obs.length || visit.observations) {
-    f.section(natureDe(visit).travaux || 'Observations')
-    if (obs.length) f.bullets(obs)
-    if (visit.observations) f.para(visit.observations)
-  }
+    const obs = [...(visit.site_observations || [])]
+    // Délai promis d'un dépannage urgent (0465) ; les notes de l'intervention restent internes, hors du bon
+    const delai = delaiUrgence(visit)
+    if (delai) f.para(`Intervention urgente demandée le ${new Date(visit.requested_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' })}, arrivée promise avant le ${delai.avant.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Europe/Paris' })}${delai.respecte === true ? ' : délai tenu.' : delai.respecte === false ? ' : délai dépassé.' : '.'}`, { size: 9 })
+    if (obs.length || visit.observations) {
+      f.section(natureDe(visit).travaux || 'Observations')
+      if (obs.length) f.bullets(obs)
+      if (visit.observations) f.para(visit.observations)
+    }
 
-  // Photos (jusqu'à 6, en vignettes)
-  const paths = (visit.photos || []).slice(0, 6)
-  if (paths.length) {
-    const imgs = photos || (await Promise.all(paths.map((p) => photoDataUrl(p)))).filter(Boolean)
+    // Photos (jusqu'à 6, en vignettes)
     if (imgs.length) {
       f.section('Photos')
       const w = (f.W - 8) / 3, h = w * 0.72
@@ -104,18 +106,19 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
         f.y += h + 4
       }
     }
-  }
 
-  if (settings?.report_mentions) f.callout('Informations', settings.report_mentions, { tone: 'muted' })
+    if (settings?.report_mentions) f.callout('Informations', settings.report_mentions, { tone: 'muted' })
 
-  f.section('Signatures')
-  f.signatures([
-    { label: 'Le technicien', name: technicianName || '', hint: frShort(day) },
-    { label: 'Le client', name: visit.signer_name || '', hint: visit.client_signature ? `Signé le ${frShort(day)}` : 'Non signé', image: visit.client_signature || null },
-  ], { height: 34 })
+    f.section('Signatures')
+    f.signatures([
+      { label: 'Le technicien', name: technicianName || '', hint: frShort(day) },
+      { label: 'Le client', name: visit.signer_name || '', hint: visit.client_signature ? `Signé le ${frShort(day)}` : 'Non signé', image: visit.client_signature || null },
+    ], { height: 34 })
 
-  f.finish()
-  numberPages(doc, ORG)
+    f.finish()
+    numberPages(doc, ORG)
+    return doc
+  }, { reportMax: Math.min(8, Math.max(0, (items || []).length - 1)) })
   const safe = String(visit.clients?.name || 'client').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 40)
   return { doc, filename: `${inventaire ? 'PV_inventaire' : estVerification(visit) ? 'Rapport' : 'Bon'}_${visit.reference || 'intervention'}_${safe}.pdf` }
 }
