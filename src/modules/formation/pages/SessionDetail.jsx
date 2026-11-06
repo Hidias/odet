@@ -181,9 +181,12 @@ export default function SessionDetail() {
   
   const [session, setSession] = useState(null)
   // Conventions des groupes d'une session inter (angle mort A2) : l'en-tête suit l'état groupe par groupe
-  const [groupesConvention, setGroupesConvention] = useState([])
+  // null : pas encore lus (ou illisibles) ; la carte d'une inter n'annonce alors pas « Ajoutez d'abord les groupes »
+  const [groupesConvention, setGroupesConvention] = useState(null)
   // Relu après un envoi par groupe (état « envoyé » du groupe)
   const [rechargeGroupes, setRechargeGroupes] = useState(0)
+  // Autre session : groupes inconnus jusqu'à la lecture ; une relecture après un envoi garde la liste affichée
+  useEffect(() => { setGroupesConvention(null) }, [session?.id])
   useEffect(() => {
     if (!session?.id || session.session_type !== 'inter') { setGroupesConvention([]); return }
     let actif = true
@@ -3366,9 +3369,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             {session.clients?.name && <span>{session.clients.name}</span>}
             <StatusBadge kind="session" status={session.status} />
             {(() => {
-              const etat = etatConvention(session, groupesConvention)
+              const etat = etatConvention(session, groupesConvention || [])
               if (etat === CONVENTION.SANS_OBJET) return null
-              const plusieurs = session.session_type === 'inter' && groupesConvention.length > 1 ? 's' : ''
+              const plusieurs = session.session_type === 'inter' && (groupesConvention || []).length > 1 ? 's' : ''
               if (etat === CONVENTION.SIGNEE) return <StatusBadge tone="success">{plusieurs ? 'Conventions signées' : 'Convention signée'}</StatusBadge>
               if (etat === CONVENTION.ENVOYEE) return <StatusBadge tone="info">{plusieurs ? 'Conventions envoyées' : 'Convention envoyée'}</StatusBadge>
               return <StatusBadge tone="warning">{plusieurs ? 'Conventions en attente' : 'Convention en attente'}</StatusBadge>
@@ -3455,10 +3458,11 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       </div>
       
-      {/* Suivi Convention : session inter suivie par groupes, une convention ou un contrat par groupe (C2, 05/11). Une
-          inter sans groupe, ou qui a déjà une trace au niveau de la session (envoi, signature, scan), garde le suivi de la
-          session (etatConvention) ; une signature en ligne ou un dépôt du client au niveau de la session restent visibles */}
-      {session.session_type === 'inter' && groupesConvention.some((g) => g.status !== 'cancelled')
+      {/* Suivi Convention : session inter suivie par groupes, une convention ou un contrat par groupe (C2, 05/11). Inter
+          sans groupe : « Ajoutez d'abord les groupes », plus de suivi de session à cocher (décision de H, 06/11). Une inter
+          qui a déjà une trace au niveau de la session (envoi, signature, scan) garde le suivi de la session
+          (etatConvention) ; une signature en ligne ou un dépôt du client au niveau de la session restent visibles */}
+      {session.session_type === 'inter'
         && !session.convention_sent && !session.convention_signed && !session.convention_signed_file_url ? (
         <div className="card bg-gray-50 border-[rgb(var(--c-info)/0.3)]">
           <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -3468,17 +3472,18 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 Conventions des groupes
               </h3>
               <p className="text-ui text-gray-600 mt-1">{(() => {
+                if (!groupesConvention) return 'Lecture des groupes de la session. Si ce message reste affiché, rechargez la page.'
                 const actifs = groupesConvention.filter((g) => g.status !== 'cancelled')
                 const signes = actifs.filter((g) => g.doc_status === 'signe').length
                 return actifs.length === 0
-                  ? 'Session inter : chaque entreprise ou particulier a sa propre convention ou son contrat, suivi dans l\'onglet Groupes.'
+                  ? 'Ajoutez d\'abord les groupes : chaque entreprise ou particulier inscrit a sa propre convention ou son contrat, préparé et suivi dans l\'onglet Groupes.'
                   : `${signes} signé${signes > 1 ? 's' : ''} sur ${actifs.length} groupe${actifs.length > 1 ? 's' : ''}. Envoi, signature en ligne et document signé : onglet Groupes.`
               })()}</p>
             </div>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
               setActiveTab('groupes')
               setTimeout(() => document.getElementById('onglets-session')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-            }}>Voir les groupes</button>
+            }}>{!groupesConvention || groupesConvention.some((g) => g.status !== 'cancelled') ? 'Voir les groupes' : 'Ajouter les groupes'}</button>
           </div>
           <SignatureEnLigne session={session} />
           <DepotsClient objectType="session" objectId={session.id} onChange={() => fetchSessions()} />
@@ -6129,8 +6134,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Prénom *</label>
-                  <input 
+                  <label className="label" htmlFor="nouveau-stagiaire-prenom">Prénom *</label>
+                  <input id="nouveau-stagiaire-prenom"
                     type="text"
                     className="input w-full"
                     value={newTraineeForm.first_name}
@@ -6138,8 +6143,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   />
                 </div>
                 <div>
-                  <label className="label">Nom *</label>
-                  <input 
+                  <label className="label" htmlFor="nouveau-stagiaire-nom">Nom *</label>
+                  <input id="nouveau-stagiaire-nom"
                     type="text"
                     className="input w-full"
                     value={newTraineeForm.last_name}
@@ -6148,8 +6153,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 </div>
               </div>
               <div>
-                <label className="label">Email</label>
-                <input 
+                <label className="label" htmlFor="nouveau-stagiaire-email">Email</label>
+                <input id="nouveau-stagiaire-email"
                   type="email"
                   className="input w-full"
                   value={newTraineeForm.email}
@@ -6157,8 +6162,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 />
               </div>
               <div>
-                <label className="label">Téléphone</label>
-                <input 
+                <label className="label" htmlFor="nouveau-stagiaire-telephone">Téléphone</label>
+                <input id="nouveau-stagiaire-telephone"
                   type="tel"
                   className="input w-full"
                   value={newTraineeForm.phone}
@@ -6166,8 +6171,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 />
               </div>
               <div>
-                <label className="label">Genre</label>
-                <select
+                <label className="label" htmlFor="nouveau-stagiaire-genre">Genre</label>
+                <select id="nouveau-stagiaire-genre"
                   className="input w-full"
                   value={newTraineeForm.gender}
                   onChange={(e) => setNewTraineeForm(prev => ({ ...prev, gender: e.target.value }))}

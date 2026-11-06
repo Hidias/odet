@@ -867,9 +867,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         }
       }
 
-      // Sync aussi les colonnes sur la table sessions (utilisées par le bloc "Suivi Convention") ; jamais pour un envoi
-      // de groupe : la session inter suit ses conventions groupe par groupe
-      if (codes.includes('convention_envoyee') && !groupe) {
+      // Sync aussi les colonnes sur la table sessions (utilisées par le bloc "Suivi Convention") ; jamais pour une
+      // session inter, avec ou sans groupe : elle suit ses conventions groupe par groupe (décision de H, 06/11)
+      if (codes.includes('convention_envoyee') && !groupe && session?.session_type !== 'inter') {
         await supabase
           .from('sessions')
           .update({ convention_sent: true, convention_sent_date: now })
@@ -1104,8 +1104,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       if (!response.ok) throw new Error(result.error || result.details)
 
       // 3) Mise à jour automatique checklist
+      // Session inter : la convention se suit par groupe, jamais cochée au niveau de la session (06/11)
       const checklistCodes = emailType === 'before'
-        ? ['convention_envoyee', 'convocations_envoyees']
+        ? (session?.session_type === 'inter' ? ['convocations_envoyees'] : ['convention_envoyee', 'convocations_envoyees'])
         : ['certificats_envoyes']
       if (!groupe) await updateChecklistItems(checklistCodes)
       // Convocations jointes et vraiment envoyées : « envoyée » noté ici seulement (plus au simple téléchargement, 21/10)

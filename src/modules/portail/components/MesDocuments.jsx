@@ -30,17 +30,42 @@ function sauver(buf, nom) {
 
 const SIGNABLES = ['devis', 'contrat']
 
+/** Document à signer par le client : pas encore signé en ligne, signable, et pas déposé signé (ou dépôt refusé).
+ *  Règle unique de la liste et du bandeau du haut de l'espace (06/11) */
+export function estASigner(d, { signatureDe = null, depotDe = null, aSignerEnPlus = null } = {}) {
+  if (signatureDe && signatureDe(d)) return false
+  if (!(SIGNABLES.includes(d.kind) || (d.kind === 'rapport' && aSignerEnPlus?.has?.(d.id)))) return false
+  const depot = depotDe ? depotDe(d) : null
+  return !depot || depot.status === 'refuse'
+}
+
+/** Bandeau du haut de l'espace : documents qui attendent la signature du client, avec un lien vers la liste */
+export function BandeauASigner({ docs, onVoir }) {
+  if (!docs || !docs.length) return null
+  const n = docs.length
+  return (
+    <div role="status" className="bg-accent-50 border-b border-accent-200 text-accent-900 text-sm">
+      <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center gap-2">
+        <PenLine className="w-4 h-4" aria-hidden="true" />
+        <span className="flex-1 min-w-[12rem]">{n === 1 ? `Un document attend votre signature : ${docs[0].label}` : `${n} documents attendent votre signature`}</span>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => onVoir(n === 1 ? docs[0] : null)}>{n === 1 ? 'Voir et signer' : 'Voir les documents'}</button>
+      </div>
+    </div>
+  )
+}
+
 /**
  * charger() → liste ; lire(doc) → ArrayBuffer ; noter(doc, buf) facultatif.
  * Signature (0406) : signatureDe(doc) → signature ou null, onSigner(doc) ouvre la fenêtre de signature,
  * avecPreuve(doc, buf, sig) → ArrayBuffer du document signé suivi de sa page de preuve.
  */
 // Dépôt signé à la main (0431) : onDeposer(doc) ouvre la fenêtre, depotDe(doc) → dernier dépôt du client ou null
-export default function MesDocuments({ charger, lire, noter, titre = 'Vos documents', signatureDe = null, onSigner = null, avecPreuve = null, rafraichir = 0, onDeposer = null, depotDe = null, aSignerEnPlus = null }) {
+// onListe(docs) facultatif : liste chargée, pour le bandeau « à signer » du haut de l'espace
+export default function MesDocuments({ charger, lire, noter, titre = 'Vos documents', signatureDe = null, onSigner = null, avecPreuve = null, rafraichir = 0, onDeposer = null, depotDe = null, aSignerEnPlus = null, onListe = null }) {
   const [docs, setDocs] = useState(null)
   const [busy, setBusy] = useState(null)
   const [erreur, setErreur] = useState('')
-  useEffect(() => { charger().then((d) => setDocs(Array.isArray(d) ? d : [])).catch(() => setDocs([])) // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { charger().then((d) => { const l = Array.isArray(d) ? d : []; setDocs(l); onListe?.(l) }).catch(() => setDocs([])) // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rafraichir])
   if (!docs || docs.length === 0) return null
 
@@ -71,7 +96,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
 
   const groupes = ORDRE.map((k) => [k, docs.filter((d) => rubriqueDocument(d) === k)]).filter(([, l]) => l.length)
   return (
-    <section className="vitrine-monte mb-8">
+    <section id="vos-documents" className="vitrine-monte mb-8 scroll-mt-[calc(5rem+env(safe-area-inset-top))]">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5"><FolderOpen className="w-4 h-4" aria-hidden="true" />{titre}</h2>
       {erreur && <p role="alert" className="mb-3 text-sm text-[rgb(var(--c-danger))]">{erreur}</p>}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -81,13 +106,14 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
             <div key={k} className="vitrine-carte rounded-ui-lg border border-gray-200 bg-white p-4">
               <h3 className="font-display font-semibold text-gray-900 flex items-center gap-2 mb-2"><T.icone className="w-4 h-4 text-accent-600" aria-hidden="true" />{T.label}<span className="text-xs font-normal text-gray-400">({liste.length})</span></h3>
               <ul className="divide-y divide-gray-100">
-                {liste.slice(0, 12).map((d) => {
+                {/* 12 documents par rubrique, plus ceux qui attendent une signature (jamais cachés, bandeau du haut) */}
+                {liste.filter((d, i) => i < 12 || (onSigner && estASigner(d, { signatureDe, depotDe, aSignerEnPlus }))).map((d) => {
                   const sig = signatureDe ? signatureDe(d) : null
-                  const aSigner = !sig && onSigner && (SIGNABLES.includes(d.kind) || (d.kind === 'rapport' && aSignerEnPlus?.has?.(d.id)))
                   const depot = depotDe ? depotDe(d) : null
+                  const aSigner = !!onSigner && estASigner(d, { signatureDe, depotDe, aSignerEnPlus })
                   const deposable = !sig && onDeposer && d.kind === 'devis' && (!depot || depot.status === 'refuse')
                   return (
-                    <li key={d.id} className="flex flex-wrap items-center gap-x-2">
+                    <li key={d.id} id={`doc-${d.id}`} className="flex flex-wrap items-center gap-x-2 scroll-mt-[calc(5rem+env(safe-area-inset-top))]">
                       <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="flex-1 min-w-[12rem] py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">
                         <span className="min-w-0 flex-1"><span className="block text-gray-800 break-words">{d.label}</span>
                           <span className="block text-xs text-gray-400">{sig
@@ -101,7 +127,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
                       <button type="button" onClick={() => imprimerDoc(d)} disabled={!!busy} title="Imprimer" aria-label={`Imprimer ${d.label}`} className="p-2 shrink-0 text-gray-400 hover:text-primary-700 disabled:opacity-50">
                         {busy === `imp:${d.id}` ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <Printer className="w-4 h-4" aria-hidden="true" />}
                       </button>
-                      {aSigner && (!depot || depot.status === 'refuse') && <button type="button" onClick={() => onSigner(d)} className="btn btn-primary btn-sm shrink-0 gap-1"><PenLine className="w-3.5 h-3.5" aria-hidden="true" />Signer</button>}
+                      {aSigner && <button type="button" onClick={() => onSigner(d)} className="btn btn-primary btn-sm shrink-0 gap-1"><PenLine className="w-3.5 h-3.5" aria-hidden="true" />Signer</button>}
                       {deposable && <button type="button" onClick={() => onDeposer(d)} title="Imprimer, signer à la main et déposer" aria-label={`Imprimer, signer et déposer ${d.label}`} className="btn btn-secondary btn-sm shrink-0 gap-1"><Upload className="w-3.5 h-3.5" aria-hidden="true" /><span className="hidden sm:inline">Déposer signé</span></button>}
                     </li>
                   )
