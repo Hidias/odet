@@ -35,7 +35,7 @@ export default function ChoixGroupeEnvoi({ session, groupes, emailType, onChoisi
               <li key={g.id} className="py-2 flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 truncate">{g.clients?.name || g.group_name || 'Groupe'}</p>
-                  <p className="text-ui-sm text-gray-500">
+                  <p className="text-ui-sm text-gray-500 break-words">
                     {pluriel(nb, 'stagiaire')} · {mail || 'aucune adresse'}{emailType !== 'after' ? ` · ${g.kind === 'particulier' ? 'Contrat' : 'Convention'} : ${(ETAT[g.doc_status] || ETAT.a_envoyer).toLowerCase()}` : ''}
                   </p>
                   {raison && <p className="text-ui-sm text-[rgb(var(--c-warning))]">{raison}</p>}

@@ -149,7 +149,8 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   const contrat = async (g) => {
     const stagiaires = (parGroupe[g.id] || []).map((i) => i.trainees).filter(Boolean)
     try {
-      await downloadDocument('contratParticulier', session, { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })
+      // Session vue du groupe : jamais le financement du client principal
+      await downloadDocument('contratParticulier', sessionDuGroupe({ ...session, session_trainees: parGroupe[g.id] || [] }, g), { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })
     } catch (e) {
       toast.error(e.message || 'Contrat impossible à générer')
     }
@@ -158,7 +159,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   // Document du groupe (06/11) : session vue du groupe (son client, son signataire, son prix, ses stagiaires, son espace
   // client dans l'encadré « Signer en ligne »), la même règle que l'envoi « Avant formation » par groupe
   const documentDuGroupe = (g, stagiaires) => (g.kind === 'particulier'
-    ? generatePDF('contratParticulier', session, { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })
+    ? generatePDF('contratParticulier', sessionDuGroupe({ ...session, session_trainees: parGroupe[g.id] || [] }, g), { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })
     : generatePDF('convention', sessionDuGroupe({ ...session, session_trainees: parGroupe[g.id] || [] }, g), { trainees: stagiaires, trainer: session.trainers || null }))
 
   // Convention d'une entreprise à télécharger (envoi papier ou relecture), refusée sans signataire ni stagiaire

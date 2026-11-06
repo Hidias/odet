@@ -2317,8 +2317,9 @@ export default function SessionDetail() {
       })) || []
 
       // 1. Convention (non signée toujours) ; inter suivie par groupes : une par groupe
-      if (envoiParGroupe(session, groupesConvention)) {
-        for (const f of await conventionsDesGroupes(trainer)) zip.file(f.name, f.base64, { base64: true })
+      const parGroupes = await conventionsSiGroupes(trainer)
+      if (parGroupes) {
+        for (const f of parGroupes) zip.file(f.name, f.base64, { base64: true })
       } else {
         const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
         if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
@@ -2422,7 +2423,7 @@ export default function SessionDetail() {
       toast.success('ZIP téléchargé avec succès !', { id: toastId })
     } catch (err) {
       console.error('Erreur génération ZIP:', err)
-      toast.error('Erreur lors de la génération du ZIP', { id: toastId })
+      toast.error(String(err?.message || '').startsWith('Groupes de la session') ? err.message : 'Erreur lors de la génération du ZIP', { id: toastId })
     } finally {
       setGeneratingZip(false)
     }
@@ -2454,8 +2455,9 @@ export default function SessionDetail() {
         } catch { /* fallback */ }
       }
       if (!zip.file(`Convention_${ref}.pdf`)) {
-        if (envoiParGroupe(session, groupesConvention)) {
-          for (const f of await conventionsDesGroupes(trainer)) zip.file(f.name, f.base64, { base64: true })
+        const parGroupes = await conventionsSiGroupes(trainer)
+        if (parGroupes) {
+          for (const f of parGroupes) zip.file(f.name, f.base64, { base64: true })
         } else {
           const convention = await generatePDF('convention', { ...session, signature_client: await signatureEnLigneConvention(session.id) }, { trainees: traineesWithResult, trainer, costs: sessionCosts })
           if (convention) zip.file(`Convention_${ref}.pdf`, convention.base64, { base64: true })
@@ -2634,31 +2636,41 @@ export default function SessionDetail() {
       toast.success('Dossier de la session téléchargé', { id: toastId })
     } catch (err) {
       console.error('Erreur génération ZIP rempli:', err)
-      toast.error('Erreur lors de la génération du ZIP', { id: toastId })
+      toast.error(String(err?.message || '').startsWith('Groupes de la session') ? err.message : 'Erreur lors de la génération du ZIP', { id: toastId })
     } finally {
       setGeneratingZip(false)
     }
   }
 
   // Conventions (ou contrats) des groupes d'une inter, pour les dossiers ZIP : session vue de chaque groupe
-  const conventionsDesGroupes = async (trainer) => {
-    const out = []
+  // Inter suivie par groupes : liste des conventions des groupes ; null pour une autre session (convention de la
+  // session) ; groupes illisibles : erreur, le dossier n'est pas fait (jamais la convention du client principal)
+  const conventionsSiGroupes = async (trainer) => {
+    if (session?.session_type !== 'inter') return null
     const lu = await lireGroupesEtRattachements()
-    if (!lu) { toast.error('Groupes illisibles : conventions des groupes non jointes au dossier'); return out }
+    if (!lu) throw new Error('Groupes de la session illisibles : dossier non créé, réessayez.')
+    if (!envoiParGroupe(lu.session, lu.groupes)) return null
+    const out = []
+    const sautes = []
     for (const g of groupesActifs(lu.groupes)) {
       const inscrits = inscritsDuGroupe(lu.session, g)
-      if (!inscrits.length || refusPublicationGroupe(g, inscrits.length, signataireDuGroupe(g, [g.contact].filter(Boolean)))) continue
+      if (!inscrits.length || refusPublicationGroupe(g, inscrits.length, signataireDuGroupe(g, [g.contact].filter(Boolean)))) {
+        sautes.push(g.clients?.name || g.group_name || 'groupe')
+        continue
+      }
       const stagiaires = inscrits.map((st) => ({ ...st.trainees, result: st.result || traineeResults[st.trainee_id] || null, access_code: st.access_code }))
       const nom = String(g.clients?.name || g.group_name || 'groupe').replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60)
       try {
         const doc = g.kind === 'particulier'
-          ? await generatePDF('contratParticulier', session, { trainees: stagiaires, trainer, particulier: { group: g, client: g.clients || {} }, enLigne: false })
+          ? await generatePDF('contratParticulier', sessionDuGroupe(lu.session, g), { trainees: stagiaires, trainer, particulier: { group: g, client: g.clients || {} }, enLigne: false })
           : await generatePDF('convention', sessionDuGroupe(lu.session, g), { trainees: stagiaires, trainer, enLigne: false })
         if (doc?.base64) out.push({ name: `${g.kind === 'particulier' ? 'Contrat' : 'Convention'}_${session.reference || 'SESSION'}_${nom}.pdf`, base64: doc.base64 })
       } catch (e) {
         console.error('Convention du groupe :', e)
+        sautes.push(g.clients?.name || g.group_name || 'groupe')
       }
     }
+    if (sautes.length) toast(`Convention non jointe (stagiaires, prix ou signataire manquant) : ${sautes.join(', ')}`, { icon: '⚠️', duration: 8000 })
     return out
   }
 
@@ -2695,10 +2707,14 @@ export default function SessionDetail() {
     }
     // Session inter suivie par groupes : une convention par groupe, au nom de son entreprise (jamais une convention
     // du client principal qui listerait les stagiaires des autres entreprises)
-    if (docType === 'convention' && envoiParGroupe(session, groupesConvention)) {
-      toast('Session inter : chaque groupe a sa convention. Téléchargez-la dans l\'onglet Groupes.', { icon: 'ℹ️', duration: 6000 })
-      setActiveTab('groupes')
-      return
+    if (docType === 'convention' && session?.session_type === 'inter') {
+      const lu = await lireGroupesEtRattachements()
+      if (!lu) return toast.error('Groupes de la session illisibles : réessayez dans un instant.')
+      if (envoiParGroupe(lu.session, lu.groupes)) {
+        toast('Session inter : chaque groupe a sa convention. Téléchargez-la dans l\'onglet Groupes.', { icon: 'ℹ️', duration: 6000 })
+        setActiveTab('groupes')
+        return
+      }
     }
     const trainer = session.trainers
     const traineesWithResult = session.session_trainees?.map(st => ({ 

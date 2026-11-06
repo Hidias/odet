@@ -426,7 +426,9 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
   }
 
   const initializeEmail = async () => {
-    const espace = emailType === 'before' ? await lienEspaceClient(session?.client_id) : null
+    // Envoi d'un groupe : pas de signature en ligne promise (le document du groupe se met à signer depuis l'onglet
+    // Groupes, « Signature en ligne »)
+    const espace = emailType === 'before' && !groupe ? await lienEspaceClient(session?.client_id) : null
     const sessionContact = session?.contact
     const primaryContact = session?.clients?.contacts?.find(c => c.is_primary)
     const firstContact = session?.clients?.contacts?.[0]
@@ -498,11 +500,12 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         const { data: sigConv } = groupe ? { data: [] } : await supabase.from('document_signatures').select('*').eq('session_id', session.id).eq('document_type', 'convention')
           .eq('signer_type', 'client').eq('status', 'valid').order('signed_at', { ascending: false }).limit(1)
         const convention = groupe?.kind === 'particulier'
-          ? await generatePDF('contratParticulier', session, { trainees: traineesWithResult, trainer, particulier: { group: groupe, client: groupe.clients || {} } })
+          ? await generatePDF('contratParticulier', session, { trainees: traineesWithResult, trainer, particulier: { group: groupe, client: groupe.clients || {} }, enLigne: false })
           : await generatePDF('convention', { ...session, signature_client: sigConv?.[0] || null }, {
             trainees: traineesWithResult,
             trainer,
-            costs: groupe ? [] : (sessionCosts || [])
+            costs: groupe ? [] : (sessionCosts || []),
+            ...(groupe ? { enLigne: false } : {}),
           })
         if (convention) {
           files.push({ id: 'convention', name: convention.filename, base64: convention.base64, size: convention.size })
@@ -882,8 +885,10 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
   // seul, la case se coche à la main quand tous les groupes ont reçu leurs documents) ───
   const apresEnvoiGroupe = async () => {
     if (emailType !== 'before' || !groupe?.id) return
+    // Le document du groupe passe « envoyé » seulement s'il était joint au message
+    const conventionJointe = generatedFiles.some((f) => f.id === 'convention') && !excludedFileIds.has('convention')
     try {
-      if ((groupe.doc_status || 'a_envoyer') === 'a_envoyer') {
+      if (conventionJointe && (groupe.doc_status || 'a_envoyer') === 'a_envoyer') {
         await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', groupe.id).eq('doc_status', 'a_envoyer')
       }
       const [{ data: gs, error: eG }, { data: sts, error: eS }] = await Promise.all([
