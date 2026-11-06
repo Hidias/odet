@@ -23,7 +23,7 @@ async function handler(req, res) {
   let transporter = null
 
   try {
-    const { userId, to, subject, body, attachmentPaths = [], sessionId, emailType, convocationsStagiaires = [] } = req.body
+    const { userId, to, subject, body, attachmentPaths = [], sessionId, emailType, convocationsStagiaires = [], groupId = null } = req.body
 
     if (!userId || !to || !subject || !body || !sessionId || !emailType) {
       return res.status(400).json({ error: 'Paramètres manquants' })
@@ -37,6 +37,18 @@ async function handler(req, res) {
     if (!Array.isArray(convocationsStagiaires) || convocationsStagiaires.length > 60
         || convocationsStagiaires.some((c) => !c?.traineeId || !attachmentPaths.some((a) => a.path === c.path))) {
       return res.status(400).json({ error: 'Convocations des stagiaires invalides' })
+    }
+
+    // Session inter suivie par groupes (06/11, décision de H) : un envoi par groupe, jamais au client principal pour
+    // tous les inscrits ; le groupe doit être un groupe actif de cette session
+    const { data: groupesSession, error: errGroupes } = await supabase.from('session_groups')
+      .select('id, client_id, status, session_id, sessions!inner(session_type)').eq('session_id', sessionId)
+    if (errGroupes) return res.status(500).json({ error: 'Groupes de la session illisibles : envoi arrêté' })
+    const actifs = (groupesSession || []).filter((g) => g.status !== 'cancelled' && g.sessions?.session_type === 'inter')
+    const groupe = groupId ? actifs.find((g) => g.id === groupId) : null
+    if (groupId && !groupe) return res.status(400).json({ error: 'Groupe inconnu pour cette session' })
+    if (!groupId && actifs.length > 0) {
+      return res.status(400).json({ error: 'Session inter : choisissez le groupe destinataire (chaque entreprise reçoit ses seuls documents).' })
     }
 
     // 1. Configuration SMTP de l'utilisateur connecté et transporteur (redirection démo incluse)
@@ -123,7 +135,9 @@ async function handler(req, res) {
 
     // 7b. Traçabilité CRM : ajouter dans l'historique client
     try {
-      const { data: sessionData } = await supabase.from('sessions').select('client_id, reference').eq('id', sessionId).single()
+      const { data: sessionLue } = await supabase.from('sessions').select('client_id, reference').eq('id', sessionId).single()
+      // Envoi d'un groupe : tracé chez le client du groupe
+      const sessionData = sessionLue && groupe ? { ...sessionLue, client_id: groupe.client_id } : sessionLue
       if (sessionData?.client_id) {
         const now = new Date()
         const dateStr = now.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })
@@ -148,9 +162,12 @@ async function handler(req, res) {
     const stagiaires = { envoyes: 0, echecs: [] }
     if (emailType === 'before' && convocationsStagiaires.length) {
       const ids = convocationsStagiaires.map((c) => c.traineeId)
-      const { data: inscrits } = await supabase.from('session_trainees')
+      // Envoi d'un groupe : seulement ses stagiaires (les autres sont ignorés)
+      let lecture = supabase.from('session_trainees')
         .select('trainee_id, trainees(first_name, last_name, email, gender)')
         .eq('session_id', sessionId).in('trainee_id', ids)
+      if (groupe) lecture = lecture.eq('group_id', groupe.id)
+      const { data: inscrits } = await lecture
       const { data: ses } = await supabase.from('sessions')
         .select('reference, start_date, end_date, start_time, location_name, location_city, courses(title)').eq('id', sessionId).single()
       const titre = ses?.courses?.title || 'votre formation'

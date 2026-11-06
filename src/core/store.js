@@ -612,7 +612,7 @@ export const useDataStore = create((set, get) => ({
         fetchAll(() => supabase.from('clients').select('*')),
         fetchAll(() => supabase.from('trainers').select('*')),
         fetchAll(() => supabase.from('trainees').select('*')),
-        fetchAll(() => supabase.from('session_trainees').select('id, session_id, trainee_id, registration_date, result, admin_observation, expectations_notification_sent, presence_complete, early_departure, access_code, positioning_test_completed, positioning_test_completed_at, forprev_card_url, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, convocation_sent_at, absent, absent_reason')),
+        fetchAll(() => supabase.from('session_trainees').select('id, session_id, trainee_id, group_id, registration_date, result, admin_observation, expectations_notification_sent, presence_complete, early_departure, access_code, positioning_test_completed, positioning_test_completed_at, forprev_card_url, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, convocation_sent_at, absent, absent_reason')),
         fetchAll(() => supabase.from('client_contacts').select('*')),
         // Autres formateurs (C6)
         // Pas de colonne id dans session_trainers : tri sur sa clé
@@ -770,7 +770,7 @@ export const useDataStore = create((set, get) => ({
       // Charger les stagiaires avec presence_complete et early_departure
       const { data: sessionTrainees, error: stError } = await supabase
         .from('session_trainees')
-        .select('id, trainee_id, registration_date, result, remediation_proposal, result_forced_reason, result_forced_at, presence_complete, early_departure, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, access_code, convocation_sent_at, absent, absent_reason, bpf_categorie')
+        .select('id, trainee_id, group_id, registration_date, result, remediation_proposal, result_forced_reason, result_forced_at, presence_complete, early_departure, departure_date, departure_reason, departure_time, arrival_date, arrival_time, presence_hours, access_code, convocation_sent_at, absent, absent_reason, bpf_categorie')
         .eq('session_id', id)
       
       // Une liste vide sans message ferait croire à une session sans stagiaire (relecture de 0477) : erreur affichée
