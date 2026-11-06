@@ -33,3 +33,10 @@ export function formateursAEnvoyer({ principalId, autresIds, sousTraitance = fal
   if (!principalChange && !autresChange) return { trainerIds: undefined }
   return { trainerIds: principalId ? formateursVoulus(principalId, voulus) : [] }
 }
+
+// Formateurs sous lesquels une session paraît dans le planning : le principal puis les autres (C6). Liste des autres
+// inconnue (null) : le principal seul, on n'invente rien.
+export function formateursDuPlanning(session) {
+  const autres = Array.isArray(session?.autres_formateurs) ? session.autres_formateurs.map((t) => t?.id) : []
+  return formateursVoulus(session?.trainer_id, autres)
+}

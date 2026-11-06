@@ -26,6 +26,7 @@ import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { getOrg, isTestEnvironment } from './_lib/mailer.js'
 import { loadTeam, leaders, profileFirstName } from './_lib/team.js'
 import { withErrorLog } from './_lib/errors.js'
+import { sessionsCoFormateur, filtreFormateur } from './_lib/sessionsFormateur.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -286,11 +287,11 @@ async function buildExpectedEvents(trainerConfig, pastDate, futureDate) {
   const flagTruncation = (rows) => { if (rows.length >= SUPABASE_ROW_LIMIT) truncated = true }
 
   // ═══ SESSIONS ═══
-  // Sessions du formateur relié au compte (aucune si le compte n'a pas de fiche formateur)
+  // Sessions du formateur relié au compte, principal ou autre formateur (C6) ; aucune si le compte n'a pas de fiche formateur
   const sessions = trainerConfig.trainerId ? checkSupabase('sessions', await supabase
     .from('sessions')
     .select('id, reference, start_date, end_date, start_time, end_time, location_city, location_name, location_address, status, course_id, client_id, notes')
-    .eq('trainer_id', trainerConfig.trainerId)
+    .or(filtreFormateur(trainerConfig.trainerId, await sessionsCoFormateur(supabase, trainerConfig.trainerId)))
     .neq('status', 'cancelled')
     .gte('end_date', pastDate)
     .lte('start_date', futureDate)

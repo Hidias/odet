@@ -17,6 +17,7 @@ import { getOrg } from './_lib/mailer.js'
 import { loadTeam, profileFirstName } from './_lib/team.js'
 import { appUrl } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
+import { sessionsCoFormateur, filtreFormateur } from './_lib/sessionsFormateur.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -174,7 +175,8 @@ async function handler(req, res) {
       .order('start_date', { ascending: true })
 
     if (!isAll) {
-      sessionsQuery = sessionsQuery.eq('trainer_id', trainer)
+      // Principal ou autre formateur de la session (C6)
+      sessionsQuery = sessionsQuery.or(filtreFormateur(trainer, await sessionsCoFormateur(supabase, trainer)))
     }
 
     // ─── 2. RDV prospects ─────────────────────────────────────

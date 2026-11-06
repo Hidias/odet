@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formateursVoulus, autresFormateursIds, separerFormateurs, formateursAEnvoyer } from '../src/core/session/formateursSession'
+import { formateursVoulus, autresFormateursIds, separerFormateurs, formateursAEnvoyer, formateursDuPlanning } from '../src/core/session/formateursSession'
 
 describe('formateurs d\'une session (C6)', () => {
   it('met le principal en premier, sans doublon ni vide', () => {
@@ -49,5 +49,17 @@ describe('formateurs d\'une session (C6)', () => {
       expect(formateursAEnvoyer({ principalId: 'A', autresIds: null }, init)).toEqual({ trainerIds: undefined })
       expect(formateursAEnvoyer({ principalId: 'C', autresIds: null }, init).erreur).toMatch(/rechargez la page/)
     })
+  })
+})
+
+describe('formateursDuPlanning', () => {
+  it('principal puis autres, sans doublon ni vide', () => {
+    expect(formateursDuPlanning({ trainer_id: 'a', autres_formateurs: [{ id: 'b' }, { id: 'a' }, null] })).toEqual(['a', 'b'])
+  })
+  it('liste des autres inconnue : principal seul', () => {
+    expect(formateursDuPlanning({ trainer_id: 'a', autres_formateurs: null })).toEqual(['a'])
+  })
+  it('sans principal : les autres seulement', () => {
+    expect(formateursDuPlanning({ trainer_id: null, autres_formateurs: [{ id: 'b' }] })).toEqual(['b'])
   })
 })
