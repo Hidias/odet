@@ -3382,7 +3382,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {/* Signature sur le téléphone du formateur */}
           {d.envoyer && <button onClick={() => navigate(`/signature/${session.id}`)}
             className="btn btn-primary">
-            <PenLine className="w-4 h-4" />Faire signer
+            <PenLine className="w-4 h-4" />Faire signer l'émargement
           </button>}
           {/* Boutons Email */}
           {d.envoyer && <button onClick={() => handleSendEmailBefore()} className="btn btn-secondary">

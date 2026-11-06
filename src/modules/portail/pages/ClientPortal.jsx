@@ -690,7 +690,7 @@ export default function ClientPortal() {
             if (r?.error) throw new Error(r.error)
             await chargerSignatures()
             setDocASigner(null); setTourDocs((n) => n + 1)
-            setInfo(`${docASigner.label} : signé. Merci ! Le document signé et sa preuve sont dans vos documents.`)
+            setInfo(`Signature enregistrée pour « ${docASigner.label} ». Merci ! Le document signé et sa preuve sont dans vos documents.`)
           }}
           onFermer={() => setDocASigner(null)} />
       )}
