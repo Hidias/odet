@@ -15,6 +15,7 @@ import { signaturesDesDocuments, telechargerAvecPreuve } from '../../../core/por
 import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact, sessionDuGroupe, SELECT_GROUPE, doublonDuGroupe, lireMontant } from '../lib/conventionGroupe'
 import { useAuthStore } from '../../../core/store'
 import InscriptionsEnLigne from './InscriptionsEnLigne'
+import { aLaPlaceDe } from '../../../core/portail/signataire'
 
 // Groupes d'une session inter (lot 2, 0044) : une entreprise (convention à son nom) ou un particulier qui paie
 // lui-même (contrat de formation, rétractation 10 jours calculée par la base, paiements contrôlés par la base).
@@ -55,7 +56,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   const chargerSignes = async (liste) => {
     const ids = liste.filter((x) => x.doc_status === 'signe').map((x) => x.id)
     if (!ids.length) { setSignes({}); return }
-    const { data: docs } = await supabase.from('client_shared_documents').select('id, object_id, label, kind, sha256, published_at')
+    const { data: docs } = await supabase.from('client_shared_documents').select('id, object_id, label, kind, sha256, published_at, signataire_prevu')
       // Même retiré de l'espace du client, un document signé reste la preuve du groupe
       .eq('object_type', 'session_group').in('object_id', ids)
     const sigs = await signaturesDesDocuments((docs || []).map((d) => d.id))
@@ -256,7 +257,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
                   </div>
                   {signes[g.id] && (
                     <div className="text-ui-sm text-[rgb(var(--c-success))]">
-                      Signé{g.kind === 'particulier' ? '' : 'e'} en ligne par {signes[g.id].sig.signer_name}{signes[g.id].sig.signer_role ? `, ${signes[g.id].sig.signer_role}` : ''}, le {fmt(signes[g.id].sig.signed_at)}
+                      Signé{g.kind === 'particulier' ? '' : 'e'} en ligne par {signes[g.id].sig.signer_name}{signes[g.id].sig.signer_role ? `, ${signes[g.id].sig.signer_role}` : ''}{aLaPlaceDe(signes[g.id].sig.signer_name, signes[g.id].doc.signataire_prevu)}, le {fmt(signes[g.id].sig.signed_at)}
                     </div>
                   )}
                   {g.kind === 'entreprise' && !signes[g.id] && g.doc_status !== 'signe' && (

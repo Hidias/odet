@@ -15,7 +15,7 @@ import SignerConvention, { ACCORD_DEVIS, ACCORD_CONTRAT, ACCORD_BON, ACCORD_SIGN
 import { rubriqueDocument } from '../../../core/portail/typeDocument'
 import { nomSignable, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
-import MesDocuments from '../components/MesDocuments'
+import MesDocuments, { estASigner, BandeauASigner } from '../components/MesDocuments'
 import ParticipantsSession from '../components/ParticipantsSession'
 import CertificatsEntree from '../components/CertificatsEntree'
 import DeposerSigne from '../components/DeposerSigne'
@@ -124,6 +124,8 @@ export default function ClientPortal() {
     setDocASigner({ ...doc, prevu })
   }
   const [tourDocs, setTourDocs] = useState(0)
+  // Documents publiés, pour le bandeau « à signer » du haut de l'espace (06/11)
+  const [docsPublies, setDocsPublies] = useState([])
   const [info, setInfo] = useState('')
   const [orgPdf, setOrgPdf] = useState(null)
   const [busy, setBusy] = useState(null) // clé du document en cours de génération
@@ -590,6 +592,9 @@ export default function ClientPortal() {
         </div>
       </section>
 
+      <BandeauASigner docs={docsPublies.filter((d) => estASigner(d, { signatureDe: (x) => signatures.find((y) => y.document_id === x.id) || null, depotDe: (x) => (x.object_type === 'quote' ? depotDe('quote', x.object_id) : null), aSignerEnPlus: rapportsASigner }))}
+        onVoir={() => document.getElementById('vos-documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+
       {nouvelAppareil && (
         <div role="alert" className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm">
           <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center gap-2">
@@ -627,7 +632,7 @@ export default function ClientPortal() {
         )}
 
         {/* Documents mis à disposition, toutes prestations (0404) */}
-        <MesDocuments rafraichir={tourDocs}
+        <MesDocuments rafraichir={tourDocs} onListe={setDocsPublies}
           onDeposer={(d) => setADeposer({ doc: d })}
           depotDe={(d) => (d.object_type === 'quote' ? depotDe('quote', d.object_id) : null)}
           signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
