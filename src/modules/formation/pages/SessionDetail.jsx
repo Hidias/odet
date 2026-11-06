@@ -185,10 +185,11 @@ export default function SessionDetail() {
   const [groupesConvention, setGroupesConvention] = useState(null)
   // Relu après un envoi par groupe (état « envoyé » du groupe)
   const [rechargeGroupes, setRechargeGroupes] = useState(0)
+  // Autre session : groupes inconnus jusqu'à la lecture ; une relecture après un envoi garde la liste affichée
+  useEffect(() => { setGroupesConvention(null) }, [session?.id])
   useEffect(() => {
     if (!session?.id || session.session_type !== 'inter') { setGroupesConvention([]); return }
     let actif = true
-    setGroupesConvention(null)
     supabase.from('session_groups').select(SELECT_GROUPE).eq('session_id', session.id).order('created_at')
       .then(({ data, error }) => { if (actif && !error) setGroupesConvention(data || []) })
     return () => { actif = false }

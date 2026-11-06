@@ -1104,8 +1104,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
       if (!response.ok) throw new Error(result.error || result.details)
 
       // 3) Mise à jour automatique checklist
+      // Session inter : la convention se suit par groupe, jamais cochée au niveau de la session (06/11)
       const checklistCodes = emailType === 'before'
-        ? ['convention_envoyee', 'convocations_envoyees']
+        ? (session?.session_type === 'inter' ? ['convocations_envoyees'] : ['convention_envoyee', 'convocations_envoyees'])
         : ['certificats_envoyes']
       if (!groupe) await updateChecklistItems(checklistCodes)
       // Convocations jointes et vraiment envoyées : « envoyée » noté ici seulement (plus au simple téléchargement, 21/10)

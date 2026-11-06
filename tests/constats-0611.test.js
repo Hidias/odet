@@ -53,6 +53,9 @@ describe('Fiche session et formulaire stagiaire', () => {
     expect(src).toMatch(/if \(!groupesConvention\) return 'Lecture des groupes/)
     const modal = readFileSync('src/modules/formation/components/SessionEmailModal.jsx', 'utf8')
     expect(modal).toMatch(/codes\.includes\('convention_envoyee'\) && !groupe && session\?\.session_type !== 'inter'/)
+    expect(modal).toMatch(/session\?\.session_type === 'inter' \? \['convocations_envoyees'\]/)
+    // Relecture après un envoi : la liste affichée est gardée (null seulement au changement de session)
+    expect(src).toMatch(/useEffect\(\(\) => \{ setGroupesConvention\(null\) \}, \[session\?\.id\]\)/)
   })
   it('champs du nouveau stagiaire nommés (étiquette reliée)', () => {
     for (const id of ['prenom', 'nom', 'email', 'telephone', 'genre']) {

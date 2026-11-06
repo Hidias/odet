@@ -96,7 +96,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
 
   const groupes = ORDRE.map((k) => [k, docs.filter((d) => rubriqueDocument(d) === k)]).filter(([, l]) => l.length)
   return (
-    <section id="vos-documents" className="vitrine-monte mb-8 scroll-mt-24">
+    <section id="vos-documents" className="vitrine-monte mb-8 scroll-mt-[calc(5rem+env(safe-area-inset-top))]">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5"><FolderOpen className="w-4 h-4" aria-hidden="true" />{titre}</h2>
       {erreur && <p role="alert" className="mb-3 text-sm text-[rgb(var(--c-danger))]">{erreur}</p>}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -113,7 +113,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
                   const aSigner = !!onSigner && estASigner(d, { signatureDe, depotDe, aSignerEnPlus })
                   const deposable = !sig && onDeposer && d.kind === 'devis' && (!depot || depot.status === 'refuse')
                   return (
-                    <li key={d.id} id={`doc-${d.id}`} className="flex flex-wrap items-center gap-x-2 scroll-mt-24">
+                    <li key={d.id} id={`doc-${d.id}`} className="flex flex-wrap items-center gap-x-2 scroll-mt-[calc(5rem+env(safe-area-inset-top))]">
                       <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="flex-1 min-w-[12rem] py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">
                         <span className="min-w-0 flex-1"><span className="block text-gray-800 break-words">{d.label}</span>
                           <span className="block text-xs text-gray-400">{sig
