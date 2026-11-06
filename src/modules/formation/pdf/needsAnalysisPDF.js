@@ -3,7 +3,7 @@
 
 import jsPDF from 'jspdf'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
-import { startDocument } from '../../../core/pdf/layout'
+import { startDocument, compacter } from '../../../core/pdf/layout'
 
 const safe = (value, defaultValue = '') => (value === null || value === undefined ? defaultValue : String(value))
 
@@ -23,7 +23,7 @@ async function orgFor(orgSettings) {
   return { ...prepared, ...buildORG(prepared) }
 }
 
-function buildDoc(ORG, session, analysisData, blank) {
+function construireBuildDoc(ORG, session, analysisData, blank) {
   const doc = new jsPDF({ compress: true })
   const a = !blank && analysisData ? analysisData : null
   const ref = blank ? null : (session?.reference || null)
@@ -107,6 +107,11 @@ function buildDoc(ORG, session, analysisData, blank) {
   ], { height: 22 })
   f.finish()
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+function buildDoc(...args) {
+  return compacter(() => construireBuildDoc(...args))
 }
 
 export const downloadNeedsAnalysisPDF = async (session, analysisData = null, blank = false, orgSettings = null) => {

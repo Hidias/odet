@@ -3,13 +3,13 @@
 
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import { startDocument, numberPages } from '../../../core/pdf/layout'
+import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 
 const TYPES = { externe: 'Formation externe', interne: 'Formation interne', echange_pratiques: 'Échange de pratiques' }
 const ITW = { annuel: 'Entretien annuel', semestriel: 'Entretien semestriel', ponctuel: 'Entretien ponctuel' }
 const fr = (d) => (d ? new Date(d).toLocaleDateString('fr-FR') : '')
 
-export function buildTrainerDevelopmentPDF(ORG, { trainerName = '', trainings = [], interviews = [] } = {}) {
+function construireBuildTrainerDevelopmentPDF(ORG, { trainerName = '', trainings = [], interviews = [] } = {}) {
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, { docLabel: 'Développement des compétences', code: 'PDC', title: 'Plan de développement des compétences', subtitle: `Formateur : ${trainerName}` })
 
@@ -48,4 +48,9 @@ export function buildTrainerDevelopmentPDF(ORG, { trainerName = '', trainings = 
   f.finish()
   if (doc.getNumberOfPages() > 1) numberPages(doc, ORG)
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildTrainerDevelopmentPDF(...args) {
+  return compacter(() => construireBuildTrainerDevelopmentPDF(...args))
 }

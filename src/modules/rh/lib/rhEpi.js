@@ -5,7 +5,7 @@
 
 import jsPDF from 'jspdf'
 import { supabase } from '../../../core/supabase'
-import { startDocument, drawImageFitted } from '../../../core/pdf/layout'
+import { startDocument, drawImageFitted, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 
@@ -66,33 +66,37 @@ export function renouvellementPropose(handedOn, mois) {
  */
 export async function genererFicheRemisePDF(p) {
   const ORG = orgHorsFormation(await loadPdfOrg(true))
-  const doc = new jsPDF({ compress: true })
-  const f = startDocument(doc, ORG, { code: 'EPI', docLabel: 'Fiche de remise d\'EPI', title: 'Fiche de remise d\'équipements de protection individuelle', subtitle: 'Articles R4323-91 à R4323-106 du code du travail' })
-  const nom = `${p.person?.first_name || ''} ${(p.person?.last_name || '').toUpperCase()}`.trim()
-  f.section('Salarié')
-  f.fields([{ label: 'Nom et prénom', value: nom, w: 2 }, { label: 'Fonction', value: p.jobTitle || '', w: 2 }])
-  f.fields([{ label: 'Employeur', value: ORG.legal_name || ORG.name, w: 3 }, { label: 'Remis le', value: frDate(p.handedOn) }])
-  f.section('Équipements remis')
-  f.table(['Équipement', 'Référence', 'Quantité', 'Taille', 'À renouveler le'],
-    (p.lignes || []).map((l) => [l.label || '', l.reference || '', `${l.quantity} ${l.unit || ''}`.trim(), l.size || '', frDate(l.renew_on) || '']))
-  f.section('Engagements')
-  f.para('L\'employeur fournit gratuitement ces équipements, adaptés au travail et à la personne, et les remplace dès qu\'ils sont usés, abîmés ou périmés.')
-  f.para('Le salarié a reçu l\'information sur les risques contre lesquels ils protègent, les conditions d\'utilisation et d\'entretien. Il s\'engage à les porter quand le travail l\'exige, à en prendre soin et à signaler tout défaut.')
-  f.ensure(48)
-  f.space(4)
-  const w = (f.W - 8) / 2
-  const y0 = f.y
-  const cadre = (x, label, nomS, qualite, image) => {
-    doc.setDrawColor(...ORG.theme.line); doc.setLineWidth(0.3); doc.rect(x, y0, w, 40)
-    doc.setFontSize(7); doc.setTextColor(...ORG.theme.muted); doc.text(label.toUpperCase(), x + 3, y0 + 5)
-    doc.setFontSize(9); doc.setTextColor(...ORG.theme.text); doc.text(nomS || '', x + 3, y0 + 10)
-    if (qualite) { doc.setFontSize(8); doc.text(qualite, x + 3, y0 + 14) }
-    if (image) { try { drawImageFitted(doc, image, x + 3, y0 + 16, w - 6, 22) } catch { /* image illisible */ } }
-  }
-  cadre(f.M, 'Remis par', p.remisPar || '', 'Pour l\'employeur', null)
-  cadre(f.M + w + 8, 'Le salarié', nom, 'Reçu, lu et approuvé', p.employeeSignature)
-  f.y = y0 + 44
-  f.note(`Fait à ${ORG.city || ''}, le ${frDate(p.handedOn)}.`)
-  f.finish()
+  // Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+  const doc = compacter(() => {
+    const doc = new jsPDF({ compress: true })
+    const f = startDocument(doc, ORG, { code: 'EPI', docLabel: 'Fiche de remise d\'EPI', title: 'Fiche de remise d\'équipements de protection individuelle', subtitle: 'Articles R4323-91 à R4323-106 du code du travail' })
+    const nom = `${p.person?.first_name || ''} ${(p.person?.last_name || '').toUpperCase()}`.trim()
+    f.section('Salarié')
+    f.fields([{ label: 'Nom et prénom', value: nom, w: 2 }, { label: 'Fonction', value: p.jobTitle || '', w: 2 }])
+    f.fields([{ label: 'Employeur', value: ORG.legal_name || ORG.name, w: 3 }, { label: 'Remis le', value: frDate(p.handedOn) }])
+    f.section('Équipements remis')
+    f.table(['Équipement', 'Référence', 'Quantité', 'Taille', 'À renouveler le'],
+      (p.lignes || []).map((l) => [l.label || '', l.reference || '', `${l.quantity} ${l.unit || ''}`.trim(), l.size || '', frDate(l.renew_on) || '']))
+    f.section('Engagements')
+    f.para('L\'employeur fournit gratuitement ces équipements, adaptés au travail et à la personne, et les remplace dès qu\'ils sont usés, abîmés ou périmés.')
+    f.para('Le salarié a reçu l\'information sur les risques contre lesquels ils protègent, les conditions d\'utilisation et d\'entretien. Il s\'engage à les porter quand le travail l\'exige, à en prendre soin et à signaler tout défaut.')
+    f.ensure(48)
+    f.space(4)
+    const w = (f.W - 8) / 2
+    const y0 = f.y
+    const cadre = (x, label, nomS, qualite, image) => {
+      doc.setDrawColor(...ORG.theme.line); doc.setLineWidth(0.3); doc.rect(x, y0, w, 40)
+      doc.setFontSize(7); doc.setTextColor(...ORG.theme.muted); doc.text(label.toUpperCase(), x + 3, y0 + 5)
+      doc.setFontSize(9); doc.setTextColor(...ORG.theme.text); doc.text(nomS || '', x + 3, y0 + 10)
+      if (qualite) { doc.setFontSize(8); doc.text(qualite, x + 3, y0 + 14) }
+      if (image) { try { drawImageFitted(doc, image, x + 3, y0 + 16, w - 6, 22) } catch { /* image illisible */ } }
+    }
+    cadre(f.M, 'Remis par', p.remisPar || '', 'Pour l\'employeur', null)
+    cadre(f.M + w + 8, 'Le salarié', nom, 'Reçu, lu et approuvé', p.employeeSignature)
+    f.y = y0 + 44
+    f.note(`Fait à ${ORG.city || ''}, le ${frDate(p.handedOn)}.`)
+    f.finish()
+    return doc
+  })
   return doc.output('blob')
 }

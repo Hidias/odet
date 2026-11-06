@@ -11,6 +11,24 @@ const { dernierePagePeuRemplie, compacter, startDocument } = await import('../sr
 const { default: jsPDF } = await import('jspdf')
 await import('jspdf-autotable')
 const { PDFDocument } = await import('pdf-lib')
+const { APP_VERSION } = await import('../src/core/version')
+
+// Textes écrits page par page, pour vérifier le pied de page (code du document) sur la dernière page
+const docs = []
+jsPDF.API.events.push(['initialized', function () {
+  const doc = this
+  const texteOrigine = doc.text
+  doc.__textes = []
+  docs.push(doc)
+  doc.text = function (t, ...a) {
+    doc.__textes.push([doc.getCurrentPageInfo().pageNumber, Array.isArray(t) ? t.join(' ') : String(t)])
+    return texteOrigine.call(doc, t, ...a)
+  }
+}])
+const piedSurDernierePage = (doc, code) => {
+  const n = doc.getNumberOfPages()
+  return doc.__textes.some(([p, t]) => p === n && (t === `${code}-${APP_VERSION}` || t.endsWith(`-${code}-${APP_VERSION}`)))
+}
 
 // Documents de maintenance (06/11) : pied de page sur la dernière page, et jamais une dernière page avec les seules
 // signatures ou mentions (recomposition serrée, sinon dernières lignes du tableau reportées)
@@ -31,14 +49,14 @@ describe('Rapport et registre de maintenance', () => {
       expect(dernierePagePeuRemplie(r.doc), `registre ${n} appareils`).toBe(false)
     }
   }, 120000)
-  it('report de lignes : toutes les lignes du tableau sont dessinées une seule fois', () => {
-    // Tableau de n lignes suivi des signatures : on cherche n où la signature passe seule en page 2
-    const construire = (n, vus) => () => {
+  it('report de lignes : chaque ligne du tableau est dessinée une fois dans le document rendu', () => {
+    // Tableau de n lignes suivi des signatures ; les lignes dessinées sont comptées sur le document lui-même
+    const construire = (n) => () => {
       const doc = new jsPDF({ compress: true })
+      doc.__vus = []
       const f = startDocument(doc, org, { code: 'ESSAI', title: 'Essai' })
       f.table(['N°', 'Libellé'], Array.from({ length: n }, (_, i) => [String(i), 'Ligne']), {
-        reportable: true,
-        didParseCell: (d) => { if (d.section === 'body' && d.column.index === 0) vus.push(d.cell.raw) },
+        didDrawCell: (d) => { if (d.section === 'body' && d.column.index === 0) doc.__vus.push(d.cell.raw) },
       })
       f.signatures([{ label: 'A' }, { label: 'B' }], { height: 34 })
       f.finish()
@@ -46,33 +64,62 @@ describe('Rapport et registre de maintenance', () => {
     }
     let reports = 0
     for (let n = 5; n <= 70; n++) {
-      const origine = construire(n, [])()
-      let vus = []
-      const doc = compacter(() => { vus = []; return construire(n, vus)() }, { reportMax: 8 })
+      const origine = construire(n)()
+      const doc = compacter(construire(n))
       expect(dernierePagePeuRemplie(doc), `${n} lignes`).toBe(false)
-      expect(vus.length).toBe(n)
-      expect(new Set(vus).size).toBe(n)
-      if (dernierePagePeuRemplie(origine) && pages(doc) === pages(origine)) reports++
+      expect(doc.__vus.length).toBe(n)
+      expect(new Set(doc.__vus).size).toBe(n)
+      if (doc.__odetReport) { reports++; expect(pages(doc)).toBe(pages(origine)) }
     }
-    // Au moins un cas où serrer ne suffisait pas : les lignes ont été reportées
+    // Au moins un cas où serrer ne suffisait pas : les lignes ont été reportées (dernier tableau, sans marque)
     expect(reports).toBeGreaterThan(0)
+  })
+  it('seconde partie d\'un tableau découpé : les accroches lisent le rang d\'origine (relecture de #315)', () => {
+    // Liste externe lue par d.row.index (comme les cases cochées de la check-list ou les couleurs des objectifs)
+    let decoupes = 0
+    for (let n = 5; n <= 70; n++) {
+      const externe = Array.from({ length: n }, (_, i) => `L${i}`)
+      const construire = () => {
+        const doc = new jsPDF({ compress: true })
+        doc.__ecarts = []
+        const f = startDocument(doc, org, { code: 'ESSAI', title: 'Essai' })
+        const verifier = (nom) => (d) => { if (d.section === 'body' && d.column.index === 0 && externe[d.row.index] !== d.cell.raw) doc.__ecarts.push([nom, d.cell.raw, externe[d.row.index]]) }
+        f.table(['N°'], externe.map((x) => [x]), { didParseCell: verifier('parse'), willDrawCell: verifier('will'), didDrawCell: verifier('did') })
+        f.signatures([{ label: 'A' }, { label: 'B' }], { height: 34 })
+        f.finish()
+        return doc
+      }
+      const doc = compacter(construire)
+      if (doc.__odetReport) decoupes++
+      expect(doc.__ecarts, `${n} lignes`).toEqual([])
+    }
+    expect(decoupes).toBeGreaterThan(0)
+  })
+  it('rapport avec photos : lues avant la construction, section dessinée', async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+    const e = eq(3)
+    const items = e.map((x) => ({ equipment_id: x.id, result: 'conforme' }))
+    const { doc } = await buildRapportPDF({ visit: { ...visit, photos: ['a', 'b'] }, items, parts: [], equipmentById: Object.fromEntries(e.map((x) => [x.id, x])), settings, technicianName: 'Technicien', org, photos: [png, png] })
+    expect(doc.__textes.some(([, t]) => t === 'PHOTOS' || t === 'Photos')).toBe(true)
+    expect(dernierePagePeuRemplie(doc)).toBe(false)
   })
 })
 
 describe('Pied de page sur la dernière page (il manquait)', () => {
-  it('bilan, révision et avis : f.finish appelé (mesure posée)', async () => {
+  it('bilan, avis, révision et contrat portent le code du document en dernière page', async () => {
     const data = { appareils: 3, visites: [], remplaces: 0, enRetard: 0, aVerifier: [], anneeProchaine: 2027, finsDeVie: [], budget: {} }
     const b = await buildBilanPDF({ client: { name: 'Client Essai' }, contract: null, data, org })
-    expect(b.doc.__odetMesure).toBeTruthy()
+    expect(piedSurDernierePage(b.doc, 'BIL')).toBe(true)
     const a = await buildAvisPassagePDF({ visit, kind: 'prevu', passageOn: '2026-11-10', org })
-    expect(a.doc.__odetMesure).toBeTruthy()
-    const r = await buildRevisionPDF({ contract: { reference: 'C1', base_price_ht: 100 }, client: { name: 'Client Essai' }, revision: { anniversary: '2026-11-01', new_value: 1, price_after: 101 }, org })
-    const pdf = await PDFDocument.load(Buffer.from(r.base64, 'base64'))
-    expect(pdf.getPageCount()).toBe(1)
-  })
-  it('contrat : une page pour un petit parc, mention légale du prestataire imprimée', async () => {
-    const { base64 } = await buildContratPDF({ contract: { label: 'Contrat', reference: 'C1', visit_months: [3], annual_price_ht: 100, start_on: '2026-11-01' }, client: { name: 'Client Essai' }, parc: [{ type_name: 'Extincteur' }], org, avecCgv: false })
-    const pdf = await PDFDocument.load(Buffer.from(base64, 'base64'))
-    expect(pdf.getPageCount()).toBe(1)
+    expect(piedSurDernierePage(a.doc, 'AVP')).toBe(true)
+    await buildRevisionPDF({ contract: { reference: 'C1', base_price_ht: 100 }, client: { name: 'Client Essai' }, revision: { anniversary: '2026-11-01', new_value: 1, price_after: 101 }, org })
+    expect(piedSurDernierePage(docs[docs.length - 1], 'REV')).toBe(true)
+    // Contrat de deux pages (grand parc) : le pied de page est aussi sur la seconde
+    const parc = Array.from({ length: 40 }, (_, i) => ({ type_name: `Type ${i}` }))
+    const { base64 } = await buildContratPDF({ contract: { label: 'Contrat', reference: 'C1', visit_months: [3], annual_price_ht: 100, start_on: '2026-11-01' }, client: { name: 'Client Essai' }, parc, org, avecCgv: false })
+    const dernier = docs[docs.length - 1]
+    expect(dernier.getNumberOfPages()).toBeGreaterThan(1)
+    expect(piedSurDernierePage(dernier, 'CTR')).toBe(true)
+    expect((await PDFDocument.load(Buffer.from(base64, 'base64'))).getPageCount()).toBe(dernier.getNumberOfPages())
   })
 })

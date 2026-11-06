@@ -118,7 +118,7 @@ export async function buildRapportPDF({ visit, items, parts, equipmentById, sett
     f.finish()
     numberPages(doc, ORG)
     return doc
-  }, { reportMax: Math.min(8, Math.max(0, (items || []).length - 1)) })
+  })
   const safe = String(visit.clients?.name || 'client').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 40)
   return { doc, filename: `${inventaire ? 'PV_inventaire' : estVerification(visit) ? 'Rapport' : 'Bon'}_${visit.reference || 'intervention'}_${safe}.pdf` }
 }

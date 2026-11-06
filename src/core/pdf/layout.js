@@ -292,9 +292,11 @@ export function startDocument(doc, ORG, { ref = null, docLabel = '', code = 'DOC
 export const SEUIL_DERNIERE_PAGE = 0.35
 const DENSITES = [0.85, 0.72]
 let DENSITE = 1
-// Report de lignes (compacter avec reportMax) : nombre de dernières lignes du tableau marqué `reportable` qui passent
-// sur la page suivante, pour que la fin du document (signatures, mentions) n'y soit jamais seule
+// Report de lignes (compacter) : nombre de dernières lignes d'un tableau qui passent sur la page suivante, pour que la
+// fin du document (signatures, mentions) n'y soit jamais seule. Tableau visé (CIBLE, rang dans le document) : le premier
+// marqué `reportable`, sinon le dernier tableau du document
 let REPORT = 0
+let CIBLE = -1
 
 const docDe = (r) => (r && r.doc) || r
 const pagesDe = (r) => { const d = docDe(r); return d && d.getNumberOfPages ? d.getNumberOfPages() : 0 }
@@ -306,22 +308,27 @@ export function dernierePagePeuRemplie(r) {
 }
 
 /** Construction synchrone (aucun await entre la création du document et finish) : densité passée par le module.
- *  reportMax (facultatif) : si serrer ne retire pas la page, les dernières lignes (1 à reportMax) du tableau marqué
- *  `reportable` passent sur la page suivante avec la fin du document (même nombre de pages, dernière page remplie) */
-export function compacter(construire, { reportMax = 0 } = {}) {
+ *  Si serrer ne retire pas la page, les dernières lignes (1 à reportMax) d'un tableau (le premier marqué `reportable`,
+ *  sinon le dernier du document) passent sur la page suivante avec la fin du document (même nombre de pages) */
+export function compacter(construire, { reportMax = 12 } = {}) {
   const premier = construire()
   if (!dernierePagePeuRemplie(premier)) return premier
+  const m = docDe(premier).__odetMesure
+  const cible = m.reportable ?? (m.tables - 1)
   // Un essai qui échoue ne fait jamais perdre le document d'origine
   const essai = (d, k) => {
-    DENSITE = d; REPORT = k
-    try { return construire() } catch (e) { console.warn('Mise en page resserrée impossible, document d\'origine gardé :', e); return null } finally { DENSITE = 1; REPORT = 0 }
+    DENSITE = d; REPORT = k; CIBLE = k ? cible : -1
+    try { return construire() } catch (e) { console.warn('Mise en page resserrée impossible, document d\'origine gardé :', e); return null } finally { DENSITE = 1; REPORT = 0; CIBLE = -1 }
   }
+  if (!(cible >= 0)) reportMax = 0
   for (const d of DENSITES) {
     const serre = essai(d, 0)
     if (serre && pagesDe(serre) < pagesDe(premier)) return serre
   }
   for (let k = 1; k <= reportMax; k++) {
     const equilibre = essai(1, k)
+    // Aucun découpage possible (tableau trop court) : inutile d'essayer davantage de lignes
+    if (equilibre && !docDe(equilibre).__odetReport) break
     if (equilibre && pagesDe(equilibre) === pagesDe(premier) && !dernierePagePeuRemplie(equilibre)) return equilibre
   }
   return premier
@@ -358,7 +365,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   const D = densite || DENSITE
   const T = Math.max(D, 0.9)
   const LINE = 4.1 * T
-  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1, densite: D, haut: startY, report: REPORT }
+  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1, densite: D, haut: startY, report: REPORT, cible: CIBLE, tables: 0, reportable: null }
   f.body = (size = 9) => { setF(doc, 'normal'); doc.setFontSize(size); doc.setTextColor(...t.text) }
   f.newPage = () => {
     drawFooter(doc, ORG, code)
@@ -371,7 +378,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   f.finish = () => {
     drawFooter(doc, ORG, code)
     const pages = doc.getNumberOfPages()
-    doc.__odetMesure = { pages, remplissage: pages > 1 ? Math.max(0, f.y - f.haut) / Math.max(1, BOTTOM - f.haut) : 1 }
+    doc.__odetMesure = { pages, remplissage: pages > 1 ? Math.max(0, f.y - f.haut) / Math.max(1, BOTTOM - f.haut) : 1, tables: f.tables, reportable: f.reportable }
   }
   f.space = (h = 3) => { f.y += h * D }
 
@@ -639,15 +646,38 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   // Tableau jspdf-autotable aux couleurs de l'instance ; continue le flux après le tableau
   f.table = (head, body, optsIn = {}) => {
     const { reportable, ...opts } = optsIn
-    // Tableau marqué `reportable` pendant un essai de compacter : ses f.report dernières lignes passent page suivante
-    if (reportable && f.report > 0 && body.length > f.report) {
+    const rang = f.tables++
+    if (reportable && f.reportable === null) f.reportable = rang
+    // Tableau visé pendant un essai de compacter : ses f.report dernières lignes passent sur la page suivante
+    if (f.report > 0 && rang === f.cible && body.length > f.report) {
       const k = f.report
       f.report = 0
-      f.table(head, body.slice(0, -k), opts)
+      doc.__odetReport = true
+      dessinerTable(head, body.slice(0, -k), opts)
       f.newPage()
-      f.table(head, body.slice(-k), opts)
+      // Seconde partie : les accroches lisent le rang d'origine de la ligne (d.row.index), comme sans découpage
+      dessinerTable(head, body.slice(-k), avecDecalage(opts, body.length - k))
       return
     }
+    dessinerTable(head, body, opts)
+  }
+  // Accroches de cellule d'une seconde partie de tableau : d.row.index rendu au rang de la ligne dans le tableau
+  // entier (couleurs, cases cochées... lues dans une liste externe par ce rang), puis remis tel quel pour autoTable
+  const avecDecalage = (opts, decalage) => {
+    const o = { ...opts }
+    for (const nom of ['didParseCell', 'willDrawCell', 'didDrawCell']) {
+      const accroche = opts[nom]
+      if (typeof accroche !== 'function') continue
+      o[nom] = (d) => {
+        if (d.section !== 'body' || !d.row) return accroche(d)
+        const rang = d.row.index
+        d.row.index = rang + decalage
+        try { return accroche(d) } finally { d.row.index = rang }
+      }
+    }
+    return o
+  }
+  const dessinerTable = (head, body, opts) => {
     f.ensure(16)
     doc.autoTable({
       startY: f.y,

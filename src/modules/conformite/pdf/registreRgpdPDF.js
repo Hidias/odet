@@ -3,13 +3,13 @@
 
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import { startDocument } from '../../../core/pdf/layout'
+import { startDocument, compacter } from '../../../core/pdf/layout'
 
 const fr = (d) => (d ? new Date(String(d).length === 10 ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR') : '')
 const liste = (a) => (Array.isArray(a) ? a.filter(Boolean).join(', ') : a || '')
 const STATUTS = { valide: 'Validé', a_revoir: 'À revoir', archive: 'Archivé' }
 
-export function buildRegistreRgpdPDF(ORG, traitements, sousTraitants) {
+function construireBuildRegistreRgpdPDF(ORG, traitements, sousTraitants) {
   const doc = new jsPDF({ compress: true })
   const f = startDocument(doc, ORG, {
     docLabel: 'Conformité RGPD', code: 'RGPD-REG',
@@ -43,4 +43,9 @@ export function buildRegistreRgpdPDF(ORG, traitements, sousTraitants) {
     (sousTraitants || []).filter((s) => s.actif).map((s) => [s.nom, s.role || '', s.hebergement || '', s.transfert || '', fr(s.contrat_signe_le) || 'À signer']))
   f.finish()
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildRegistreRgpdPDF(...args) {
+  return compacter(() => construireBuildRegistreRgpdPDF(...args))
 }

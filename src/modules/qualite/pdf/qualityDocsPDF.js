@@ -5,7 +5,7 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { startDocument, drawPartyCard, PAGE_MARGIN } from '../../../core/pdf/layout'
+import { startDocument, drawPartyCard, PAGE_MARGIN, compacter } from '../../../core/pdf/layout'
 
 const PSH_DECISION = { a_analyser: 'À analyser', adapte: 'Adaptée', partiel: 'Partielle', oriente: 'Orientée', refuse: 'Refusée' }
 const PSH_STATUT = { open: 'Ouverte', in_review: 'En analyse', awaiting_info: 'Informations manquantes', decided: 'Décidée', implemented: 'Mise en oeuvre', closed: 'Clôturée' }
@@ -30,7 +30,7 @@ const fmtDate = (d) => { try { return format(new Date(d), 'dd/MM/yyyy') } catch 
  * @param {object} p { docId, docInfo: { code, name, indicateur, table }, code (avec initiales), version, data, rddData, registre }
  * @returns {jsPDF}
  */
-export function buildQualityDocPDF(ORG, { docId, docInfo, code, version, data = {}, rddData = null, registre = [] }) {
+function construireBuildQualityDocPDF(ORG, { docId, docInfo, code, version, data = {}, rddData = null, registre = [] }) {
   const doc = new jsPDF({ compress: true })
   const docLabel = 'Système qualité'
   const f = startDocument(doc, ORG, {
@@ -193,4 +193,9 @@ export function buildQualityDocPDF(ORG, { docId, docInfo, code, version, data = 
 
   f.finish()
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildQualityDocPDF(...args) {
+  return compacter(() => construireBuildQualityDocPDF(...args))
 }

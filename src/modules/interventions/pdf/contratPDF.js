@@ -81,7 +81,7 @@ export async function buildContratPDF({ contract, client, sites = [], types = []
     f.finish()
     numberPages(doc, ORG)
     return doc
-  }, { reportMax: 8 })
+  })
   const base = doc.output('datauristring').split(',')[1]
 
   if (!avecCgv) return { base64: base, cgv: null }

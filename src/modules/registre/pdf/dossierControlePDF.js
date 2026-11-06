@@ -5,7 +5,7 @@
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import { startDocument } from '../../../core/pdf/layout'
+import { startDocument, compacter } from '../../../core/pdf/layout'
 
 const fr = (d) => (d ? new Date(String(d).length === 10 ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR') : '')
 const ETATS = { a_jour: 'À jour', a_prevoir: 'À prévoir', manquant: 'Manquant', depasse: 'Dépassé' }
@@ -15,7 +15,7 @@ const ETATS = { a_jour: 'À jour', a_prevoir: 'À prévoir', manquant: 'Manquant
  * @param {object} r données du registre (ent_registre ou registre_client)
  * @returns jsPDF
  */
-export function buildDossierControlePDF(ORGsource, r) {
+function construireBuildDossierControlePDF(ORGsource, r) {
   const ORG = orgHorsFormation(ORGsource)
   const doc = new jsPDF({ compress: true })
   const site = r.site ? (r.sites || []).find((s) => s.id === r.site) : null
@@ -65,4 +65,9 @@ export function buildDossierControlePDF(ORGsource, r) {
   f.note('Les exercices et essais déclarés par l\'entreprise restent sous sa responsabilité. Ce dossier rassemble les éléments enregistrés ; il ne remplace pas les registres légaux tant que leur tenue sur support informatique n\'est pas confirmée (code du travail, L8113-6).')
   f.finish()
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+export function buildDossierControlePDF(...args) {
+  return compacter(() => construireBuildDossierControlePDF(...args))
 }

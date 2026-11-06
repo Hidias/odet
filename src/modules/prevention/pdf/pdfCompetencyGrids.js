@@ -7,7 +7,7 @@
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { buildORG, prepareOrgForPDF } from '../../../core/org/orgUtils'
-import { startDocument, drawCheckbox } from '../../../core/pdf/layout'
+import { startDocument, drawCheckbox, compacter } from '../../../core/pdf/layout'
 
 // Identité de l'organisme : uniquement depuis organization_settings (aucun repli)
 let ORG = buildORG({})
@@ -196,7 +196,7 @@ const GRIDS = {
 
 // ─── Génération PDF (mise en page commune : core/pdf/layout.js) ───
 
-function generateGrid(gridKey) {
+function construireGenerateGrid(gridKey) {
   const grid = GRIDS[gridKey]
   if (!grid) throw new Error(`Grille inconnue: ${gridKey}`)
 
@@ -254,6 +254,11 @@ function generateGrid(gridKey) {
   ], { height: 20 })
   f.finish()
   return doc
+}
+
+// Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+function generateGrid(...args) {
+  return compacter(() => construireGenerateGrid(...args))
 }
 
 // ═══════════════════════════════════════════════════════════

@@ -3,7 +3,7 @@
 
 import jsPDF from 'jspdf'
 import { format } from 'date-fns'
-import { startDocument } from '../../../core/pdf/layout'
+import { startDocument, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 
 const d = (v) => { try { return v ? format(new Date(v), 'dd/MM/yyyy') : '' } catch { return '' } }
@@ -55,14 +55,14 @@ async function toPayload(doc, filename, withBlob) {
 
 export async function generateSatisfactionEntreprisePDF(session, client, orgOverride = null) {
   const ORG = orgOverride || await loadPdfOrg()
-  const doc = new jsPDF({ compress: true })
-  writeQuestionnaire(doc, ORG, session, { kind: 'entreprise', client })
+  // Dernière page presque vide : recomposé plus serré (compacter, 06/11)
+  const doc = compacter(() => { const d = new jsPDF({ compress: true }); writeQuestionnaire(d, ORG, session, { kind: 'entreprise', client }); return d })
   return toPayload(doc, `Questionnaire_Satisfaction_${session?.reference || 'formation'}.pdf`, false)
 }
 
 export async function generateSatisfactionDOPDF(session, orgOverride = null) {
   const ORG = orgOverride || await loadPdfOrg()
-  const doc = new jsPDF({ compress: true })
-  writeQuestionnaire(doc, ORG, session, { kind: 'do' })
+  // Dernière page presque vide : recomposé plus serré (compacter, 06/11)
+  const doc = compacter(() => { const d = new jsPDF({ compress: true }); writeQuestionnaire(d, ORG, session, { kind: 'do' }); return d })
   return toPayload(doc, `Questionnaire_Satisfaction_DO_${session?.reference || 'session'}.pdf`, true)
 }
