@@ -148,6 +148,8 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
 
   const contrat = async (g) => {
     const stagiaires = (parGroupe[g.id] || []).map((i) => i.trainees).filter(Boolean)
+    const refus = refusPublicationGroupe(g, stagiaires.length, signataireDuGroupe(g, []))
+    if (refus) return toast.error(refus, { duration: 6000 })
     try {
       // Session vue du groupe : jamais le financement du client principal
       await downloadDocument('contratParticulier', sessionDuGroupe({ ...session, session_trainees: parGroupe[g.id] || [] }, g), { trainees: stagiaires, trainer: session.trainers || null, particulier: { group: g, client: g.clients || {} } })

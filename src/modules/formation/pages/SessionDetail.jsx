@@ -2652,7 +2652,7 @@ export default function SessionDetail() {
     if (!envoiParGroupe(lu.session, lu.groupes)) return null
     const out = []
     const sautes = []
-    for (const g of groupesActifs(lu.groupes)) {
+    for (const [rang, g] of groupesActifs(lu.groupes).entries()) {
       const inscrits = inscritsDuGroupe(lu.session, g)
       if (!inscrits.length || refusPublicationGroupe(g, inscrits.length, signataireDuGroupe(g, [g.contact].filter(Boolean)))) {
         sautes.push(g.clients?.name || g.group_name || 'groupe')
@@ -2664,7 +2664,8 @@ export default function SessionDetail() {
         const doc = g.kind === 'particulier'
           ? await generatePDF('contratParticulier', sessionDuGroupe(lu.session, g), { trainees: stagiaires, trainer, particulier: { group: g, client: g.clients || {} }, enLigne: false })
           : await generatePDF('convention', sessionDuGroupe(lu.session, g), { trainees: stagiaires, trainer, enLigne: false })
-        if (doc?.base64) out.push({ name: `${g.kind === 'particulier' ? 'Contrat' : 'Convention'}_${session.reference || 'SESSION'}_${nom}.pdf`, base64: doc.base64 })
+        // Numéro du groupe dans le nom : deux groupes d'un même client ne s'écrasent pas dans le dossier
+        if (doc?.base64) out.push({ name: `${g.kind === 'particulier' ? 'Contrat' : 'Convention'}_${session.reference || 'SESSION'}_${rang + 1}_${nom}.pdf`, base64: doc.base64 })
       } catch (e) {
         console.error('Convention du groupe :', e)
         sautes.push(g.clients?.name || g.group_name || 'groupe')

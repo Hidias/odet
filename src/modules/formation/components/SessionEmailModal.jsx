@@ -889,7 +889,9 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
     const conventionJointe = generatedFiles.some((f) => f.id === 'convention') && !excludedFileIds.has('convention')
     try {
       if (conventionJointe && (groupe.doc_status || 'a_envoyer') === 'a_envoyer') {
-        await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', groupe.id).eq('doc_status', 'a_envoyer')
+        const { data: maj, error: eMaj } = await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', groupe.id).eq('doc_status', 'a_envoyer').select('id')
+        // Droit de modifier la session absent : le mail est parti, l'état du groupe se note à la main
+        if (eMaj || !maj?.length) toast('Mail envoyé. Le groupe n\'a pas pu être noté « envoyé » : un responsable le marque dans l\'onglet Groupes.', { icon: '⚠️', duration: 8000 })
       }
       const [{ data: gs, error: eG }, { data: sts, error: eS }] = await Promise.all([
         supabase.from('session_groups').select('id, doc_status, status').eq('session_id', session.id),
