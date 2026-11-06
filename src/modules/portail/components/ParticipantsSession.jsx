@@ -199,7 +199,7 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
           <div>
             <h2 id="participants-titre" className="font-display text-lg font-semibold text-gray-900">{recap ? 'Vérifiez avant d\'enregistrer' : 'Vos participants'}</h2>
             <p className="text-sm text-gray-500">
-              {places} place{places > 1 ? 's' : ''}{plafond > places ? `, jusqu'à ${plafond} avec l'accord de votre organisme` : ' au plus'}. Seuls le nom et le prénom sont obligatoires.
+              {places} place{places > 1 ? 's' : ''}{plafond > places ? `, jusqu'à ${plafond} avec l'accord de votre organisme` : ' au plus'}. Seuls le prénom, le nom et le genre sont obligatoires.
             </p>
           </div>
           <button type="button" onClick={onFermer} aria-label="Fermer" className="p-1 text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>

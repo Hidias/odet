@@ -148,6 +148,21 @@ const champsDe = (s, base = {}) => ({
   end_time: base.end_time ?? hhmm(s.end_time),
 })
 
+/** Fin d'une session après un changement de date de début : une session d'un jour suit le début ; une fin
+ * devenue antérieure au début s'aligne sur lui ; une fin plus tardive (plusieurs jours) est gardée. */
+export function finApresDebut(v, debut) {
+  if (!v.end_date) return ''
+  if (v.end_date === v.start_date || !debut || v.end_date < debut) return debut
+  return v.end_date
+}
+
+/** Jour de week-end d'une date AAAA-MM-JJ : « samedi » ou « dimanche », sinon null */
+export function jourDeWeekEnd(date) {
+  if (!date) return null
+  const j = new Date(`${date}T12:00:00`).getDay()
+  return j === 6 ? 'samedi' : j === 0 ? 'dimanche' : null
+}
+
 /** Valeurs d'une session à confirmer : erreurs bloquantes */
 export function erreursConfirmation(v) {
   const e = []
@@ -275,7 +290,7 @@ function FenetreConfirmation({ session, onFermer, onFait }) {
 
   const ligneDates = (v, set, prefixe) => (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-      <label className="text-ui-sm"><span className="text-gray-600">Date *</span><input type="date" className="input w-full mt-1" value={v.start_date} onChange={(e) => set('start_date', e.target.value)} aria-label={`${prefixe} : date`} /></label>
+      <label className="text-ui-sm"><span className="text-gray-600">Date *</span><input type="date" className="input w-full mt-1" value={v.start_date} onChange={(e) => { const fin = finApresDebut(v, e.target.value); set('start_date', e.target.value); if (fin !== v.end_date) set('end_date', fin) }} aria-label={`${prefixe} : date`} /></label>
       <label className="text-ui-sm"><span className="text-gray-600">Fin (si plusieurs jours)</span><input type="date" className="input w-full mt-1" value={v.end_date && v.end_date !== v.start_date ? v.end_date : ''} min={v.start_date} onChange={(e) => set('end_date', e.target.value)} aria-label={`${prefixe} : fin`} /></label>
       <label className="text-ui-sm"><span className="text-gray-600">Début *</span><input type="time" className="input w-full mt-1" value={v.start_time} onChange={(e) => set('start_time', e.target.value)} aria-label={`${prefixe} : heure de début`} /></label>
       <label className="text-ui-sm"><span className="text-gray-600">Fin *</span><input type="time" className="input w-full mt-1" value={v.end_time} onChange={(e) => set('end_time', e.target.value)} aria-label={`${prefixe} : heure de fin`} /></label>
@@ -296,6 +311,7 @@ function FenetreConfirmation({ session, onFermer, onFait }) {
           <section>
             <h3 className="text-ui font-semibold text-gray-900 mb-2">{nbDevis > 1 ? `Session 1 sur ${nbDevis}` : 'Dates et horaires'}</h3>
             {ligneDates(f, maj, 'Session 1')}
+            {jourDeWeekEnd(f.start_date) && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4" aria-hidden="true" />Cette date tombe un {jourDeWeekEnd(f.start_date)} : vérifiez-la avec le client.</p>}
             {duree && <p className="text-ui-sm text-gray-500 mt-1">{duree}{session.courses?.duration_hours ? ` (formation prévue : ${Number(session.courses.duration_hours)} h)` : ''}</p>}
             {ecartDuree && (
               <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1 flex items-center gap-2 flex-wrap">

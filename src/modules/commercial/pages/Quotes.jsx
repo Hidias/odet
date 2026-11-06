@@ -1,5 +1,6 @@
 import { toneStyle } from '../../../ui/StatusBadge'
 import { nomContact } from '../../../core/genre'
+import { contactPropose } from '../../formation/lib/conventionGroupe'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
@@ -348,6 +349,7 @@ export default function Quotes() {
     const { data } = await supabase.from('client_contacts').select('*').eq('client_id', clientId)
       .order('is_primary', { ascending: false }).order('name')
     setContacts(data || [])
+    return data || []
   }
 
   async function generateReference() {
@@ -1151,7 +1153,11 @@ export default function Quotes() {
   }
   async function handleClientChange(clientId) {
     setCurrentQuote(prev => ({ ...prev, client_id: clientId, contact_id: '' }))
-    loadClientContacts(clientId)
+    // A11 (06/11) : contact « documents », sinon principal, proposé d'office (règle commune des conventions de groupe)
+    loadClientContacts(clientId).then((liste) => {
+      const propose = contactPropose(liste)
+      if (propose) setCurrentQuote(prev => (prev.client_id === clientId && !prev.contact_id ? { ...prev, contact_id: propose } : prev))
+    })
     // Lignes restées au prix du catalogue : passées au tarif du nouveau client (jamais un prix modifié à la main)
     const t = await chargerTarifs(clientId)
     const [lignes, n] = appliquerTarifs(t, items, { courses, frais: FRAIS_CATALOGUE })
@@ -1894,8 +1900,8 @@ export default function Quotes() {
                   />
                 </div>
                 <div>
-                  <label className="block text-ui font-medium text-gray-700 mb-1">Contact</label>
-                  <select value={currentQuote.contact_id || ''}
+                  <label htmlFor="devis-contact" className="block text-ui font-medium text-gray-700 mb-1">Contact</label>
+                  <select id="devis-contact" value={currentQuote.contact_id || ''}
                     onChange={(e) => setCurrentQuote(prev => ({ ...prev, contact_id: e.target.value || null }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-ui-sm focus:ring-2 focus:ring-primary-500">
                     <option value="">- Aucun -</option>

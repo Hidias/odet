@@ -699,7 +699,10 @@ export default function Layout() {
           {branding?.demo_mode && (
             <div className="mb-4 rounded-ui px-3 py-2 text-ui-sm flex items-center gap-2" style={{ background: 'rgb(var(--c-warning-bg))', color: 'rgb(var(--c-warning))' }}>
               <span className="font-semibold">Mode démonstration</span>
-              <span>Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l'adresse de test.</span>
+              {/* Super administrateur : ses envois faits à la main partent pour de vrai (#187) ; le bandeau le dit (06/11) */}
+              <span>{userRole === 'superadmin'
+                ? 'Vos envois faits à la main partent aux vrais destinataires, avec une copie cachée pour vous. Les autres envois (automatiques ou faits par l\'équipe) restent redirigés vers l\'adresse de test.'
+                : 'Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l\'adresse de test.'}</span>
             </div>
           )}
           {notices.disponible && (

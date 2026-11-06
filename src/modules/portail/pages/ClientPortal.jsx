@@ -1,4 +1,5 @@
 import { telephoneLisible, lienTelephone } from '../../../core/telephone'
+import { pluriel } from '../../../core/genre'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Lock, KeyRound, Calendar, MapPin, Users, FileText, FileSignature, ClipboardList, Award, BadgeCheck, Download, Loader2, LogOut, AlertCircle, ShieldCheck, Clock, Phone, Mail, Globe, Accessibility, ArrowRight, Sparkles, GraduationCap, Printer } from 'lucide-react'
@@ -144,7 +145,7 @@ export default function ClientPortal() {
     const { data: d } = await supabase.rpc('client_portal_data', { p_token: token, p_code: code })
     if (d && !d.error) setData(d)
     await chargerParticipants()
-    setInfo(`${r?.nombre ?? liste.length} participant(s) enregistré(s). Votre organisme est prévenu.`)
+    setInfo(`${pluriel(r?.nombre ?? liste.length, 'participant enregistré', 'participants enregistrés')}. Votre organisme est prévenu.`)
   }
   // Documents signés à la main et déposés (0431) : état des dépôts, fenêtre ouverte
   const [depots, setDepots] = useState([])

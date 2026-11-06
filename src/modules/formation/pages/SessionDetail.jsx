@@ -3501,6 +3501,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </span>
           )}
         </div>
+        {/* A11 (06/11) : dire où va la convention, pour qui n'a jamais vu le circuit */}
+        {!session.convention_signed && session.client_id && (
+          <p className="text-ui-sm text-gray-600 mb-3">Le client trouve la convention dans son espace : il saisit ses participants, puis la signe en ligne. Une convention signée sur papier se dépose ci-dessous.</p>
+        )}
         
         <div className="space-y-3">
           {/* Convention envoyée */}
@@ -3546,12 +3550,12 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                   {uploadingConvention ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                      Upload en cours...
+                      Envoi du fichier…
                     </>
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      Uploader convention signée (PDF)
+                      Déposer la convention signée (PDF)
                     </>
                   )}
                 </label>

@@ -1,4 +1,5 @@
 import { telephoneLisible, lienTelephone } from '../../../core/telephone'
+import { pluriel } from '../../../core/genre'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
@@ -272,7 +273,7 @@ function Formations() {
     const { data: d } = await supabase.rpc('ent_sessions')
     if (d) setData(d)
     await chargerParticipants()
-    toast.success(`${r?.nombre ?? liste.length} participant(s) enregistré(s). Votre organisme est prévenu.`)
+    toast.success(`${pluriel(r?.nombre ?? liste.length, 'participant enregistré', 'participants enregistrés')}. Votre organisme est prévenu.`)
   }
 
   // Signatures en ligne du client (0402)
