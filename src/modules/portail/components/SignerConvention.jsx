@@ -9,6 +9,7 @@ import { FileText, Loader2, PenLine, ShieldCheck, X } from 'lucide-react'
 import PadSimple from '../../../ui/signature/PadSimple'
 import { empreinte } from '../../../core/portail/journal'
 import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
+import { signeALaPlace, mentionALaPlace } from '../lib/signatureDocument'
 
 export const ACCORD_SIGNATURE = "J'ai lu la convention de formation ci-dessus et je l'accepte au nom de mon entreprise. Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
 export const ACCORD_DEVIS = "J'ai lu le devis ci-dessus et je l'accepte au nom de mon entreprise (bon pour accord). Je reconnais que cette signature électronique m'engage comme une signature manuscrite."
@@ -38,7 +39,8 @@ function enBlob(base64) {
 }
 
 // Sert aussi aux devis et contrats mis à disposition (0406) : titre, nom du document et texte d'accord en paramètres
-export default function SignerConvention({ session, genererPdf, signataire, onSigner, onFermer, titre = 'Signer la convention', nomDocument = 'la convention', accord = ACCORD_SIGNATURE, libelle = null, mention = MENTION_DOCUMENT }) {
+// prevu : signataire prévu par le document ({ name, role }), proposé et comparé au nom saisi (0496)
+export default function SignerConvention({ session, genererPdf, signataire, prevu = null, onSigner, onFermer, titre = 'Signer la convention', nomDocument = 'la convention', accord = ACCORD_SIGNATURE, libelle = null, mention = MENTION_DOCUMENT }) {
   const [pdf, setPdf] = useState(null) // { base64, url, filename }
   const [nom, setNom] = useState(signataire?.name || '')
   const [fonction, setFonction] = useState(signataire?.role || '')
@@ -71,7 +73,7 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
     try {
       const sha = await empreinte(pdf.base64)
       if (!sha) throw new Error('Empreinte du document impossible sur ce navigateur')
-      await onSigner({ base64: pdf.base64, sha256: sha, name: nom.trim(), role: fonction.trim(), signature: trace, consent: `${accord}${conditions ? ` ${ACCORD_CONDITIONS}` : ''} Mention écrite par le signataire : « ${mentionSaisie.trim()} ».`, label: libelle || `Convention de formation ${session?.reference || ''}`.trim() })
+      await onSigner({ base64: pdf.base64, sha256: sha, name: nom.trim(), role: fonction.trim(), signature: trace, consent: `${accord}${conditions ? ` ${ACCORD_CONDITIONS}` : ''} Mention écrite par le signataire : « ${mentionSaisie.trim()} ».${mentionALaPlace(nom, prevu)}`, label: libelle || `Convention de formation ${session?.reference || ''}`.trim() })
     } catch (e) {
       setErreur(e.message || 'Signature impossible, réessayez.')
       setEnvoi(false)
@@ -111,6 +113,11 @@ export default function SignerConvention({ session, genererPdf, signataire, onSi
             <label className="block text-sm"><span className="text-gray-600">Fonction</span>
               <input className="input w-full mt-1" value={fonction} onChange={(e) => setFonction(e.target.value)} autoComplete="organization-title" /></label>
           </div>
+          {signeALaPlace(nom, prevu) && (
+            <p role="status" className="text-sm rounded-lg p-2 bg-amber-50 text-amber-900">
+              Le document prévoit la signature de {prevu.name}. Vous signez à sa place : vérifiez que vous pouvez engager l'entreprise. Ce point est noté dans la preuve de signature.
+            </p>
+          )}
           <div>
             <label htmlFor="mention-signataire" className="text-sm font-medium text-gray-800">2. Écrivez « {mention} »</label>
             <input id="mention-signataire" className="input w-full mt-1" value={mentionSaisie} onChange={(e) => setMentionSaisie(e.target.value)}

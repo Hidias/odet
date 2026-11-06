@@ -478,6 +478,7 @@ function Formations() {
       {upcoming.length > 0 && <section><h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">À venir ou en cours</h2><div className="space-y-3">{upcoming.map((s) => <Session key={`${s.id}${s.group_id || ''}`} s={s} finie={false} />)}</div></section>}
       {aSigner && (
         <SignerConvention session={aSigner} signataire={{ name: aSigner.signatory_name, role: aSigner.signatory_role }}
+          prevu={aSigner.signatory_name ? { name: aSigner.signatory_name, role: aSigner.signatory_role } : null}
           genererPdf={() => generatePDF('convention', { ...aSigner, clients: data.client, courses: aSigner.courses || {}, trainers: aSigner.trainers || null }, { trainees: traineesOf(aSigner), trainer: aSigner.trainers || null, costs: [] })}
           onSigner={(p) => signer(aSigner, p)} onFermer={() => setASigner(null)} />
       )}
@@ -740,6 +741,15 @@ function Plus_({ compte, org, salaries }) {
   // Signature des devis et contrats mis à disposition (0406)
   const [signatures, setSignatures] = useState([])
   const [docASigner, setDocASigner] = useState(null)
+  // Signataire prévu par le document, lu en base avant d'ouvrir la signature (0496) ; illisible : nom du compte
+  const ouvrirSignatureDocument = async (doc) => {
+    let prevu = null
+    try {
+      const { data, error } = await supabase.rpc('ent_signataire_prevu', { p_document: doc.id })
+      if (!error && data?.name) prevu = { name: data.name, role: data.role || '' }
+    } catch { /* nom du compte */ }
+    setDocASigner({ ...doc, prevu })
+  }
   // Bons d'intervention à signer à distance (0451)
   const [rapportsASigner, setRapportsASigner] = useState(new Set())
   useEffect(() => { supabase.rpc('ent_a_signer').then(({ data }) => { if (Array.isArray(data)) setRapportsASigner(new Set(data)) }) }, [])
@@ -782,7 +792,7 @@ function Plus_({ compte, org, salaries }) {
             onDeposer={setDocADeposer}
             depotDe={(d) => (d.object_type === 'quote' ? depots.find((x) => x.object_type === 'quote' && x.object_id === d.object_id) || null : null)}
             signatureDe={(d) => signatures.find((x) => x.document_id === d.id) || null}
-            onSigner={setDocASigner} aSignerEnPlus={rapportsASigner}
+            onSigner={ouvrirSignatureDocument} aSignerEnPlus={rapportsASigner}
             avecPreuve={async (d, buf, sig) => signeAvecPreuve(d, buf, sig, orgDoc || await chargerOrg())}
             charger={async () => (await supabase.rpc('ent_mes_documents')).data}
             lire={(d) => lireDocumentPortail({}, d.id)}
@@ -800,7 +810,7 @@ function Plus_({ compte, org, salaries }) {
           )}
           {docASigner && (
             <SignerConvention titre={nomSignable(docASigner).titre} nomDocument={nomSignable(docASigner).nom}
-              accord={rubriqueDocument(docASigner) === 'convention' ? ACCORD_SIGNATURE : docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={{ name: compte?.contact?.name || '' }}
+              accord={rubriqueDocument(docASigner) === 'convention' ? ACCORD_SIGNATURE : docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={docASigner.prevu || { name: compte?.contact?.name || '' }} prevu={docASigner.prevu}
               genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({}, docASigner.id)), filename: `${docASigner.label}.pdf` })}
               onSigner={async (p) => {
                 const { data: r, error } = await supabase.rpc('ent_signer_document', { p_document: docASigner.id, p_name: p.name, p_role: p.role, p_signature: p.signature, p_consent: p.consent })
