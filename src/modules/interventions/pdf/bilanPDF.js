@@ -95,6 +95,6 @@ export async function buildBilanPDF({ client, contract, data, org = null }) {
     f.finish()
     numberPages(doc, ORG)
     return doc
-  }, { reportMax: 8 })
+  })
   return { doc, filename: `Bilan_annuel_${annee}_${(client?.name || 'client').replace(/[^A-Za-z0-9]+/g, '_')}.pdf` }
 }

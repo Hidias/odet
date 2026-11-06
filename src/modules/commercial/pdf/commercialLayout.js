@@ -105,7 +105,7 @@ export function renderCommercialDoc(doc, Lsource, p) {
     columnStyles: {
       0: { cellWidth: 20, fontSize: 7.5, textColor: t.muted },
       1: { cellWidth: 'auto' },
-      2: { cellWidth: 13, halign: 'center' },
+      2: { cellWidth: 19, halign: 'center' }, // quantité et unité (« 1 / stagiaire ») sans coupure (06/11)
       3: { cellWidth: 24, halign: 'right' },
       4: { cellWidth: 16, halign: 'right' },
       5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' },

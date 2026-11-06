@@ -51,7 +51,7 @@ export async function buildRegistrePDF({ client, site, equipment, visits, settin
     f.finish()
     numberPages(doc, ORG)
     return doc
-  }, { reportMax: Math.min(8, Math.max(0, (equipment || []).length - 1)) })
+  })
   const safe = `${client?.name || ''}_${site?.name || ''}`.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').slice(0, 50)
   return { doc, filename: `Registre_verifications_${safe}.pdf` }
 }
