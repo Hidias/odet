@@ -310,7 +310,7 @@ export function compacter(construire) {
     DENSITE = d
     let serre
     // Un essai qui échoue ne fait jamais perdre le document d'origine
-    try { serre = construire() } catch { serre = null } finally { DENSITE = 1 }
+    try { serre = construire() } catch (e) { console.warn('Mise en page resserrée impossible, document d\'origine gardé :', e); serre = null } finally { DENSITE = 1 }
     if (serre && pagesDe(serre) < pagesDe(premier)) return serre
   }
   return premier
@@ -322,7 +322,7 @@ export function compacter(construire) {
 export async function compacterAsync(construire, { reportMax = 0 } = {}) {
   const premier = await construire(1, 0)
   if (!dernierePagePeuRemplie(premier)) return premier
-  const essai = async (d, k) => { try { return await construire(d, k) } catch { return null } }
+  const essai = async (d, k) => { try { return await construire(d, k) } catch (e) { console.warn('Mise en page resserrée impossible, document d\'origine gardé :', e); return null } }
   for (const d of DENSITES) {
     const serre = await essai(d, 0)
     if (serre && pagesDe(serre) < pagesDe(premier)) return serre
