@@ -593,7 +593,7 @@ export default function ClientPortal() {
       </section>
 
       <BandeauASigner docs={docsPublies.filter((d) => estASigner(d, { signatureDe: (x) => signatures.find((y) => y.document_id === x.id) || null, depotDe: (x) => (x.object_type === 'quote' ? depotDe('quote', x.object_id) : null), aSignerEnPlus: rapportsASigner }))}
-        onVoir={() => document.getElementById('vos-documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+        onVoir={(d) => document.getElementById(d ? `doc-${d.id}` : 'vos-documents')?.scrollIntoView({ behavior: 'smooth', block: d ? 'center' : 'start' })} />
 
       {nouvelAppareil && (
         <div role="alert" className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm">

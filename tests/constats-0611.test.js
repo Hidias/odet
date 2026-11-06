@@ -21,6 +21,10 @@ describe('Document à signer signalé en haut de l\'espace client', () => {
     expect(src).toMatch(/<BandeauASigner/)
     expect(src.indexOf('<BandeauASigner')).toBeLessThan(src.indexOf('<MesDocuments'))
     expect(src).toMatch(/onListe=\{setDocsPublies\}/)
+    // Un seul document : défilement jusqu'à sa ligne ; la liste ne cache jamais un document à signer
+    expect(src).toMatch(/doc-\$\{d\.id\}/)
+    const liste = readFileSync('src/modules/portail/components/MesDocuments.jsx', 'utf8')
+    expect(liste).toMatch(/i < 12 \|\| \(onSigner && estASigner/)
   })
 })
 
@@ -43,6 +47,12 @@ describe('Fiche session et formulaire stagiaire', () => {
   it('inter sans groupe : « Ajoutez d\'abord les groupes », plus de suivi de session à cocher', () => {
     expect(src).toMatch(/Ajoutez d\\'abord les groupes/)
     expect(src).not.toMatch(/session\.session_type === 'inter' && groupesConvention\.some\(\(g\) => g\.status !== 'cancelled'\)\n/)
+  })
+  it('groupes pas encore lus : jamais « Ajoutez d\'abord les groupes » ; l\'envoi avant formation d\'une inter ne coche plus la convention de session', () => {
+    expect(src).toMatch(/useState\(null\)/)
+    expect(src).toMatch(/if \(!groupesConvention\) return 'Lecture des groupes/)
+    const modal = readFileSync('src/modules/formation/components/SessionEmailModal.jsx', 'utf8')
+    expect(modal).toMatch(/codes\.includes\('convention_envoyee'\) && !groupe && session\?\.session_type !== 'inter'/)
   })
   it('champs du nouveau stagiaire nommés (étiquette reliée)', () => {
     for (const id of ['prenom', 'nom', 'email', 'telephone', 'genre']) {

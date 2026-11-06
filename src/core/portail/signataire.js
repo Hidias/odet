@@ -2,7 +2,7 @@
 // autre nom est signalé à l'écran, écrit dans la preuve et rappelé côté organisme. Accents, majuscules et espaces ne
 // comptent pas.
 
-const plat = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+const plat = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
 
 export const signeALaPlace = (nom, prevu) => !!(prevu?.name && plat(nom) && plat(nom) !== plat(prevu.name))
 

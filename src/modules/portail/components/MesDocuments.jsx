@@ -48,7 +48,7 @@ export function BandeauASigner({ docs, onVoir }) {
       <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center gap-2">
         <PenLine className="w-4 h-4" aria-hidden="true" />
         <span className="flex-1 min-w-[12rem]">{n === 1 ? `Un document attend votre signature : ${docs[0].label}` : `${n} documents attendent votre signature`}</span>
-        <button type="button" className="btn btn-primary btn-sm" onClick={onVoir}>{n === 1 ? 'Voir et signer' : 'Voir les documents'}</button>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => onVoir(n === 1 ? docs[0] : null)}>{n === 1 ? 'Voir et signer' : 'Voir les documents'}</button>
       </div>
     </div>
   )
@@ -96,7 +96,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
 
   const groupes = ORDRE.map((k) => [k, docs.filter((d) => rubriqueDocument(d) === k)]).filter(([, l]) => l.length)
   return (
-    <section id="vos-documents" className="vitrine-monte mb-8 scroll-mt-4">
+    <section id="vos-documents" className="vitrine-monte mb-8 scroll-mt-24">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3 flex items-center gap-1.5"><FolderOpen className="w-4 h-4" aria-hidden="true" />{titre}</h2>
       {erreur && <p role="alert" className="mb-3 text-sm text-[rgb(var(--c-danger))]">{erreur}</p>}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -106,13 +106,14 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
             <div key={k} className="vitrine-carte rounded-ui-lg border border-gray-200 bg-white p-4">
               <h3 className="font-display font-semibold text-gray-900 flex items-center gap-2 mb-2"><T.icone className="w-4 h-4 text-accent-600" aria-hidden="true" />{T.label}<span className="text-xs font-normal text-gray-400">({liste.length})</span></h3>
               <ul className="divide-y divide-gray-100">
-                {liste.slice(0, 12).map((d) => {
+                {/* 12 documents par rubrique, plus ceux qui attendent une signature (jamais cachés, bandeau du haut) */}
+                {liste.filter((d, i) => i < 12 || (onSigner && estASigner(d, { signatureDe, depotDe, aSignerEnPlus }))).map((d) => {
                   const sig = signatureDe ? signatureDe(d) : null
                   const depot = depotDe ? depotDe(d) : null
                   const aSigner = !!onSigner && estASigner(d, { signatureDe, depotDe, aSignerEnPlus })
                   const deposable = !sig && onDeposer && d.kind === 'devis' && (!depot || depot.status === 'refuse')
                   return (
-                    <li key={d.id} className="flex flex-wrap items-center gap-x-2">
+                    <li key={d.id} id={`doc-${d.id}`} className="flex flex-wrap items-center gap-x-2 scroll-mt-24">
                       <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="flex-1 min-w-[12rem] py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">
                         <span className="min-w-0 flex-1"><span className="block text-gray-800 break-words">{d.label}</span>
                           <span className="block text-xs text-gray-400">{sig

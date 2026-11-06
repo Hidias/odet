@@ -181,12 +181,14 @@ export default function SessionDetail() {
   
   const [session, setSession] = useState(null)
   // Conventions des groupes d'une session inter (angle mort A2) : l'en-tête suit l'état groupe par groupe
-  const [groupesConvention, setGroupesConvention] = useState([])
+  // null : pas encore lus (ou illisibles) ; la carte d'une inter n'annonce alors pas « Ajoutez d'abord les groupes »
+  const [groupesConvention, setGroupesConvention] = useState(null)
   // Relu après un envoi par groupe (état « envoyé » du groupe)
   const [rechargeGroupes, setRechargeGroupes] = useState(0)
   useEffect(() => {
     if (!session?.id || session.session_type !== 'inter') { setGroupesConvention([]); return }
     let actif = true
+    setGroupesConvention(null)
     supabase.from('session_groups').select(SELECT_GROUPE).eq('session_id', session.id).order('created_at')
       .then(({ data, error }) => { if (actif && !error) setGroupesConvention(data || []) })
     return () => { actif = false }
@@ -3366,9 +3368,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             {session.clients?.name && <span>{session.clients.name}</span>}
             <StatusBadge kind="session" status={session.status} />
             {(() => {
-              const etat = etatConvention(session, groupesConvention)
+              const etat = etatConvention(session, groupesConvention || [])
               if (etat === CONVENTION.SANS_OBJET) return null
-              const plusieurs = session.session_type === 'inter' && groupesConvention.length > 1 ? 's' : ''
+              const plusieurs = session.session_type === 'inter' && (groupesConvention || []).length > 1 ? 's' : ''
               if (etat === CONVENTION.SIGNEE) return <StatusBadge tone="success">{plusieurs ? 'Conventions signées' : 'Convention signée'}</StatusBadge>
               if (etat === CONVENTION.ENVOYEE) return <StatusBadge tone="info">{plusieurs ? 'Conventions envoyées' : 'Convention envoyée'}</StatusBadge>
               return <StatusBadge tone="warning">{plusieurs ? 'Conventions en attente' : 'Convention en attente'}</StatusBadge>
@@ -3469,6 +3471,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 Conventions des groupes
               </h3>
               <p className="text-ui text-gray-600 mt-1">{(() => {
+                if (!groupesConvention) return 'Lecture des groupes de la session. Si ce message reste affiché, rechargez la page.'
                 const actifs = groupesConvention.filter((g) => g.status !== 'cancelled')
                 const signes = actifs.filter((g) => g.doc_status === 'signe').length
                 return actifs.length === 0
@@ -3479,7 +3482,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => {
               setActiveTab('groupes')
               setTimeout(() => document.getElementById('onglets-session')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
-            }}>{groupesConvention.some((g) => g.status !== 'cancelled') ? 'Voir les groupes' : 'Ajouter les groupes'}</button>
+            }}>{!groupesConvention || groupesConvention.some((g) => g.status !== 'cancelled') ? 'Voir les groupes' : 'Ajouter les groupes'}</button>
           </div>
           <SignatureEnLigne session={session} />
           <DepotsClient objectType="session" objectId={session.id} onChange={() => fetchSessions()} />
