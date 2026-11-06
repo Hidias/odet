@@ -97,6 +97,14 @@ export function doublonDuGroupe(groupes = [], edition = {}) {
   }
 }
 
+/** Montant saisi : vide → null ; « 1 200,50 € », « 150 » → nombre ; illisible ou négatif → NaN (à refuser) */
+export function lireMontant(saisie) {
+  if (saisie === '' || saisie == null) return null
+  const t = String(saisie).replace(/[\s\u00a0\u202f€]/g, '').replace(',', '.')
+  if (!/^\d+(\.\d+)?$/.test(t)) return NaN
+  return Number(t)
+}
+
 /** Groupe où rattacher d'office un stagiaire inscrit sur une inter : le seul groupe actif de son entreprise, et
  *  seulement si sa convention n'est pas signée (un document signé ne change pas en silence). Sinon null : à la main */
 export function groupeDuStagiaire(groupes = [], clientId) {

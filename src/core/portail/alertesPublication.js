@@ -21,16 +21,17 @@ export function confirmationSignatureGroupe(groupe, { sansAcces = false } = {}) 
       confirmLabel: 'Continuer',
     }
   }
+  const accesManquant = sansAcces ? `\n\nAttention : ce client n'a pas encore d'accès à son espace. Créez-le ensuite sur sa fiche (Accès entreprise) et envoyez-lui le lien et le code, sinon il ne verra pas ${doc}.` : ''
   if (groupe?.doc_status === 'envoye') {
     return {
       title: particulier ? 'Remplacer le contrat à signer ?' : 'Remplacer la convention à signer ?',
-      message: `${maj(doc)} est noté${e} « envoyé${e} » et pas encore signé${e}. ${particulier ? "S'il" : 'Si elle'} est déjà dans l'espace${qui}, la version d'aujourd'hui ${pron} remplace (l'ancienne est retirée et gardée) : vérifiez les stagiaires et le prix du groupe. ${AUCUN_MAIL}`,
+      message: `${maj(doc)} est noté${e} « envoyé${e} » et pas encore signé${e}. ${particulier ? "S'il" : 'Si elle'} est déjà dans l'espace${qui}, la version d'aujourd'hui ${pron} remplace (l'ancienne est retirée et gardée) : vérifiez les stagiaires et le prix du groupe. ${AUCUN_MAIL}${accesManquant}`,
       confirmLabel: 'Publier cette version',
     }
   }
   return {
     title: particulier ? 'Mettre le contrat à signer en ligne ?' : 'Mettre la convention à signer en ligne ?',
-    message: `${maj(doc)} sera publié${e} dans l'espace${qui}, qui pourra ${pron} lire et ${pron} signer. ${AUCUN_MAIL}\n\nVérifiez avant les stagiaires et le prix du groupe : une fois signé${e}, ${il} ne sera plus remplacé${e}.${sansAcces ? `\n\nAttention : ce client n'a pas encore d'accès à son espace. Créez-le ensuite sur sa fiche (Accès entreprise) et envoyez-lui le lien et le code, sinon il ne verra pas ${doc}.` : ''}`,
+    message: `${maj(doc)} sera publié${e} dans l'espace${qui}, qui pourra ${pron} lire et ${pron} signer. ${AUCUN_MAIL}\n\nVérifiez avant les stagiaires et le prix du groupe : une fois signé${e}, ${il} ne sera plus remplacé${e}.${accesManquant}`,
     confirmLabel: 'Publier pour signature',
   }
 }

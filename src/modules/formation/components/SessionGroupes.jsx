@@ -12,7 +12,8 @@ import { downloadDocument, generatePDF } from '../pdf/pdfGenerator'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
 import { confirmationSignatureGroupe } from '../../../core/portail/alertesPublication'
 import { signaturesDesDocuments, telechargerAvecPreuve } from '../../../core/portail/documentSigne'
-import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact, sessionDuGroupe, SELECT_GROUPE, doublonDuGroupe } from '../lib/conventionGroupe'
+import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact, sessionDuGroupe, SELECT_GROUPE, doublonDuGroupe, lireMontant } from '../lib/conventionGroupe'
+import { useAuthStore } from '../../../core/store'
 import InscriptionsEnLigne from './InscriptionsEnLigne'
 
 // Groupes d'une session inter (lot 2, 0044) : une entreprise (convention à son nom) ou un particulier qui paie
@@ -25,6 +26,7 @@ const DOCS = { a_envoyer: ['neutral', 'À envoyer'], envoye: ['info', 'Envoyé']
 const fmt = (d) => (d ? new Date(String(d).length === 10 ? `${d}T12:00:00` : d).toLocaleDateString('fr-FR') : '')
 
 export default function SessionGroupes({ session, peutModifier, onGroupes }) {
+  const can = useAuthStore((st) => st.can)
   const navigate = useNavigate()
   const [groupes, setGroupes] = useState(null)
   const [inscrits, setInscrits] = useState([])
@@ -105,6 +107,10 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     if (!e.client_id) return toast.error(e.kind === 'particulier' ? 'Choisissez la fiche du particulier' : 'Choisissez l\'entreprise')
     const doublon = doublonDuGroupe(groupes, e)
     if (doublon?.refus) return toast.error(doublon.message, { duration: 7000 })
+    // Montants lus avant tout (« 1 200 € » accepté) ; illisible : refus en clair, rien n'est écrit
+    const total = lireMontant(e.price_total)
+    const parPersonne = lireMontant(e.price_per_person)
+    if (Number.isNaN(total) || Number.isNaN(parPersonne)) return toast.error('Prix illisible : saisissez un nombre, par exemple 600 ou 150,50', { duration: 6000 })
     if (doublon && !(await confirmer({ title: 'Second groupe pour ce client', message: doublon.message, confirmLabel: 'Créer un second groupe' }))) return
     setBusy(true)
     const champs = {
@@ -114,8 +120,8 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       dossier_number: e.dossier_number || null, notes: e.notes || null,
       contact_id: e.kind === 'entreprise' && contacts.some((c) => c.id === e.contact_id && c.client_id === e.client_id) ? e.contact_id : null,
       // Prix total vide : 0 (colonne obligatoire, 0 par défaut) ; prixDuGroupe prend alors le prix par personne
-      price_total: e.price_total === '' || e.price_total == null ? 0 : Number(String(e.price_total).replace(',', '.')),
-      price_per_person: e.price_per_person === '' || e.price_per_person == null ? null : Number(String(e.price_per_person).replace(',', '.')),
+      price_total: total ?? 0,
+      price_per_person: parPersonne,
       group_name: clients.find((c) => c.id === e.client_id)?.name || e.group_name || null,
     }
     const { error } = e.id
@@ -183,8 +189,9 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
 
   // Le client a-t-il un moyen d'ouvrir son espace (lien et code actifs, ou compte actif) ? Lecture en échec : on ne
   // prévient pas (on ne sait pas), plutôt que d'affirmer à tort qu'il n'a pas d'accès
+  // Sans le droit de voir les accès, la base filtre sans erreur (0 ligne) : on ne contrôle pas
   const clientSansAcces = async (clientId) => {
-    if (!clientId) return false
+    if (!clientId || can('clients.espace.gerer') === false) return false
     const [lien, comptes] = await Promise.all([
       supabase.from('client_portal_access').select('id', { count: 'exact', head: true }).eq('client_id', clientId).eq('is_active', true),
       supabase.from('client_accounts').select('id', { count: 'exact', head: true }).eq('client_id', clientId).eq('is_active', true),
@@ -210,7 +217,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       const r = await mettreADisposition({ objectType: 'session_group', objectId: g.id, kind: 'contrat', label, base64: doc.base64 })
       if (!r) throw new Error('Mise à disposition impossible')
       if (g.doc_status === 'a_envoyer') await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', g.id)
-      toast.success(r.signe ? 'Déjà signé : le document du client n\'est pas remplacé' : r.deja ? 'Déjà dans l\'espace du client, en attente de signature' : sansAcces ? 'Document à signer dans l\'espace du client : créez son accès sur sa fiche (Accès entreprise)' : 'Document à signer dans l\'espace du client', { duration: sansAcces ? 7000 : 4000 })
+      toast.success(r.signe ? 'Déjà signé : le document du client n\'est pas remplacé' : r.deja ? `Déjà dans l'espace du client, en attente de signature${sansAcces ? ' : créez son accès sur sa fiche (Accès entreprise)' : ''}` : sansAcces ? 'Document à signer dans l\'espace du client : créez son accès sur sa fiche (Accès entreprise)' : 'Document à signer dans l\'espace du client', { duration: sansAcces ? 7000 : 4000 })
       load()
     } catch (e) {
       toast.error(e.message || 'Signature en ligne impossible')

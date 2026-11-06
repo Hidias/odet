@@ -2191,17 +2191,21 @@ export default function SessionDetail() {
     }
   }
   
-  // Inter : un stagiaire inscrit rejoint d'office le seul groupe de son entreprise (groupeDuStagiaire) ; sinon il
-  // reste sans groupe et l'onglet Groupes le signale. Renvoie le nom du groupe, ou null
+  // Inter : un stagiaire inscrit rejoint d'office le seul groupe de son entreprise (groupeDuStagiaire). Renvoie la
+  // fin du message de réussite : groupe rejoint (et convention déjà publiée à republier), ou rappel de le rattacher
   const rattacherAuGroupe = async (traineeId, clientId) => {
-    if (session?.session_type !== 'inter' || !clientId) return null
-    const { data: gs, error } = await supabase.from('session_groups').select('id, client_id, status, doc_status, group_name').eq('session_id', session.id)
-    if (error || !gs) return null
+    if (session?.session_type !== 'inter') return ''
+    const { data: gs, error } = await supabase.from('session_groups').select('id, client_id, status, doc_status, group_name, clients:client_id(name)').eq('session_id', session.id)
+    if (error || !gs) return ''
+    const aRattacher = groupesActifs(gs).length ? ' (à rattacher à un groupe dans l\'onglet Groupes)' : ''
     const g = groupeDuStagiaire(gs, clientId)
-    if (!g) return null
-    const { error: eMaj } = await supabase.from('session_trainees').update({ group_id: g.id })
-      .eq('session_id', session.id).eq('trainee_id', traineeId).is('group_id', null)
-    return eMaj ? null : (g.group_name || 'son entreprise')
+    if (!g) return aRattacher
+    const { data: maj, error: eMaj } = await supabase.from('session_trainees').update({ group_id: g.id })
+      .eq('session_id', session.id).eq('trainee_id', traineeId).is('group_id', null).select('id')
+    if (eMaj || !maj?.length) return aRattacher
+    const nom = g.clients?.name || g.group_name
+    const publie = g.doc_status === 'envoye' ? ' Sa convention, déjà envoyée ou dans l\'espace du client, ne le compte pas : republiez-la (Signature en ligne) ou renvoyez-la.' : ''
+    return ` au groupe ${nom ? `« ${nom} »` : 'de son entreprise'}.${publie}`
   }
 
   const handleAddTrainee = async (traineeId) => {
@@ -2213,8 +2217,8 @@ export default function SessionDetail() {
       toast.error(error.code === '23514' ? error.message : 'Erreur lors de l\'ajout')
       console.error(error)
     } else {
-      const groupe = await rattacherAuGroupe(traineeId, trainees.find((t) => t.id === traineeId)?.client_id)
-      toast.success(groupe ? `Stagiaire ajouté au groupe ${groupe}` : 'Stagiaire ajouté')
+      const suite = await rattacherAuGroupe(traineeId, trainees.find((t) => t.id === traineeId)?.client_id)
+      toast.success(`Stagiaire ajouté${suite}`, { duration: suite.length > 60 ? 8000 : 4000 })
       // Recharger la session pour afficher le stagiaire
       const { data } = await getSession(id)
       if (data) setSession(data)
@@ -3102,7 +3106,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     // Ajouter le stagiaire à la session (effectif imposé, 0479 : la fiche stagiaire reste créée, l'ajout est refusé)
     const { error: errAjout } = await addTraineeToSession(session.id, newTrainee.id)
     if (errAjout) toast.error(errAjout.code === '23514' ? errAjout.message : 'Stagiaire créé, mais pas ajouté à la session')
-    const groupe = errAjout ? null : await rattacherAuGroupe(newTrainee.id, newTrainee.client_id)
+    const suite = errAjout ? '' : await rattacherAuGroupe(newTrainee.id, newTrainee.client_id)
     
     // Recharger la session
     const { data } = await getSession(id)
@@ -3111,7 +3115,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
     // Réinitialiser le formulaire
     setNewTraineeForm({ first_name: '', last_name: '', email: '', phone: '', client_id: '', gender: '' })
     setShowNewTraineeModal(false)
-    if (!errAjout) toast.success(`${newTrainee.first_name} ${newTrainee.last_name} créé et ajouté ${groupe ? `au groupe ${groupe}` : 'à la session'}`)
+    if (!errAjout) toast.success(`${newTrainee.first_name} ${newTrainee.last_name} créé et ajouté${suite.startsWith(' au groupe') ? suite : ` à la session${suite}`}`, { duration: suite.length > 60 ? 8000 : 4000 })
   }
   
   const copyAttendanceLink = () => {

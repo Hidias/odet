@@ -52,3 +52,30 @@ describe('Mise à signer pour un client sans accès à son espace', () => {
     expect(confirmationSignatureGroupe({ ...g, kind: 'particulier' }, { sansAcces: true }).message).toMatch(/ne verra pas le contrat/)
   })
 })
+
+describe('Montant saisi dans un groupe', () => {
+  it('lit les écritures courantes', async () => {
+    const { lireMontant } = await import('../src/modules/formation/lib/conventionGroupe')
+    expect(lireMontant('')).toBeNull()
+    expect(lireMontant(null)).toBeNull()
+    expect(lireMontant('600')).toBe(600)
+    expect(lireMontant('150,50')).toBe(150.5)
+    expect(lireMontant('1 200 €')).toBe(1200)
+    expect(lireMontant('1 200,5')).toBe(1200.5)
+    expect(lireMontant(0)).toBe(0)
+  })
+  it('refuse l\'illisible et le négatif', async () => {
+    const { lireMontant } = await import('../src/modules/formation/lib/conventionGroupe')
+    expect(lireMontant('abc')).toBeNaN()
+    expect(lireMontant('1.200,50')).toBeNaN()
+    expect(lireMontant('-5')).toBeNaN()
+  })
+})
+
+describe('Alerte « pas d\'accès » aussi pour une convention déjà envoyée', () => {
+  it('le dit dans les deux cas', () => {
+    const g = { kind: 'entreprise', doc_status: 'envoye', clients: { name: 'Alpha' } }
+    expect(confirmationSignatureGroupe(g, { sansAcces: true }).message).toMatch(/pas encore d'accès/)
+    expect(confirmationSignatureGroupe(g).message).not.toMatch(/pas encore d'accès/)
+  })
+})
