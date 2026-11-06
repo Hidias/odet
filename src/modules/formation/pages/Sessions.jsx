@@ -804,7 +804,9 @@ export default function Sessions() {
                       <span className="text-ui font-mono text-gray-500">{session.reference}</span>
                       <BadgeTest tbl="sessions" id={session.id} />
                       <StatusBadge kind="session" status={session.status} />
-                      {session.is_intra && (
+                      {session.session_type === 'inter' ? (
+                        <span className="text-ui-sm text-gray-500">Inter</span>
+                      ) : session.is_intra && (
                         <span className="text-ui-sm text-gray-500">Intra</span>
                       )}
                     </div>

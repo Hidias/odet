@@ -6,7 +6,8 @@ const maj = (t) => t.charAt(0).toUpperCase() + t.slice(1)
 
 // B12 : convention ou contrat d'un groupe inter mis à signer en ligne. Tant qu'il n'est pas signé, une nouvelle
 // publication remplace le document que voit le client ; signé, il reste figé (api/documents-client.js, publier, 0490)
-export function confirmationSignatureGroupe(groupe) {
+// `sansAcces` vrai : le client n'a ni lien et code actifs ni compte actif sur son espace ; on le dit avant de publier
+export function confirmationSignatureGroupe(groupe, { sansAcces = false } = {}) {
   const particulier = groupe?.kind === 'particulier'
   const doc = particulier ? 'le contrat de formation' : 'la convention de formation'
   const e = particulier ? '' : 'e'
@@ -20,16 +21,17 @@ export function confirmationSignatureGroupe(groupe) {
       confirmLabel: 'Continuer',
     }
   }
+  const accesManquant = sansAcces ? `\n\nAttention : ce client n'a pas encore d'accès à son espace. Créez-le ensuite sur sa fiche (Accès entreprise) et envoyez-lui le lien et le code, sinon il ne verra pas ${doc}.` : ''
   if (groupe?.doc_status === 'envoye') {
     return {
       title: particulier ? 'Remplacer le contrat à signer ?' : 'Remplacer la convention à signer ?',
-      message: `${maj(doc)} est noté${e} « envoyé${e} » et pas encore signé${e}. ${particulier ? "S'il" : 'Si elle'} est déjà dans l'espace${qui}, la version d'aujourd'hui ${pron} remplace (l'ancienne est retirée et gardée) : vérifiez les stagiaires et le prix du groupe. ${AUCUN_MAIL}`,
+      message: `${maj(doc)} est noté${e} « envoyé${e} » et pas encore signé${e}. ${particulier ? "S'il" : 'Si elle'} est déjà dans l'espace${qui}, la version d'aujourd'hui ${pron} remplace (l'ancienne est retirée et gardée) : vérifiez les stagiaires et le prix du groupe. ${AUCUN_MAIL}${accesManquant}`,
       confirmLabel: 'Publier cette version',
     }
   }
   return {
     title: particulier ? 'Mettre le contrat à signer en ligne ?' : 'Mettre la convention à signer en ligne ?',
-    message: `${maj(doc)} sera publié${e} dans l'espace${qui}, qui pourra ${pron} lire et ${pron} signer. ${AUCUN_MAIL}\n\nVérifiez avant les stagiaires et le prix du groupe : une fois signé${e}, ${il} ne sera plus remplacé${e}.`,
+    message: `${maj(doc)} sera publié${e} dans l'espace${qui}, qui pourra ${pron} lire et ${pron} signer. ${AUCUN_MAIL}\n\nVérifiez avant les stagiaires et le prix du groupe : une fois signé${e}, ${il} ne sera plus remplacé${e}.${accesManquant}`,
     confirmLabel: 'Publier pour signature',
   }
 }
