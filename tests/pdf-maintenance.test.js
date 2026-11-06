@@ -74,6 +74,27 @@ describe('Rapport et registre de maintenance', () => {
     // Au moins un cas où serrer ne suffisait pas : les lignes ont été reportées (dernier tableau, sans marque)
     expect(reports).toBeGreaterThan(0)
   })
+  it('seconde partie d\'un tableau découpé : les accroches lisent le rang d\'origine (relecture de #315)', () => {
+    // Liste externe lue par d.row.index (comme les cases cochées de la check-list ou les couleurs des objectifs)
+    let decoupes = 0
+    for (let n = 5; n <= 70; n++) {
+      const externe = Array.from({ length: n }, (_, i) => `L${i}`)
+      const construire = () => {
+        const doc = new jsPDF({ compress: true })
+        doc.__ecarts = []
+        const f = startDocument(doc, org, { code: 'ESSAI', title: 'Essai' })
+        const verifier = (nom) => (d) => { if (d.section === 'body' && d.column.index === 0 && externe[d.row.index] !== d.cell.raw) doc.__ecarts.push([nom, d.cell.raw, externe[d.row.index]]) }
+        f.table(['N°'], externe.map((x) => [x]), { didParseCell: verifier('parse'), willDrawCell: verifier('will'), didDrawCell: verifier('did') })
+        f.signatures([{ label: 'A' }, { label: 'B' }], { height: 34 })
+        f.finish()
+        return doc
+      }
+      const doc = compacter(construire)
+      if (doc.__odetReport) decoupes++
+      expect(doc.__ecarts, `${n} lignes`).toEqual([])
+    }
+    expect(decoupes).toBeGreaterThan(0)
+  })
   it('rapport avec photos : lues avant la construction, section dessinée', async () => {
     const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
     const e = eq(3)

@@ -655,10 +655,27 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       doc.__odetReport = true
       dessinerTable(head, body.slice(0, -k), opts)
       f.newPage()
-      dessinerTable(head, body.slice(-k), opts)
+      // Seconde partie : les accroches lisent le rang d'origine de la ligne (d.row.index), comme sans découpage
+      dessinerTable(head, body.slice(-k), avecDecalage(opts, body.length - k))
       return
     }
     dessinerTable(head, body, opts)
+  }
+  // Accroches de cellule d'une seconde partie de tableau : d.row.index rendu au rang de la ligne dans le tableau
+  // entier (couleurs, cases cochées... lues dans une liste externe par ce rang), puis remis tel quel pour autoTable
+  const avecDecalage = (opts, decalage) => {
+    const o = { ...opts }
+    for (const nom of ['didParseCell', 'willDrawCell', 'didDrawCell']) {
+      const accroche = opts[nom]
+      if (typeof accroche !== 'function') continue
+      o[nom] = (d) => {
+        if (d.section !== 'body' || !d.row) return accroche(d)
+        const rang = d.row.index
+        d.row.index = rang + decalage
+        try { return accroche(d) } finally { d.row.index = rang }
+      }
+    }
+    return o
   }
   const dessinerTable = (head, body, opts) => {
     f.ensure(16)

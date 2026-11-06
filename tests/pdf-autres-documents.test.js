@@ -6,6 +6,11 @@ vi.mock('../src/core/pdf/pdfOrg', async () => {
   const o = buildORG({ name: 'Société Essai', legal_name: 'Société Essai SARL', siret: '00000000000000', city: 'Quimper', address: '1 rue A', postal_code: '29000' })
   return { loadPdfOrg: async () => o, pdfOrgFrom: async () => o, loadOrgRowForPDF: async () => ({}) }
 })
+// Cases dessinées, notées sur le document (check-list de session)
+vi.mock('../src/core/pdf/layout', async (orig) => {
+  const m = await orig()
+  return { ...m, drawCheckbox: (doc, ...a) => { (doc.__coches ||= []).push(a[4]); return m.drawCheckbox(doc, ...a) } }
+})
 const { default: jsPDF } = await import('jspdf')
 // Document réellement rendu : celui dont la sortie (blob, base64) a été demandée
 let rendu = null
@@ -19,6 +24,7 @@ const { buildORG } = await import('../src/core/org/orgUtils')
 const { genererFicheRemisePDF } = await import('../src/modules/rh/lib/rhEpi')
 const { telechargerRegistrePDF } = await import('../src/modules/rh/lib/rhRegistre')
 const { buildCompletudePDF } = await import('../src/modules/qualite/pdf/completudePDF')
+const { buildSessionChecklistPDF } = await import('../src/modules/formation/pdf/sessionChecklistPDF')
 const { buildTrainerDevelopmentPDF } = await import('../src/modules/formation/pdf/trainerDevelopmentPDF')
 const ORG = buildORG({ name: 'Société Essai', city: 'Quimper' })
 
@@ -42,5 +48,19 @@ describe('Dernière page des autres documents', () => {
       const t = buildTrainerDevelopmentPDF(ORG, { trainerName: 'A B', trainings: Array.from({ length: n }, () => ({ title: 'Formation', date: '2026-01-01' })), interviews: [] })
       expect(t.getNumberOfPages()).toBeGreaterThan(0)
     }
+  })
+  it('check-list de session : chaque case garde l\'état de son contrôle, même quand des lignes sont reportées', () => {
+    // Relecture de #315 : 5 contrôles en phase 1, n en phase 2, les 3 derniers non faits
+    let decoupes = 0
+    for (const n of [...Array.from({ length: 12 }, (_, i) => 10 + i), 44, 45, 46]) {
+      const p1 = Array.from({ length: 5 }, (_, i) => ({ code: `a${i}`, label: `Contrôle A${i}` }))
+      const p2 = Array.from({ length: n }, (_, i) => ({ code: `b${i}`, label: `Contrôle B${i}` }))
+      const data = Object.fromEntries([...p1, ...p2].map((it, i, l) => [it.code, { is_checked: i < l.length - 3, date_realized: '2026-11-01' }]))
+      const doc = buildSessionChecklistPDF(ORG, { session: { reference: 'S1' }, phases: [{ title: 'Avant', items: p1 }, { title: 'Pendant', items: p2 }], data })
+      if (doc.__odetReport) decoupes++
+      const attendu = [...p1, ...p2].map((it) => data[it.code].is_checked)
+      expect(doc.__coches, `${n} contrôles`).toEqual(attendu)
+    }
+    expect(decoupes).toBeGreaterThan(0)
   })
 })

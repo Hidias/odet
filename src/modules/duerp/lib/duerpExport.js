@@ -131,6 +131,8 @@ export async function generateDuerpPDF({ project, units, risks, actions, categor
   const orgN = ORG.name || ORGN()
   const t = ORG.theme
   // Dernière page presque vide : document recomposé plus serré (compacter, 06/11)
+  // Report de lignes sans effet ici (dernière partie ouverte par un saut de page forcé, relecture de #315) : seule la
+  // recomposition serrée est essayée
   const doc = compacter(() => {
     const doc = new jsPDF({ compress: true })
     const pw = doc.internal.pageSize.getWidth()
@@ -374,7 +376,7 @@ export async function generateDuerpPDF({ project, units, risks, actions, categor
 
     f.finish()
     return doc
-  })
+  }, { reportMax: 0 })
   const pw = doc.internal.pageSize.getWidth()
   const ph = doc.internal.pageSize.getHeight()
 
