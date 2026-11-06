@@ -701,7 +701,7 @@ export default function Layout() {
               <span className="font-semibold">Mode démonstration</span>
               {/* Super administrateur : ses envois faits à la main partent pour de vrai (#187) ; le bandeau le dit (06/11) */}
               <span>{userRole === 'superadmin'
-                ? 'Vos envois faits à la main partent aux vrais destinataires, avec une copie cachée pour vous. Les autres envois (automatiques ou faits par l\'équipe) restent redirigés vers l\'adresse de test.'
+                ? 'Vos envois faits à la main depuis un devis, une facture, une session, un stagiaire, un rendez-vous ou un accès à l\'espace entreprise partent aux vrais destinataires, avec une copie cachée pour vous. Les autres envois (prospection, mailing, comptable, envois automatiques) restent redirigés vers l\'adresse de test.'
                 : 'Les emails ne partent pas vers leurs destinataires : ils sont redirigés vers l\'adresse de test.'}</span>
             </div>
           )}

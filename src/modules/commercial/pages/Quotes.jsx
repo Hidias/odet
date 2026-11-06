@@ -314,7 +314,7 @@ export default function Quotes() {
           const qDate = format(new Date(), 'yyyy-MM-dd')
           const vDate = calcValidityDate(qDate)
           setCurrentQuote({ ...emptyQuote, reference: ref, quote_date: qDate, validity_date: vDate, payment_deadline: '', client_id: client.id })
-          await loadClientContacts(client.id)
+          proposerContact(client.id, await loadClientContacts(client.id))
           setItems([])
           setMode('create')
           // Clean URL params
@@ -344,12 +344,22 @@ export default function Quotes() {
     return data || []
   }
 
+  // Dernier client demandé : une réponse arrivée après un changement de client est ignorée (liste et contact cohérents)
+  const contactsDemandes = useRef(null)
   async function loadClientContacts(clientId) {
-    if (!clientId) { setContacts([]); return }
+    contactsDemandes.current = clientId || null
+    if (!clientId) { setContacts([]); return [] }
     const { data } = await supabase.from('client_contacts').select('*').eq('client_id', clientId)
       .order('is_primary', { ascending: false }).order('name')
+    if (contactsDemandes.current !== clientId) return null
     setContacts(data || [])
     return data || []
+  }
+  // A11 (06/11) : contact « documents », sinon principal, proposé d'office (règle commune des conventions de groupe),
+  // jamais à la place d'un contact déjà choisi
+  function proposerContact(clientId, liste) {
+    const propose = liste ? contactPropose(liste) : ''
+    if (propose) setCurrentQuote(prev => (prev.client_id === clientId && !prev.contact_id ? { ...prev, contact_id: propose } : prev))
   }
 
   async function generateReference() {
@@ -1153,11 +1163,7 @@ export default function Quotes() {
   }
   async function handleClientChange(clientId) {
     setCurrentQuote(prev => ({ ...prev, client_id: clientId, contact_id: '' }))
-    // A11 (06/11) : contact « documents », sinon principal, proposé d'office (règle commune des conventions de groupe)
-    loadClientContacts(clientId).then((liste) => {
-      const propose = contactPropose(liste)
-      if (propose) setCurrentQuote(prev => (prev.client_id === clientId && !prev.contact_id ? { ...prev, contact_id: propose } : prev))
-    })
+    loadClientContacts(clientId).then((liste) => proposerContact(clientId, liste))
     // Lignes restées au prix du catalogue : passées au tarif du nouveau client (jamais un prix modifié à la main)
     const t = await chargerTarifs(clientId)
     const [lignes, n] = appliquerTarifs(t, items, { courses, frais: FRAIS_CATALOGUE })

@@ -3502,7 +3502,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           )}
         </div>
         {/* A11 (06/11) : dire où va la convention, pour qui n'a jamais vu le circuit */}
-        {!session.convention_signed && session.client_id && (
+        {!session.convention_signed && session.client_id && session.quote_id && (
           <p className="text-ui-sm text-gray-600 mb-3">Le client trouve la convention dans son espace : il saisit ses participants, puis la signe en ligne. Une convention signée sur papier se dépose ci-dessous.</p>
         )}
         

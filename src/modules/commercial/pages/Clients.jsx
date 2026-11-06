@@ -1054,7 +1054,7 @@ export default function Clients() {
                       )}
                     </span>
                   </label>
-                  <input id="client-siret" className="input font-mono" value={form.siret}
+                  <input id="client-siret" aria-label="SIRET" className="input font-mono" value={form.siret}
                     onChange={(e) => {
                       const val = e.target.value
                       const computed = tvaFromSiren(val)

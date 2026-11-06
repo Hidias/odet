@@ -37,26 +37,36 @@ describe('fiche session', () => {
   })
 })
 
-import { finApresDebut, jourDeWeekEnd } from '../src/modules/formation/components/CircuitSession'
+import { finApresDebut, jourDeWeekEnd, alerteWeekEnd } from '../src/modules/formation/components/CircuitSession'
 
 describe('Contrôler et confirmer : dates', () => {
   it('une session d\'un jour suit le nouveau début', () => {
     expect(finApresDebut({ start_date: '2026-12-06', end_date: '2026-12-06' }, '2026-12-08')).toBe('2026-12-08')
   })
-  it('une fin devenue antérieure au début s\'aligne sur lui', () => {
-    expect(finApresDebut({ start_date: '2026-12-06', end_date: '2026-12-07' }, '2026-12-10')).toBe('2026-12-10')
+  it('une session de plusieurs jours se décale en bloc, dans les deux sens', () => {
+    expect(finApresDebut({ start_date: '2026-12-08', end_date: '2026-12-09' }, '2026-12-15')).toBe('2026-12-16')
+    expect(finApresDebut({ start_date: '2026-12-08', end_date: '2026-12-09' }, '2026-12-01')).toBe('2026-12-02')
+    expect(finApresDebut({ start_date: '2026-12-30', end_date: '2027-01-02' }, '2027-02-27')).toBe('2027-03-02')
   })
-  it('une fin plus tardive est gardée', () => {
-    expect(finApresDebut({ start_date: '2026-12-06', end_date: '2026-12-09' }, '2026-12-07')).toBe('2026-12-09')
+  it('début effacé : la fin est gardée', () => {
+    expect(finApresDebut({ start_date: '2026-12-08', end_date: '2026-12-09' }, '')).toBe('2026-12-09')
   })
   it('sans fin saisie, rien ne change', () => {
     expect(finApresDebut({ start_date: '2026-12-06', end_date: '' }, '2026-12-08')).toBe('')
   })
-  it('signale samedi et dimanche', () => {
+  it('passage à l\'heure d\'hiver sans décalage d\'un jour', () => {
+    expect(finApresDebut({ start_date: '2026-10-24', end_date: '2026-10-26' }, '2026-10-24')).toBe('2026-10-26')
+    expect(finApresDebut({ start_date: '2026-10-20', end_date: '2026-10-21' }, '2026-10-25')).toBe('2026-10-26')
+  })
+  it('signale samedi et dimanche, au début comme à la fin', () => {
     expect(jourDeWeekEnd('2026-12-06')).toBe('dimanche')
     expect(jourDeWeekEnd('2026-12-05')).toBe('samedi')
     expect(jourDeWeekEnd('2026-12-08')).toBe(null)
     expect(jourDeWeekEnd('')).toBe(null)
+    expect(alerteWeekEnd({ start_date: '2026-12-08', end_date: '2026-12-08' })).toBe(null)
+    expect(alerteWeekEnd({ start_date: '2026-12-06', end_date: '2026-12-06' })).toContain('début tombe un dimanche')
+    expect(alerteWeekEnd({ start_date: '2026-12-04', end_date: '2026-12-05' })).toContain('fin tombe un samedi')
+    expect(alerteWeekEnd({ start_date: '2026-12-05', end_date: '2026-12-06' })).toContain('et la fin un dimanche')
   })
 })
 
@@ -68,9 +78,11 @@ describe('textes', () => {
     expect(readFileSync('src/modules/portail/components/ParticipantsSession.jsx', 'utf8')).toContain('le nom et le genre sont obligatoires')
   })
   it('bandeau du mode démonstration : le super administrateur est prévenu de ses envois réels', () => {
-    expect(readFileSync('src/app/Layout.jsx', 'utf8')).toContain('Vos envois faits à la main partent aux vrais destinataires')
+    expect(readFileSync('src/app/Layout.jsx', 'utf8')).toContain('partent aux vrais destinataires, avec une copie cachée pour vous')
   })
   it('devis : contact proposé d\'office', () => {
-    expect(readFileSync('src/modules/commercial/pages/Quotes.jsx', 'utf8')).toContain('contactPropose(liste)')
+    const q = readFileSync('src/modules/commercial/pages/Quotes.jsx', 'utf8')
+    expect(q).toContain('loadClientContacts(clientId).then((liste) => proposerContact(clientId, liste))')
+    expect(q).toContain('proposerContact(client.id, await loadClientContacts(client.id))')
   })
 })
