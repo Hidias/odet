@@ -149,10 +149,12 @@ const champsDe = (s, base = {}) => ({
 })
 
 /** Fin d'une session après un changement de date de début : la session se décale en bloc (même nombre de jours) ;
- * début effacé ou dates incohérentes au départ : la fin est gardée telle quelle. */
+ * début effacé : une session d'un jour perd aussi sa fin (elle suivra le prochain début), une session de plusieurs
+ * jours la garde, visible dans le champ « Fin » ; dates incohérentes au départ : fin gardée. */
 export function finApresDebut(v, debut) {
   if (!v.end_date) return ''
-  if (!debut || !v.start_date || v.end_date < v.start_date) return v.end_date
+  if (!debut) return v.end_date === v.start_date ? '' : v.end_date
+  if (!v.start_date || v.end_date < v.start_date) return v.end_date
   const jour = (d) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10))
   const fin = new Date(jour(debut) + (jour(v.end_date) - jour(v.start_date)))
   return fin.toISOString().slice(0, 10)
@@ -165,12 +167,21 @@ export function jourDeWeekEnd(date) {
   return j === 6 ? 'samedi' : j === 0 ? 'dimanche' : null
 }
 
-/** Avertissement quand le début ou la fin d'une session tombe un samedi ou un dimanche, sinon null */
+/** Avertissement quand le début ou la fin d'une session tombe un samedi ou un dimanche, ou quand elle couvre un
+ * week-end, sinon null */
 export function alerteWeekEnd(v) {
   const d = jourDeWeekEnd(v.start_date)
-  const f = v.end_date && v.end_date !== v.start_date ? jourDeWeekEnd(v.end_date) : null
-  if (!d && !f) return null
-  return `${d ? `Le début tombe un ${d}` : `La fin tombe un ${f}`}${d && f ? ` et la fin un ${f}` : ''} : vérifiez la date avec le client.`
+  const plusieurs = v.end_date && v.start_date && v.end_date > v.start_date
+  const f = plusieurs ? jourDeWeekEnd(v.end_date) : null
+  if (d || f) return `${d ? `Le début tombe un ${d}` : `La fin tombe un ${f}`}${d && f ? ` et la fin un ${f}` : ''} : vérifiez la date avec le client.`
+  if (plusieurs) {
+    const j = new Date(`${v.start_date}T12:00:00`)
+    for (let n = 0; n < 62 && j.toISOString().slice(0, 10) < v.end_date; n++) {
+      j.setDate(j.getDate() + 1)
+      if (jourDeWeekEnd(j.toISOString().slice(0, 10))) return 'La session couvre un week-end : vérifiez les dates avec le client.'
+    }
+  }
+  return null
 }
 
 /** Valeurs d'une session à confirmer : erreurs bloquantes */

@@ -380,6 +380,7 @@ export default function Quotes() {
     const vDate = calcValidityDate(qDate)
     setCurrentQuote({ ...emptyQuote, reference: ref, quote_date: qDate, validity_date: vDate, payment_deadline: '' })
     setItems([])
+    contactsDemandes.current = null
     setContacts([])
     setMode('create')
   }

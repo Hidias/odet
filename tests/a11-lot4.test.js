@@ -48,7 +48,9 @@ describe('Contrôler et confirmer : dates', () => {
     expect(finApresDebut({ start_date: '2026-12-08', end_date: '2026-12-09' }, '2026-12-01')).toBe('2026-12-02')
     expect(finApresDebut({ start_date: '2026-12-30', end_date: '2027-01-02' }, '2027-02-27')).toBe('2027-03-02')
   })
-  it('début effacé : la fin est gardée', () => {
+  it('début effacé : une session d\'un jour perd sa fin, une session de plusieurs jours la garde', () => {
+    expect(finApresDebut({ start_date: '2026-12-15', end_date: '2026-12-15' }, '')).toBe('')
+    expect(finApresDebut({ start_date: '', end_date: '' }, '2026-12-08')).toBe('')
     expect(finApresDebut({ start_date: '2026-12-08', end_date: '2026-12-09' }, '')).toBe('2026-12-09')
   })
   it('sans fin saisie, rien ne change', () => {
@@ -67,6 +69,8 @@ describe('Contrôler et confirmer : dates', () => {
     expect(alerteWeekEnd({ start_date: '2026-12-06', end_date: '2026-12-06' })).toContain('début tombe un dimanche')
     expect(alerteWeekEnd({ start_date: '2026-12-04', end_date: '2026-12-05' })).toContain('fin tombe un samedi')
     expect(alerteWeekEnd({ start_date: '2026-12-05', end_date: '2026-12-06' })).toContain('et la fin un dimanche')
+    expect(alerteWeekEnd({ start_date: '2026-12-04', end_date: '2026-12-07' })).toContain('couvre un week-end')
+    expect(alerteWeekEnd({ start_date: '2026-12-07', end_date: '2026-12-11' })).toBe(null)
   })
 })
 
@@ -78,7 +82,7 @@ describe('textes', () => {
     expect(readFileSync('src/modules/portail/components/ParticipantsSession.jsx', 'utf8')).toContain('le nom et le genre sont obligatoires')
   })
   it('bandeau du mode démonstration : le super administrateur est prévenu de ses envois réels', () => {
-    expect(readFileSync('src/app/Layout.jsx', 'utf8')).toContain('partent aux vrais destinataires, avec une copie cachée pour vous')
+    expect(readFileSync('src/app/Layout.jsx', 'utf8')).toContain('sauf la prospection, les mailings et les envois au comptable')
   })
   it('devis : contact proposé d\'office', () => {
     const q = readFileSync('src/modules/commercial/pages/Quotes.jsx', 'utf8')
