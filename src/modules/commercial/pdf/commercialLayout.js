@@ -58,7 +58,9 @@ export function renderCommercialDoc(doc, Lsource, p) {
   const L = p.formation === false ? orgHorsFormation(Lsource) : Lsource
   const t = L.theme
   const M = PAGE_MARGIN
-  const f = startDocument(doc, L, { ref: p.ref, docLabel: p.docLabel, code: p.code, title: p.title, subtitle: p.subtitle || null })
+  const f = startDocument(doc, L, { ref: p.ref, docLabel: p.docLabel, code: p.code, title: p.title, subtitle: p.subtitle || null, densite: p.densite || 1 })
+  // Densité : 1 en temps normal, plus serrée quand le document est recomposé (dernière page presque vide)
+  const D = f.densite
   const font = doc.__odetFont || 'helvetica'
 
   if (p.banner) f.callout(p.banner.label, p.banner.text, { tone: 'highlight' })
@@ -83,11 +85,11 @@ export function renderCommercialDoc(doc, Lsource, p) {
       body: [meta.map(m => m[1])],
       theme: 'plain',
       margin: { left: M, right: M },
-      styles: { font, fontSize: 8.5, textColor: t.text, cellPadding: { top: 1.6, bottom: 1.6, left: 3, right: 3 } },
+      styles: { font, fontSize: 8.5, textColor: t.text, cellPadding: { top: 1.6 * D, bottom: 1.6 * D, left: 3, right: 3 } },
       headStyles: { font, fontStyle: 'bold', fontSize: 6.8, textColor: t.muted, fillColor: t.surface },
       bodyStyles: { fillColor: t.surface, fontStyle: 'bold' },
     })
-    f.y = doc.lastAutoTable.finalY + 6
+    f.y = doc.lastAutoTable.finalY + 6 * D
   }
 
   if (p.object) {
@@ -96,9 +98,10 @@ export function renderCommercialDoc(doc, Lsource, p) {
   }
   if (p.nature) f.note(p.nature, { after: 3 })
 
-  // Lignes
-  f.table(['Code', 'Désignation', 'Qté', 'PU HT', 'TVA', 'Total HT'], p.rows, {
-    styles: { font, fontSize: 8.3, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 2.4, overflow: 'linebreak', valign: 'top' },
+  // Lignes. p.report (k > 0) : les k dernières lignes passent sur la page suivante (en-tête répété), pour que les
+  // totaux et la signature n'y soient jamais seuls quand le document fait deux pages (compacterAsync)
+  const optsLignes = {
+    styles: { font, fontSize: 8.3, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 2.4 * D, overflow: 'linebreak', valign: 'top' },
     columnStyles: {
       0: { cellWidth: 20, fontSize: 7.5, textColor: t.muted },
       1: { cellWidth: 'auto' },
@@ -107,7 +110,16 @@ export function renderCommercialDoc(doc, Lsource, p) {
       4: { cellWidth: 16, halign: 'right' },
       5: { cellWidth: 25, halign: 'right', fontStyle: 'bold' },
     },
-  })
+  }
+  const enteteLignes = ['Code', 'Désignation', 'Qté', 'PU HT', 'TVA', 'Total HT']
+  const report = p.report > 0 && p.report < (p.rows || []).length ? p.report : 0
+  if (report) {
+    f.table(enteteLignes, p.rows.slice(0, -report), optsLignes)
+    f.newPage()
+    f.table(enteteLignes, p.rows.slice(-report), optsLignes)
+  } else {
+    f.table(enteteLignes, p.rows, optsLignes)
+  }
 
   // Photos des lignes cochées « photo dans le PDF » (0445) : vignettes sous les lignes, avec la désignation
   if (p.photos && p.photos.length) {
@@ -161,7 +173,7 @@ export function renderCommercialDoc(doc, Lsource, p) {
       head: [['Taux TVA', 'Base HT', 'Montant TVA']],
       body: recap,
       theme: 'grid',
-      styles: { font, fontSize: 7.5, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 1.6 },
+      styles: { font, fontSize: 7.5, textColor: t.text, lineColor: t.line, lineWidth: 0.2, cellPadding: 1.6 * D },
       headStyles: { font, fontStyle: 'bold', fontSize: 6.8, textColor: t.muted, fillColor: t.surface },
       columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
     })
@@ -173,7 +185,7 @@ export function renderCommercialDoc(doc, Lsource, p) {
     margin: { left: pw - M - totW, right: M },
     body: totRows.map(r => [r.label, r.value]),
     theme: 'plain',
-    styles: { font, fontSize: 8.8, textColor: t.text, cellPadding: { top: 1.4, bottom: 1.4, left: 3, right: 3 } },
+    styles: { font, fontSize: 8.8, textColor: t.text, cellPadding: { top: 1.4 * D, bottom: 1.4 * D, left: 3, right: 3 } },
     columnStyles: { 0: { halign: 'left' }, 1: { halign: 'right', cellWidth: 34 } },
     didParseCell: (data) => {
       const r = totRows[data.row.index]
@@ -191,7 +203,7 @@ export function renderCommercialDoc(doc, Lsource, p) {
       }
     },
   })
-  f.y = Math.max(yLeft, doc.lastAutoTable.finalY) + 6
+  f.y = Math.max(yLeft, doc.lastAutoTable.finalY) + 6 * D
 
   // Encadré « Signer en ligne » : à côté de la signature quand il y a la place, sinon en bas
   let enLigneBas = p.enLigne || null
@@ -227,7 +239,7 @@ export function renderCommercialDoc(doc, Lsource, p) {
     if (p.signature.image) drawImageFitted(doc, p.signature.image, sx + 2, by + 1, totW - 4, sh - 2)
     else marquerZoneSignature(doc, { x: sx, y: by, w: totW, h: sh })
     doc.setTextColor(...t.text)
-    f.y = Math.max(by + sh, ys + (noteLines.length ? noteLines.length * 4 + 10 : 0), ys + hCote) + 6
+    f.y = Math.max(by + sh, ys + (noteLines.length ? noteLines.length * 4 + 10 : 0), ys + hCote) + 6 * D
     if (enLigneACote) enLigneBas = null
   } else if (p.notes) {
     f.callout('Note', p.notes, { tone: 'muted' })
@@ -238,7 +250,7 @@ export function renderCommercialDoc(doc, Lsource, p) {
     const h = hauteurEncadreEnLigne(doc, f.W, enLigneBas)
     f.ensure(h + 2)
     dessinerEncadreEnLigne(doc, t, M, f.y, f.W, enLigneBas)
-    f.y += h + 5
+    f.y += h + 5 * D
   }
 
   // Mentions

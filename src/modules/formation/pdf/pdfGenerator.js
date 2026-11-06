@@ -10,7 +10,7 @@ import { buildORG, publicBaseUrl, prepareOrgForPDF, formatSiret, ligneNda, phras
 import {
   PAGE_MARGIN, drawHeaderBand, drawRunningHeader, drawFooter, numberPages, drawDocTitle, drawSectionTitle,
   drawPartyCard, drawKeyValues, drawCheckmark, drawImageFitted, formatMoney, formatHour,
-  startDocument,
+  startDocument, compacter,
 } from '../../../core/pdf/layout'
 
 import { APP_VERSION } from '../../../core/version'
@@ -1471,12 +1471,15 @@ export async function downloadDocument(docType, session, options = {}) {
   const ref = session?.reference || 'VIERGE'
   let doc, filename
   
+  // Lien « signer en ligne » lu avant (compacter construit sans attendre)
+  const enLigneConv = ['convention', 'contratParticulier'].includes(docType) ? await enLigneDe(session, options) : null
+  
   switch (docType) {
-    case 'convention': doc = generateConvention(session, trainees, trainer, costs, null, await enLigneDe(session, options)); filename = `Convention_${ref}.pdf`; break
-    case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null, await enLigneDe(session, options)); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
-    case 'certificat': doc = generateCertificat(session, trainee, trainer); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'fin_formation': doc = generateFinFormation(session, trainee, trainer); filename = `Attestation_fin_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'emargement': doc = generateEmargement(session, trainees, trainer, isBlank, attendanceData); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
+    case 'convention': doc = compacter(() => generateConvention(session, trainees, trainer, costs, null, enLigneConv)); filename = `Convention_${ref}.pdf`; break
+    case 'contratParticulier': doc = compacter(() => generateConvention(session, trainees, trainer, costs, options.particulier || null, enLigneConv)); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
+    case 'certificat': doc = compacter(() => generateCertificat(session, trainee, trainer)); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'fin_formation': doc = compacter(() => generateFinFormation(session, trainee, trainer)); filename = `Attestation_fin_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'emargement': doc = compacter(() => generateEmargement(session, trainees, trainer, isBlank, attendanceData)); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
     case 'convocation': {
       doc = new jsPDF({ compress: true })
       let qrCodeDataURL = null
@@ -1490,18 +1493,18 @@ export async function downloadDocument(docType, session, options = {}) {
       filename = `Convocation_${ref}_${trainee?.last_name || ''}_${trainee?.first_name || ''}.pdf`
       break
     }
-    case 'attestation': doc = generateAttestation(session, trainee, trainer); filename = `Attestation_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'programme': doc = generateProgramme(session); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
-    case 'evaluation': doc = generateEvaluation(session, trainee, isBlank); filename = isBlank ? 'Evaluation_Vierge.pdf' : `Evaluation_${ref}.pdf`; break
-    case 'evaluationFroid': doc = generateEvaluationFroid(session, trainee, isBlank); filename = isBlank ? 'EvaluationFroid_Vierge.pdf' : `EvaluationFroid_${ref}.pdf`; break
-    case 'reglement': doc = generateReglement(); filename = 'Reglement_Interieur.pdf'; break
-    case 'livret': doc = generateLivret(session); filename = `Livret_Accueil_${ref}.pdf`; break
-    case 'analyseBesoin': doc = generateAnalyseBesoin(session, isBlank); filename = isBlank ? 'Analyse_Besoin_Vierge.pdf' : `Analyse_Besoin_${ref}.pdf`; break
-    case 'evaluationFormateur': doc = generateEvaluationFormateur(session, isBlank); filename = isBlank ? 'Evaluation_Formateur_Vierge.pdf' : `Evaluation_Formateur_${ref}.pdf`; break
-    case 'positionnement': doc = generatePositionnement(session, questions, isBlank, trainee, false); filename = isBlank ? 'Test_Positionnement_Vierge.pdf' : `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'positionnementCorrige': doc = generatePositionnement(session, questions, false, null, true); filename = `CORRIGE_Test_Positionnement_${ref}.pdf`; break
-    case 'testPositionnementRempli': doc = generateTestPositionnementRempli(session, trainee, options.testData); filename = `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'ficheRenseignements': doc = generateFicheRenseignements(session, trainee, isBlank, options.infoSheet || null); filename = isBlank ? 'Fiche_Renseignements_Vierge.pdf' : `Fiche_Renseignements_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'attestation': doc = compacter(() => generateAttestation(session, trainee, trainer)); filename = `Attestation_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'programme': doc = compacter(() => generateProgramme(session)); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
+    case 'evaluation': doc = compacter(() => generateEvaluation(session, trainee, isBlank)); filename = isBlank ? 'Evaluation_Vierge.pdf' : `Evaluation_${ref}.pdf`; break
+    case 'evaluationFroid': doc = compacter(() => generateEvaluationFroid(session, trainee, isBlank)); filename = isBlank ? 'EvaluationFroid_Vierge.pdf' : `EvaluationFroid_${ref}.pdf`; break
+    case 'reglement': doc = compacter(() => generateReglement()); filename = 'Reglement_Interieur.pdf'; break
+    case 'livret': doc = compacter(() => generateLivret(session)); filename = `Livret_Accueil_${ref}.pdf`; break
+    case 'analyseBesoin': doc = compacter(() => generateAnalyseBesoin(session, isBlank)); filename = isBlank ? 'Analyse_Besoin_Vierge.pdf' : `Analyse_Besoin_${ref}.pdf`; break
+    case 'evaluationFormateur': doc = compacter(() => generateEvaluationFormateur(session, isBlank)); filename = isBlank ? 'Evaluation_Formateur_Vierge.pdf' : `Evaluation_Formateur_${ref}.pdf`; break
+    case 'positionnement': doc = compacter(() => generatePositionnement(session, questions, isBlank, trainee, false)); filename = isBlank ? 'Test_Positionnement_Vierge.pdf' : `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'positionnementCorrige': doc = compacter(() => generatePositionnement(session, questions, false, null, true)); filename = `CORRIGE_Test_Positionnement_${ref}.pdf`; break
+    case 'testPositionnementRempli': doc = compacter(() => generateTestPositionnementRempli(session, trainee, options.testData)); filename = `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'ficheRenseignements': doc = compacter(() => generateFicheRenseignements(session, trainee, isBlank, options.infoSheet || null)); filename = isBlank ? 'Fiche_Renseignements_Vierge.pdf' : `Fiche_Renseignements_${ref}_${trainee?.last_name || ''}.pdf`; break
     default: console.error('Type inconnu:', docType); return
   }
   if (doc) doc.save(filename)
@@ -1601,12 +1604,15 @@ export async function generatePDF(docType, session, options = {}) {
   const ref = session?.reference || 'VIERGE'
   let doc, filename
   
+  // Lien « signer en ligne » lu avant (compacter construit sans attendre)
+  const enLigneConv = ['convention', 'contratParticulier'].includes(docType) ? await enLigneDe(session, options) : null
+  
   switch (docType) {
-    case 'convention': doc = generateConvention(session, trainees, trainer, costs, null, await enLigneDe(session, options)); filename = `Convention_${ref}.pdf`; break
-    case 'contratParticulier': doc = generateConvention(session, trainees, trainer, costs, options.particulier || null, await enLigneDe(session, options)); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
-    case 'certificat': doc = generateCertificat(session, trainee, trainer); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'fin_formation': doc = generateFinFormation(session, trainee, trainer); filename = `Attestation_fin_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'emargement': doc = generateEmargement(session, trainees, trainer, isBlank, attendanceData); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
+    case 'convention': doc = compacter(() => generateConvention(session, trainees, trainer, costs, null, enLigneConv)); filename = `Convention_${ref}.pdf`; break
+    case 'contratParticulier': doc = compacter(() => generateConvention(session, trainees, trainer, costs, options.particulier || null, enLigneConv)); filename = `Contrat_${ref}_${(options.particulier?.client?.name || '').replace(/\s+/g, '_')}.pdf`; break
+    case 'certificat': doc = compacter(() => generateCertificat(session, trainee, trainer)); filename = `Certificat_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'fin_formation': doc = compacter(() => generateFinFormation(session, trainee, trainer)); filename = `Attestation_fin_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'emargement': doc = compacter(() => generateEmargement(session, trainees, trainer, isBlank, attendanceData)); filename = isBlank ? 'Emargement_Vierge.pdf' : `Emargement_${ref}.pdf`; break
     case 'convocation': {
       doc = new jsPDF({ compress: true })
       let qrCodeDataURL = null
@@ -1620,19 +1626,19 @@ export async function generatePDF(docType, session, options = {}) {
       filename = `Convocation_${ref}_${trainee?.last_name || ''}_${trainee?.first_name || ''}.pdf`
       break
     }
-    case 'attestation': doc = generateAttestation(session, trainee, trainer); filename = `Attestation_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'programme': doc = generateProgramme(session); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
-    case 'evaluation': doc = generateEvaluation(session, trainee, isBlank); filename = isBlank ? 'Evaluation_Vierge.pdf' : `Evaluation_${ref}.pdf`; break
-    case 'evaluationFroid': doc = generateEvaluationFroid(session, trainee, isBlank); filename = isBlank ? 'EvaluationFroid_Vierge.pdf' : `EvaluationFroid_${ref}.pdf`; break
-    case 'evaluationFormateur': doc = generateEvaluationFormateur(session, isBlank); filename = isBlank ? 'Evaluation_Formateur_Vierge.pdf' : `Evaluation_Formateur_${ref}.pdf`; break
-    case 'ficheRenseignements': doc = generateFicheRenseignements(session, trainee, isBlank, options.infoSheet || null); filename = isBlank ? 'Fiche_Renseignements_Vierge.pdf' : `Fiche_Renseignements_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'analyseBesoin': doc = generateAnalyseBesoin(session, isBlank); filename = isBlank ? 'Analyse_Besoin_Vierge.pdf' : `Analyse_Besoin_${ref}.pdf`; break
-    case 'positionnement': doc = generatePositionnement(session, questions, isBlank, trainee, false); filename = isBlank ? 'Test_Positionnement_Vierge.pdf' : `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'testPositionnementRempli': doc = generateTestPositionnementRempli(session, trainee, options.testData); filename = `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
-    case 'positionnementCorrige': doc = generatePositionnement(session, questions, false, null, true); filename = `CORRIGE_Test_Positionnement_${ref}.pdf`; break
-    case 'programme': doc = generateProgramme(session); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
-    case 'reglement': doc = generateReglement(); filename = 'Reglement_Interieur.pdf'; break
-    case 'livret': doc = generateLivret(session); filename = `Livret_Accueil_${ref}.pdf`; break
+    case 'attestation': doc = compacter(() => generateAttestation(session, trainee, trainer)); filename = `Attestation_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'programme': doc = compacter(() => generateProgramme(session)); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
+    case 'evaluation': doc = compacter(() => generateEvaluation(session, trainee, isBlank)); filename = isBlank ? 'Evaluation_Vierge.pdf' : `Evaluation_${ref}.pdf`; break
+    case 'evaluationFroid': doc = compacter(() => generateEvaluationFroid(session, trainee, isBlank)); filename = isBlank ? 'EvaluationFroid_Vierge.pdf' : `EvaluationFroid_${ref}.pdf`; break
+    case 'evaluationFormateur': doc = compacter(() => generateEvaluationFormateur(session, isBlank)); filename = isBlank ? 'Evaluation_Formateur_Vierge.pdf' : `Evaluation_Formateur_${ref}.pdf`; break
+    case 'ficheRenseignements': doc = compacter(() => generateFicheRenseignements(session, trainee, isBlank, options.infoSheet || null)); filename = isBlank ? 'Fiche_Renseignements_Vierge.pdf' : `Fiche_Renseignements_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'analyseBesoin': doc = compacter(() => generateAnalyseBesoin(session, isBlank)); filename = isBlank ? 'Analyse_Besoin_Vierge.pdf' : `Analyse_Besoin_${ref}.pdf`; break
+    case 'positionnement': doc = compacter(() => generatePositionnement(session, questions, isBlank, trainee, false)); filename = isBlank ? 'Test_Positionnement_Vierge.pdf' : `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'testPositionnementRempli': doc = compacter(() => generateTestPositionnementRempli(session, trainee, options.testData)); filename = `Test_Positionnement_${ref}_${trainee?.last_name || ''}.pdf`; break
+    case 'positionnementCorrige': doc = compacter(() => generatePositionnement(session, questions, false, null, true)); filename = `CORRIGE_Test_Positionnement_${ref}.pdf`; break
+    case 'programme': doc = compacter(() => generateProgramme(session)); filename = `Programme_${session?.courses?.code || ref}.pdf`; break
+    case 'reglement': doc = compacter(() => generateReglement()); filename = 'Reglement_Interieur.pdf'; break
+    case 'livret': doc = compacter(() => generateLivret(session)); filename = `Livret_Accueil_${ref}.pdf`; break
     default: console.error('Type inconnu:', docType); return null
   }
   if (!doc) return null
