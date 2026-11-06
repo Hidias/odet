@@ -48,6 +48,16 @@ begin
   update public.client_shared_documents set withdrawn_at = now() where id = v_dw;
   if app.signataire_prevu(v_a, v_dw) <> '{}'::jsonb then raise exception '6. document retiré lu'; end if;
 
+  -- 6 bis. Contact du groupe changé ou renommé après la publication : le signataire figé reste celui du PDF
+  update public.client_contacts set first_name = 'Annie', fonction = 'Présidente' where id = v_ca;
+  update public.session_groups set contact_id = (select id from public.client_contacts where client_id = v_a and id <> v_ca limit 1) where id = v_ga;
+  v_r := app.signataire_prevu(v_a, v_da);
+  if v_r is distinct from jsonb_build_object('name', 'Anne Martin', 'role', 'Gérante') then raise exception '6b. signataire non figé (%)', v_r; end if;
+  -- 6 ter. Groupe annulé : rien
+  update public.session_groups set status = 'cancelled' where id = v_gp;
+  if app.signataire_prevu(v_p, v_dp) <> '{}'::jsonb then raise exception '6c. groupe annulé proposé'; end if;
+  update public.session_groups set status = 'confirmed' where id = v_gp;
+
   -- 7. Espace par lien : mauvais code refusé, bon code lu
   insert into public.client_portal_access (client_id, access_code, company_id) values (v_a, '482915', v_cie) returning id, token into v_acc, v_tok;
   v_r := public.client_portal_signataire_prevu(v_tok, '000000', v_da);

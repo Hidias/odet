@@ -44,6 +44,8 @@ export default function SignerConvention({ session, genererPdf, signataire, prev
   const [pdf, setPdf] = useState(null) // { base64, url, filename }
   const [nom, setNom] = useState(signataire?.name || '')
   const [fonction, setFonction] = useState(signataire?.role || '')
+  // Avertissement « à sa place » montré une fois le champ quitté (pas pendant la frappe)
+  const [nomQuitte, setNomQuitte] = useState(false)
   const [accepte, setAccepte] = useState(false)
   const conditions = avecConditions(libelle)
   const [cgvOk, setCgvOk] = useState(false)
@@ -109,13 +111,13 @@ export default function SignerConvention({ session, genererPdf, signataire, prev
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block text-sm"><span className="text-gray-600">Nom et prénom du signataire</span>
-              <input className="input w-full mt-1" value={nom} onChange={(e) => setNom(e.target.value)} autoComplete="name" /></label>
+              <input className="input w-full mt-1" value={nom} onChange={(e) => { setNom(e.target.value); setNomQuitte(false) }} onBlur={() => setNomQuitte(true)} autoComplete="name" /></label>
             <label className="block text-sm"><span className="text-gray-600">Fonction</span>
               <input className="input w-full mt-1" value={fonction} onChange={(e) => setFonction(e.target.value)} autoComplete="organization-title" /></label>
           </div>
-          {signeALaPlace(nom, prevu) && (
+          {nomQuitte && signeALaPlace(nom, prevu) && (
             <p role="status" className="text-sm rounded-lg p-2 bg-amber-50 text-amber-900">
-              Le document prévoit la signature de {prevu.name}. Vous signez à sa place : vérifiez que vous pouvez engager l'entreprise. Ce point est noté dans la preuve de signature.
+              Signataire prévu sur le document : {prevu.name}. Vous signez à sa place : vérifiez que vous pouvez engager l'entreprise. Ce point est noté dans la preuve de signature.
             </p>
           )}
           <div>

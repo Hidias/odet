@@ -1,5 +1,5 @@
 import { telephoneLisible, lienTelephone } from '../../../core/telephone'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import toast from 'react-hot-toast'
 import {
@@ -742,12 +742,17 @@ function Plus_({ compte, org, salaries }) {
   const [signatures, setSignatures] = useState([])
   const [docASigner, setDocASigner] = useState(null)
   // Signataire prévu par le document, lu en base avant d'ouvrir la signature (0496) ; illisible : nom du compte
+  // Un seul document à la fois : les clics pendant la lecture sont ignorés
+  const ouverture = useRef(false)
   const ouvrirSignatureDocument = async (doc) => {
+    if (ouverture.current) return
+    ouverture.current = true
     let prevu = null
     try {
       const { data, error } = await supabase.rpc('ent_signataire_prevu', { p_document: doc.id })
       if (!error && data?.name) prevu = { name: data.name, role: data.role || '' }
     } catch { /* nom du compte */ }
+    ouverture.current = false
     setDocASigner({ ...doc, prevu })
   }
   // Bons d'intervention à signer à distance (0451)
@@ -809,7 +814,7 @@ function Plus_({ compte, org, salaries }) {
               onFermer={() => setDocADeposer(null)} />
           )}
           {docASigner && (
-            <SignerConvention titre={nomSignable(docASigner).titre} nomDocument={nomSignable(docASigner).nom}
+            <SignerConvention key={docASigner.id} titre={nomSignable(docASigner).titre} nomDocument={nomSignable(docASigner).nom}
               accord={rubriqueDocument(docASigner) === 'convention' ? ACCORD_SIGNATURE : docASigner.kind === 'contrat' ? ACCORD_CONTRAT : docASigner.kind === 'rapport' ? ACCORD_BON : ACCORD_DEVIS} libelle={docASigner.label} signataire={docASigner.prevu || { name: compte?.contact?.name || '' }} prevu={docASigner.prevu}
               genererPdf={async () => ({ base64: versBase64(await lireDocumentPortail({}, docASigner.id)), filename: `${docASigner.label}.pdf` })}
               onSigner={async (p) => {
