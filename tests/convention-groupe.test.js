@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact } from '../src/modules/formation/lib/conventionGroupe'
+import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact, doublonDuGroupe } from '../src/modules/formation/lib/conventionGroupe'
 import { rubriqueDocument } from '../src/core/portail/typeDocument'
 import { nomSignable } from '../src/modules/portail/lib/signatureDocument'
 
@@ -52,5 +52,27 @@ describe('Type affiché d\'un document de l\'espace client (C4)', () => {
     expect(nomSignable({ kind: 'contrat', label: 'Convention de formation X' }).titre).toBe('Signer la convention')
     expect(nomSignable({ kind: 'contrat', label: 'Contrat de formation X' }).titre).toBe('Signer le contrat')
     expect(nomSignable({ kind: 'devis', label: 'Devis' }).titre).toBe('Signer le devis')
+  })
+})
+
+
+describe('Même client deux fois sur une inter (06/11)', () => {
+  const groupes = [
+    { id: 'g1', client_id: 'A', kind: 'entreprise', status: 'confirmed', clients: { name: 'Alpha' } },
+    { id: 'g2', client_id: 'P', kind: 'particulier', status: 'confirmed', clients: { name: 'Paul' } },
+    { id: 'g3', client_id: 'C', kind: 'entreprise', status: 'cancelled' },
+  ]
+  it('une entreprise déjà présente passe après une alerte ; un particulier est refusé', () => {
+    const e = doublonDuGroupe(groupes, { kind: 'entreprise', client_id: 'A' })
+    expect(e.refus).toBe(false)
+    expect(e.message).toMatch(/Alpha a déjà un groupe/)
+    expect(doublonDuGroupe(groupes, { kind: 'particulier', client_id: 'P' }).refus).toBe(true)
+  })
+  it('rien pour le groupe lui-même, un groupe annulé, un nouveau client ou un client non choisi', () => {
+    expect(doublonDuGroupe(groupes, { id: 'g1', kind: 'entreprise', client_id: 'A' })).toBeNull()
+    expect(doublonDuGroupe(groupes, { kind: 'entreprise', client_id: 'C' })).toBeNull()
+    expect(doublonDuGroupe(groupes, { kind: 'entreprise', client_id: 'Z' })).toBeNull()
+    expect(doublonDuGroupe(groupes, { kind: 'entreprise', client_id: '' })).toBeNull()
+    expect(doublonDuGroupe(null, { kind: 'entreprise', client_id: 'A' })).toBeNull()
   })
 })

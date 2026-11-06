@@ -12,7 +12,7 @@ import { downloadDocument, generatePDF } from '../pdf/pdfGenerator'
 import { mettreADisposition } from '../../../core/portail/documentsClient'
 import { confirmationSignatureGroupe } from '../../../core/portail/alertesPublication'
 import { signaturesDesDocuments, telechargerAvecPreuve } from '../../../core/portail/documentSigne'
-import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact } from '../lib/conventionGroupe'
+import { signataireDuGroupe, refusPublicationGroupe, contactPropose, nomContact, doublonDuGroupe } from '../lib/conventionGroupe'
 import InscriptionsEnLigne from './InscriptionsEnLigne'
 
 // Groupes d'une session inter (lot 2, 0044) : une entreprise (convention à son nom) ou un particulier qui paie
@@ -102,6 +102,9 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   const enregistrer = async () => {
     const e = edition
     if (!e.client_id) return toast.error(e.kind === 'particulier' ? 'Choisissez la fiche du particulier' : 'Choisissez l\'entreprise')
+    const doublon = doublonDuGroupe(groupes, e)
+    if (doublon?.refus) return toast.error(doublon.message, { duration: 7000 })
+    if (doublon && !(await confirmer({ title: 'Second groupe pour ce client', message: doublon.message, confirmLabel: 'Créer un second groupe' }))) return
     setBusy(true)
     const champs = {
       session_id: session.id, kind: e.kind, client_id: e.client_id,
