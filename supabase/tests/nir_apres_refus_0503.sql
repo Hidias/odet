@@ -37,6 +37,26 @@ begin
   update public.trainee_info_sheets set ssn = '2 90 01 75 112 233 18' where session_id = v_s2 and trainee_id = v_t;
   if (select fin from public.trainee_ssn where trainee_id = v_t) is distinct from '318' then raise exception '3. correction ignorée'; end if;
 
+  -- 5. Chemin du portail (save_trainee_info : insert ... on conflict do update) : refus puis numéro
+  insert into public.trainee_info_sheets (session_id, trainee_id, ssn_refused, ssn) values (v_s, v_t, true, null)
+    on conflict (session_id, trainee_id) do update set ssn_refused = excluded.ssn_refused, ssn = excluded.ssn;
+  insert into public.trainee_info_sheets (session_id, trainee_id, ssn_refused, ssn) values (v_s, v_t, false, '1 85 05 78 006 084 36')
+    on conflict (session_id, trainee_id) do update set ssn_refused = excluded.ssn_refused, ssn = excluded.ssn;
+  if (select fin from public.trainee_ssn where trainee_id = v_t) is distinct from '436' then raise exception '5. numéro perdu par le chemin du portail'; end if;
+  if not (select ssn_present from public.trainees where id = v_t) then raise exception '5. stagiaire sans numéro'; end if;
+
+  -- 6. Les deux fiches dans une même instruction (refus sur l'une, numéro sur l'autre) : jamais « présent » sans numéro
+  update public.trainee_info_sheets set ssn_refused = (session_id = v_s), ssn = case when session_id = v_s2 then '2 90 01 75 112 233 18' end
+    where trainee_id = v_t;
+  if (select ssn_present from public.trainees where id = v_t) <> exists (select 1 from public.trainee_ssn where trainee_id = v_t) then
+    raise exception '6. stagiaire « numéro présent » sans numéro chiffré (ou l''inverse)'; end if;
+
+  -- 7. Autres colonnes recopiées inchangées par 0503
+  update public.trainees set email = 'essai.0503@example.invalid', job_title = 'Cariste' where id = v_t;
+  update public.trainee_info_sheets set ssn_refused = false, ssn = '1 85 05 78 006 084 36', email = '' where session_id = v_s and trainee_id = v_t;
+  if (select email from public.trainees where id = v_t) <> 'essai.0503@example.invalid' then raise exception '7. e-mail du stagiaire vidé'; end if;
+  if (select job_title from public.trainees where id = v_t) <> 'Cariste' then raise exception '7. emploi du stagiaire changé'; end if;
+
   -- 4. Nouveau refus : numéro effacé
   update public.trainee_info_sheets set ssn_refused = true where session_id = v_s2 and trainee_id = v_t;
   if exists (select 1 from public.trainee_ssn where trainee_id = v_t) then raise exception '4. numéro gardé après un nouveau refus'; end if;

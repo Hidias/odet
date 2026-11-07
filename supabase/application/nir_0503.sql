@@ -11,8 +11,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- déclencheur trainee_ssn_capture effaçait aussitôt le numéro. Résultat : la fiche disait « numéro indiqué » et
 -- trainee_ssn était vide (rien pour le Passeport de prévention).
 --   Correctif : info_sheet_ssn_capture ne touche plus le stagiaire quand un numéro est saisi alors qu'il porte encore
---   le refus ; c'est sync_info_sheet_to_trainee (après l'écriture de la fiche) qui lève le refus et marque « numéro
---   présent » dans la même mise à jour. Lever le refus dès le déclencheur d'avant échoue : le stagiaire recopie le
+--   le refus ; c'est sync_info_sheet_to_trainee (après l'écriture de la fiche) qui lève le refus et recalcule « numéro
+--   présent » d'après trainee_ssn dans la même mise à jour (jamais d'après une fiche dépassée). Lever le refus dès le déclencheur d'avant échoue : le stagiaire recopie le
 --   refus sur ses fiches, dont celle en cours d'écriture (« tuple already modified »).
 --   Une ligne changée dans chacune des deux fonctions (corps de 0502 et de 0001 pour le reste).
 -- Retour arrière : supabase/rollback/0503_nir_apres_refus_retour.sql (corps de 0502 et de 0001).
@@ -58,7 +58,7 @@ BEGIN
         csp = COALESCE(NULLIF(NEW.csp, ''), trainees.csp),
         social_security_number = COALESCE(NULLIF(NEW.ssn, ''), trainees.social_security_number),
         refused_ssn = COALESCE(NEW.ssn_refused, trainees.refused_ssn),
-        ssn_present = CASE WHEN NEW.ssn_present THEN true ELSE trainees.ssn_present END,
+        ssn_present = EXISTS (SELECT 1 FROM trainee_ssn s WHERE s.trainee_id = NEW.trainee_id),
         updated_at = NOW()
     WHERE id = NEW.trainee_id;
     
