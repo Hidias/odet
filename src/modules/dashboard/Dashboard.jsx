@@ -449,8 +449,9 @@ export default function Dashboard() {
   }, [dashData.invoices])
   
   // Clients et prospects (0507) : une fiche est cliente depuis son premier devis validé ou sa première facture émise
-  const vraisClients = useMemo(() => clients.filter(c => c.type === 'client'), [clients])
-  const nbProspects = clients.length - vraisClients.length
+  // Fiches archivées exclues, comme dans les onglets du répertoire
+  const vraisClients = useMemo(() => clients.filter(c => c.type === 'client' && c.status !== 'archive'), [clients])
+  const nbProspects = clients.filter(c => c.type !== 'client' && c.status !== 'archive').length
   const newClientsThisMonth = useMemo(() => vraisClients.filter(c => c.client_since && new Date(c.client_since) >= thisMonth), [vraisClients])
   
   const conversion = useMemo(() => tauxConversion(dashData.quotes), [dashData.quotes])

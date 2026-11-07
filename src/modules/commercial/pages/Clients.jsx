@@ -371,7 +371,7 @@ export default function Clients() {
         if (generic) entries.push({ contact: generic, client })
       })
       if (entries.length === 0) { toast.error('Aucun contact à exporter'); return }
-      downloadVCard(buildVCards(entries), vcfFilename(`contacts_${filtered.length}_clients`))
+      downloadVCard(buildVCards(entries), vcfFilename(`contacts_${filtered.length}_${typeFiche === 'client' ? 'clients' : 'prospects'}`))
       toast.success(`${entries.length} contact${entries.length > 1 ? 's' : ''} exporté${entries.length > 1 ? 's' : ''}`)
     } catch (err) {
       console.error('Export vCard :', err)
@@ -385,6 +385,8 @@ export default function Clients() {
   const estClient = (c) => c.type === 'client'
   const memeGenre = (c) => (clientKind === 'particulier' ? isParticulier(c) : !isParticulier(c))
   const kindClients = clients.filter(c => memeGenre(c) && (typeFiche === 'client' ? estClient(c) : !estClient(c)))
+  const correspond = (c) => !search || `${c.name || ''} ${c.siret || ''} ${c.contact_name || ''} ${c.address || ''} ${c.email || ''} ${c.contact_email || ''}`.toLowerCase().includes(search.toLowerCase())
+  const autreOnglet = clients.filter(c => memeGenre(c) && (typeFiche === 'client' ? !estClient(c) : estClient(c)) && c.status !== 'archive' && correspond(c)).length
   const filtered = kindClients.filter(c => {
     const searchFields = `${c.name || ''} ${c.siret || ''} ${c.contact_name || ''} ${c.address || ''} ${c.email || ''} ${c.contact_email || ''}`.toLowerCase()
     const matchSearch = !search || searchFields.includes(search.toLowerCase())
@@ -731,7 +733,7 @@ export default function Clients() {
       // Recharger les clients
       await fetchClients()
       
-      toast.success(`${created} prospect(s) importé(s)${skipped > 0 ? ` • ${skipped} ignoré(s) (doublons)` : ''}`)
+      toast.success(`${pluriel(created, 'prospect importé', 'prospects importés')}${skipped > 0 ? `, ${pluriel(skipped, 'doublon ignoré', 'doublons ignorés')}` : ''}`)
       setImportPreview(null)
     } catch (err) {
       console.error('Erreur import:', err)
@@ -832,13 +834,19 @@ export default function Clients() {
       <p className="text-ui-sm text-gray-400 mb-2">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
 
       <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
-        <DataTable caption="Clients" rows={filtered} rowHref={(client) => `/clients/${client.id}`} rowClassName={() => 'group'}
+        <DataTable caption={typeFiche === 'client' ? 'Clients' : 'Prospects'} rows={filtered} rowHref={(client) => `/clients/${client.id}`} rowClassName={() => 'group'}
           sort={{ key: sortField, dir: sortDir }}
           onSort={(key) => (sortField === key ? setSortDir(d => d === 'asc' ? 'desc' : 'asc') : (setSortField(key), setSortDir('asc')))}
           empty={(
             <div className="text-center py-12 text-gray-500">
               <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Aucun client trouvé</p>
+              <p>{typeFiche === 'client' ? 'Aucun client trouvé' : 'Aucun prospect trouvé'}</p>
+              {/* La recherche porte sur l'onglet affiché : on signale ce qui se trouve dans l'autre, pour éviter un doublon */}
+              {search && autreOnglet > 0 && (
+                <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={() => { setTypeFiche(typeFiche === 'client' ? 'prospect' : 'client'); setFilterStatus('all') }}>
+                  {pluriel(autreOnglet, 'résultat')} dans {typeFiche === 'client' ? 'Prospects' : 'Clients'}
+                </button>
+              )}
             </div>
           )}
           columns={[

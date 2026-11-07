@@ -12,6 +12,10 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      - au premier devis accepté, accepté en partie ou facturé (la signature en ligne passe le devis en « accepté ») ;
 --      - à la première facture émise (issued_at renseignée, avoirs exclus), pour le client et pour le client facturé.
 --      Un brouillon de facture ne compte pas (il peut être supprimé ; décision de H du 07/11).
+--      - à la confirmation d'une inscription en ligne (décision de H du 07/11 à 21 h 30), que la fiche soit créée par
+--        inscription_confirmer (qui écrivait déjà « client ») ou retrouvée (qui restait « prospect »).
+--      Le type n'est jamais écrit à la main : une écriture d'un compte (authenticated, anon) garde l'ancien type ; seuls les
+--      déclencheurs ci-dessous (SECURITY DEFINER) le changent. Toute fiche cliente reçoit sa date de passage.
 --   2. clients.type ne vaut plus que « prospect » ou « client », jamais vide (défaut « prospect » : import CSV, création
 --      à l'écran, fiche venue de la prospection).
 --   3. Statut « prospect » retiré (décision de H du 07/11) : réécrit en « actif » à l'écriture (les anciens écrans qui
@@ -38,7 +42,7 @@ create or replace function app.devenir_client(p_client uuid)
  set search_path to 'public', 'pg_temp'
 as $function$
   update public.clients set type = 'client', client_since = coalesce(client_since, now())
-   where id = p_client and type is distinct from 'client';
+   where id = p_client and (type is distinct from 'client' or client_since is null);
 $function$;
 
 revoke all on function app.devenir_client(uuid) from public, anon, authenticated;
@@ -82,14 +86,41 @@ create or replace function app.client_type_statut()
 as $function$
 begin
   if new.status = 'prospect' then new.status := 'actif'; end if;
+  -- Type jamais écrit par un compte : il garde l'ancien (création : prospect) ; les règles passent en SECURITY DEFINER
+  if current_user in ('authenticated', 'anon') then
+    new.type := case when tg_op = 'UPDATE' then old.type else 'prospect' end;
+    if tg_op = 'UPDATE' then new.client_since := old.client_since; else new.client_since := null; end if;
+  end if;
   if new.type is null or new.type not in ('prospect', 'client') then
     new.type := case when tg_op = 'UPDATE' and old.type = 'client' then 'client' else 'prospect' end;
   end if;
-  -- Une fiche client ne redevient jamais prospect
+  -- Une fiche client ne redevient jamais prospect, et porte toujours sa date de passage
   if tg_op = 'UPDATE' and old.type = 'client' then new.type := 'client'; end if;
+  if new.type = 'client' and new.client_since is null then
+    new.client_since := case when tg_op = 'UPDATE' then coalesce(old.client_since, now()) else now() end;
+  end if;
   return new;
 end;
 $function$;
+
+create or replace function app.inscription_client_confirmee()
+ returns trigger
+ language plpgsql
+ security definer
+ set search_path to 'public', 'pg_temp'
+as $function$
+begin
+  if new.status = 'confirmee' and new.client_id is not null
+     and (old.status is distinct from new.status or old.client_id is distinct from new.client_id) then
+    perform app.devenir_client(new.client_id);
+  end if;
+  return null;
+end;
+$function$;
+
+drop trigger if exists inscription_client_confirmee on public.online_registrations;
+create trigger inscription_client_confirmee after update of status, client_id on public.online_registrations
+  for each row execute function app.inscription_client_confirmee();
 
 drop trigger if exists devis_client_signe on public.quotes;
 create trigger devis_client_signe after insert or update of status, client_id on public.quotes
@@ -105,18 +136,28 @@ create trigger client_type_statut before insert or update on public.clients
 
 update public.clients set status = 'actif' where status = 'prospect';
 
+-- Reprise : date du premier devis accepté (date d'acceptation si connue), de la première facture émise ou de la première
+-- inscription confirmée ; seules les fiches dont le type ou la date change sont réécrites (updated_at des autres gardé)
+with dates as (
+  select c.id, (select min(d) from (
+           select coalesce((q.conditions_acceptees ->> 'acceptees_le')::timestamptz, q.updated_at) d from public.quotes q
+            where q.client_id = c.id and q.status in ('accepted', 'partial', 'invoiced')
+           union all
+           select i.issued_at from public.invoices i
+            where (i.client_id = c.id or i.billing_client_id = c.id) and i.issued_at is not null and coalesce(i.type, 'invoice') <> 'credit_note'
+           union all
+           select coalesce(o.handled_at, o.created_at) from public.online_registrations o
+            where o.client_id = c.id and o.status = 'confirmee') x) premier
+    from public.clients c
+)
 update public.clients c
-   set client_since = (select min(d) from (
-         select coalesce(q.quote_date::timestamptz, q.updated_at) d from public.quotes q
-          where q.client_id = c.id and q.status in ('accepted', 'partial', 'invoiced')
-         union all
-         select i.issued_at from public.invoices i
-          where (i.client_id = c.id or i.billing_client_id = c.id) and i.issued_at is not null and coalesce(i.type, 'invoice') <> 'credit_note') x),
-       type = case when exists (select 1 from public.quotes q where q.client_id = c.id and q.status in ('accepted', 'partial', 'invoiced'))
-                     or exists (select 1 from public.invoices i where (i.client_id = c.id or i.billing_client_id = c.id)
-                                  and i.issued_at is not null and coalesce(i.type, 'invoice') <> 'credit_note')
-                   then 'client' else 'prospect' end
- where c.type is distinct from 'client';
+   set type = 'client', client_since = coalesce(c.client_since, d.premier, now())
+  from dates d
+ where d.id = c.id
+   and (d.premier is not null or c.type = 'client')
+   and (c.type is distinct from 'client' or c.client_since is null);
+
+update public.clients set type = 'prospect' where type is null or type not in ('prospect', 'client');
 
 alter table public.clients alter column type set default 'prospect';
 alter table public.clients alter column type set not null;
@@ -281,7 +322,8 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; p1 uuid; p2 uuid; p3 uuid; p4 uuid; opco uuid; v_q uuid; v_f uuid; v_av uuid; v_cs timestamptz;
+  v_cie uuid; p1 uuid; p2 uuid; p3 uuid; p4 uuid; p5 uuid; p6 uuid; opco uuid; v_q uuid; v_f uuid; v_av uuid; v_cs timestamptz;
+  v_c uuid; v_s uuid; v_ins uuid;
 begin
   select id into v_cie from public.companies limit 1;
 
@@ -334,6 +376,38 @@ begin
     raise exception '5. fiche cliente non comptée « client » au mailing'; end if;
   if (select 'client' = any (source_types) or not ('crm' = any (source_types)) from public.mailing_audience_v where email = 'quatre.0507@example.invalid') then
     raise exception '5. prospect compté « client » au mailing'; end if;
+
+  -- 6. Inscription en ligne confirmée : fiche retrouvée (prospect) passée client avec sa date
+  insert into public.clients (name, company_id) values ('ESSAI 0507 CINQ', v_cie) returning id into p5;
+  insert into public.courses (title, company_id) values ('Formation essai 0507', v_cie) returning id into v_c;
+  insert into public.sessions (reference, course_id, start_date, end_date, company_id)
+    values ('ESSAI-0507', v_c, current_date + 30, current_date + 30, v_cie) returning id into v_s;
+  insert into public.online_registrations (company_id, session_id, kind, company_name, contact_first_name, contact_last_name, contact_email, participants)
+    values (v_cie, v_s, 'entreprise', 'ESSAI 0507 CINQ', 'Essai', 'CINQ', 'cinq.0507@example.invalid', '[{"first_name": "Essai", "last_name": "CINQ"}]') returning id into v_ins;
+  if (select type from public.clients where id = p5) <> 'prospect' then raise exception '6. client dès la demande'; end if;
+  update public.online_registrations set status = 'confirmee', client_id = p5, handled_at = now() where id = v_ins;
+  if (select type = 'client' and client_since is not null from public.clients where id = p5) is not true then
+    raise exception '6. inscription confirmée sans passage en client'; end if;
+
+  -- 7. Fiche créée directement « client » par une fonction en base : date posée
+  insert into public.clients (name, company_id, type) values ('ESSAI 0507 SIX', v_cie, 'client') returning id into p6;
+  if (select client_since from public.clients where id = p6) is null then raise exception '7. client sans date de passage'; end if;
+  update public.clients set client_since = null where id = p6;
+  if (select client_since from public.clients where id = p6) is null then raise exception '7. date de passage effacée'; end if;
+
+  -- 8. Un compte ne change jamais le type à la main (ni création en client, ni passage, ni retour)
+  alter table public.clients disable row level security;
+  set local role authenticated;
+  update public.clients set type = 'client' where id = p4;
+  insert into public.clients (name, company_id, type, client_since) values ('ESSAI 0507 SEPT', v_cie, 'client', now());
+  update public.clients set type = 'prospect', client_since = null where id = p1;
+  reset role;
+  alter table public.clients enable row level security;
+  if (select type from public.clients where id = p4) <> 'prospect' then raise exception '8. prospect passé client à la main'; end if;
+  if (select type <> 'prospect' or client_since is not null from public.clients where name = 'ESSAI 0507 SEPT') then
+    raise exception '8. fiche créée client à la main'; end if;
+  if (select type <> 'client' or client_since is distinct from v_cs from public.clients where id = p1) then
+    raise exception '8. client ou date changés à la main'; end if;
 end
 $$;
 select 'ESSAI PROPRE VERT : supabase/tests/prospects_clients_0507.sql' as resultat;

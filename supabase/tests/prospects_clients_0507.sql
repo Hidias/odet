@@ -6,7 +6,8 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; p1 uuid; p2 uuid; p3 uuid; p4 uuid; opco uuid; v_q uuid; v_f uuid; v_av uuid; v_cs timestamptz;
+  v_cie uuid; p1 uuid; p2 uuid; p3 uuid; p4 uuid; p5 uuid; p6 uuid; opco uuid; v_q uuid; v_f uuid; v_av uuid; v_cs timestamptz;
+  v_c uuid; v_s uuid; v_ins uuid;
 begin
   select id into v_cie from public.companies limit 1;
 
@@ -59,6 +60,38 @@ begin
     raise exception '5. fiche cliente non comptée « client » au mailing'; end if;
   if (select 'client' = any (source_types) or not ('crm' = any (source_types)) from public.mailing_audience_v where email = 'quatre.0507@example.invalid') then
     raise exception '5. prospect compté « client » au mailing'; end if;
+
+  -- 6. Inscription en ligne confirmée : fiche retrouvée (prospect) passée client avec sa date
+  insert into public.clients (name, company_id) values ('ESSAI 0507 CINQ', v_cie) returning id into p5;
+  insert into public.courses (title, company_id) values ('Formation essai 0507', v_cie) returning id into v_c;
+  insert into public.sessions (reference, course_id, start_date, end_date, company_id)
+    values ('ESSAI-0507', v_c, current_date + 30, current_date + 30, v_cie) returning id into v_s;
+  insert into public.online_registrations (company_id, session_id, kind, company_name, contact_first_name, contact_last_name, contact_email, participants)
+    values (v_cie, v_s, 'entreprise', 'ESSAI 0507 CINQ', 'Essai', 'CINQ', 'cinq.0507@example.invalid', '[{"first_name": "Essai", "last_name": "CINQ"}]') returning id into v_ins;
+  if (select type from public.clients where id = p5) <> 'prospect' then raise exception '6. client dès la demande'; end if;
+  update public.online_registrations set status = 'confirmee', client_id = p5, handled_at = now() where id = v_ins;
+  if (select type = 'client' and client_since is not null from public.clients where id = p5) is not true then
+    raise exception '6. inscription confirmée sans passage en client'; end if;
+
+  -- 7. Fiche créée directement « client » par une fonction en base : date posée
+  insert into public.clients (name, company_id, type) values ('ESSAI 0507 SIX', v_cie, 'client') returning id into p6;
+  if (select client_since from public.clients where id = p6) is null then raise exception '7. client sans date de passage'; end if;
+  update public.clients set client_since = null where id = p6;
+  if (select client_since from public.clients where id = p6) is null then raise exception '7. date de passage effacée'; end if;
+
+  -- 8. Un compte ne change jamais le type à la main (ni création en client, ni passage, ni retour)
+  alter table public.clients disable row level security;
+  set local role authenticated;
+  update public.clients set type = 'client' where id = p4;
+  insert into public.clients (name, company_id, type, client_since) values ('ESSAI 0507 SEPT', v_cie, 'client', now());
+  update public.clients set type = 'prospect', client_since = null where id = p1;
+  reset role;
+  alter table public.clients enable row level security;
+  if (select type from public.clients where id = p4) <> 'prospect' then raise exception '8. prospect passé client à la main'; end if;
+  if (select type <> 'prospect' or client_since is not null from public.clients where name = 'ESSAI 0507 SEPT') then
+    raise exception '8. fiche créée client à la main'; end if;
+  if (select type <> 'client' or client_since is distinct from v_cs from public.clients where id = p1) then
+    raise exception '8. client ou date changés à la main'; end if;
 end
 $$;
 

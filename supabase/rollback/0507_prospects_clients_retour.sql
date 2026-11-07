@@ -3,6 +3,8 @@
 drop trigger if exists devis_client_signe on public.quotes;
 drop trigger if exists facture_client_emise on public.invoices;
 drop trigger if exists client_type_statut on public.clients;
+drop trigger if exists inscription_client_confirmee on public.online_registrations;
+drop function if exists app.inscription_client_confirmee();
 drop function if exists app.devis_client_signe();
 drop function if exists app.facture_client_emise();
 drop function if exists app.client_type_statut();

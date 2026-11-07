@@ -46,6 +46,7 @@ const STATUS_OPTIONS = [
   { value: 'actif', label: 'Actif', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
   { value: 'a_completer', label: 'À compléter', color: 'bg-gray-100 text-gray-800' },
   { value: 'inactif', label: 'Inactif', color: 'bg-gray-100 text-gray-500' },
+  { value: 'archive', label: 'Archivé', color: 'bg-gray-100 text-gray-500' },
 ]
 
 const INTERACTION_TYPES = [
