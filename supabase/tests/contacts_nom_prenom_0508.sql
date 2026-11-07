@@ -5,7 +5,7 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; v_cl uuid; c1 uuid; c2 uuid; c3 uuid; c4 uuid; c5 uuid; v_n text; v_f text; v_l text;
+  v_cie uuid; v_cl uuid; v_cl2 uuid; c1 uuid; c2 uuid; c3 uuid; c4 uuid; c5 uuid; c6 uuid; v_n text; v_f text; v_l text;
 begin
   select id into v_cie from public.companies limit 1;
   insert into public.clients (name, company_id) values ('ESSAI 0508', v_cie) returning id into v_cl;
@@ -52,6 +52,29 @@ begin
   update public.client_contacts set last_name = '  ' where id = c5;
   select name, last_name into v_n, v_l from public.client_contacts where id = c5;
   if v_n is distinct from 'DURAND' or v_l is not null then raise exception '7. vidé : % / %', v_n, v_l; end if;
+  -- 8. Espace insécable (copier-coller, import) traité comme un espace
+  insert into public.client_contacts (client_id, name, last_name, first_name)
+    values (v_cl, 'x', U&'\00A0durand\00A0', U&'jean\00A0pierre') returning id into c6;
+  if (select name from public.client_contacts where id = c6) is distinct from 'DURAND Jean Pierre' then
+    raise exception '8. espace insécable : %', (select name from public.client_contacts where id = c6); end if;
+
+  -- 9. Même nom renvoyé dans un autre ordre ou une autre casse (écran, inscription « Paul DURAND ») : rien n'est vidé
+  insert into public.client_contacts (client_id, name, last_name, first_name) values (v_cl, 'x', 'durand', 'paul') returning id into c5;
+  update public.client_contacts set name = 'Paul DURAND', email = 'q.0508@example.invalid' where id = c5;
+  select name, first_name, last_name into v_n, v_f, v_l from public.client_contacts where id = c5;
+  if v_n is distinct from 'DURAND Paul' or v_f is distinct from 'Paul' or v_l is distinct from 'DURAND' then
+    raise exception '9. même nom renvoyé : % / % / %', v_n, v_f, v_l; end if;
+
+  -- 10. Fiche client pas rechargée (ancien « Paul Durand » renvoyé), puis téléphone seul changé : nom et prénom gardés
+  insert into public.clients (name, company_id, contact_name, contact_email) values ('ESSAI 0508 B', v_cie, 'Paul Durand', 'b.0508@example.invalid') returning id into v_cl2;
+  update public.client_contacts set last_name = 'durand', first_name = 'paul' where client_id = v_cl2 and is_primary;
+  if (select contact_name from public.clients where id = v_cl2) is distinct from 'DURAND Paul' then raise exception '10. fiche non recopiée'; end if;
+  update public.clients set contact_name = 'Paul Durand', notes = 'note' where id = v_cl2;
+  update public.clients set contact_phone = '0600000000' where id = v_cl2;
+  update public.clients set contact_phone = '0600000001' where id = v_cl2;
+  select name, first_name, last_name into v_n, v_f, v_l from public.client_contacts where client_id = v_cl2 and is_primary;
+  if v_n is distinct from 'DURAND Paul' or v_f is distinct from 'Paul' or v_l is distinct from 'DURAND' then
+    raise exception '10. fiche périmée : % / % / %', v_n, v_f, v_l; end if;
 end
 $$;
 

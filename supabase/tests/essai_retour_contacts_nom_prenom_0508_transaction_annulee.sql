@@ -61,18 +61,27 @@ create temp table etat_essai_avant as select * from etat_essai;
 --   4. Un contact sans nom ni prénom séparés garde son nom libre (« Contact général », contact créé depuis la fiche client par
 --      client_to_primary_contact) : rien n'est deviné en base.
 --   5. Un nom libre écrit seul sur un contact qui avait nom et prénom séparés (champ « contact » de la fiche client, recopié par
---      client_to_primary_contact) l'emporte : nom et prénom séparés sont vidés, pour ne jamais garder deux noms différents.
+--      client_to_primary_contact) l'emporte quand il désigne une autre personne (autres mots) : nom et prénom séparés sont
+--      vidés, pour ne jamais garder deux noms différents. Le même nom renvoyé dans un autre ordre ou une autre casse (« Paul
+--      Durand » d'une fiche client pas encore rechargée, d'une inscription, d'un écran) ne vide rien : le nom est recalculé
+--      (app.memes_mots).
+--   6. Espaces insécables (copier-coller, import) traités comme des espaces (app.espaces_nom).
+--   7. Les contacts qui ont déjà nom ou prénom séparés sont recalculés ici (le principal est recopié sur sa fiche client).
 -- Le déclencheur s'exécute avant client_contact_to_client (après), qui recopie donc le nom remis en forme sur la fiche client.
+
+create or replace function app.espaces_nom(p text) returns text
+  language sql immutable set search_path = pg_catalog as
+$$ select btrim(regexp_replace(coalesce(p, ''), '[\s\u00a0]+', ' ', 'g')) $$;
 
 create or replace function app.nom_majuscules(p text) returns text
   language sql immutable set search_path = pg_catalog as
-$$ select nullif(upper(regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g')), '') $$;
+$$ select nullif(upper(app.espaces_nom(p)), '') $$;
 
 create or replace function app.prenom_forme(p text) returns text
   language plpgsql immutable set search_path = pg_catalog as
 $$
 declare
-  s text := lower(regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g'));
+  s text := lower(app.espaces_nom(p));
   r text := '';
   prec text := ' ';
   ch text;
@@ -91,6 +100,12 @@ create or replace function app.contact_nom_affiche(p_nom text, p_prenom text) re
   language sql immutable set search_path = pg_catalog as
 $$ select nullif(concat_ws(' ', app.nom_majuscules(p_nom), app.prenom_forme(p_prenom)), '') $$;
 
+-- Mêmes mots, sans tenir compte de l'ordre ni de la casse : « Paul Durand » et « DURAND Paul »
+create or replace function app.memes_mots(a text, b text) returns boolean
+  language sql immutable set search_path = pg_catalog as
+$$ select coalesce((select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(a)), ' ') x where x <> '')
+                 = (select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(b)), ' ') x where x <> ''), false) $$;
+
 create or replace function app.contact_nom_prenom() returns trigger
   language plpgsql set search_path = pg_catalog, public as
 $$
@@ -99,8 +114,9 @@ begin
      and new.name is distinct from old.name
      and new.last_name is not distinct from old.last_name
      and new.first_name is not distinct from old.first_name
-     and coalesce(old.last_name, old.first_name) is not null then
-    -- Règle 5 : nom libre écrit seul, il l'emporte
+     and coalesce(old.last_name, old.first_name) is not null
+     and not app.memes_mots(new.name, concat_ws(' ', old.last_name, old.first_name)) then
+    -- Règle 5 : nom libre d'une autre personne écrit seul, il l'emporte
     new.last_name := null;
     new.first_name := null;
     return new;
@@ -120,15 +136,21 @@ drop trigger if exists client_contacts_nom on public.client_contacts;
 create trigger client_contacts_nom before insert or update on public.client_contacts
   for each row execute function app.contact_nom_prenom();
 
+-- Règle 7 : recalcul des contacts déjà séparés (mise à jour sans changement de nom : recalcul, recopie sur la fiche)
+update public.client_contacts set last_name = last_name where coalesce(last_name, first_name) is not null;
+
 insert into public.schema_migrations (version) values ('0508_contacts_nom_prenom') on conflict (version) do nothing;
 
 -- ===== supabase/rollback/0508_contacts_nom_prenom_retour.sql =====
--- Retour arrière de 0508 (contacts en « NOM Prénom »). Les noms déjà remis en forme le restent (sans effet sans 0508).
+-- Retour arrière de 0508 (contacts en « NOM Prénom »). Les noms déjà remis en forme le restent (sans effet sans 0508) ;
+-- nom et prénom séparés vidés par la règle 5 (nom libre d'une autre personne) ne sont pas rétablis.
 drop trigger if exists client_contacts_nom on public.client_contacts;
 drop function if exists app.contact_nom_prenom();
 drop function if exists app.contact_nom_affiche(text, text);
 drop function if exists app.prenom_forme(text);
 drop function if exists app.nom_majuscules(text);
+drop function if exists app.memes_mots(text, text);
+drop function if exists app.espaces_nom(text);
 delete from public.schema_migrations where version = '0508_contacts_nom_prenom';
 
 do $verif$

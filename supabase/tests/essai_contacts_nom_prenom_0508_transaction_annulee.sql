@@ -14,18 +14,27 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --   4. Un contact sans nom ni prénom séparés garde son nom libre (« Contact général », contact créé depuis la fiche client par
 --      client_to_primary_contact) : rien n'est deviné en base.
 --   5. Un nom libre écrit seul sur un contact qui avait nom et prénom séparés (champ « contact » de la fiche client, recopié par
---      client_to_primary_contact) l'emporte : nom et prénom séparés sont vidés, pour ne jamais garder deux noms différents.
+--      client_to_primary_contact) l'emporte quand il désigne une autre personne (autres mots) : nom et prénom séparés sont
+--      vidés, pour ne jamais garder deux noms différents. Le même nom renvoyé dans un autre ordre ou une autre casse (« Paul
+--      Durand » d'une fiche client pas encore rechargée, d'une inscription, d'un écran) ne vide rien : le nom est recalculé
+--      (app.memes_mots).
+--   6. Espaces insécables (copier-coller, import) traités comme des espaces (app.espaces_nom).
+--   7. Les contacts qui ont déjà nom ou prénom séparés sont recalculés ici (le principal est recopié sur sa fiche client).
 -- Le déclencheur s'exécute avant client_contact_to_client (après), qui recopie donc le nom remis en forme sur la fiche client.
+
+create or replace function app.espaces_nom(p text) returns text
+  language sql immutable set search_path = pg_catalog as
+$$ select btrim(regexp_replace(coalesce(p, ''), '[\s\u00a0]+', ' ', 'g')) $$;
 
 create or replace function app.nom_majuscules(p text) returns text
   language sql immutable set search_path = pg_catalog as
-$$ select nullif(upper(regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g')), '') $$;
+$$ select nullif(upper(app.espaces_nom(p)), '') $$;
 
 create or replace function app.prenom_forme(p text) returns text
   language plpgsql immutable set search_path = pg_catalog as
 $$
 declare
-  s text := lower(regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g'));
+  s text := lower(app.espaces_nom(p));
   r text := '';
   prec text := ' ';
   ch text;
@@ -44,6 +53,12 @@ create or replace function app.contact_nom_affiche(p_nom text, p_prenom text) re
   language sql immutable set search_path = pg_catalog as
 $$ select nullif(concat_ws(' ', app.nom_majuscules(p_nom), app.prenom_forme(p_prenom)), '') $$;
 
+-- Mêmes mots, sans tenir compte de l'ordre ni de la casse : « Paul Durand » et « DURAND Paul »
+create or replace function app.memes_mots(a text, b text) returns boolean
+  language sql immutable set search_path = pg_catalog as
+$$ select coalesce((select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(a)), ' ') x where x <> '')
+                 = (select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(b)), ' ') x where x <> ''), false) $$;
+
 create or replace function app.contact_nom_prenom() returns trigger
   language plpgsql set search_path = pg_catalog, public as
 $$
@@ -52,8 +67,9 @@ begin
      and new.name is distinct from old.name
      and new.last_name is not distinct from old.last_name
      and new.first_name is not distinct from old.first_name
-     and coalesce(old.last_name, old.first_name) is not null then
-    -- Règle 5 : nom libre écrit seul, il l'emporte
+     and coalesce(old.last_name, old.first_name) is not null
+     and not app.memes_mots(new.name, concat_ws(' ', old.last_name, old.first_name)) then
+    -- Règle 5 : nom libre d'une autre personne écrit seul, il l'emporte
     new.last_name := null;
     new.first_name := null;
     return new;
@@ -73,6 +89,9 @@ drop trigger if exists client_contacts_nom on public.client_contacts;
 create trigger client_contacts_nom before insert or update on public.client_contacts
   for each row execute function app.contact_nom_prenom();
 
+-- Règle 7 : recalcul des contacts déjà séparés (mise à jour sans changement de nom : recalcul, recopie sur la fiche)
+update public.client_contacts set last_name = last_name where coalesce(last_name, first_name) is not null;
+
 insert into public.schema_migrations (version) values ('0508_contacts_nom_prenom') on conflict (version) do nothing;
 
 -- ===== essai propre supabase/tests/contacts_nom_prenom_0508.sql (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====
@@ -82,7 +101,7 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; v_cl uuid; c1 uuid; c2 uuid; c3 uuid; c4 uuid; c5 uuid; v_n text; v_f text; v_l text;
+  v_cie uuid; v_cl uuid; v_cl2 uuid; c1 uuid; c2 uuid; c3 uuid; c4 uuid; c5 uuid; c6 uuid; v_n text; v_f text; v_l text;
 begin
   select id into v_cie from public.companies limit 1;
   insert into public.clients (name, company_id) values ('ESSAI 0508', v_cie) returning id into v_cl;
@@ -129,6 +148,29 @@ begin
   update public.client_contacts set last_name = '  ' where id = c5;
   select name, last_name into v_n, v_l from public.client_contacts where id = c5;
   if v_n is distinct from 'DURAND' or v_l is not null then raise exception '7. vidé : % / %', v_n, v_l; end if;
+  -- 8. Espace insécable (copier-coller, import) traité comme un espace
+  insert into public.client_contacts (client_id, name, last_name, first_name)
+    values (v_cl, 'x', U&'\00A0durand\00A0', U&'jean\00A0pierre') returning id into c6;
+  if (select name from public.client_contacts where id = c6) is distinct from 'DURAND Jean Pierre' then
+    raise exception '8. espace insécable : %', (select name from public.client_contacts where id = c6); end if;
+
+  -- 9. Même nom renvoyé dans un autre ordre ou une autre casse (écran, inscription « Paul DURAND ») : rien n'est vidé
+  insert into public.client_contacts (client_id, name, last_name, first_name) values (v_cl, 'x', 'durand', 'paul') returning id into c5;
+  update public.client_contacts set name = 'Paul DURAND', email = 'q.0508@example.invalid' where id = c5;
+  select name, first_name, last_name into v_n, v_f, v_l from public.client_contacts where id = c5;
+  if v_n is distinct from 'DURAND Paul' or v_f is distinct from 'Paul' or v_l is distinct from 'DURAND' then
+    raise exception '9. même nom renvoyé : % / % / %', v_n, v_f, v_l; end if;
+
+  -- 10. Fiche client pas rechargée (ancien « Paul Durand » renvoyé), puis téléphone seul changé : nom et prénom gardés
+  insert into public.clients (name, company_id, contact_name, contact_email) values ('ESSAI 0508 B', v_cie, 'Paul Durand', 'b.0508@example.invalid') returning id into v_cl2;
+  update public.client_contacts set last_name = 'durand', first_name = 'paul' where client_id = v_cl2 and is_primary;
+  if (select contact_name from public.clients where id = v_cl2) is distinct from 'DURAND Paul' then raise exception '10. fiche non recopiée'; end if;
+  update public.clients set contact_name = 'Paul Durand', notes = 'note' where id = v_cl2;
+  update public.clients set contact_phone = '0600000000' where id = v_cl2;
+  update public.clients set contact_phone = '0600000001' where id = v_cl2;
+  select name, first_name, last_name into v_n, v_f, v_l from public.client_contacts where client_id = v_cl2 and is_primary;
+  if v_n is distinct from 'DURAND Paul' or v_f is distinct from 'Paul' or v_l is distinct from 'DURAND' then
+    raise exception '10. fiche périmée : % / % / %', v_n, v_f, v_l; end if;
 end
 $$;
 select 'ESSAI PROPRE VERT : supabase/tests/contacts_nom_prenom_0508.sql' as resultat;

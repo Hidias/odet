@@ -28,6 +28,12 @@ export function nomAffiche(nom, prenom) {
   return [nomMajuscules(nom), prenomForme(prenom)].filter(Boolean).join(' ') || null
 }
 
+// Mêmes mots sans tenir compte de l'ordre ni de la casse (« Paul Durand » et « DURAND Paul ») : app.memes_mots en base
+export function memesMots(a, b) {
+  const mots = (v) => espaces(v).toLocaleLowerCase('fr-FR').split(' ').filter(Boolean).sort().join(' ')
+  return mots(a) !== '' && mots(a) === mots(b)
+}
+
 // Champs à enregistrer depuis un formulaire de contact (nom, prénom séparés). Sans nom ni prénom, le nom libre déjà
 // enregistré est gardé (« Contact général ») ; sans rien du tout : erreur à afficher.
 export function champsNomContact({ last_name, first_name }, nomActuel = '') {

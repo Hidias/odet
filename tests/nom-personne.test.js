@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { nomMajuscules, prenomForme, nomAffiche, champsNomContact } from '../src/core/nomPersonne.js'
+import { nomMajuscules, prenomForme, nomAffiche, champsNomContact, memesMots } from '../src/core/nomPersonne.js'
 
 describe('contacts en « NOM Prénom » (même règle que 0508)', () => {
   it('nom en majuscules, accents et particules compris, espaces en trop retirés', () => {
@@ -14,6 +14,14 @@ describe('contacts en « NOM Prénom » (même règle que 0508)', () => {
     expect(prenomForme('ÉLODIE')).toBe('Élodie')
     expect(prenomForme('laïna')).toBe('Laïna')
     expect(prenomForme('')).toBeNull()
+    expect(prenomForme('jean\u00a0pierre')).toBe('Jean Pierre')
+    expect(nomMajuscules('\u00a0durand\u00a0')).toBe('DURAND')
+  })
+
+  it('même personne quel que soit l\'ordre ou la casse', () => {
+    expect(memesMots('Paul Durand', 'DURAND Paul')).toBe(true)
+    expect(memesMots('Paul Durand', 'DURAND Pierre')).toBe(false)
+    expect(memesMots('', '')).toBe(false)
   })
 
   it('nom affiché « NOM Prénom », ou le seul élément connu', () => {
@@ -31,11 +39,12 @@ describe('contacts en « NOM Prénom » (même règle que 0508)', () => {
     expect(champsNomContact({ last_name: ' ', first_name: '' }).erreur).toBeTruthy()
   })
 
-  it('les deux formulaires de contact passent par la règle commune', () => {
+  it('les formulaires de contact et l\'assistant multi-établissements passent par la règle commune', () => {
     for (const f of ['src/modules/commercial/pages/ClientDetail.jsx', 'src/modules/commercial/pages/Clients.jsx']) {
       const s = readFileSync(f, 'utf8')
       expect(s, f).toContain('champsNomContact(')
       expect(s, f).not.toMatch(/Prénom Nom \*|Nom complet \*/)
     }
+    expect(readFileSync('src/modules/formation/components/MultiSiretWizard.jsx', 'utf8')).not.toMatch(/ilike\('name'/)
   })
 })
