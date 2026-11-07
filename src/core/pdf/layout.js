@@ -297,6 +297,9 @@ let DENSITE = 1
 // marqué `reportable`, sinon le dernier tableau du document
 let REPORT = 0
 let CIBLE = -1
+// Point de coupe (07/11) : pour un document sans tableau à reporter, rang du point marqué par f.coupure() où compacter
+// fait commencer la page suivante (le bloc qui suit et la fin du document y passent ensemble) ; -1 : aucun
+let COUPE = -1
 
 const docDe = (r) => (r && r.doc) || r
 const pagesDe = (r) => { const d = docDe(r); return d && d.getNumberOfPages ? d.getNumberOfPages() : 0 }
@@ -316,9 +319,9 @@ export function compacter(construire, { reportMax = 12 } = {}) {
   const m = docDe(premier).__odetMesure
   const cible = m.reportable ?? (m.tables - 1)
   // Un essai qui échoue ne fait jamais perdre le document d'origine
-  const essai = (d, k) => {
-    DENSITE = d; REPORT = k; CIBLE = k ? cible : -1
-    try { return construire() } catch (e) { console.warn('Mise en page resserrée impossible, document d\'origine gardé :', e); return null } finally { DENSITE = 1; REPORT = 0; CIBLE = -1 }
+  const essai = (d, k, coupe = -1) => {
+    DENSITE = d; REPORT = k; CIBLE = k ? cible : -1; COUPE = coupe
+    try { return construire() } catch (e) { console.warn('Mise en page resserrée impossible, document d\'origine gardé :', e); return null } finally { DENSITE = 1; REPORT = 0; CIBLE = -1; COUPE = -1 }
   }
   if (!(cible >= 0)) reportMax = 0
   for (const d of DENSITES) {
@@ -330,6 +333,11 @@ export function compacter(construire, { reportMax = 12 } = {}) {
     // Aucun découpage possible (tableau trop court) : inutile d'essayer davantage de lignes
     if (equilibre && !docDe(equilibre).__odetReport) break
     if (equilibre && pagesDe(equilibre) === pagesDe(premier) && !dernierePagePeuRemplie(equilibre)) return equilibre
+  }
+  // Points de coupe, du dernier au premier : la page suivante commence plus tôt, à nombre de pages égal
+  for (let c = (m.coupures || 0) - 1; c >= 0; c--) {
+    const coupe = essai(1, 0, c)
+    if (coupe && pagesDe(coupe) === pagesDe(premier) && !dernierePagePeuRemplie(coupe)) return coupe
   }
   return premier
 }
@@ -365,7 +373,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   const D = densite || DENSITE
   const T = Math.max(D, 0.9)
   const LINE = 4.1 * T
-  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1, densite: D, haut: startY, report: REPORT, cible: CIBLE, tables: 0, reportable: null }
+  const f = { y: startY, M, W, LINE, t, doc, ORG, pages: 1, densite: D, haut: startY, report: REPORT, cible: CIBLE, tables: 0, reportable: null, coupures: 0 }
   f.body = (size = 9) => { setF(doc, 'normal'); doc.setFontSize(size); doc.setTextColor(...t.text) }
   f.newPage = () => {
     drawFooter(doc, ORG, code)
@@ -375,10 +383,17 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
     f.haut = f.y
   }
   f.ensure = (h) => { if (f.y + h > BOTTOM) f.newPage() }
+  // Endroit où le document accepte de changer de page (avant une rubrique, une question, un cadre) : compacter peut y
+  // faire commencer la page suivante quand la dernière serait presque vide. Sans effet en dehors de cet essai.
+  const coupe = COUPE
+  f.coupure = () => {
+    const rang = f.coupures++
+    if (rang === coupe && f.y > f.haut + 1) f.newPage()
+  }
   f.finish = () => {
     drawFooter(doc, ORG, code)
     const pages = doc.getNumberOfPages()
-    doc.__odetMesure = { pages, remplissage: pages > 1 ? Math.max(0, f.y - f.haut) / Math.max(1, BOTTOM - f.haut) : 1, tables: f.tables, reportable: f.reportable }
+    doc.__odetMesure = { pages, remplissage: pages > 1 ? Math.max(0, f.y - f.haut) / Math.max(1, BOTTOM - f.haut) : 1, tables: f.tables, reportable: f.reportable, coupures: f.coupures }
   }
   f.space = (h = 3) => { f.y += h * D }
 
@@ -577,7 +592,8 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
       cols.forEach((c, i) => doc.text(c, M + labelW + i * colW + colW / 2, f.y + 4.1, { align: 'center' }))
       f.y += headH
     }
-    sections.forEach(sec => {
+    sections.forEach((sec, si) => {
+      if (si) f.coupure()
       f.ensure(headH + rowH * Math.min(sec.rows.length, 3) + 2)
       drawHead(sec.title)
       sec.rows.forEach((r, ri) => {

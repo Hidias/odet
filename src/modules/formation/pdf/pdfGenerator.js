@@ -3,6 +3,8 @@ import 'jspdf-autotable'
 import { format, eachDayOfInterval, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
+import { PDFDocument, PDFName, PDFDict, PDFRef, PDFRawStream } from 'pdf-lib'
+import { enBase64 } from '../../../core/fichiers/compression'
 import { lienEspaceClient, dessinerEncadreEnLigne, hauteurEncadreEnLigne } from '../../../core/portail/lienEspace'
 import { chargerRegimeTva, regimeTva } from '../../../core/billing/regimeTva'
 import { mot, leMot } from '../../../core/genre'
@@ -1119,12 +1121,15 @@ function generateEvaluationContent(doc, session, trainee, evalData = null, { isB
   }
   f.ratingGrid(EVAL_CHAUD_SECTIONS.map(s => ({ title: s.title, rows: s.rows.map(([label, field]) => ({ label, value: value(field) })) })), { rowH: 5.5, gap: 2.5 })
   const rec = evalData ? evalData.would_recommend : null
+  f.coupure()
   f.y += 2
   f.choiceLine('Recommanderiez-vous cette formation ?', [
     { label: 'Oui', checked: rec === true || rec === 1 || rec === 'yes' },
     { label: 'Non', checked: rec === false || rec === 0 || rec === 'no' },
   ])
+  f.coupure()
   f.box('Commentaire général (remarques, suggestions)', { height: 15, text: evalData?.comment_general || null })
+  f.coupure()
   f.box('Projet de formation (besoins futurs)', { height: 12, text: evalData?.comment_projet || null })
   f.signatures([{ label: 'Le stagiaire', name: isBlank ? '' : fullNameOf(trainee), hint: 'Date et signature' }], { height: 17 })
   f.finish()
@@ -1151,16 +1156,20 @@ function generateEvaluationFroidContent(doc, session, trainee, { isBlank = false
   identityFields(f, session, trainee, isBlank, { compact: true })
   const objectifs = isBlank ? [] : objectivesOf(course)
   if (objectifs.length) { f.label('Rappel des objectifs de la formation'); f.bullets(objectifs) }
+  f.coupure()
   f.section('Vos réponses')
   EVAL_FROID_QUESTIONS.forEach(([q], i) => {
+    if (i) f.coupure()
     f.ensure(14)
     f.body(9); doc.setFont('helvetica', 'bold')
     doc.splitTextToSize(`${i + 1}. ${q}`, f.W).forEach(l => { doc.text(l, f.M, f.y); f.y += f.LINE })
     f.y += 1.5
     f.checks([{ label: 'Oui' }, { label: 'En partie' }, { label: 'Non' }], { inline: true, colW: 28 })
   })
+  f.coupure()
   f.y += 1
   f.choiceLine('Recommanderiez-vous cette formation ?', [{ label: 'Oui' }, { label: 'Non' }])
+  f.coupure()
   f.box('Exemples concrets, difficultés rencontrées, nouveaux besoins', { height: 30, lined: true })
   f.signatures([{ label: 'Le stagiaire', name: isBlank ? '' : fullNameOf(trainee), hint: 'Date et signature' }], { height: 22 })
   f.finish()
@@ -1510,90 +1519,110 @@ export async function downloadDocument(docType, session, options = {}) {
   if (doc) doc.save(filename)
 }
 
-// Fonction pour générer un PDF multi-pages avec tous les stagiaires (recto-verso compatible)
-export async function downloadAllDocuments(docType, session, trainees, options = {}) {
-  if (!trainees || trainees.length === 0) return
-  
-  const ref = session?.reference || 'VIERGE'
+// Documents de tous les stagiaires en un seul PDF (06/11, demande de H : jamais une page presque vide) : chaque
+// stagiaire a le document qu'il aurait seul, resserré par compacter, puis les documents sont assemblés. Le test de
+// positionnement compte un nombre pair de pages par stagiaire (recto-verso : chacun commence sur une page impaire).
+const NOMS_LOT = {
+  certificat: 'Certificats',
+  fin_formation: 'Attestations_fin_formation',
+  convocation: 'Convocations',
+  attestation: 'Attestations',
+  evaluation: 'Evaluations',
+  evaluationFroid: 'Evaluations_Froid',
+  positionnement: 'Tests_Positionnement',
+}
+
+function documentDuStagiaire(docType, session, trainee, { trainer, questions, evaluationsData, qrCodeDataURL }) {
+  const nouveau = (dessiner) => () => { const d = new jsPDF({ compress: true }); dessiner(d); return d }
+  switch (docType) {
+    case 'certificat': return compacter(nouveau((d) => generateCertificatContent(d, session, trainee, trainer)))
+    case 'fin_formation': return compacter(nouveau((d) => generateFinFormationContent(d, session, trainee, trainer)))
+    case 'convocation': return nouveau((d) => generateConvocationContent(d, session, trainee, trainer, qrCodeDataURL))()
+    case 'attestation': return compacter(nouveau((d) => generateAttestationContent(d, session, trainee, trainer)))
+    case 'evaluation': return compacter(nouveau((d) => generateEvaluationContent(d, session, trainee, evaluationsData[trainee.id] || null)))
+    case 'evaluationFroid': return compacter(nouveau((d) => generateEvaluationFroidContent(d, session, trainee)))
+    case 'positionnement': return compacter(nouveau((d) => generatePositionnementContent(d, session, questions, trainee)))
+    default: return null
+  }
+}
+
+// Images identiques (logo, tampon, signature, QR code) recopiées par chaque document de stagiaire : une seule copie
+// gardée, les pages pointent toutes vers elle (07/11 : 2,2 Mo au lieu de 240 Ko pour 12 stagiaires). Réservé aux PDF
+// produits par jsPDF dans cet outil : seules les images des pages sont visées (aucun formulaire, motif ni apparence
+// d'annotation n'y dessine d'image) ; une copie retirée n'est référencée nulle part ailleurs.
+const memesOctets = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
+// Même image : mêmes octets, masque de transparence compris (une signature tracée est noire, seul son masque diffère)
+export const memeImage = (a, b) => memesOctets(a.octets, b.octets) && (!a.sousCle === !b.sousCle) && (!a.sousCle || memeImage(a.sousCle, b.sousCle))
+function cleImage(ctx, ref) {
+  const obj = ctx.lookup(ref)
+  if (!(obj instanceof PDFRawStream)) return null
+  const masque = obj.dict.get(PDFName.of('SMask'))
+  const sansMasque = obj.dict.entries().filter(([k]) => k !== PDFName.of('SMask')).map(([k, v]) => `${k}${v}`).sort().join('')
+  const sousCle = masque instanceof PDFRef ? cleImage(ctx, masque) : null
+  if (masque && !sousCle) return null
+  const c = obj.contents
+  let h = 2166136261
+  for (let i = 0; i < c.length; i += 1 + (c.length >> 12)) h = Math.imul(h ^ c[i], 16777619)
+  return { texte: `${sansMasque}|${c.length}|${h >>> 0}|${sousCle ? sousCle.texte : ''}`, octets: c, masque: masque instanceof PDFRef ? masque : null, sousCle }
+}
+export function partagerImages(pdf) {
+  const ctx = pdf.context
+  const parCle = new Map() // texte -> [{ ref, cle }]
+  const remplace = new Map() // ancienne référence -> référence gardée
+  for (const page of pdf.getPages()) {
+    const xo = page.node.Resources()?.lookupMaybe(PDFName.of('XObject'), PDFDict)
+    if (!xo) continue
+    for (const [nom, ref] of xo.entries()) {
+      if (!(ref instanceof PDFRef)) continue
+      const deja = remplace.get(ref.toString())
+      if (deja) { xo.set(nom, deja); continue }
+      const cle = cleImage(ctx, ref)
+      if (!cle) continue
+      const candidats = parCle.get(cle.texte) || []
+      const garde = candidats.find((x) => x.ref !== ref && memeImage(x.cle, cle))
+      if (!garde) { if (!candidats.some((x) => x.ref === ref)) parCle.set(cle.texte, [...candidats, { ref, cle }]); continue }
+      remplace.set(ref.toString(), garde.ref)
+      xo.set(nom, garde.ref)
+      ctx.delete(ref)
+      if (cle.masque) ctx.delete(cle.masque)
+    }
+  }
+}
+
+/** Octets du PDF de tous les stagiaires, ou null (aucun stagiaire, type inconnu) */
+export async function documentsDesStagiaires(docType, session, trainees, options = {}) {
+  if (!trainees || trainees.length === 0 || !NOMS_LOT[docType]) return null
   const { trainer = null, questions = [], evaluationsData = {} } = options
-  
-  // Générer le QR code de la session UNE SEULE FOIS (pour convocations)
+  // QR code de la session calculé une seule fois (convocations)
   let qrCodeDataURL = null
   if (docType === 'convocation' && session?.attendance_token) {
-    const portalURL = `${publicBaseUrl()}/#/portail/${session.attendance_token}`
     try {
-      qrCodeDataURL = await QRCode.toDataURL(portalURL, {
-        width: 150,
-        margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      })
-    } catch (err) {
-      console.error('Erreur génération QR code convocation:', err)
-    }
+      qrCodeDataURL = await QRCode.toDataURL(`${publicBaseUrl()}/#/portail/${session.attendance_token}`, { width: 150, margin: 1, color: { dark: '#000000', light: '#FFFFFF' } })
+    } catch (err) { console.error('Erreur génération QR code convocation:', err) }
   }
-  
-  // Créer un seul PDF pour tous les stagiaires
-  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true })
-  const ph = doc.internal.pageSize.getHeight()
-  const pw = doc.internal.pageSize.getWidth()
-  
-  trainees.forEach((trainee, idx) => {
-    // Pour le positionnement, on génère des PDFs séparés puis on les merge
-    // Pour assurer le recto-verso, chaque stagiaire doit commencer sur une page impaire
-    if (idx > 0) {
-      // Vérifier si on est sur une page paire (pour le recto-verso)
-      const currentPage = doc.internal.getNumberOfPages()
-      if (docType === 'positionnement' && currentPage % 2 !== 0) {
-        // Ajouter une page vide pour que le prochain stagiaire commence sur une page impaire
-        doc.addPage()
-        doc.setFontSize(8)
-        doc.setTextColor(200, 200, 200)
-        doc.text('(Page intentionnellement vide)', pw / 2, ph / 2, { align: 'center' })
-        doc.setTextColor(0, 0, 0)
-      }
-      doc.addPage()
-    }
-    
-    // Générer le contenu selon le type de document
-    switch (docType) {
-      case 'certificat': generateCertificatContent(doc, session, trainee, trainer); break
-      case 'fin_formation': generateFinFormationContent(doc, session, trainee, trainer); break
-      case 'convocation': generateConvocationContent(doc, session, trainee, trainer, qrCodeDataURL); break
-      case 'attestation': generateAttestationContent(doc, session, trainee, trainer); break
-      case 'evaluation': generateEvaluationContent(doc, session, trainee, evaluationsData[trainee.id] || null); break
-      case 'evaluationFroid': generateEvaluationFroidContent(doc, session, trainee); break
-      case 'positionnement': generatePositionnementContent(doc, session, questions, trainee); break
-      default: return
-    }
-  })
-  
-  // Pour le positionnement, s'assurer que le PDF total a un nombre pair de pages
-  if (docType === 'positionnement') {
-    const totalPages = doc.internal.getNumberOfPages()
-    if (totalPages % 2 !== 0) {
-      doc.addPage()
-      doc.setFontSize(8)
-      doc.setTextColor(200, 200, 200)
-      doc.text('(Page intentionnellement vide)', pw / 2, ph / 2, { align: 'center' })
-      doc.setTextColor(0, 0, 0)
-    }
+  const out = await PDFDocument.create()
+  for (const trainee of trainees) {
+    const doc = documentDuStagiaire(docType, session, trainee, { trainer, questions, evaluationsData, qrCodeDataURL })
+    const src = await PDFDocument.load(doc.output('arraybuffer'))
+    ;(await out.copyPages(src, src.getPageIndices())).forEach((p) => out.addPage(p))
   }
-  
-  // Nom du fichier selon le type
-  const docNames = {
-    certificat: 'Certificats',
-    fin_formation: 'Attestations_fin_formation',
-    convocation: 'Convocations', 
-    attestation: 'Attestations',
-    evaluation: 'Evaluations',
-    evaluationFroid: 'Evaluations_Froid',
-    positionnement: 'Tests_Positionnement'
-  }
-  
-  doc.save(`${docNames[docType] || 'Documents'}_${ref}_Tous.pdf`)
+  partagerImages(out)
+  return out.save()
+}
+
+const nomDuLot = (docType, session) => `${NOMS_LOT[docType] || 'Documents'}_${session?.reference || 'VIERGE'}_Tous.pdf`
+
+export async function downloadAllDocuments(docType, session, trainees, options = {}) {
+  const octets = await documentsDesStagiaires(docType, session, trainees, options)
+  if (!octets) return
+  const url = URL.createObjectURL(new Blob([octets], { type: 'application/pdf' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nomDuLot(docType, session)
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
 // Même chose que downloadDocument mais retourne { base64, filename } au lieu de télécharger
@@ -1648,65 +1677,10 @@ export async function generatePDF(docType, session, options = {}) {
 
 // Même chose que downloadAllDocuments mais retourne { base64, filename } au lieu de télécharger
 export async function generateAllPDF(docType, session, trainees, options = {}) {
-  if (!trainees || trainees.length === 0) return null
-  
-  const ref = session?.reference || 'VIERGE'
-  const { trainer = null, questions = [], evaluationsData = {} } = options
-  
-  let qrCodeDataURL = null
-  if (docType === 'convocation' && session?.attendance_token) {
-    const portalURL = `${publicBaseUrl()}/#/portail/${session.attendance_token}`
-    try {
-      qrCodeDataURL = await QRCode.toDataURL(portalURL, {
-        width: 150,
-        margin: 1,
-        color: { dark: '#000000', light: '#FFFFFF' }
-      })
-    } catch (err) {
-      console.error('Erreur génération QR code:', err)
-    }
-  }
-  
-  const doc = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true })
-  const ph = doc.internal.pageSize.getHeight()
-  const pw = doc.internal.pageSize.getWidth()
-  
-  trainees.forEach((trainee, idx) => {
-    if (idx > 0) {
-      const currentPage = doc.internal.getNumberOfPages()
-      if (docType === 'positionnement' && currentPage % 2 !== 0) {
-        doc.addPage()
-        doc.setFontSize(8)
-        doc.setTextColor(200, 200, 200)
-        doc.text('(Page intentionnellement vide)', pw / 2, ph / 2, { align: 'center' })
-        doc.setTextColor(0, 0, 0)
-      }
-      doc.addPage()
-    }
-    
-    switch (docType) {
-      case 'certificat': generateCertificatContent(doc, session, trainee, trainer); break
-      case 'fin_formation': generateFinFormationContent(doc, session, trainee, trainer); break
-      case 'convocation': generateConvocationContent(doc, session, trainee, trainer, qrCodeDataURL); break
-      case 'attestation': generateAttestationContent(doc, session, trainee, trainer); break
-      case 'evaluation': generateEvaluationContent(doc, session, trainee, evaluationsData[trainee.id] || null); break
-      case 'evaluationFroid': generateEvaluationFroidContent(doc, session, trainee); break
-      default: return
-    }
-  })
-  
-  const docNames = {
-    certificat: 'Certificats',
-    fin_formation: 'Attestations_fin_formation',
-    convocation: 'Convocations', 
-    attestation: 'Attestations',
-    evaluation: 'Evaluations',
-    evaluationFroid: 'Evaluations_Froid',
-  }
-  
-  const filename = `${docNames[docType] || 'Documents'}_${ref}_Tous.pdf`
-  const base64 = doc.output('datauristring').split(',')[1]
-  return { base64, filename, size: base64.length }
+  const octets = await documentsDesStagiaires(docType, session, trainees, options)
+  if (!octets) return null
+  const base64 = enBase64(octets)
+  return { base64, filename: nomDuLot(docType, session), size: base64.length }
 }
 
 // ============================================================
