@@ -1,15 +1,24 @@
 // Espace entreprise (0482) : évaluations à froid. L'employeur donne son avis une fois par formation ; pour les
 // salariés sans adresse e-mail, il retrouve le lien de leur espace stagiaire et leur code personnel à leur transmettre.
+// Deux espaces (0509) : par compte (ent_froid_repondre, par défaut) et par lien (repondre passé par ClientPortal,
+// client_portal_froid_repondre, erreurs du lien en { error }).
 import { useState } from 'react'
 import { CheckCircle, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
 import { QuestionnaireFroid } from './QuestionnaireFroid'
 
+// Message de la base montré tel quel (questionnaire fermé, réponse déjà reçue, réponses incomplètes), le reste en phrase simple
+// Réponse figée (déclencheur de la base, deux envois en même temps) : même phrase que « déjà enregistrée »
+export const DEJA_RECUE = 'Votre réponse est déjà enregistrée : merci'
+export const dejaRecue = (error) => error?.code === '23505' || (error?.code === '42501' && /^Réponse reçue/.test(error.message || ''))
+export const messageFroid = (error, defaut = 'Votre avis n\'a pas pu être enregistré. Réessayez plus tard.') =>
+  (dejaRecue(error) ? DEJA_RECUE : error?.code === '22023' && /^[A-ZÀ-Ý]/.test(error.message || '') ? error.message : defaut)
+
 const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
 const periode = (a, b) => (!b || String(a).slice(0, 10) === String(b).slice(0, 10) ? `le ${dateFr(a)}` : `du ${dateFr(a)} au ${dateFr(b)}`)
 
-export default function FroidEspace({ donnees, onChange, Carte }) {
+export default function FroidEspace({ donnees, onChange, Carte, repondre = null }) {
   const [ouvert, setOuvert] = useState(null)
   const [busy, setBusy] = useState(false)
   const [erreur, setErreur] = useState('')
@@ -17,9 +26,21 @@ export default function FroidEspace({ donnees, onChange, Carte }) {
   if (!sessions.length) return <p className="text-sm text-gray-500 text-center py-6">Aucune évaluation à froid pour le moment.</p>
   const envoyer = async (s, reponses) => {
     setBusy(true); setErreur('')
-    const { error } = await supabase.rpc('ent_froid_repondre', { p_session: s.session_id, p_reponses: reponses })
+    let res
+    try {
+      res = repondre
+        ? await repondre(s.session_id, reponses)
+        : await supabase.rpc('ent_froid_repondre', { p_session: s.session_id, p_reponses: reponses })
+    } catch {
+      res = { error: {} }
+    }
     setBusy(false)
-    if (error) { setErreur(error.message); return }
+    const { data, error } = res || {}
+    if (error || data?.error) {
+      setErreur(data?.error || messageFroid(error))
+      if (dejaRecue(error)) onChange?.()
+      return
+    }
     toast.success('Merci, votre avis est enregistré')
     setOuvert(null)
     onChange?.()

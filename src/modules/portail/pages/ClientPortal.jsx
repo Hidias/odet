@@ -28,6 +28,7 @@ import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/por
 import { empreinteAppareil } from '../../../core/portail/appareil'
 import SecuriteEspace from '../components/SecuriteEspace'
 import AvisEntreprise, { avisPossible } from '../components/AvisEntreprise'
+import FroidEspace from '../components/FroidEspace'
 import { todayIso } from '../../certification/lib/certData'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
@@ -99,6 +100,11 @@ const joursAvant = (d) => {
   return Math.round((x - t) / 86400000)
 }
 
+// Carte d'une formation dans la rubrique « Évaluations à froid » (même allure que les autres cartes de l'espace)
+function CarteFroid({ children }) {
+  return <div className="bg-white rounded-ui-lg border border-gray-200 p-4 sm:p-5">{children}</div>
+}
+
 export default function ClientPortal() {
   const { token } = useParams()
   const { branding } = useBranding()
@@ -158,6 +164,14 @@ export default function ClientPortal() {
       const { data: a } = await supabase.rpc('client_portal_satisfactions', { p_token: token, p_code: c })
       if (Array.isArray(a)) { setAvis(Object.fromEntries(a.map((x) => [x.session_id, x.note_globale]))); setAvisDispo(true) }
     } catch { /* fonction absente : pas de bouton d'avis */ }
+  }
+  // Évaluation à froid de l'employeur (0509) : même liste et même questionnaire que l'espace par compte
+  const [froid, setFroid] = useState(null)
+  const chargerFroid = async (c = code) => {
+    try {
+      const { data: f } = await supabase.rpc('client_portal_froid', { p_token: token, p_code: c })
+      setFroid(f && !f.error ? f : null)
+    } catch { /* fonction absente : rien à afficher */ }
   }
   // Documents signés à la main et déposés (0431) : état des dépôts, fenêtre ouverte
   const [depots, setDepots] = useState([])
@@ -226,6 +240,7 @@ export default function ClientPortal() {
       chargerSignatures(c)
       chargerParticipants(c)
       chargerAvis(c)
+      chargerFroid(c)
       chargerDepots(c)
       chargerSecurite(c)
       try { sessionStorage.setItem(STORAGE_KEY(token), c) } catch { /* ignore */ }
@@ -653,6 +668,15 @@ export default function ClientPortal() {
         )}
         {upcoming.length === 0 && past.length === 0 && (
           <p className="text-sm text-gray-500 text-center py-10">Aucune formation à votre nom pour le moment.</p>
+        )}
+
+        {/* Évaluation à froid de l'employeur (0509), comme l'onglet de l'espace par compte */}
+        {froid?.sessions?.length > 0 && (
+          <section className="mb-8" aria-labelledby="titre-froid">
+            <h2 id="titre-froid" className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Évaluations à froid</h2>
+            <FroidEspace donnees={froid} onChange={() => chargerFroid()} Carte={CarteFroid}
+              repondre={(sessionId, reponses) => supabase.rpc('client_portal_froid_repondre', { p_token: token, p_code: code, p_session: sessionId, p_reponses: reponses })} />
+          </section>
         )}
 
         {/* Documents mis à disposition, toutes prestations (0404) */}

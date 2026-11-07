@@ -64,8 +64,27 @@ export function texteStagiaire(e, orgName, base) {
   return { sujet: `Votre avis sur la formation « ${formation} »`, corps }
 }
 
-// Texte au contact de l'entreprise : stagiaires sans adresse et/ou évaluation de l'employeur, une même session
-export function texteContact(groupe, orgName, base) {
+// Espace de l'entreprise (0509) : l'espace par lien si le client a un accès actif (aucun compte en production le 08/11),
+// sinon l'espace par compte. Le code d'accès n'est jamais mis dans le mail.
+export function espaceEntreprise(base, jetonAcces) {
+  const b = String(base || '').replace(/\/$/, '')
+  return jetonAcces ? `${b}/#/entreprise/${encodeURIComponent(jetonAcces)}` : `${b}/#/mon-entreprise`
+}
+
+// Jetons des accès actifs par client (lecture par la clé de service, après le contrôle des droits de l'appelant)
+async function jetonsDesClients(admin, clientIds) {
+  const ids = [...new Set((clientIds || []).filter(Boolean))]
+  if (!ids.length) return new Map()
+  const { data } = await admin.from('client_portal_access').select('client_id, token, is_active').in('client_id', ids)
+  return new Map((data || []).filter((a) => a.is_active && a.token).map((a) => [a.client_id, a.token]))
+}
+
+// Client dont l'espace est proposé dans le mail : celui de l'employeur, sinon celui du premier envoi
+const clientDuGroupe = (groupe) => (groupe.find((x) => x.cible === 'employeur') || groupe[0])?.client_id || null
+
+// Texte au contact de l'entreprise : stagiaires sans adresse et/ou évaluation de l'employeur, une même session.
+// jetonAcces : accès par lien actif du client (0509), sinon lien vers l'espace par compte.
+export function texteContact(groupe, orgName, base, jetonAcces = null) {
   const e = groupe[0]
   const formation = e.formation || 'la formation'
   const employeur = groupe.some((x) => x.cible === 'employeur')
@@ -78,23 +97,25 @@ export function texteContact(groupe, orgName, base) {
     '',
   ]
   if (employeur) {
-    lignes.push(`${relance ? 'Nous n\'avons pas encore reçu votre avis d\'employeur. ' : ''}Quelques mois après la formation, votre avis nous aide à mesurer ce qu'elle apporte dans le travail. Le questionnaire vous attend dans votre espace entreprise, rubrique « Évaluations à froid » :`, '', `${String(base || '').replace(/\/$/, '')}/#/mon-entreprise`, '')
+    lignes.push(`${relance ? 'Nous n\'avons pas encore reçu votre avis d\'employeur. ' : ''}Quelques mois après la formation, votre avis nous aide à mesurer ce qu'elle apporte dans le travail. Le questionnaire vous attend dans votre espace entreprise, rubrique « Évaluations à froid »${jetonAcces ? ', avec votre code d\'accès habituel (si vous ne l\'avez pas, répondez simplement à ce message)' : ''} :`, '', espaceEntreprise(base, jetonAcces), '')
   }
   if (sansAdresse.length) {
     const noms = sansAdresse.map((x) => [x.prenom, x.nom].filter(Boolean).join(' ')).join(', ')
     lignes.push(`Nous n'avons pas d'adresse e-mail pour ${sansAdresse.length > 1 ? 'les participants suivants' : 'ce participant'} : ${noms}. Pourriez-vous ${sansAdresse.length > 1 ? 'leur' : 'lui'} transmettre le lien de l'espace stagiaire ci-dessous ? Chacun y répond avec son code personnel, que vous retrouvez dans votre espace entreprise.`, '', lienPortail(base, e.jeton), '')
+    if (!employeur) lignes.push(`Votre espace entreprise : ${espaceEntreprise(base, jetonAcces)}`, '')
   }
   lignes.push('Si la réponse nous a déjà été transmise, merci de ne pas tenir compte de ce message.')
   return { sujet: `Évaluation à froid de la formation « ${formation} »`, corps: lignes.join('\n') }
 }
 
-// Regroupe : un mail par envoi stagiaire ; un mail par (session, adresse) pour le contact et l'employeur
+// Regroupe : un mail par envoi stagiaire ; un mail par (session, client, adresse) pour le contact et l'employeur
 export function grouper(envois) {
   const out = []
   const contacts = new Map()
   for (const e of envois) {
     if (e.cible === 'stagiaire') { out.push([e]); continue }
-    const cle = `${e.session_id}|${String(e.destinataire || '').toLowerCase()}`
+    // par client aussi (0509) : chaque mail mène à l'espace de sa propre entreprise
+    const cle = `${e.session_id}|${e.client_id || ''}|${String(e.destinataire || '').toLowerCase()}`
     if (!contacts.has(cle)) { contacts.set(cle, []); out.push(contacts.get(cle)) }
     contacts.get(cle).push(e)
   }
@@ -134,7 +155,8 @@ async function handler(req, res) {
       const c = (codes || []).find((x) => x.session_id === l.session_id && x.trainee_id === l.trainee_id) || {}
       return { ...l, formation: s.courses?.title, debut: s.start_date, fin: s.end_date || s.start_date, jeton: s.attendance_token, prenom: t.first_name, nom: t.last_name, code: c.access_code }
     })
-    const textes = grouper(enrichis).map((g) => ({ ids: g.map((x) => x.id), destinataire: g[0].destinataire, ...(g[0].cible === 'stagiaire' ? texteStagiaire(g[0], org.name, base) : texteContact(g, org.name, base)) }))
+    const jetons = await jetonsDesClients(admin, enrichis.filter((l) => l.cible !== 'stagiaire').map((l) => l.client_id))
+    const textes = grouper(enrichis).map((g) => ({ ids: g.map((x) => x.id), destinataire: g[0].destinataire, ...(g[0].cible === 'stagiaire' ? texteStagiaire(g[0], org.name, base) : texteContact(g, org.name, base, jetons.get(clientDuGroupe(g)) || null)) }))
     if (apercu) return res.status(200).json({ textes })
     // Test : le premier texte, à la seule adresse de la personne connectée
     const mailer = await getMailer(admin, ctx.user.id, { envoiReel: true })
@@ -161,9 +183,14 @@ async function handler(req, res) {
   // Réservation par la base au nom de l'appelant
   const { data: reserve, error: rErr } = await appelant.rpc('froid_envois_reserver', { p_ids: ids })
   if (rErr) return res.status(403).json({ error: rErr.message })
-  const envois = reserve?.envois || []
   const refus = reserve?.refus || []
+  // Client de chaque envoi (absent de la réservation) pour proposer l'espace par lien de l'entreprise (0509)
+  const reserves = reserve?.envois || []
+  const { data: clientsEnvois } = reserves.length ? await admin.from('froid_envois').select('id, client_id').in('id', reserves.map((e) => e.id)) : { data: [] }
+  const clientDe = new Map((clientsEnvois || []).map((x) => [x.id, x.client_id]))
+  const envois = reserves.map((e) => ({ ...e, client_id: clientDe.get(e.id) || null }))
   if (!envois.length) return res.status(200).json({ envoyes: 0, erreurs: 0, refus })
+  const jetons = await jetonsDesClients(admin, envois.filter((e) => e.cible !== 'stagiaire').map((e) => e.client_id))
   const mailer = await getMailer(admin, ctx.user.id, { envoiReel: true })
   if (mailer.error) {
     for (const e of envois) await appelant.rpc('froid_envoi_terminer', { p_id: e.id, p_ok: false, p_erreur: mailer.error })
@@ -180,7 +207,7 @@ async function handler(req, res) {
         erreurs += 1
         continue
       }
-      const t = groupe[0].cible === 'stagiaire' ? texteStagiaire(groupe[0], org.name, base) : texteContact(groupe, org.name, base)
+      const t = groupe[0].cible === 'stagiaire' ? texteStagiaire(groupe[0], org.name, base) : texteContact(groupe, org.name, base, jetons.get(clientDuGroupe(groupe)) || null)
       try {
         const info = await sendWithRetry(mailer.transporter, {
           from: `"${sender.name}" <${mailer.emailConfig.email}>`,
