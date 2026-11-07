@@ -15,7 +15,9 @@ export async function loadPublishedDoc(docId, { force = false } = {}) {
   let value = null
   try {
     const { data } = await supabase.rpc('published_quality_doc', { p_doc_id: docId })
-    if (data?.content?.sections) value = { content: { model: 'rich', ...data.content }, version: data.version, validated_at: data.validated_at, source: 'valide' }
+    // La copie figée d'une version validée ne porte ni le statut ni le numéro : on les reprend de la version, sinon le PDF
+    // se croit un projet (« Projet, version 1 non validée », fichier « -V1 » pour une V3, constat du 06/11)
+    if (data?.content?.sections) value = { content: { model: 'rich', ...data.content, status: 'valide', version: data.version, validated_at: data.validated_at }, version: data.version, validated_at: data.validated_at, source: 'valide' }
   } catch { /* portail sans droits : on continue */ }
   if (!value) {
     try {
