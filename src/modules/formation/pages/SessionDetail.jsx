@@ -5558,7 +5558,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <QrCode className="w-5 h-5 text-primary-600" />
                QR Code Stagiaires
-              <span className="text-ui-sm bg-primary-100 text-primary-700 px-2 py-1 rounded ml-2">Ind. 8, 11, 30</span>
+              <span className="text-ui-sm bg-primary-100 text-primary-700 px-2 py-1 rounded ml-2">Ind. {[Q.ficheRenseignements, Q.positionnement, Q.grilles, Q.emargement, Q.evaluation].join(', ')}</span>
             </h3>
             
             <div className="grid md:grid-cols-2 gap-6">

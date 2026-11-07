@@ -46,7 +46,8 @@ export async function loadEvidence() {
     count('trainee_objectives', (q) => q.eq('validated', true)),
     count('session_trainees', (q) => q.not('result', 'is', null)),
     count('session_trainees', (q) => q.not('convocation_sent_at', 'is', null)),
-    count('trainee_info_sheets'),
+    // Fiche remplie seulement : une fiche vide est créée à chaque inscription (trg_auto_create_info_sheet)
+    count('trainee_info_sheets', (q) => q.not('filled_at', 'is', null)),
     // Données de handicap réservées (direction, référent) : comptages sans identité par fonction
     supabase.rpc('psh_request_count').then(({ data, error }) => (error ? 0 : Number(data) || 0)),
     supabase.rpc('disability_count').then(({ data, error }) => (error ? 0 : Number(data) || 0)),
@@ -229,9 +230,10 @@ export const RULES = {
   }),
   10: (e) => ({
     items: [
-      ok(`Demandes d'adaptation (registre PSH) : ${e.n.psh}`, L.psh),
+      e.n.psh ? ok(`Demandes d'adaptation (registre PSH) : ${e.n.psh}`, L.psh) : ko('Aucune demande d\'adaptation enregistrée (registre PSH)', L.psh),
     ],
-    missing: [],
+    // Le registre ne suffit pas à lui seul : l'auditeur cherche la trace des adaptations faites au public
+    missing: e.n.psh ? [] : ['Garder la trace des adaptations de la prestation au public (entretiens, aménagements, suivi), puis l\'ajouter en preuve'],
   }),
   11: (e) => ({
     items: [

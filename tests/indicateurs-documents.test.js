@@ -30,3 +30,19 @@ describe('indicateurs Qualiopi des documents vierges', () => {
     expect(readFileSync('src/modules/formation/pages/SessionDetail.jsx', 'utf8')).toContain("qualiopi: Number(Q.emargement)")
   })
 })
+
+describe('preuves des indicateurs 4 et 10', async () => {
+  const { RULES } = await import('../src/modules/certification/lib/proofs.js')
+  const base = { n: { needs: 1, sessionsTotal: 1, infoSheets: 0, psh: 0 }, courses: {}, org: {} }
+  it('indicateur 10 sans demande d\'adaptation : pas de preuve affichée comme trouvée', () => {
+    const r = RULES[10](base)
+    expect(r.items.every((i) => !i.ok)).toBe(true)
+    expect(r.missing.length).toBe(1)
+    expect(RULES[10]({ ...base, n: { ...base.n, psh: 2 } }).missing).toEqual([])
+  })
+  it('indicateur 4 : fiches de renseignements remplies seulement', () => {
+    expect(RULES[4](base).items.find((i) => /renseignements/.test(i.label || i.text || JSON.stringify(i))).ok).toBe(false)
+    const src = readFileSync('src/modules/certification/lib/proofs.js', 'utf8')
+    expect(src).toContain("count('trainee_info_sheets', (q) => q.not('filled_at', 'is', null))")
+  })
+})
