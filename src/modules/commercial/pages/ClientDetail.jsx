@@ -2,7 +2,7 @@ import { toneStyle } from '../../../ui/StatusBadge'
 import { currentUserFirstName, teamFirstNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { texteEnHtml, htmlEnTexte } from '../../../core/html'
-import { champsNomContact } from '../../../core/nomPersonne'
+import { champsNomContact, nomPourAppel } from '../../../core/nomPersonne'
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -657,7 +657,7 @@ export default function ClientDetail() {
         body: JSON.stringify({
           brief: emailForm.brief,
           clientName: client?.name,
-          contactName: (selectedContact ? nomContact(selectedContact, { appel: true }) : '') || client?.contact_name,
+          contactName: (selectedContact ? nomContact(selectedContact, { appel: true }) : '') || nomPourAppel(client?.contact_name),
           contactFunction: selectedContact?.fonction || selectedContact?.role || client?.contact_function,
           senderName: emailForm.sender,
           clientInfo: {

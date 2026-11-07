@@ -29,6 +29,29 @@ export function nomAffiche(nom, prenom) {
   return [nomMajuscules(nom), prenomForme(prenom)].filter(Boolean).join(' ') || null
 }
 
+// Nom de famille en casse normale pour une formule d'appel : « LE MEUR » → « Le Meur », « D'ARTAGNAN » → « D'Artagnan »
+export function nomCasseNormale(nom) {
+  const s = espaces(nom).toLocaleLowerCase('fr-FR')
+  if (!s) return null
+  let r = ''
+  let prec = ' '
+  for (const ch of s) {
+    r += [' ', '-', "'", '’'].includes(prec) ? ch.toLocaleUpperCase('fr-FR') : ch
+    prec = ch
+  }
+  return r
+}
+
+// Formule d'appel depuis un nom affiché : « DURAND Paul » ou « Paul DURAND » → « Paul Durand », « MARTIN » → « Martin » ;
+// un nom sans mot en majuscules (« Contact général ») reste tel quel
+export function nomPourAppel(texte) {
+  const mots = espaces(texte).split(' ').filter(Boolean)
+  const estNom = (m) => m === m.toLocaleUpperCase('fr-FR') && /\p{L}.*\p{L}/u.test(m)
+  const nom = mots.filter(estNom)
+  if (!nom.length) return mots.join(' ')
+  return [...mots.filter((m) => !estNom(m)), nomCasseNormale(nom.join(' '))].join(' ')
+}
+
 // Mêmes mots sans tenir compte de l'ordre, de la casse, des accents, des tirets ni des virgules (« Paul Durand » et « DURAND Paul ») : app.memes_mots en base
 export function memesMots(a, b) {
   const mots = (v) => espaces(v).toLocaleLowerCase('fr-FR').normalize('NFD').replace(/\p{M}/gu, '').split(/[ ,-]+/).filter(Boolean).sort().join(' ')

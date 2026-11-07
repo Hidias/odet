@@ -69,7 +69,7 @@ $$
 begin
   if tg_op = 'UPDATE'
      and new.name is distinct from old.name
-     and btrim(coalesce(new.name, '')) <> ''
+     and new.name ~ '[[:alpha:]]'
      and new.last_name is not distinct from old.last_name
      and new.first_name is not distinct from old.first_name
      and coalesce(old.last_name, old.first_name) is not null

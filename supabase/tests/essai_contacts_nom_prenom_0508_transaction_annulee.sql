@@ -69,7 +69,7 @@ $$
 begin
   if tg_op = 'UPDATE'
      and new.name is distinct from old.name
-     and btrim(coalesce(new.name, '')) <> ''
+     and new.name ~ '[[:alpha:]]'
      and new.last_name is not distinct from old.last_name
      and new.first_name is not distinct from old.first_name
      and coalesce(old.last_name, old.first_name) is not null
@@ -173,6 +173,7 @@ begin
   update public.client_contacts set name = 'Helene Durand' where id = c6;
   if (select first_name from public.client_contacts where id = c6) is distinct from 'Hélène' then raise exception '8. accent'; end if;
   update public.client_contacts set name = '' where id = c6;
+  update public.client_contacts set name = U&' , - \00A0' where id = c6;
   select name, first_name, last_name into v_n, v_f, v_l from public.client_contacts where id = c6;
   if v_n is distinct from 'DURAND Hélène' or v_f is distinct from 'Hélène' or v_l is distinct from 'DURAND' then
     raise exception '8. nom vide : % / % / %', v_n, v_f, v_l; end if;

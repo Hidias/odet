@@ -9,7 +9,7 @@
 //   - signataire      organization_settings.dirigeant_gender, companies.dirigeant_gender (0459)
 // Genre non renseigné ou non binaire : masculin générique (voir FORMES), jamais « (e) ».
 
-import { prenomForme } from './nomPersonne.js'
+import { prenomForme, nomCasseNormale, nomPourAppel } from './nomPersonne.js'
 
 const FEMININ = new Set(['female', 'f', 'femme', 'mme', 'madame', 'mlle', 'mademoiselle'])
 const MASCULIN = new Set(['male', 'm', 'h', 'homme', 'monsieur', 'mr', 'm.'])
@@ -96,8 +96,8 @@ export function formuleAppel({ genre, nom, prenom } = {}) {
 // (`appel`) : casse normale, prénom puis nom (« Bonjour Ronan Le Meur, », « Monsieur Le Meur, »), choix du 07/11 (V36).
 export function nomAppel(contact) {
   const prenom = prenomForme(contact?.first_name)
-  const nom = prenomForme(contact?.last_name)
-  return { complet: [prenom, nom].filter(Boolean).join(' ') || String(contact?.name || '').trim(), nom }
+  const nom = nomCasseNormale(contact?.last_name)
+  return { complet: [prenom, nom].filter(Boolean).join(' ') || nomPourAppel(contact?.name), nom }
 }
 
 export function nomContact(contact, { courte = true, nomDeFamille = false, appel = false } = {}) {

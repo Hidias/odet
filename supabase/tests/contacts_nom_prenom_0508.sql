@@ -70,6 +70,7 @@ begin
   update public.client_contacts set name = 'Helene Durand' where id = c6;
   if (select first_name from public.client_contacts where id = c6) is distinct from 'Hélène' then raise exception '8. accent'; end if;
   update public.client_contacts set name = '' where id = c6;
+  update public.client_contacts set name = U&' , - \00A0' where id = c6;
   select name, first_name, last_name into v_n, v_f, v_l from public.client_contacts where id = c6;
   if v_n is distinct from 'DURAND Hélène' or v_f is distinct from 'Hélène' or v_l is distinct from 'DURAND' then
     raise exception '8. nom vide : % / % / %', v_n, v_f, v_l; end if;

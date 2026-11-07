@@ -55,6 +55,7 @@ describe('contacts en « NOM Prénom » (même règle que 0508)', () => {
 
 import { nomContact, formuleAppel, nomAppel } from '../src/core/genre.js'
 import { adressesProposees } from '../src/modules/commercial/lib/adressesEnvoi.js'
+import { nomPourAppel } from '../src/core/nomPersonne.js'
 
 describe('formule d\'appel en casse normale, affichage en « NOM Prénom »', () => {
   const c = { civilite: 'M', name: 'LE MEUR Ronan', last_name: 'LE MEUR', first_name: 'Ronan' }
@@ -66,6 +67,13 @@ describe('formule d\'appel en casse normale, affichage en « NOM Prénom »', ()
   it('affichage : nom enregistré', () => {
     expect(nomContact(c)).toBe('M. LE MEUR Ronan')
     expect(nomContact({ name: 'Contact général' }, { appel: true })).toBe('Contact général')
+  })
+  it('formule d\'appel depuis un nom affiché, apostrophes', () => {
+    expect(nomPourAppel('DURAND Paul')).toBe('Paul Durand')
+    expect(nomPourAppel('Ronan LE MEUR')).toBe('Ronan Le Meur')
+    expect(nomPourAppel('MARTIN')).toBe('Martin')
+    expect(nomPourAppel('Contact général')).toBe('Contact général')
+    expect(nomContact({ civilite: 'M', last_name: "D'ARTAGNAN", first_name: 'Charles' }, { courte: false, nomDeFamille: true, appel: true })).toBe("Monsieur D'Artagnan")
   })
   it('choix d\'adresse : pas de prénom doublé', () => {
     const l = adressesProposees([{ name: 'Paul', first_name: 'Paul', last_name: null, email: 'p@example.invalid' }])
