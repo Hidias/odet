@@ -24,14 +24,27 @@ export default function MenuFlottant({ ancre, onFermer, menuRef, largeur = 180, 
     if (!ancre) return
     const h = ref.current?.offsetHeight || 0
     setPos(positionMenu(ancre, h, largeur, window.innerWidth, window.innerHeight))
-    // Clavier : le menu est en fin de page (portail), le focus va sur sa première action
-    ref.current?.querySelector('a, button')?.focus({ preventScroll: true })
   }, [ancre, largeur, ref])
+
+  // Clavier : le menu est en fin de page (portail) ; une fois visible (un élément masqué ne prend pas le focus),
+  // le focus va sur sa première action ; Échap le rend au bouton « ⋯ »
+  const declencheur = useRef(null)
+  const visible = !!pos
+  useEffect(() => {
+    if (!visible) return
+    declencheur.current = document.activeElement
+    ref.current?.querySelector('a, button')?.focus({ preventScroll: true })
+  }, [visible, ref])
 
   useEffect(() => {
     if (!ancre) return
     const fermer = (e) => { if (!ref.current || !ref.current.contains(e.target)) onFermer() }
-    const touche = (e) => { if (e.key === 'Escape') onFermer() }
+    const touche = (e) => {
+      if (e.key !== 'Escape') return
+      const bouton = declencheur.current
+      onFermer()
+      if (bouton && bouton.isConnected) bouton.focus({ preventScroll: true })
+    }
     window.addEventListener('scroll', fermer, true)
     window.addEventListener('resize', onFermer)
     document.addEventListener('keydown', touche)
@@ -45,6 +58,8 @@ export default function MenuFlottant({ ancre, onFermer, menuRef, largeur = 180, 
   if (!ancre) return null
   return createPortal(
     <div ref={ref} role="group" aria-label={label}
+      // Tab au-delà de la dernière action : le menu se ferme
+      onBlur={(e) => { if (e.relatedTarget && !ref.current?.contains(e.relatedTarget)) onFermer() }}
       style={{ position: 'fixed', zIndex: 9999, width: largeur, visibility: pos ? 'visible' : 'hidden', ...(pos || { left: 0, top: 0 }) }}
       className="bg-white border border-gray-200 rounded-ui-sm shadow-md py-1">
       {children}

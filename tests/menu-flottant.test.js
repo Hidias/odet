@@ -28,6 +28,6 @@ describe('Menu d’actions flottant (07/11)', () => {
     const menu = lire('src/ui/MenuFlottant.jsx')
     expect(menu).toMatch(/createPortal\(/)
     // Clavier : focus sur la première action à l'ouverture
-    expect(menu).toMatch(/querySelector\('a, button'\)\?\.focus/)
+    expect(menu).toMatch(/if \(!visible\) return[\s\S]*querySelector\('a, button'\)\?\.focus/)
   })
 })
