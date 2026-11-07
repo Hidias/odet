@@ -8,6 +8,7 @@ import { preparerDocuments, preparerFinFormationEnvoi } from '../lib/documentsEm
 import { generatePDF, generateAllPDF, setOrganization } from '../pdf/pdfGenerator'
 import { getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 import { generateSatisfactionEntreprisePDF } from '../pdf/satisfactionEntreprisePDF'
+import { lienAvisEntreprise, phraseAvisEnLigne } from '../lib/avisEntrepriseInvitation'
 import { useDataStore } from '../../../core/store'
 import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPasseportPrevention'
 import { prepareOrgForPDF } from '../../../core/org/orgUtils'
@@ -201,6 +202,14 @@ export default function SessionEmailModal({ session, emailType, sessionCosts, qu
 
   // ── Test envoi à soi-même ──
   const [sendingTest, setSendingTest] = useState(false)
+
+  // Invitation à donner son avis en ligne (07/11) : accès à l'espace du client lu une seule fois, pour le
+  // questionnaire et pour le mail
+  const lienAvisRef = useRef(null)
+  const lienAvis = () => {
+    if (!lienAvisRef.current) lienAvisRef.current = emailType === 'after' ? lienAvisEntreprise(session, groupe).catch(() => null) : Promise.resolve(null)
+    return lienAvisRef.current
+  }
 
   useEffect(() => {
     loadUserEmail()
@@ -461,6 +470,7 @@ Concernant les convocations, chacune contient un QR code et un lien permettant a
 
 Restant à votre disposition pour toute information complémentaire.`)
     } else {
+      const avisEnLigne = phraseAvisEnLigne(await lienAvis())
       setEmailSubject(`${courseTitle} - Documents de fin de formation - ${ref}`)
       setEmailBody(`Bonjour,
 
@@ -472,7 +482,7 @@ Suite à la formation "${courseTitle}", veuillez trouver ci-joints :
 - Les questionnaires d'évaluation à froid (à compléter d'ici 90 jours)
 - Le questionnaire de satisfaction entreprise
 
-Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le questionnaire de satisfaction entreprise afin de nous permettre d'améliorer continuellement la qualité de nos prestations.
+Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le questionnaire de satisfaction entreprise afin de nous permettre d'améliorer continuellement la qualité de nos prestations.${avisEnLigne ? `\n\n${avisEnLigne}` : ''}
 
 Nous vous remercions pour votre confiance et restons à votre disposition.`)
     }
@@ -725,7 +735,7 @@ Nous vous remercions pour votre confiance et restons à votre disposition.`)
         // ── QUESTIONNAIRE SATISFACTION ENTREPRISE ──
         addLog('Questionnaire satisfaction entreprise...')
         try {
-          const satisfactionPDF = await generateSatisfactionEntreprisePDF(session, session?.clients)
+          const satisfactionPDF = await generateSatisfactionEntreprisePDF(session, session?.clients, null, { enLigne: await lienAvis() })
           if (satisfactionPDF) {
             files.push({ id: 'satisfactionEntreprise', name: satisfactionPDF.filename, base64: satisfactionPDF.base64, size: satisfactionPDF.size })
             addLog('Questionnaire satisfaction entreprise généré')

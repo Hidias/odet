@@ -5,6 +5,7 @@ import jsPDF from 'jspdf'
 import { format } from 'date-fns'
 import { startDocument, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
+import { dessinerEncadreEnLigne, hauteurEncadreEnLigne, TEXTES_AVIS } from '../../../core/portail/lienEspace'
 
 const d = (v) => { try { return v ? format(new Date(v), 'dd/MM/yyyy') : '' } catch { return '' } }
 
@@ -13,7 +14,8 @@ function datesOf(session) {
   return !e || s === e ? s : `du ${s} au ${e}`
 }
 
-function writeQuestionnaire(doc, ORG, session, { kind, client = null }) {
+// enLigne : adresse, QR code et code de l'espace client (lienAvisEntreprise), lu avant la construction (compacter)
+function writeQuestionnaire(doc, ORG, session, { kind, client = null, enLigne = null }) {
   const isDO = kind === 'do'
   const trainer = session?.trainers
   const f = startDocument(doc, ORG, {
@@ -34,6 +36,13 @@ function writeQuestionnaire(doc, ORG, session, { kind, client = null }) {
   f.para(isDO
     ? 'Votre retour est essentiel pour améliorer la qualité de nos prestations de sous-traitance. Merci de prendre quelques minutes pour remplir ce questionnaire.'
     : 'Votre retour nous aide à améliorer nos formations. Merci de prendre quelques minutes pour remplir ce questionnaire.', { after: 3 })
+  // Invitation à répondre en ligne (07/11, décision de H) : en tête, avant les questions papier
+  if (enLigne && !isDO) {
+    const h = hauteurEncadreEnLigne(doc, f.W, enLigne, false, TEXTES_AVIS)
+    f.ensure(h + 2)
+    dessinerEncadreEnLigne(doc, f.t, f.M, f.y, f.W, enLigne, false, TEXTES_AVIS)
+    f.y += h + 5 * f.densite
+  }
   f.note('1 = très insatisfait, 2 = insatisfait, 3 = neutre, 4 = satisfait, 5 = très satisfait.', { after: 2 })
   const rows = isDO
     ? ['Qualité de nos échanges (avant, pendant et après la formation)', 'Qualité de notre prestation', 'Gestion administrative (documents, attestations, réactivité)', 'Satisfaction globale de notre intervention']
@@ -42,7 +51,8 @@ function writeQuestionnaire(doc, ORG, session, { kind, client = null }) {
   f.choiceLine(isDO ? 'Feriez-vous de nouveau appel à nous ?' : 'Recommanderiez-vous nos services à d\'autres entreprises ?', [{ label: 'Oui' }, { label: 'Non' }])
   f.box("Commentaires et suggestions (points forts, axes d'amélioration, besoins futurs)", { height: 30, lined: true })
   f.signatures([{ label: 'Le répondant', hint: 'Nom, fonction, date, signature et cachet' }], { height: 26 })
-  f.note('Merci de nous retourner ce questionnaire complété, par email ou par courrier.', { align: 'center' })
+  f.note(enLigne && !isDO ? 'Si vous répondez sur papier, merci de nous retourner ce questionnaire complété, par email ou par courrier.'
+    : 'Merci de nous retourner ce questionnaire complété, par email ou par courrier.', { align: 'center' })
   f.finish()
 }
 
@@ -53,10 +63,10 @@ async function toPayload(doc, filename, withBlob) {
   return out
 }
 
-export async function generateSatisfactionEntreprisePDF(session, client, orgOverride = null) {
+export async function generateSatisfactionEntreprisePDF(session, client, orgOverride = null, { enLigne = null } = {}) {
   const ORG = orgOverride || await loadPdfOrg()
   // Dernière page presque vide : recomposé plus serré (compacter, 06/11)
-  const doc = compacter(() => { const d = new jsPDF({ compress: true }); writeQuestionnaire(d, ORG, session, { kind: 'entreprise', client }); return d })
+  const doc = compacter(() => { const d = new jsPDF({ compress: true }); writeQuestionnaire(d, ORG, session, { kind: 'entreprise', client, enLigne }); return d })
   return toPayload(doc, `Questionnaire_Satisfaction_${session?.reference || 'formation'}.pdf`, false)
 }
 
