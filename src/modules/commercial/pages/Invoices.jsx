@@ -11,6 +11,7 @@ import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { generateFacturXPDF, generateInvoicePDF, calcInvoiceTotals, isDraftDoc } from '../pdf/invoiceGenerator'
 import { Sheet } from '../../../ui/Sheet'
+import { DataTable } from '../../../ui/DataTable'
 import { useConfirm } from '../../../ui/Confirm'
 import { parseRate } from '../../../core/billing/totals'
 import { chargerRegimeTva, tvaLigne, erreursTva, regimesPermis } from '../../../core/billing/regimeTva'
@@ -1244,7 +1245,6 @@ export default function Invoices() {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortField(field); setSortDir('asc') }
   }
-  const SortIcon = ({ field }) => sortField !== field ? <span className="text-gray-300 ml-1">↕</span> : <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>
 
   // ─── Filtered ───
   const filtered = useMemo(() => {
@@ -1360,77 +1360,70 @@ export default function Invoices() {
       </div>
 
       {/* Table */}
-      {loading ? <p className="text-center py-8 text-gray-400">Chargement...</p> : filtered.length === 0 ? <p className="text-center py-8 text-gray-500">{search || statusFilter || typeFilter || relanceFilter ? 'Aucun résultat' : 'Aucune facture'}</p> : (
-        <div className="bg-white rounded-ui border overflow-x-auto">
-          <table className="w-full text-ui">
-            <thead>
-              <tr className="border-b bg-gray-50 text-gray-500 text-ui-sm uppercase">
-                <th className="px-4 py-3 text-left cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort('reference')}>Référence<SortIcon field="reference" /></th>
-                <th className="px-4 py-3 text-left cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort('client')}>Client<SortIcon field="client" /></th>
-                <th className="px-4 py-3 text-left">Objet</th>
-                <th className="px-4 py-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort('total_ht')}>HT<SortIcon field="total_ht" /></th>
-                <th className="px-4 py-3 text-right cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort('total_ttc')}>TTC<SortIcon field="total_ttc" /></th>
-                <th className="px-4 py-3 text-right">Dû</th>
-                <th className="px-4 py-3 text-center cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort('status')}>Statut<SortIcon field="status" /></th>
-                <th className="px-4 py-3 text-center cursor-pointer select-none hover:text-gray-700" onClick={() => toggleSort('due_date')}>Échéance<SortIcon field="due_date" /></th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(inv => {
-                const st = getStatusInfo(inv)
+      {loading ? <p className="text-center py-8 text-gray-400">Chargement...</p> : (
+        <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
+          <DataTable caption="Factures" rows={filtered} onRowClick={handleView} className="text-ui"
+            sort={{ key: sortField, dir: sortDir }} onSort={toggleSort}
+            empty={<p className="text-center py-8 text-gray-500">{search || statusFilter || typeFilter || relanceFilter ? 'Aucun résultat' : 'Aucune facture'}</p>}
+            columns={[
+              { key: 'reference', label: 'Référence', sortKey: 'reference', mobile: 'title', className: 'font-medium', render: (inv) => {
                 const isCr = inv.type === 'credit_note'
+                return (
+                  <>
+                    <span className={`whitespace-nowrap ${isCr ? 'text-[rgb(var(--c-warning))]' : 'text-gray-900'}`}>{inv.reference}</span>
+                    <BadgeTest tbl="invoices" id={inv.id} className="ml-2" />
+                    {isCr && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Avoir</span>}
+                    {aValider.has(inv.id) && <span className="ml-2 badge badge-warning">À valider</span>}
+                    {inv.invoice_kind === 'acompte' && <span className="ml-2 badge">Acompte</span>}
+                    {inv.invoice_kind === 'solde' && <span className="ml-2 badge">Solde</span>}
+                    {inv.is_subrogation && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">OPCO</span>}
+                    <RelanceBadge inv={inv} />
+                  </>
+                )
+              } },
+              { key: 'client', label: 'Client', sortKey: 'client', mobile: 'subtitle', className: 'text-gray-600', render: (inv) => inv.clients?.name || '-' },
+              { key: 'object', label: 'Objet', hideBelow: 'xl', className: 'text-gray-500 max-w-[200px] truncate', render: (inv) => inv.object || '-' },
+              { key: 'total_ht', label: 'HT', sortKey: 'total_ht', align: 'right', render: (inv) => money(inv.total_net_ht) },
+              { key: 'total_ttc', label: 'TTC', sortKey: 'total_ttc', align: 'right', className: 'font-medium', render: (inv) => money(inv.total_ttc) },
+              { key: 'amount_due', label: 'Dû', align: 'right', className: 'font-medium', render: (inv) => (parseFloat(inv.amount_due) > 0 ? <span className="text-[rgb(var(--c-danger))]">{money(inv.amount_due)}</span> : '-') },
+              { key: 'status', label: 'Statut', sortKey: 'status', align: 'center', mobile: 'aside', render: (inv) => {
+                const st = getStatusInfo(inv)
                 const odDays = inv.status === 'overdue' ? daysLate(inv.due_date) : 0
+                return (
+                  <>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-ui-sm font-medium whitespace-nowrap`} style={toneStyle(st.color)}>{st.label}</span>
+                    {odDays > 0 && <span className="text-ui-sm text-[rgb(var(--c-danger))] block">+{odDays}j</span>}
+                  </>
+                )
+              } },
+              { key: 'due_date', label: 'Échéance', sortKey: 'due_date', align: 'center', className: 'text-ui-sm text-gray-500', render: (inv) => (inv.due_date ? fmtDateShort(inv.due_date) : '-') },
+              { key: 'actions', label: 'Actions', actions: true, className: 'text-right', render: (inv) => {
+                const isCr = inv.type === 'credit_note'
                 const relances = invoiceRelancesMap[inv.id] || []
                 return (
-                  <tr key={inv.id} className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => handleView(inv)}>
-                    <td className="px-4 py-3 font-medium">
-                      <span className={`whitespace-nowrap ${isCr ? 'text-[rgb(var(--c-warning))]' : 'text-gray-900'}`}>{inv.reference}</span>
-                      <BadgeTest tbl="invoices" id={inv.id} className="ml-2" />
-                      {isCr && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Avoir</span>}
-                      {aValider.has(inv.id) && <span className="ml-2 badge badge-warning">À valider</span>}
-                      {inv.invoice_kind === 'acompte' && <span className="ml-2 badge">Acompte</span>}
-                      {inv.invoice_kind === 'solde' && <span className="ml-2 badge">Solde</span>}
-                      {inv.is_subrogation && <span className="ml-2 text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">OPCO</span>}
-                      <RelanceBadge inv={inv} />
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{inv.clients?.name || '-'}</td>
-                    <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate">{inv.object || '-'}</td>
-                    <td className="px-4 py-3 text-right">{money(inv.total_net_ht)}</td>
-                    <td className="px-4 py-3 text-right font-medium">{money(inv.total_ttc)}</td>
-                    <td className="px-4 py-3 text-right font-medium">{parseFloat(inv.amount_due) > 0 ? <span className="text-[rgb(var(--c-danger))]">{money(inv.amount_due)}</span> : '-'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-ui-sm font-medium whitespace-nowrap`} style={toneStyle(st.color)}>{st.label}</span>
-                      {odDays > 0 && <span className="text-ui-sm text-[rgb(var(--c-danger))] block">+{odDays}j</span>}
-                    </td>
-                    <td className="px-4 py-3 text-center text-ui-sm text-gray-500">{inv.due_date ? fmtDateShort(inv.due_date) : '-'}</td>
-                    <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
-                      <div className="flex gap-1 justify-end">
-                        {!isDraftDoc(inv) && (isCr || !['paid', 'cancelled', 'credited'].includes(inv.status)) && (
-                          <button
-                            onClick={e => openSendModal(inv, e)}
-                            className={`p-1.5 rounded transition-colors ${isCr ? 'hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' : relances.length >= 3 ? 'hover:bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : relances.length >= 1 ? 'hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]'}`}
-                            title={isCr ? (relances.length === 0 ? "Envoyer l'avoir" : "Renvoyer l'avoir") : (relances.length === 0 ? 'Envoyer la facture' : `Relance ${relances.length} - Renvoyer`)}
-                          >
-                            <Mail size={14} />
-                          </button>
-                        )}
-                        {isDraftDoc(inv) && droitsFac.modifier && <button onClick={() => handleEdit(inv)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier"><Pencil size={14} /></button>}
-                        {!isDraftDoc(inv) && <button
-                          onClick={async e => { e.stopPropagation(); const { data: ii } = await supabase.from('invoice_items').select('*').eq('invoice_id', inv.id).order('position'); handleFacturX(inv, ii) }}
-                          className="p-1.5 hover:bg-gray-100 text-gray-800 rounded"
-                          title={isCr ? "Télécharger l'avoir (Factur-X)" : 'Télécharger Factur-X'}
-                        >
-                          <Download size={14} />
-                        </button>}
-                        {isDraftDoc(inv) && droitsFac.modifier && <button onClick={() => handleDelete(inv.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded text-[rgb(var(--c-danger))]" title="Supprimer"><Trash2 size={14} /></button>}
-                      </div>
-                    </td>
-                  </tr>
+                  <div className="flex gap-1 justify-end">
+                    {!isDraftDoc(inv) && (isCr || !['paid', 'cancelled', 'credited'].includes(inv.status)) && (
+                      <button
+                        onClick={e => openSendModal(inv, e)}
+                        className={`p-1.5 rounded transition-colors ${isCr ? 'hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' : relances.length >= 3 ? 'hover:bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : relances.length >= 1 ? 'hover:bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'hover:bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]'}`}
+                        title={isCr ? (relances.length === 0 ? "Envoyer l'avoir" : "Renvoyer l'avoir") : (relances.length === 0 ? 'Envoyer la facture' : `Relance ${relances.length} - Renvoyer`)}
+                      >
+                        <Mail size={14} />
+                      </button>
+                    )}
+                    {isDraftDoc(inv) && droitsFac.modifier && <button onClick={() => handleEdit(inv)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier"><Pencil size={14} /></button>}
+                    {!isDraftDoc(inv) && <button
+                      onClick={async () => { const { data: ii } = await supabase.from('invoice_items').select('*').eq('invoice_id', inv.id).order('position'); handleFacturX(inv, ii) }}
+                      className="p-1.5 hover:bg-gray-100 text-gray-800 rounded"
+                      title={isCr ? "Télécharger l'avoir (Factur-X)" : 'Télécharger Factur-X'}
+                    >
+                      <Download size={14} />
+                    </button>}
+                    {isDraftDoc(inv) && droitsFac.modifier && <button onClick={() => handleDelete(inv.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded text-[rgb(var(--c-danger))]" title="Supprimer"><Trash2 size={14} /></button>}
+                  </div>
                 )
-              })}
-            </tbody>
-          </table>
+              } },
+            ]} />
         </div>
       )}
 

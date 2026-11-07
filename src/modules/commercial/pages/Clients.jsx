@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { CHOIX_CIVILITE_CONTACT, pluriel } from '../../../core/genre'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
 import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical, Smartphone, Loader2 } from 'lucide-react'
 import MenuFlottant from '../../../ui/MenuFlottant'
+import { DataTable } from '../../../ui/DataTable'
 import toast from 'react-hot-toast'
 import SirenConflictModal from '../components/SirenConflictModal'
 import RechercheRepertoire from '../components/RechercheRepertoire'
@@ -21,6 +22,15 @@ import { useMarquesDemo } from '../../../core/demo/marquesDemo'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 
 import { confirmer } from '../../../ui/Confirm'
+// Pastille de statut de la liste
+const STATUTS_CLIENT = {
+  actif: { label: 'Actif', cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
+  en_discussion: { label: 'Discussion', cls: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
+  prospect: { label: 'Prospect', cls: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
+  a_completer: { label: 'À compléter', cls: 'bg-gray-100 text-gray-800' },
+  archive: { label: 'Archivé', cls: 'bg-gray-100 text-gray-500' },
+}
+
 // Formatage nom entreprise (majuscules)
 const formatCompanyName = (value) => {
   if (!value) return ''
@@ -239,6 +249,7 @@ const ConfirmModal = ({ show, onConfirm, onCancel, message, description, confirm
 }
 
 export default function Clients() {
+  const navigate = useNavigate()
   const { estTest } = useMarquesDemo()
   const { clients, fetchClients, createClient, updateClient, deleteClient } = useDataStore()
   // Gardes des boutons d'écriture (la base refuse de toute façon ce qui n'est pas permis)
@@ -813,107 +824,80 @@ export default function Clients() {
 
       <p className="text-ui-sm text-gray-400 mb-2">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
 
-      <div className="bg-white rounded-ui border border-gray-200 overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b text-ui-sm text-gray-500 uppercase tracking-wider rounded-t-xl [&>th:first-child]:rounded-tl-xl [&>th:last-child]:rounded-tr-xl">
-              {[
-                { key: 'name', label: 'Entreprise', cls: 'pl-4 pr-2 py-3 text-left' },
-                { key: 'city', label: 'Ville', cls: 'px-2 py-3 text-left hidden lg:table-cell' },
-                { key: 'status', label: 'Statut', cls: 'px-2 py-3 text-left' },
-                { key: null, label: 'Contact', cls: 'px-2 py-3 text-left hidden md:table-cell' },
-                { key: null, label: 'Tél', cls: 'px-2 py-3 text-left hidden md:table-cell' },
-                { key: 'updated_at', label: 'Modifié', cls: 'px-2 py-3 text-left hidden xl:table-cell' },
-                { key: null, label: '', cls: 'px-4 py-3 w-12' },
-              ].map(col => (
-                <th key={col.label || 'actions'} className={col.cls + (col.key ? ' cursor-pointer hover:text-gray-700 select-none' : '')}
-                  onClick={() => col.key && (sortField === col.key ? setSortDir(d => d === 'asc' ? 'desc' : 'asc') : (setSortField(col.key), setSortDir('asc')))}>
-                  {col.label} {col.key && sortField === col.key && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.map(client => {
-              const statusMap = {
-                actif: { label: 'Actif', cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
-                en_discussion: { label: 'Discussion', cls: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
-                prospect: { label: 'Prospect', cls: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
-                a_completer: { label: 'À compléter', cls: 'bg-gray-100 text-gray-800' },
-                archive: { label: 'Archivé', cls: 'bg-gray-100 text-gray-500' },
-              }
-              const st = statusMap[client.status] || statusMap.prospect
-              return (
-                <tr key={client.id} className="hover:bg-gray-50 transition-colors group">
-                  <td className="pl-4 pr-2 py-3">
-                    <Link to={`/clients/${client.id}`} className="font-medium text-gray-900 hover:text-accent-600 hover:underline text-ui">
-                      {client.name}
-                    </Link>
-                    <BadgeTest tbl="clients" id={client.id} className="ml-2" />
-                    {client.siren && <span className="text-ui-sm text-gray-400 ml-2 font-mono">{client.siren}</span>}
-                  </td>
-                  <td className="px-2 py-3 text-ui text-gray-600 hidden lg:table-cell">
-                    {client.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-400" />{client.city}</span>}
-                  </td>
-                  <td className="px-2 py-3">
-                    <span className={'px-2 py-0.5 rounded-full text-ui-sm font-medium ' + st.cls}>{st.label}</span>
-                  </td>
-                  <td className="px-2 py-3 text-ui text-gray-600 hidden md:table-cell truncate max-w-[200px]">
-                    {client.contact_email && <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400 flex-shrink-0" /><span className="truncate">{client.contact_email}</span></span>}
-                  </td>
-                  <td className="px-2 py-3 text-ui text-gray-600 hidden md:table-cell whitespace-nowrap">
-                    {client.contact_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{client.contact_phone}</span>}
-                  </td>
-                  <td className="px-2 py-3 text-ui-sm text-gray-400 hidden xl:table-cell whitespace-nowrap">
-                    {client.updated_at && new Date(client.updated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="relative">
-                      <button onClick={(e) => { e.stopPropagation(); if (actionMenuId === client.id) return fermerMenu(); setActionAncre(e.currentTarget.getBoundingClientRect()); setActionMenuId(client.id) }}
-                        aria-label="Actions du client" title="Actions du client" aria-expanded={actionMenuId === client.id}
-                        className="p-2.5 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 aria-expanded:opacity-100 transition-opacity">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                      {actionMenuId === client.id && (
-                        <MenuFlottant ancre={actionAncre} onFermer={fermerMenu} menuRef={actionMenuRef} label="Menu des actions du client">
-                          <Link to={`/clients/${client.id}`}
-                            className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full">
-                            <Eye className="w-4 h-4 text-gray-400" /> Voir la fiche
-                          </Link>
-                          {d.modifier && (
-                            <button onClick={() => { setActionMenuId(null); openForm(client) }}
-                              className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full text-left">
-                              <Edit className="w-4 h-4 text-gray-400" /> Modifier
-                            </button>
-                          )}
-                          {(d.modifier || d.supprimer) && <div className="border-t border-gray-100 my-1" />}
-                          {d.modifier && (
-                            <button onClick={() => { setActionMenuId(null); setConfirmArchive(client) }}
-                              className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-[rgb(var(--c-warning-bg))] w-full text-left">
-                              <Archive className="w-4 h-4 text-[rgb(var(--c-warning))]" /> {client.status === 'archive' ? 'Restaurer' : 'Archiver'}
-                            </button>
-                          )}
-                          {d.supprimer && (
-                            <button onClick={() => { setActionMenuId(null); setConfirmDelete(client) }}
-                              className="flex items-center gap-2 px-4 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] w-full text-left">
-                              <Trash2 className="w-4 h-4" /> Supprimer
-                            </button>
-                          )}
-                        </MenuFlottant>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>Aucun client trouvé</p>
-          </div>
-        )}
+      <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
+        <DataTable caption="Clients" rows={filtered} onRowClick={(client) => navigate(`/clients/${client.id}`)} rowClassName={() => 'group'}
+          sort={{ key: sortField, dir: sortDir }}
+          onSort={(key) => (sortField === key ? setSortDir(d => d === 'asc' ? 'desc' : 'asc') : (setSortField(key), setSortDir('asc')))}
+          empty={(
+            <div className="text-center py-12 text-gray-500">
+              <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>Aucun client trouvé</p>
+            </div>
+          )}
+          columns={[
+            { key: 'name', label: 'Entreprise', sortKey: 'name', mobile: 'title', render: (client) => (
+              <>
+                <span className="font-medium text-gray-900 text-ui">{client.name}</span>
+                <BadgeTest tbl="clients" id={client.id} className="ml-2" />
+                {client.siren && <span className="text-ui-sm text-gray-400 ml-2 font-mono">{client.siren}</span>}
+              </>
+            ) },
+            { key: 'city', label: 'Ville', sortKey: 'city', hideBelow: 'lg', className: 'text-ui text-gray-600', render: (client) => (
+              client.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-400" />{client.city}</span>
+            ) },
+            { key: 'status', label: 'Statut', sortKey: 'status', mobile: 'aside', render: (client) => {
+              const st = STATUTS_CLIENT[client.status] || STATUTS_CLIENT.prospect
+              return <span className={'px-2 py-0.5 rounded-full text-ui-sm font-medium whitespace-nowrap ' + st.cls}>{st.label}</span>
+            } },
+            { key: 'contact_email', label: 'Contact', className: 'text-ui text-gray-600 truncate max-w-[200px]', render: (client) => (
+              client.contact_email && <span className="flex items-center gap-1 min-w-0"><Mail className="w-3 h-3 text-gray-400 flex-shrink-0" /><span className="truncate">{client.contact_email}</span></span>
+            ) },
+            { key: 'contact_phone', label: 'Tél', className: 'text-ui text-gray-600 whitespace-nowrap', render: (client) => (
+              client.contact_phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400" />{client.contact_phone}</span>
+            ) },
+            { key: 'updated_at', label: 'Modifié', sortKey: 'updated_at', hideBelow: 'xl', mobile: false, className: 'text-ui-sm text-gray-400 whitespace-nowrap', render: (client) => (
+              client.updated_at && new Date(client.updated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+            ) },
+            { key: 'actions', label: '', srLabel: 'Actions', actions: true, className: 'w-12', render: (client) => (
+              <button onClick={(e) => { e.stopPropagation(); if (actionMenuId === client.id) return fermerMenu(); setActionAncre(e.currentTarget.getBoundingClientRect()); setActionMenuId(client.id) }}
+                aria-label="Actions du client" title="Actions du client" aria-expanded={actionMenuId === client.id}
+                className="p-2.5 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 aria-expanded:opacity-100 transition-opacity">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            ) },
+          ]} />
+        {/* Menu « ⋯ » rendu une seule fois : la liste existe en tableau et en cartes, un menu par rendu ferait deux menus */}
+        {(() => {
+          const client = actionMenuId ? filtered.find(c => c.id === actionMenuId) : null
+          if (!client) return null
+          return (
+            <MenuFlottant ancre={actionAncre} onFermer={fermerMenu} menuRef={actionMenuRef} label="Menu des actions du client">
+              <Link to={`/clients/${client.id}`}
+                className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full">
+                <Eye className="w-4 h-4 text-gray-400" /> Voir la fiche
+              </Link>
+              {d.modifier && (
+                <button onClick={() => { setActionMenuId(null); openForm(client) }}
+                  className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full text-left">
+                  <Edit className="w-4 h-4 text-gray-400" /> Modifier
+                </button>
+              )}
+              {(d.modifier || d.supprimer) && <div className="border-t border-gray-100 my-1" />}
+              {d.modifier && (
+                <button onClick={() => { setActionMenuId(null); setConfirmArchive(client) }}
+                  className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-[rgb(var(--c-warning-bg))] w-full text-left">
+                  <Archive className="w-4 h-4 text-[rgb(var(--c-warning))]" /> {client.status === 'archive' ? 'Restaurer' : 'Archiver'}
+                </button>
+              )}
+              {d.supprimer && (
+                <button onClick={() => { setActionMenuId(null); setConfirmDelete(client) }}
+                  className="flex items-center gap-2 px-4 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))] w-full text-left">
+                  <Trash2 className="w-4 h-4" /> Supprimer
+                </button>
+              )}
+            </MenuFlottant>
+          )
+        })()}
       </div>
       
       {/* Modal Preview */}

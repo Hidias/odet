@@ -15,6 +15,8 @@ import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
+import { DataTable } from '../../../ui/DataTable'
+import { EmptyState } from '../../../ui/EmptyState'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 import ChampNir from '../../../core/nir/ChampNir'
 import { verifierNir } from '../../../core/nir/verifierNir'
@@ -670,65 +672,34 @@ export default function Trainees() {
         </div>
       )}
       
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full sm:min-w-[600px]">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="w-10 py-3 px-2">
-                <input 
-                  type="checkbox" 
-                  checked={filtered.length > 0 && selectedIds.size === filtered.length}
-                  onChange={toggleSelectAll}
-                  className="w-4 h-4 text-primary-500 rounded"
-                />
-              </th>
-              <th className="text-left py-3 px-4 font-medium text-gray-600">Prénom NOM</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-600 hidden sm:table-cell">Email</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-600 hidden md:table-cell">Téléphone</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-600 hidden sm:table-cell">Entreprise</th>
-              <th className="text-right py-3 px-2 sm:px-4 font-medium text-gray-600"><span className="sr-only sm:not-sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {filtered.map(t => (
-              <tr key={t.id} className={`hover:bg-gray-50 ${selectedIds.has(t.id) ? 'bg-primary-50' : ''}`}>
-                <td className="py-3 px-2">
-                  <input 
-                    type="checkbox"
-                    checked={selectedIds.has(t.id)}
-                    onChange={() => toggleSelect(t.id)}
-                    className="w-4 h-4 text-primary-500 rounded"
-                  />
-                </td>
-                <td className="py-3 px-2 sm:px-4">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => openPreview(t)} className="font-medium text-primary hover:underline text-left">
-                      {t.first_name} {t.last_name?.toUpperCase()} <BadgeTest tbl="trainees" id={t.id} />
-                    </button>
-                    {dis(t)?.has_disability && (
-                      <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 text-ui-sm rounded" title="Situation de handicap"></span>
-                    )}
-                  </div>
-                  {t.clients?.name && <div className="text-ui-sm text-gray-500 sm:hidden">{t.clients.name}</div>}
-                </td>
-                <td className="py-3 px-4 text-gray-600 hidden sm:table-cell">{t.email || '-'}</td>
-                <td className="py-3 px-4 text-gray-600 hidden md:table-cell">{t.phone || '-'}</td>
-                <td className="py-3 px-4 text-gray-600 hidden sm:table-cell">{t.clients?.name || '-'}</td>
-                <td className="py-3 px-2 sm:px-4 text-right">
-                  <div className="flex justify-end gap-1">
-                    <button onClick={() => openPreview(t)} className="p-2 hover:bg-gray-100 rounded" title="Aperçu"><Eye className="w-4 h-4 text-[rgb(var(--c-info))]" /></button>
-                    <button onClick={() => openDocs(t)} className="p-2 hover:bg-gray-100 rounded hidden sm:inline-flex" title="Documents"><FileText className="w-4 h-4 text-gray-500" /></button>
-                    {d.modifier && <button onClick={() => openForm(t)} className="p-2 hover:bg-gray-100 rounded" title="Modifier"><Edit className="w-4 h-4 text-gray-500" /></button>}
-                    {d.supprimer && <button onClick={() => handleDelete(t.id)} className="p-2 hover:bg-gray-100 rounded hidden sm:inline-flex" title="Supprimer"><Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" /></button>}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && <tr><td colSpan={6} className="py-8 text-center text-gray-500">Aucun stagiaire</td></tr>}
-          </tbody>
-        </table>
-        </div>
+      <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
+        <DataTable rows={filtered} caption="Liste des stagiaires"
+          selection={{ selected: selectedIds, onToggle: (t) => toggleSelect(t.id), onToggleAll: toggleSelectAll, label: (t) => `Sélectionner ${t.first_name || ''} ${t.last_name?.toUpperCase() || ''}`.trim() }}
+          rowClassName={(t) => (selectedIds.has(t.id) ? 'bg-primary-50' : '')}
+          empty={<EmptyState title="Aucun stagiaire" compact />}
+          columns={[
+            { key: 'nom', label: 'Prénom NOM', mobile: 'title', render: (t) => (
+              <span className="inline-flex items-center gap-2">
+                <button onClick={() => openPreview(t)} className="font-medium text-primary hover:underline text-left">
+                  {t.first_name} {t.last_name?.toUpperCase()} <BadgeTest tbl="trainees" id={t.id} />
+                </button>
+                {dis(t)?.has_disability && (
+                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 text-ui-sm rounded" title="Situation de handicap"></span>
+                )}
+              </span>
+            ) },
+            { key: 'entreprise', label: 'Entreprise', mobile: 'subtitle', render: (t) => t.clients?.name || '-' },
+            { key: 'email', label: 'Email', className: 'break-all', render: (t) => t.email || '-' },
+            { key: 'phone', label: 'Téléphone', hideBelow: 'lg', className: 'whitespace-nowrap', render: (t) => t.phone || '-' },
+            { key: 'actions', label: '', srLabel: 'Actions', actions: true, align: 'right', render: (t) => (
+              <div className="flex justify-end gap-1">
+                <button onClick={() => openPreview(t)} className="p-2 hover:bg-gray-100 rounded" title="Aperçu"><Eye className="w-4 h-4 text-[rgb(var(--c-info))]" /></button>
+                <button onClick={() => openDocs(t)} className="p-2 hover:bg-gray-100 rounded" title="Documents"><FileText className="w-4 h-4 text-gray-500" /></button>
+                {d.modifier && <button onClick={() => openForm(t)} className="p-2 hover:bg-gray-100 rounded" title="Modifier"><Edit className="w-4 h-4 text-gray-500" /></button>}
+                {d.supprimer && <button onClick={() => handleDelete(t.id)} className="p-2 hover:bg-gray-100 rounded" title="Supprimer"><Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" /></button>}
+              </div>
+            ) },
+          ]} />
       </div>
       
       {/* Modal Aperçu */}

@@ -50,6 +50,9 @@ import { champsFinancement } from '../lib/financementDevis'
 import { confirmer, demander } from '../../../ui/Confirm'
 import { confirmationModificationDevisPublie, confirmationPassageEnvoye, confirmationSuppressionDevis, devisPeutEtreSigne, messageRefusSuppressionDevis, PUBLICATION_DEVIS_ACCEPTE, refusSuppressionDevisSigne } from '../../../core/portail/alertesPublication'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
+import { DataTable } from '../../../ui/DataTable'
+import { EmptyState } from '../../../ui/EmptyState'
+import MenuFlottant from '../../../ui/MenuFlottant'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
 import { FRAIS_CATALOGUE } from '../lib/fraisCatalogue'
@@ -213,6 +216,9 @@ export default function Quotes() {
   const [actionMenuId, setActionMenuId] = useState(null)
   const [acompteDevis, setAcompteDevis] = useState(null) // devis dont on facture un acompte (0368)
   const actionMenuRef = useRef(null)
+  // Bouton « ⋯ » de la liste : rectangle pris au clic, le menu s'affiche par-dessus la page (MenuFlottant)
+  const [actionAncre, setActionAncre] = useState(null)
+  const fermerMenu = useCallback(() => { setActionMenuId(null); setActionAncre(null) }, [])
 
   // === Relance IA ===
   const { relanceQuote, generating: relanceGenerating, previewData, confirmSend, cancelPreview } = useRelanceIA()
@@ -462,6 +468,8 @@ export default function Quotes() {
 
   useEffect(() => {
     function handleClickOutside(e) {
+      // Le bouton « ⋯ » de la liste gère lui-même l'ouverture et la fermeture (menu affiché hors du bouton)
+      if (e.target.closest?.('[aria-label="Actions du devis"]')) return
       if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) setActionMenuId(null)
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -1359,6 +1367,41 @@ export default function Quotes() {
   )
 
   function renderList() {
+    // Liste en tableau commun (une carte par devis au téléphone) ; le menu « ⋯ » passe par MenuFlottant pour ne pas être coupé
+    const colonnesDevis = [
+      { key: 'reference', label: 'Référence', render: (q) => (
+        <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-mono text-gray-500 whitespace-nowrap">{q.reference}</span>
+          <BadgeTest tbl="quotes" id={q.id} />
+        </span>
+      ) },
+      { key: 'client', label: 'Client', mobile: 'title', render: (q) => <span className="font-semibold text-gray-900">{q.clients?.name || 'Client inconnu'}</span> },
+      { key: 'object', label: 'Objet', hideBelow: 'lg', className: 'max-w-[16rem] truncate', render: (q) => q.object || '' },
+      { key: 'status', label: 'Statut', render: (q) => {
+        const sentDate = q.updated_at || q.quote_date || q.created_at
+        const days = (q.status === 'sent' || q.status === 'pending') && sentDate ? Math.floor((Date.now() - new Date(sentDate).getTime()) / 86400000) : 0
+        return (
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className={`px-2 py-0.5 rounded text-ui-sm font-medium whitespace-nowrap ${STATUS_CONFIG[q.status]?.class || 'bg-gray-100'}`}>
+              {STATUS_CONFIG[q.status]?.icon} {STATUS_CONFIG[q.status]?.label || q.status}
+            </span>
+            {days >= 7 && <span className={`px-2 py-0.5 rounded-full text-ui-sm font-medium whitespace-nowrap ${days >= 15 ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}> {days}j sans réponse</span>}
+          </span>
+        )
+      } },
+      { key: 'quote_date', label: 'Date du devis', className: 'whitespace-nowrap', render: (q) => (q.quote_date ? format(new Date(q.quote_date), 'dd MMM yyyy', { locale: fr }) : '-') },
+      { key: 'validity_date', label: 'Validité', hideBelow: 'xl', className: 'whitespace-nowrap', render: (q) => (q.validity_date ? format(new Date(q.validity_date), 'dd/MM/yyyy') : '-') },
+      { key: 'total_ttc', label: 'TTC', align: 'right', mobile: 'aside', className: 'whitespace-nowrap', render: (q) => <span className="font-bold text-gray-900">{money(q.total_ttc)}</span> },
+      { key: 'total_ht', label: 'HT', align: 'right', mobile: 'aside', className: 'whitespace-nowrap', render: (q) => <span className="text-ui-sm text-gray-500">{money(q.total_ht)} HT</span> },
+      { key: 'created_by', label: 'Créé par', hideBelow: 'xl', mobile: false, render: (q) => q.created_by },
+      { key: 'actions', label: '', srLabel: 'Actions', actions: true, render: (q) => (
+        <button onClick={(e) => { e.stopPropagation(); if (actionMenuId === q.id) return fermerMenu(); setActionAncre(e.currentTarget.getBoundingClientRect()); setActionMenuId(q.id) }}
+          aria-label="Actions du devis" title="Actions du devis" aria-haspopup="menu" aria-expanded={actionMenuId === q.id}
+          className="p-2.5 -m-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
+          <MoreHorizontal size={18} />
+        </button>
+      ) },
+    ]
     return (
       <div>
         <PageHeader className="mb-6" title="Devis" meta={<span>{loading ? 'Chargement…' : `${filteredQuotes.length} devis`}</span>}
@@ -1435,134 +1478,92 @@ export default function Quotes() {
             </div>
           </div>
         )}
-        {loading ? (
-          <div className="text-center py-12 text-gray-400">Chargement...</div>
-        ) : filteredQuotes.length === 0 ? (
-          <div className="text-center py-12">
-            <FileText size={48} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500">{search || statusFilter ? 'Aucun résultat' : 'Aucun devis - Créez-en un !'}</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredQuotes.map(q => (
-              <div key={q.id} onClick={() => openView(q)} className="bg-white rounded-ui border border-gray-200 p-4 hover:shadow-md transition-shadow cursor-pointer">
-                <div className="flex items-start sm:items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
-                      <span className="text-ui font-mono text-gray-500 whitespace-nowrap">{q.reference}</span>
-                      <BadgeTest tbl="quotes" id={q.id} />
-                      <span className={`px-2 py-0.5 rounded text-ui-sm font-medium ${STATUS_CONFIG[q.status]?.class || 'bg-gray-100'}`}>
-                        {STATUS_CONFIG[q.status]?.icon} {STATUS_CONFIG[q.status]?.label || q.status}
-                      </span>
-                      {(() => {
-                        if (q.status !== 'sent' && q.status !== 'pending') return null
-                        const sentDate = q.updated_at || q.quote_date || q.created_at
-                        const days = sentDate ? Math.floor((Date.now() - new Date(sentDate).getTime()) / 86400000) : 0
-                        if (days < 7) return null
-                        return <span className={`px-2 py-0.5 rounded-full text-ui-sm font-medium ${days >= 15 ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}> {days}j sans réponse</span>
-                      })()}
-                    </div>
-                    <h3 className="font-semibold text-gray-900">{q.clients?.name || 'Client inconnu'}</h3>
-                    {q.object && <p className="text-ui text-gray-500 truncate mt-0.5">{q.object}</p>}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-2 text-ui-sm text-gray-400">
-                      <span> {q.quote_date ? format(new Date(q.quote_date), 'dd MMM yyyy', { locale: fr }) : '-'}</span>
-                      {q.validity_date && <span> Valide jusqu'au {format(new Date(q.validity_date), 'dd/MM/yyyy')}</span>}
-                      <span> {q.created_by}</span>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-lg font-bold text-gray-900 whitespace-nowrap">{money(q.total_ttc)}</p>
-                    <p className="text-ui-sm text-gray-400">{money(q.total_ht)} HT</p>
-                    <div className="relative mt-2 flex justify-end" ref={actionMenuId === q.id ? actionMenuRef : null}>
-                      <button onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === q.id ? null : q.id) }}
-                        aria-label="Actions du devis" title="Actions du devis" aria-haspopup="menu" aria-expanded={actionMenuId === q.id}
-                        className="p-2.5 -m-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors">
-                        <MoreHorizontal size={18} />
-                      </button>
-                      {actionMenuId === q.id && (
-                        <div className="absolute right-0 top-8 z-50 bg-white rounded-ui-sm shadow-md border border-gray-200 py-1 w-52 animate-in fade-in" onClick={e => e.stopPropagation()}>
-                          <button onClick={() => { setActionMenuId(null); downloadPDF(q) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
-                            <Download size={15} /> Télécharger PDF
-                          </button>
-                          <button onClick={() => { setActionMenuId(null); openEdit(q) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
-                            <Edit2 size={15} /> Modifier
-                          </button>
-                          <button onClick={() => { setActionMenuId(null); duplicateQuote(q) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
-                            <Copy size={15} /> Dupliquer
-                          </button>
-                          {(q.status === 'draft' || q.status === 'sent') && (
-                            <button onClick={() => { setActionMenuId(null); q.status === 'sent' ? relanceQuote(q, { senderName: q.created_by || currentUserName() }) : openSendWizard(q) }}
-                              disabled={relanceGenerating === q.id}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] disabled:opacity-60">
-                              {relanceGenerating === q.id ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {q.status === 'sent' ? 'Relancer par email' : 'Envoyer par email'}
-                            </button>
-                          )}
-                          {(q.status === 'draft' || q.status === 'sent') && (
-                            <button onClick={() => { setActionMenuId(null); openView(q) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))]">
-                              <span></span> Acceptation partielle
-                            </button>
-                          )}
-                          <div className="border-t border-gray-100 my-1" />
-                          {q.status === 'draft' && (
-                            <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'sent') }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))]">
-                              <Send size={15} /> Marquer envoyé
-                            </button>
-                          )}
-                          {(q.status === 'sent' || q.status === 'draft') && (
-                            <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'accepted') }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
-                              <Check size={15} /> Marquer accepté
-                            </button>
-                          )}
-                          {(q.status === 'sent' || q.status === 'draft') && (
-                            <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'refused') }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
-                              <X size={15} /> Marquer refusé
-                            </button>
-                          )}
-                          {q.status === 'accepted' && (
-                            <button onClick={async () => { setActionMenuId(null); if (await confirmer('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
-                              <FileText size={15} /> Créer une facture
-                            </button>
-                          )}
-                          {(q.status === 'accepted' || q.status === 'partial') && (
-                            <button onClick={() => { setActionMenuId(null); setAcompteDevis(q) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
-                              <FileText size={15} /> Facture d'acompte
-                            </button>
-                          )}
-                          {(q.status === 'accepted' || q.status === 'partial') && (
-                            <button onClick={() => { setActionMenuId(null); openSessionWizard(q) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
-                              <GraduationCap size={15} /> Générer une session
-                            </button>
-                          )}
-                          {q.status === 'sent' && (
-                            <button onClick={async () => { setActionMenuId(null); if (await confirmer('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
-                              <FileText size={15} /> Créer une facture
-                            </button>
-                          )}
-                          <div className="border-t border-gray-100 my-1" />
-                          <button onClick={() => { setActionMenuId(null); deleteQuote(q.id) }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
-                            <Trash2 size={15} /> Supprimer
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
+          <DataTable rows={filteredQuotes} columns={colonnesDevis} onRowClick={openView} loading={loading} caption="Liste des devis"
+            empty={<EmptyState icon={FileText} title={search || statusFilter ? 'Aucun résultat' : 'Aucun devis - Créez-en un !'} compact />} />
+        </div>
+        {/* Menu « ⋯ » rendu une seule fois : la liste existe en tableau et en cartes, un menu par rendu ferait deux menus */}
+        {(() => {
+          const q = actionMenuId ? filteredQuotes.find(x => x.id === actionMenuId) : null
+          if (!q) return null
+          return (
+            <MenuFlottant ancre={actionAncre} onFermer={fermerMenu} menuRef={actionMenuRef} largeur={208} label="Menu des actions du devis">
+              <button onClick={() => { setActionMenuId(null); downloadPDF(q) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
+                <Download size={15} /> Télécharger PDF
+              </button>
+              <button onClick={() => { setActionMenuId(null); openEdit(q) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
+                <Edit2 size={15} /> Modifier
+              </button>
+              <button onClick={() => { setActionMenuId(null); duplicateQuote(q) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-700 hover:bg-gray-50">
+                <Copy size={15} /> Dupliquer
+              </button>
+              {(q.status === 'draft' || q.status === 'sent') && (
+                <button onClick={() => { setActionMenuId(null); q.status === 'sent' ? relanceQuote(q, { senderName: q.created_by || currentUserName() }) : openSendWizard(q) }}
+                  disabled={relanceGenerating === q.id}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))] disabled:opacity-60">
+                  {relanceGenerating === q.id ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} {q.status === 'sent' ? 'Relancer par email' : 'Envoyer par email'}
+                </button>
+              )}
+              {(q.status === 'draft' || q.status === 'sent') && (
+                <button onClick={() => { setActionMenuId(null); openView(q) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))]">
+                  <span></span> Acceptation partielle
+                </button>
+              )}
+              <div className="border-t border-gray-100 my-1" />
+              {q.status === 'draft' && (
+                <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'sent') }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))]">
+                  <Send size={15} /> Marquer envoyé
+                </button>
+              )}
+              {(q.status === 'sent' || q.status === 'draft') && (
+                <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'accepted') }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
+                  <Check size={15} /> Marquer accepté
+                </button>
+              )}
+              {(q.status === 'sent' || q.status === 'draft') && (
+                <button onClick={() => { setActionMenuId(null); updateStatus(q.id, 'refused') }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
+                  <X size={15} /> Marquer refusé
+                </button>
+              )}
+              {q.status === 'accepted' && (
+                <button onClick={async () => { setActionMenuId(null); if (await confirmer('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
+                  <FileText size={15} /> Créer une facture
+                </button>
+              )}
+              {(q.status === 'accepted' || q.status === 'partial') && (
+                <button onClick={() => { setActionMenuId(null); setAcompteDevis(q) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
+                  <FileText size={15} /> Facture d'acompte
+                </button>
+              )}
+              {(q.status === 'accepted' || q.status === 'partial') && (
+                <button onClick={() => { setActionMenuId(null); openSessionWizard(q) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]">
+                  <GraduationCap size={15} /> Générer une session
+                </button>
+              )}
+              {q.status === 'sent' && (
+                <button onClick={async () => { setActionMenuId(null); if (await confirmer('Créer une facture depuis ce devis ?')) navigate('/factures?from_quote=' + q.id) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-ui text-gray-800 hover:bg-gray-50">
+                  <FileText size={15} /> Créer une facture
+                </button>
+              )}
+              <div className="border-t border-gray-100 my-1" />
+              <button onClick={() => { setActionMenuId(null); deleteQuote(q.id) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-ui text-[rgb(var(--c-danger))] hover:bg-[rgb(var(--c-danger-bg))]">
+                <Trash2 size={15} /> Supprimer
+              </button>
+            </MenuFlottant>
+          )
+        })()}
       </div>
     )
   }
