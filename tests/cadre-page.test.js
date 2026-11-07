@@ -18,7 +18,6 @@ function blocDuCadre() {
   for (let i = debut; i < lignes.length; i += 1) {
     const l = lignes[i].trim()
     if (l.startsWith('<Route')) enCours = true
-    if (enCours && /\/>$/.test(l) && !/^<\w+[^<]*\/>$/.test(l.replace(/^<Route\b.*?element=\{<\w+[^}]*\}/, '<Route'))) { /* ligne intermédiaire */ }
     if (enCours && (/\}\s*\/>$/.test(l) || /^<Route\b.*\/>$/.test(l))) enCours = false
     else if (enCours && /(\}|")>$/.test(l)) { enCours = false; profondeur += 1 }
     if (l === '</Route>') {
@@ -42,10 +41,13 @@ const fichier = (chemin) => {
 const pages = new Set()
 for (const m of bloc.matchAll(/element=\{<(\w+)/g)) {
   const f = imports[m[1]] && fichier(imports[m[1]])
-  if (!f) continue
+  if (!f) throw new Error(`route du cadre sans fichier trouvé : ${m[1]}`)
   pages.add(f)
   if (dirname(f).endsWith('/pages')) for (const v of readdirSync(dirname(f))) if (v.endsWith('.jsx')) pages.add(join(dirname(f), v))
 }
+// Vues rangées hors d'un dossier `pages` mais affichées comme contenu d'une page (onglet)
+const VUES = ['src/modules/formation/components/CourseDocumentsList.jsx']
+for (const v of VUES) pages.add(v)
 
 // Fichiers d'un dossier `pages` affichés hors du cadre (écran public, téléphone du formateur, espace comptable)
 const HORS_CADRE = ['RelectureExpert.jsx', 'SuiviTelephone.jsx', 'EspaceComptable.jsx', 'SignatureFormateur.jsx', 'EspaceEntreprise.jsx', 'MonEspace.jsx']
@@ -65,12 +67,12 @@ function fautesDe(source, nom = '') {
   for (const m of source.matchAll(RACINES)) {
     const attrs = m[1] || m[2] || ''
     const ligne = source.slice(m.index, source.indexOf('\n', m.index + m[0].length) + 1 || undefined)
-    if (ligne.includes('// hors du cadre')) continue // branche d'une page qui sert aussi hors du cadre (SetPassword)
+    if (nom.endsWith('SetPassword.jsx') && ligne.includes('// hors du cadre')) continue // branche d'une page qui sert aussi hors du cadre (SetPassword)
     if (/\bfixed\b/.test(attrs) || ENCART.test(attrs)) continue // fenêtre, carte ou encart
-    if (INTERDIT.test(attrs)) fautes.push(`${nom}:${source.slice(0, m.index).split('\n').length} racine`)
+    if (INTERDIT.test(attrs)) fautes.push(`${nom}:${source.slice(0, m.index).split('\n').length} élément rendu par un return (racine de vue ou sous-composant sans bordure)`)
   }
   source.split('\n').forEach((l, i) => {
-    if (LIGNE.test(l) && !/\bfixed\b/.test(l) && !l.includes('// hors du cadre')) fautes.push(`${nom}:${i + 1}`)
+    if (LIGNE.test(l) && !/\bfixed\b/.test(l) && !(nom.endsWith('SetPassword.jsx') && l.includes('// hors du cadre'))) fautes.push(`${nom}:${i + 1}`)
   })
   return fautes
 }
