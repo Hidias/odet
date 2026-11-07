@@ -83,8 +83,8 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick = null, loa
             {rows.map((row, i) => (
               <tr key={key(row, i)} onClick={clickable ? () => ouvrirLigne(row) : undefined}
                 className={`${clickable ? 'cursor-pointer' : ''} ${extra(row)}`.trim() || undefined}
-                tabIndex={clickable ? 0 : undefined}
-                onKeyDown={clickable ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) ouvrir(row) } : undefined}>
+                tabIndex={clickable && !lien(row) ? 0 : undefined}
+                onKeyDown={clickable && !lien(row) ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) ouvrir(row) } : undefined}>
                 {selection && (
                   <td className="w-10" onClick={arreter}>
                     <input type="checkbox" className="w-4 h-4 align-middle" checked={coche(row)} onChange={() => selection.onToggle(row)} aria-label={libelleCase(row)} />
@@ -93,7 +93,7 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick = null, loa
                 {columns.map((c) => (
                   <td key={c.key} onClick={c.actions ? arreter : undefined} onKeyDown={c.actions ? arreter : undefined}
                     className={`${c.align === 'right' ? 'text-right tabular-nums' : ALIGN[c.align] || ''} ${CACHE[c.hideBelow] || ''} ${c.className || ''}`.trim() || undefined}>
-                    {c === title && lien(row) ? <Link to={lien(row)} className="text-inherit" onClick={arreter}>{cell(c, row)}</Link> : cell(c, row)}
+                    {c === title && lien(row) ? <Link to={lien(row)} className="text-inherit hover:underline" onClick={arreter}>{cell(c, row)}</Link> : cell(c, row)}
                   </td>
                 ))}
               </tr>
