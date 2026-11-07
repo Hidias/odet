@@ -29,3 +29,19 @@ describe('seuil de maintien', () => {
     expect(c).toContain('Aucun inscrit pour le moment')
   })
 })
+
+describe('dossier complet (OPCO, audit)', () => {
+  it('formation à venir : pas encore terminée, sauf le dernier jour', async () => {
+    const { formationAVenir } = await import('../src/modules/formation/lib/documentsEmis')
+    const p = (n) => String(n).padStart(2, '0')
+    const d = new Date(); const auj = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+    expect(formationAVenir({ end_date: '2999-01-01' })).toBe(true)
+    expect(formationAVenir({ end_date: auj })).toBe(false)
+    expect(formationAVenir({ end_date: '2020-01-01' })).toBe(false)
+    expect(formationAVenir({})).toBe(true)
+  })
+  it('les attestations de présence ne sont mises dans le ZIP qu après la formation', () => {
+    const f = readFileSync('src/modules/formation/pages/SessionDetail.jsx', 'utf8')
+    expect(f).toContain("const presents = sessionFinie ? await figerDocuments(session, 'attestation'")
+  })
+})

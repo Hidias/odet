@@ -19,6 +19,10 @@ const aujourdhui = () => {
 const NOM_KIND = { certificat: 'certificat de réalisation', attestation: 'attestation de présence', fin_formation: 'attestation de fin de formation' }
 
 /** Valeurs qui figurent sur le document d'un stagiaire */
+/** Formation pas encore terminée (dernier jour après aujourd'hui) : rien n'est figé, et une attestation de présence
+ *  ne se remet pas encore (dossier complet, A11 07/11) */
+export const formationAVenir = (session) => !session?.end_date || String(session.end_date).slice(0, 10) > aujourdhui()
+
 export function contenuDocument(session, kind, t) {
   const st = (session?.session_trainees || []).find((x) => x.trainee_id === t.id) || {}
   return {

@@ -30,7 +30,7 @@ import AvisFormationTab from '../components/AvisFormationTab'
 import RegularisationEmargements from '../components/RegularisationEmargements'
 import SignatureEnLigne from '../components/SignatureEnLigne'
 import { avecHeuresRealisees, signaturesFormateur } from '../lib/emargementControle'
-import { figerDocuments } from '../lib/documentsEmis'
+import { figerDocuments, formationAVenir } from '../lib/documentsEmis'
 import { avecObjectifs, blocageFinFormation, nonEvalues } from '../lib/finFormation'
 import BpfCategories from '../components/BpfCategories'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
@@ -2595,8 +2595,11 @@ export default function SessionDetail() {
       const finsPdf = fins?.length ? await generateAllPDF('fin_formation', session, fins, { trainer }) : null
       if (finsPdf) zip.file(`Attestations_fin_formation_${ref}.pdf`, finsPdf.base64, { base64: true })
 
-      // 10. Attestations de présence (pas pour un stagiaire absent sur toute la session)
-      const presents = await figerDocuments(session, 'attestation', traineesWithResult.filter(t => !absentsIds.includes(t.id)).map(avecH))
+      // 10. Attestations de présence (pas pour un stagiaire absent sur toute la session). Jamais avant la fin de la
+      // formation : une attestation d'heures suivies pour une session à venir serait fausse (dossier OPCO, A11 07/11)
+      const sessionFinie = !formationAVenir(session)
+      if (!sessionFinie) toast('Attestations de présence hors du dossier : elles se génèrent après la formation', { icon: 'ℹ️', duration: 6000 })
+      const presents = sessionFinie ? await figerDocuments(session, 'attestation', traineesWithResult.filter(t => !absentsIds.includes(t.id)).map(avecH)) : []
       if (!presents) toast('Attestations non incluses : correction sans motif', { icon: '⚠️' })
       const attestations = presents?.length ? await generateAllPDF('attestation', session, presents, { trainer }) : null
       if (attestations) zip.file(`Attestations_${ref}.pdf`, attestations.base64, { base64: true })
