@@ -21,6 +21,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
 
   // Envoi réel au client : confirmation avec le destinataire, comme la relance depuis la page Devis
   const handleSend = async () => {
+    if (!editSubject.trim() || !editBody.trim()) return
     if (!await confirmer({ title: 'Envoyer la relance', message: `La relance du devis ${quote?.reference || ''} part maintenant vers ${clientEmail}.`, confirmLabel: 'Envoyer' })) return
     // Le texte modifié est la seule source, que l'on soit revenu à l'aperçu ou non
     onConfirm(editSubject, editBody)
@@ -116,7 +117,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
               className="px-4 py-2 text-ui border rounded-ui-sm hover:bg-gray-100 font-medium text-gray-600 transition-colors">
               Annuler
             </button>
-            <button onClick={handleSend} disabled={sending}
+            <button onClick={handleSend} disabled={sending || !editSubject.trim() || !editBody.trim()} title={!editSubject.trim() || !editBody.trim() ? "L'objet et le texte doivent être remplis" : undefined}
               className="px-4 py-2 text-ui bg-[rgb(var(--c-info))] text-white rounded-ui-sm hover:bg-[rgb(var(--c-info))] font-medium shadow-sm flex items-center gap-2 disabled:opacity-50 transition-colors">
               {sending ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Envoi…</>

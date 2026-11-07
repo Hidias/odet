@@ -110,10 +110,10 @@ export function refusSuppressionDevisSigne(status) {
 }
 
 // Motif montré quand la base refuse la suppression d'un devis (jamais de message technique en anglais)
-export function messageRefusSuppressionDevis(error) {
+export function messageRefusSuppressionDevis(error, status = null) {
   const m = error?.message || ''
   if (/foreign key|violates/i.test(m)) return 'Ce devis est relié à une facture ou une session : il ne peut pas être supprimé. Passez-le plutôt en « Refusé ».'
-  if (/sign[ée] par le client/i.test(m)) return refusSuppressionDevisSigne(null)
+  if (/sign[ée] par le client/i.test(m)) return refusSuppressionDevisSigne(status)
   return "Le devis n'a pas pu être supprimé."
 }
 

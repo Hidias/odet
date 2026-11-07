@@ -257,6 +257,8 @@ export default function SuiviCommercial() {
 
   const relanceModal = previewData && (
     <RelancePreviewModal
+      // Une fenêtre neuve par devis : le texte d'un devis ne reste jamais sur la relance d'un autre
+      key={`${previewData.quote?.id || ''}-${previewData.relanceNum || ''}`}
       previewData={previewData}
       onConfirm={handleConfirmRelance}
       onCancel={cancelPreview}

@@ -576,7 +576,7 @@ export default function Quotes() {
     // Les lignes partent avec le devis (clé étrangère en cascade) : un devis qui ne peut pas être supprimé garde ses lignes
     const { error } = await supabase.from('quotes').delete().eq('id', id)
     if (error) {
-      toast.error(messageRefusSuppressionDevis(error))
+      toast.error(messageRefusSuppressionDevis(error, devis?.status))
       loadAll()
       return false
     }

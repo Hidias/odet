@@ -18,6 +18,7 @@ describe('suppression d\'un devis', () => {
     expect(refusSuppressionDevisSigne('invoiced')).toMatch(/avoir/)
     expect(refusSuppressionDevisSigne('invoiced')).not.toMatch(/nouvelle version/)
     expect(refusSuppressionDevisSigne('replaced')).toMatch(/dernière version/)
+    expect(messageRefusSuppressionDevis({ message: 'Devis signé par le client' }, 'invoiced')).toMatch(/avoir/)
     expect(refusSuppressionDevisSigne('accepted')).toMatch(/avenant ou une nouvelle version/)
   })
   it('la signature est vérifiée avant de proposer « Supprimer définitivement »', () => {
@@ -25,7 +26,7 @@ describe('suppression d\'un devis', () => {
     const corps = f.slice(f.indexOf('async function deleteQuote'), f.indexOf("toast.success('Devis supprimé')"))
     expect(corps.indexOf("rpc('devis_est_signe'")).toBeGreaterThan(-1)
     expect(corps.indexOf("rpc('devis_est_signe'")).toBeLessThan(corps.indexOf('confirmationSuppressionDevis(devis)'))
-    expect(corps).toContain('messageRefusSuppressionDevis(error)')
+    expect(corps).toContain('messageRefusSuppressionDevis(error, devis?.status)')
   })
 })
 
@@ -52,6 +53,12 @@ describe('relance de devis du Suivi commercial (D4)', () => {
   it('les états sont déclarés avant la sortie sans aperçu', () => {
     const sortie = f.indexOf('if (!previewData) return null')
     expect(f.lastIndexOf('useState(')).toBeLessThan(sortie)
+  })
+  it('envoi impossible avec un objet ou un texte vide', () => {
+    expect(f).toMatch(/disabled=\{sending \|\| !editSubject\.trim\(\) \|\| !editBody\.trim\(\)\}/)
+  })
+  it('une fenêtre neuve par devis relancé (pas de texte d\'un autre devis)', () => {
+    expect(readFileSync('src/modules/prospection/pages/SuiviCommercial.jsx', 'utf8')).toMatch(/<RelancePreviewModal\s[\s\S]{0,200}key=\{`\$\{previewData\.quote\?\.id/)
   })
   it('le texte modifié part, même après retour à l\'aperçu', () => {
     expect(f).toContain('onConfirm(editSubject, editBody)')
