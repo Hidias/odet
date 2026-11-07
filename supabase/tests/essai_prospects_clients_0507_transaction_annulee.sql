@@ -1140,6 +1140,11 @@ begin
       insert into public.company_member_roles (member_id, role_key)
       select m.id, x.k from (values (u_cpe, 'comptable_externe'), (u_rh, 'rh'), (u_sal, 'salarie'), (u_ecr, 'ecran')) x(u, k)
       join public.company_members m on m.profile_id = x.u and m.company_id = c1;
+      -- Le test vérifie le réglage par défaut du comptable externe : on le pose ici, la société a pu ouvrir les devis
+      -- (réglage « Devis du comptable externe », 07/11) ; tout est annulé à la fin
+      delete from public.permission_profile_rights
+       where right_code = 'commercial.devis.voir'
+         and profile_id in (select pp.id from public.permission_profiles pp where pp.key = 'comptable_externe' and pp.company_id = c1);
       insert into public.itv_parts (name, price_ht) values ('Essai pièce C1b', 42) returning id into v_part;
       insert into public.itv_visit_parts (visit_id, part_id, label, quantity, unit_price_ht)
       values (v_v1, v_part, 'Essai pièce C1b', 1, 42) returning id into v_vp;
@@ -3519,16 +3524,18 @@ begin
       if (select count(*) from public.cert_pitfalls where company_id = k_co and domaine = 'apsad') >= 14
          and (select count(*) from public.cert_pitfalls where company_id = k_co and domaine = 'qualiopi') >= 15
          and (select count(*) from public.cert_pitfalls where company_id = k_co and domaine = 'nda') >= 8
-         and not exists (select 1 from public.cert_pitfalls where company_id = k_co and statut <> 'a_confirmer')
          and not exists (select 1 from public.cert_criteria where referential_code = 'apsad-i4nf285') then
-        v_lines := v_lines || 'OK      base  0350 : erreurs à éviter posées (à confirmer), squelette APSAD sans exigence'::text;
+        -- La société a pu confirmer ou écarter des erreurs (usage réel, 07/11) : « à confirmer » se vérifie sur une
+        -- société neuve, plus bas
+        v_lines := v_lines || 'OK      base  0350 : erreurs à éviter posées, squelette APSAD sans exigence'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0350 : liste de départ des erreurs à éviter'::text; end if;
 
       insert into public.companies (legal_name) values ('Essai société certification') returning id into k_autre;
       insert into public.cert_referentials (code, label, kind, text_source, company_id)
       values ('essai-ref-autre', 'Référentiel interne d''une autre société', 'interne', 'societe', k_autre);
       insert into public.cert_criteria (referential_code, number, title) values ('essai-ref-autre', 1, 'Chapitre d''essai');
-      if exists (select 1 from public.cert_pitfalls where company_id = k_autre and code = 'A0') then
+      if exists (select 1 from public.cert_pitfalls where company_id = k_autre and code = 'A0')
+         and not exists (select 1 from public.cert_pitfalls where company_id = k_autre and statut <> 'a_confirmer') then
         v_lines := v_lines || 'OK      base  0350 : une nouvelle société reçoit sa liste d''erreurs à éviter'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0350 : liste de départ d''une nouvelle société'::text; end if;
 
