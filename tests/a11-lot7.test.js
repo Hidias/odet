@@ -15,3 +15,17 @@ describe('onglet Financement', () => {
     expect(f).toContain('!sansFinanceurPrevu(session.funding_type) && <p')
   })
 })
+
+describe('seuil de maintien', () => {
+  const f = readFileSync('src/modules/formation/pages/SessionDetail.jsx', 'utf8')
+  const c = readFileSync('src/modules/formation/components/SeuilMaintien.jsx', 'utf8')
+  it('en tête de fiche, juste après le circuit devis, avant les infos', () => {
+    expect(f.indexOf('<SeuilMaintien ')).toBeGreaterThan(f.indexOf('<CircuitSession '))
+    expect(f.indexOf('<SeuilMaintien ')).toBeLessThan(f.indexOf('{/* Infos */}'))
+    expect(f.split('<SeuilMaintien ').length).toBe(2)
+  })
+  it('boutons explicites et texte juste sans inscrit', () => {
+    for (const t of ['Maintenir la session', 'Reporter la session', 'Annuler la session']) expect(c).toContain(t)
+    expect(c).toContain('Aucun inscrit pour le moment')
+  })
+})
