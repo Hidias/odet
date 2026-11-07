@@ -449,7 +449,8 @@ function Formations() {
             </div>
           )
         })()}
-        {finie && avisDispo && avisPossible(s, todayIso()) && (
+        {/* Même règle que la base (0504) : dès le dernier jour, la session est encore « en cours » ce jour-là (07/11) */}
+        {avisDispo && avisPossible(s, todayIso()) && (
           <div className="mt-3 rounded-ui border border-gray-200 bg-gray-50 p-3 flex items-center gap-3 flex-wrap">
             <Award className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
             <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">

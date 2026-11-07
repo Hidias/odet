@@ -470,9 +470,8 @@ Concernant les convocations, chacune contient un QR code et un lien permettant a
 
 Restant à votre disposition pour toute information complémentaire.`)
     } else {
-      const avisEnLigne = phraseAvisEnLigne(await lienAvis())
       setEmailSubject(`${courseTitle} - Documents de fin de formation - ${ref}`)
-      setEmailBody(`Bonjour,
+      const debut = `Bonjour,
 
 Suite à la formation "${courseTitle}", veuillez trouver ci-joints :
 
@@ -482,9 +481,13 @@ Suite à la formation "${courseTitle}", veuillez trouver ci-joints :
 - Les questionnaires d'évaluation à froid (à compléter d'ici 90 jours)
 - Le questionnaire de satisfaction entreprise
 
-Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le questionnaire de satisfaction entreprise afin de nous permettre d'améliorer continuellement la qualité de nos prestations.${avisEnLigne ? `\n\n${avisEnLigne}` : ''}
-
-Nous vous remercions pour votre confiance et restons à votre disposition.`)
+Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le questionnaire de satisfaction entreprise afin de nous permettre d'améliorer continuellement la qualité de nos prestations.`
+      const suite = 'Nous vous remercions pour votre confiance et restons à votre disposition.'
+      const base = `${debut}\n\n${suite}`
+      setEmailBody(base)
+      // Invitation en ligne ajoutée quand l'accès est lu, sans écraser un texte déjà modifié
+      const avisEnLigne = phraseAvisEnLigne(await lienAvis())
+      if (avisEnLigne) setEmailBody((b) => (b === base ? `${debut}\n\n${avisEnLigne}\n\n${suite}` : b))
     }
   }
 

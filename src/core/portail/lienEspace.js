@@ -32,7 +32,7 @@ const mesures = (compact) => (compact ? { qrS: 22, taille: 7.8, url: 6.6, pas: 3
 // même encadré, autres textes
 export const TEXTES_AVIS = {
   titre: 'RÉPONDRE EN LIGNE',
-  texte: 'Vous pouvez aussi répondre en ligne depuis votre espace client : scannez le QR code ou saisissez l\'adresse ci-dessous, puis « Donner mon avis » sur la formation.',
+  texte: 'Vous pouvez aussi donner votre avis en ligne depuis votre espace client : scannez le QR code ou saisissez l\'adresse ci-dessous, puis « Donner mon avis » sur la formation.',
 }
 const textesDe = (textes, compact) => ({
   titre: textes?.titre || 'SIGNER EN LIGNE',

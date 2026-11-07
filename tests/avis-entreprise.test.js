@@ -18,7 +18,7 @@ describe('Avis de l’entreprise (0415, 0504)', () => {
     const portail = lire('src/modules/portail/pages/ClientPortal.jsx')
     expect(portail).toMatch(/<AvisEntreprise[\s\S]*client_portal_satisfaction'/)
     expect(portail).toMatch(/rpc\('client_portal_satisfactions'/)
-    expect(portail).toMatch(/finished && avisDispo/)
+    expect(portail).toMatch(/\{avisDispo && avisPossible\(s, todayIso\(\)\) && \(/)
     const migration = lire('supabase/migrations/0504_avis_entreprise_par_lien.sql')
     expect(migration).toMatch(/function public\.client_portal_satisfaction\(p_token text, p_code text, p_session uuid, p_reponses jsonb/)
     expect(migration).toMatch(/function public\.client_portal_satisfactions\(p_token text, p_code text\)/)
