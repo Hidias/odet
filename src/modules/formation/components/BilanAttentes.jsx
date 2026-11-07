@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Target } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { useEcranLarge } from '../../../core/ecran'
 
 // Bilan des attentes en fin de formation (0413) : pour chaque stagiaire, l'attente écrite dans sa fiche de
 // renseignements, la réponse prévue par l'organisme (observation), l'avis du stagiaire sur le portail et le bilan
@@ -48,6 +49,7 @@ export default function BilanAttentes({ sessionId }) {
   const [lignes, setLignes] = useState(null)
   const [sansAttente, setSansAttente] = useState(0)
   const [enregistre, setEnregistre] = useState(null)
+  const large = useEcranLarge()
 
   useEffect(() => {
     if (!sessionId) return
@@ -99,7 +101,7 @@ export default function BilanAttentes({ sessionId }) {
         {Object.entries(VERDICTS).map(([v, lab]) => <option key={v} value={v}>{lab}</option>)}
       </select>
       <input className="input" placeholder="Remarque (facultatif)" defaultValue={l.attentes_bilan_note || ''}
-        aria-label="Remarque sur le bilan des attentes"
+        aria-label={`Remarque sur le bilan des attentes de ${l.trainees?.first_name || ''} ${l.trainees?.last_name || ''}`}
         onBlur={(e) => { if ((e.target.value || '') !== (l.attentes_bilan_note || '')) noter(l, { attentes_bilan_note: e.target.value || null }) }} />
       {enregistre === l.id && <div className="text-ui-sm text-[rgb(var(--c-success))]">Enregistré</div>}
     </div>
@@ -116,7 +118,8 @@ export default function BilanAttentes({ sessionId }) {
         </p>
       </div>
       {/* Téléphone : une carte par stagiaire (le tableau coupait l'avis et le bilan, A11 du 07/11) */}
-      <ul className="md:hidden divide-y divide-gray-100">
+      {!large ? (
+      <ul className="divide-y divide-gray-100">
         {lignes.map((l) => (
           <li key={l.id} className="py-3 space-y-2">
             <div className="font-medium text-gray-900">{nom(l)}</div>
@@ -126,7 +129,8 @@ export default function BilanAttentes({ sessionId }) {
           </li>
         ))}
       </ul>
-      <div className="hidden md:block overflow-x-auto">
+      ) : (
+      <div className="overflow-x-auto">
         <table className="w-full text-ui">
           <thead>
             <tr className="text-left text-ui-sm text-gray-500 border-b border-gray-100">
@@ -148,6 +152,7 @@ export default function BilanAttentes({ sessionId }) {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   )
 }

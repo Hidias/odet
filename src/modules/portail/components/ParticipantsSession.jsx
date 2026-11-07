@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Users, UserPlus, Trash2, Loader2, X, Lock, CheckCircle2, Search, Clock, Ban } from 'lucide-react'
 import { verifierNir } from '../../../core/nir/verifierNir'
 import ChampNir from '../../../core/nir/ChampNir'
-import { accorder } from '../../../core/genre'
+import { mot } from '../../../core/genre'
 
 // Participants d'une session saisis par le client depuis son espace (0430, décisions de H du 21/10) : seulement une
 // fois le devis signé et la session confirmée par l'organisme, jusqu'à la signature de la convention. Nom et prénom
@@ -11,8 +11,6 @@ import { accorder } from '../../../core/genre'
 // genre et nom de naissance toujours visibles, recherche parmi les salariés déjà connus, places en dépassement
 // soumises à l'accord de l'organisme. Tout part dans la fiche du stagiaire.
 
-// Date saisie (AAAA-MM-JJ) relue en français : 12/05/1990
-const dateFr = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso || '') ? iso.split('-').reverse().join('/') : iso)
 export const GENRES = [
   { v: 'female', l: 'Femme' },
   { v: 'male', l: 'Homme' },
@@ -308,7 +306,7 @@ function FenetreParticipants({ etat, onEnregistrer, chargerSalaries, onFermer })
                 const infos = [
                   genreDe(l.gender) || null,
                   nn && normal(nn) !== normal(l.last_name) ? `nom de naissance ${nn.toUpperCase()}` : null,
-                  l.birth_date ? `${accorder(l.gender, 'né', 'née', 'né ou née')} le ${dateFr(l.birth_date)}${l.birth_place.trim() ? ` à ${l.birth_place.trim()}` : ''}` : (l.birth_place.trim() ? `${accorder(l.gender, 'né', 'née', 'né ou née')} à ${l.birth_place.trim()}` : null),
+                  l.birth_date ? `${mot('ne', l.gender)} le ${l.birth_date}${l.birth_place.trim() ? ` à ${l.birth_place.trim()}` : ''}` : (l.birth_place.trim() ? `${mot('ne', l.gender)} à ${l.birth_place.trim()}` : null),
                   l.job_title.trim() || null, l.email.trim() || null,
                   l.ssn.trim() ? 'n° de sécurité sociale indiqué' : (l.ssn_present ? 'n° de sécurité sociale déjà connu' : null),
                 ].filter(Boolean)

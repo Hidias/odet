@@ -10,9 +10,9 @@ import { confirmer } from '../../../ui/Confirm'
 import { supabase } from '../../../core/supabase'
 import { nomComplet, chargerPersonnesChoix } from '../lib/rhData'
 import { etatEcheance } from '../lib/rhDocuments'
+import { todayIso } from '../../certification/lib/certData'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
-import { todayIso } from '../../certification/lib/certData'
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const plusAns = (iso, n) => { if (!iso) return ''; const d = new Date(`${iso}T12:00:00`); d.setFullYear(d.getFullYear() + n); return d.toISOString().slice(0, 10) }
 

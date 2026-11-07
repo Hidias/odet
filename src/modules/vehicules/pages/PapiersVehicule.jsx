@@ -96,7 +96,7 @@ function CessionSheet({ vehicule, km, onClose }) {
           {!v.morale && <Champ label="Sexe"><select className="select" value={v.sexe} onChange={m('sexe')}><option value="">—</option><option value="M">M</option><option value="F">F</option></select></Champ>}
           <Champ label={v.morale ? 'Raison sociale' : 'Nom et prénom'} className="sm:col-span-2"><input className="input" value={v.nom} onChange={m('nom')} /></Champ>
           {v.morale ? <Champ label="SIRET"><input className="input" inputMode="numeric" value={v.siret} onChange={m('siret')} /></Champ> : <>
-            <Champ label="Né(e) le"><input className="input" type="date" value={v.naissance} onChange={m('naissance')} /></Champ>
+            <Champ label="Date de naissance"><input className="input" type="date" value={v.naissance} onChange={m('naissance')} /></Champ>
             <Champ label="à"><input className="input" value={v.lieuNaissance} onChange={m('lieuNaissance')} /></Champ>
           </>}
           <Champ label="Adresse" className="sm:col-span-2"><input className="input" value={v.adresse} onChange={m('adresse')} placeholder="12 rue des Lilas" /></Champ>
