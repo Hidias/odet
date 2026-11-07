@@ -58,8 +58,8 @@ export default function MenuFlottant({ ancre, onFermer, menuRef, largeur = 180, 
   if (!ancre) return null
   return createPortal(
     <div ref={ref} role="group" aria-label={label}
-      // Tab au-delà de la dernière action : le menu se ferme
-      onBlur={(e) => { if (e.relatedTarget && !ref.current?.contains(e.relatedTarget)) onFermer() }}
+      // Tab au-delà de la dernière action : le menu se ferme (pas vers le bouton « ⋯ », qui referme lui-même)
+      onBlur={(e) => { if (e.relatedTarget && !ref.current?.contains(e.relatedTarget) && e.relatedTarget !== declencheur.current) onFermer() }}
       style={{ position: 'fixed', zIndex: 9999, width: largeur, visibility: pos ? 'visible' : 'hidden', ...(pos || { left: 0, top: 0 }) }}
       className="bg-white border border-gray-200 rounded-ui-sm shadow-md py-1">
       {children}
