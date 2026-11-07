@@ -32,6 +32,14 @@ async function preparerPDF(c, types) {
   return buildContratPDF({ contract: c, client, sites: sites || [], types, parc: couverts, quoteRef: q?.reference || null })
 }
 
+// Phrase d'aide du moment de la facture : suit le choix affiché (relecture de #344)
+export function aideTerme(terme, parDefaut, publicClient) {
+  const phrase = terme === 'echu'
+    ? 'Facture préparée le lendemain de chaque période, une fois le service fait.'
+    : 'Facture préparée au premier jour de chaque période, pour la période à venir.'
+  return parDefaut ? `${phrase} Règle habituelle pour ${publicClient ? 'un client public' : 'ce client'}.` : phrase
+}
+
 export default function Contrats({ types }) {
   const [contracts, setContracts] = useState(null)
   const [edit, setEdit] = useState(null)
@@ -432,7 +440,7 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         if (!contract.validated_at) row.validated_at = new Date().toISOString()
       }
       // Contrat signé : ses conditions ne se modifient plus (avenant) ; seuls les visites, sites, notes et statut changent
-      if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id', 'index_base_value', 'index_series', 'emergency_hours', 'includes']) delete row[k]
+      if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id', 'index_base_value', 'index_series', 'emergency_hours', 'includes', 'billing_term']) delete row[k]
       const saved = await saveContract(row)
       // Engagement de l'exercice (client public) : une saisie par an, reprise sur chaque facture de l'année
       if (publicClient && engagement.number.trim()) {
@@ -448,6 +456,8 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
   const c = f
+  // Moment de la facture affiché : le choix enregistré, sinon la règle par défaut de la base (0461)
+  const terme = f.billing_term || (publicClient ? 'echu' : 'echoir')
 
   return (
     <Sheet title={contract.id ? (contract.status === 'a_valider' ? 'Contrat à valider' : 'Modifier le contrat') : 'Nouveau contrat de maintenance'} onClose={onClose} wide
@@ -506,12 +516,12 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
       </fieldset>
       {f.billing_period !== 'visite' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div><label className="label" htmlFor="ct-terme">Quand envoyer la facture</label>
+          <div><label className="label" htmlFor="ct-terme">Date des factures</label>
             {/* Vide en base : règle par défaut selon le client (0461 : public après la période, sinon au début) */}
-            <select id="ct-terme" className="select" aria-describedby="ct-terme-aide" value={f.billing_term || (publicClient ? 'echu' : 'echoir')} onChange={(e) => setF({ ...f, billing_term: e.target.value })}>
-              <option value="echoir">Au début de chaque période</option><option value="echu">À la fin de chaque période</option>
+            <select id="ct-terme" className="select" aria-describedby="ct-terme-aide" disabled={signe} value={terme} onChange={(e) => setF({ ...f, billing_term: e.target.value })}>
+              <option value="echoir">Au début de chaque période</option><option value="echu">Après chaque période</option>
             </select>
-            <p id="ct-terme-aide" className="text-ui-sm text-gray-500 mt-1">{publicClient ? 'Client public : à la fin de la période, une fois le service fait.' : 'Le client paie la période à venir.'}</p></div>
+            <p id="ct-terme-aide" className="text-ui-sm text-gray-500 mt-1">{aideTerme(terme, !f.billing_term, publicClient)}</p></div>
           <fieldset><legend className="label">Déjà compris dans le prix du contrat (rien de plus facturé à la visite)</legend>
             <div className="flex flex-wrap gap-3 pt-1">{[['pieces', 'Pièces'], ['recharges', 'Recharges'], ['deplacement', 'Déplacement'], ['depannage', 'Main-d\'œuvre de dépannage']].map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 text-ui"><input type="checkbox" disabled={signe} checked={f.includes?.[k] === true} onChange={(e) => setF({ ...f, includes: { ...(f.includes || {}), [k]: e.target.checked } })} />{l}</label>
@@ -529,9 +539,9 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="sm:col-span-2"><label className="text-ui-sm text-gray-500" htmlFor="ct-ind">Nom de l'indice</label><input id="ct-ind" className="input" maxLength={200} value={f.index_label} onChange={(e) => setF({ ...f, index_label: e.target.value })} placeholder="Ex. : ICHTrev-TS, activité à préciser (insee.fr)" /></div>
           <div><label className="text-ui-sm text-gray-500" htmlFor="ct-ser">Identifiant INSEE de l'indice</label><input id="ct-ser" className="input" maxLength={40} disabled={signe} value={f.index_series} onChange={(e) => setF({ ...f, index_series: e.target.value })} /></div>
-          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-i0">Valeur de l'indice à la signature</label><input id="ct-i0" className="input" inputMode="decimal" disabled={signe} value={f.index_base_value} onChange={(e) => setF({ ...f, index_base_value: e.target.value })} /></div>
+          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-i0">Valeur de référence de l'indice (prévue au contrat)</label><input id="ct-i0" className="input" inputMode="decimal" disabled={signe} value={f.index_base_value} onChange={(e) => setF({ ...f, index_base_value: e.target.value })} /></div>
         </div>
-        <p className="text-ui-sm text-gray-500 mt-1">Nouveau prix = prix de départ × dernière valeur de l'indice ÷ valeur à la signature. Sans valeur à la signature, aucune révision n'est proposée. Valeurs officielles : insee.fr.</p>
+        <p className="text-ui-sm text-gray-500 mt-1">Nouveau prix = prix de départ × dernière valeur de l'indice ÷ valeur de référence. Sans valeur de référence, aucune révision n'est proposée. Valeurs officielles : insee.fr.</p>
       </fieldset>
       <div><label className="label" htmlFor="ct-notes">Notes</label><textarea id="ct-notes" className="textarea" rows={2} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
       {contract.start_on && <p className="muted text-ui-sm">En vigueur depuis le {frShort(contract.start_on)}.</p>}
