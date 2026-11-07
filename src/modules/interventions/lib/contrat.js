@@ -41,6 +41,22 @@ export function phraseConditions(c) {
   return `Contrat de maintenance d'une durée de ${ans(k.duree_ans)}, ${reconduction}. Facturation ${libellePeriodicite(k.periodicite).toLowerCase()}.`
 }
 
+// Moment de la facture d'un contrat facturé par échéancier (0461) : vide en base = règle par défaut selon le client
+// (public : après la période ; sinon au début), comme app.contrat_echeances.
+export const termeFacture = (contract, clientType) => contract?.billing_term || (clientType === 'public' ? 'echu' : 'echoir')
+export const phraseTerme = (terme) => (terme === 'echu'
+  ? 'Facture préparée le lendemain de chaque période, une fois le service fait.'
+  : 'Facture préparée au premier jour de chaque période, pour la période à venir.')
+
+// Ce que le prix du contrat comprend (0461). À la visite, rien n'est compris : chaque visite est facturée avec ses
+// fournitures (le choix n'est pas proposé à l'écran, et une valeur restée en base est ignorée).
+export const COMPRIS = [['pieces', 'Pièces'], ['recharges', 'Recharges'], ['deplacement', 'Déplacement'], ['depannage', 'Main-d\'œuvre de dépannage']]
+export const comprisApplicable = (contract) => (contract && contract.billing_period !== 'visite' ? contract.includes || {} : {})
+export const comprisDuContrat = (contract) => { const c = comprisApplicable(contract); return COMPRIS.filter(([k]) => c[k] === true).map(([, l]) => l) }
+
+// Révision du prix (0462) : formule en mots simples, la même à l'écran, sur le contrat et sur le courrier
+export const FORMULE_REVISION = 'nouveau prix = prix de départ × dernière valeur de l\'indice ÷ valeur de référence de l\'indice'
+
 /** Montant des frais d'établissement réglé pour une durée ; null si aucun montant saisi */
 export function fraisEtablissement(reglages, duree) {
   const v = reglages?.contrat_frais_etablissement?.[String(duree)]

@@ -22,4 +22,10 @@ describe('facture de visite et échéancier (0461)', () => {
     const l = invoiceLinesForVisit(visite({ label: 'Contrat', annual_price_ht: 1200, billing_period: 'visite', includes: {} }), [], { tva_rate: 20 }, 2, [], cats)
     expect(l[0].unit_price_ht).toBe(600)
   })
+  it('contrat « à la visite » : une valeur « compris » restée en base est ignorée (choix masqué à l\'écran)', () => {
+    const l = invoiceLinesForVisit(visite({ label: 'Contrat', annual_price_ht: 1200, billing_period: 'visite', includes: { pieces: true, deplacement: true } }), pieces, { tva_rate: 20 }, 2, [], cats)
+    expect(l[1].unit_price_ht).toBe(6)
+    expect(l[2].unit_price_ht).toBe(40)
+    expect(l.some((x) => x.description_detail === 'Compris au contrat')).toBe(false)
+  })
 })
