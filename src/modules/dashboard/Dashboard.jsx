@@ -1,3 +1,4 @@
+import { pluriel } from '../../core/genre'
 import { apiFetch } from '../../core/api'
 import { estAVenir, stagiairesPresents, pipelineDevis, tauxConversion, etatBpf, froidARappeler, cleStagiaire } from './lib/accueil'
 import { isQuoteSleeping, todayStr } from '../prospection/components/suivi/suiviUtils'
@@ -447,7 +448,10 @@ export default function Dashboard() {
     return { current, previous }
   }, [dashData.invoices])
   
-  const newClientsThisMonth = useMemo(() => clients.filter(c => c.created_at && new Date(c.created_at) >= thisMonth), [clients])
+  // Clients et prospects (0507) : une fiche est cliente depuis son premier devis validé ou sa première facture émise
+  const vraisClients = useMemo(() => clients.filter(c => c.type === 'client'), [clients])
+  const nbProspects = clients.length - vraisClients.length
+  const newClientsThisMonth = useMemo(() => vraisClients.filter(c => c.client_since && new Date(c.client_since) >= thisMonth), [vraisClients])
   
   const conversion = useMemo(() => tauxConversion(dashData.quotes), [dashData.quotes])
   const conversionRate = conversion.taux
@@ -896,7 +900,7 @@ export default function Dashboard() {
         )
 
       case 'new_clients':
-        return <div className="text-center py-2"><p className="text-3xl font-bold text-[rgb(var(--c-success))]">{newClientsThisMonth.length}</p><p className="text-ui text-gray-500 mt-1">ce mois</p><p className="text-ui-sm text-gray-400 mt-1">Total: {clients.length}</p></div>
+        return <div className="text-center py-2"><p className="text-3xl font-bold text-[rgb(var(--c-success))]">{newClientsThisMonth.length}</p><p className="text-ui text-gray-500 mt-1">ce mois</p><p className="text-ui-sm text-gray-400 mt-1">{pluriel(vraisClients.length, 'client')} au total, {pluriel(nbProspects, 'prospect')}</p></div>
 
       case 'conversion_rate':
         return <div className="text-center py-2"><p className="text-3xl font-bold text-gray-900">{conversionRate}%</p><p className="text-ui text-gray-500 mt-1">devis → signé</p><p className="text-ui-sm text-gray-400 mt-1">{conversion.signes}/{conversion.total}</p></div>
@@ -1112,7 +1116,7 @@ export default function Dashboard() {
       {/* Quick stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { to: '/clients', icon: Building2, value: clients.length, label: 'Clients' },
+          { to: '/clients', icon: Building2, value: vraisClients.length, label: 'Clients' },
           { to: '/sessions', icon: Calendar, value: sessions.length, label: 'Sessions' },
           { to: '/stagiaires', icon: Users, value: personnesFormees, label: 'Personnes formées' },
           { to: '/sessions', icon: CheckCircle, value: completedSessions.length, label: 'Sessions réalisées' },
