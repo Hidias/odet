@@ -5,19 +5,19 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 
 -- ===== supabase/migrations/0501_portail_ticket.sql =====
 -- 0501 : le code personnel du stagiaire exigé partout dans le portail (reste de B1, relevé le 04/11).
--- Défaut : sept fonctions du portail stagiaire ne demandaient que le lien de la session et l'identifiant du stagiaire,
+-- Défaut : huit fonctions du portail stagiaire ne demandaient que le lien de la session et l'identifiant du stagiaire,
 -- sans le ticket délivré par le code personnel (portal_entrer, 0423) : quelqu'un qui a le lien de la session pouvait
 -- remplir l'évaluation à chaud, le test de positionnement ou le quiz final d'un autre stagiaire, signer son
--- émargement du jour ou changer son refus d'e-mail. save_positioning_test_answers ne vérifiait même pas que le
+-- émargement du jour (aussi par l'envoi différé) ou changer son refus d'e-mail. save_positioning_test_answers ne vérifiait même pas que le
 -- stagiaire était inscrit à la session.
 --   Chaque fonction garde son corps tel quel, déplacé dans le schéma app (app.<nom>_corps, fermé aux comptes), et
 --   la fonction publique prend un dernier paramètre p_ticket : elle passe d'abord par app.portal_session_for (règle
 --   commune de 0084 : ticket exigé quand le stagiaire a un code personnel, refus « Code d'accès requis », 42501),
 --   puis appelle le corps. Les fonctions qui rendaient leurs refus en json (émargement, refus d'e-mail) rendent
 --   aussi ce refus en json.
---   Gardés sans ticket, exprès : portal_sign_halfday_differe (signatures gardées sans réseau jusqu'à 48 heures, le
---   ticket dure 12 heures ; tous les contrôles de l'émargement sont refaits), portal_quiz_check (aucun stagiaire),
---   portal_log_download (trace de téléchargement seulement).
+--   Émargement gardé sans réseau (portal_sign_halfday_differe, 0417) : le portail garde le ticket avec la signature ;
+--   il est accepté s'il est toujours celui du stagiaire et qu'il était valable à l'heure de la signature.
+--   Gardés sans ticket, exprès : portal_quiz_check (aucun stagiaire), portal_log_download (trace seulement).
 -- Aucune donnée modifiée. Retour arrière : supabase/rollback/0501_portail_ticket_retour.sql
 
 -- save_evaluation
@@ -69,9 +69,11 @@ as $$
 begin
   begin
     perform app.portal_session_for(p_token, p_trainee_id, p_ticket);
-  exception when others then
-    return json_build_object('ok', false, 'error', case when sqlstate = '42501'
-      then 'Votre accès a expiré : saisissez à nouveau votre code personnel' else sqlerrm end);
+  exception
+    when sqlstate '42501' then
+      return json_build_object('ok', false, 'error', 'Votre accès a expiré : saisissez à nouveau votre code personnel');
+    -- lien ou stagiaire inconnu : le corps rend son propre refus, inchangé
+    when others then null;
   end;
   return app.portal_set_email_refused_corps(p_token, p_trainee_id, p_refused);
 end
@@ -147,15 +149,48 @@ as $$
 begin
   begin
     perform app.portal_session_for(p_token, p_trainee_id, p_ticket);
-  exception when others then
-    return json_build_object('ok', false, 'error', case when sqlstate = '42501'
-      then 'Votre accès a expiré : saisissez à nouveau votre code personnel' else sqlerrm end);
+  exception
+    when sqlstate '42501' then
+      return json_build_object('ok', false, 'error', 'Votre accès a expiré : saisissez à nouveau votre code personnel');
+    -- lien ou stagiaire inconnu : le corps rend son propre refus, inchangé
+    when others then null;
   end;
   return app.portal_sign_halfday_corps(p_token, p_trainee_id, p_period, p_signature);
 end
 $$;
 revoke all on function public.portal_sign_halfday(text,uuid,text,text,text) from public;
 grant execute on function public.portal_sign_halfday(text,uuid,text,text,text) to anon, authenticated, service_role;
+
+-- portal_sign_halfday_differe
+alter function public.portal_sign_halfday_differe(text,uuid,text,text,timestamp with time zone) rename to portal_sign_halfday_differe_corps;
+alter function public.portal_sign_halfday_differe_corps(text,uuid,text,text,timestamp with time zone) set schema app;
+revoke all on function app.portal_sign_halfday_differe_corps(text,uuid,text,text,timestamp with time zone) from public, anon, authenticated;
+create or replace function public.portal_sign_halfday_differe(p_token text, p_trainee_id uuid, p_period text, p_signature text, p_signed_at timestamp with time zone, p_ticket text default null)
+returns json
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_st record;
+begin
+  -- Signature gardée sans réseau : le ticket est celui du moment de la signature. Il est accepté s'il est encore celui du
+  -- stagiaire et s'il était valable à l'heure de la signature, même expiré depuis (le ticket dure 12 heures, la
+  -- signature est gardée jusqu'à 48 heures ; portal_entrer redonne le même ticket tant qu'il est valable).
+  select st.access_code, st.portal_ticket, st.portal_ticket_expires_at into v_st
+  from public.sessions s join public.session_trainees st on st.session_id = s.id and st.trainee_id = p_trainee_id
+  where s.attendance_token = p_token and coalesce(p_token, '') <> '';
+  if found and v_st.access_code is not null
+     and (p_ticket is null or v_st.portal_ticket is distinct from p_ticket or v_st.portal_ticket_expires_at is null
+          or p_signed_at is null or p_signed_at > v_st.portal_ticket_expires_at) then
+    return json_build_object('ok', false, 'error', 'Votre accès a expiré : saisissez à nouveau votre code personnel');
+  end if;
+  -- lien ou stagiaire inconnu : le corps rend son propre refus, inchangé
+  return app.portal_sign_halfday_differe_corps(p_token, p_trainee_id, p_period, p_signature, p_signed_at);
+end
+$$;
+revoke all on function public.portal_sign_halfday_differe(text,uuid,text,text,timestamp with time zone,text) from public;
+grant execute on function public.portal_sign_halfday_differe(text,uuid,text,text,timestamp with time zone,text) to anon, authenticated, service_role;
 
 insert into public.schema_migrations (version) values ('0501_portail_ticket') on conflict (version) do nothing;
 
@@ -236,6 +271,21 @@ begin
   v_r := public.portal_sign_halfday('jeton-0501', v_a, 'morning', 'data:image/png;base64,AAAA', 'ticket-anne-0501');
   if v_r->>'error' = 'Votre accès a expiré : saisissez à nouveau votre code personnel' then raise exception '3. émargement refusé avec le bon ticket'; end if;
 
+  -- 3 bis. Émargement envoyé plus tard (sans réseau) : ticket gardé avec la signature, valable à l'heure de la signature
+  v_r := public.portal_sign_halfday_differe('jeton-0501', v_a, 'afternoon', 'data:image/png;base64,AAAA', now() - interval '5 minutes', null);
+  if (v_r->>'ok')::boolean or v_r->>'error' <> 'Votre accès a expiré : saisissez à nouveau votre code personnel' then raise exception '3 bis. envoi différé sans ticket : %', v_r; end if;
+  v_r := public.portal_sign_halfday_differe('jeton-0501', v_a, 'afternoon', 'data:image/png;base64,AAAA', now() - interval '5 minutes', 'ticket-de-bob');
+  if (v_r->>'ok')::boolean then raise exception '3 bis. envoi différé avec un mauvais ticket'; end if;
+  update public.session_trainees set portal_ticket_expires_at = now() - interval '10 minutes' where session_id = v_se and trainee_id = v_a;
+  v_r := public.portal_sign_halfday_differe('jeton-0501', v_a, 'afternoon', 'data:image/png;base64,AAAA', now() - interval '5 minutes', 'ticket-anne-0501');
+  if (v_r->>'ok')::boolean then raise exception '3 bis. signature faite après l''expiration du ticket acceptée'; end if;
+  v_r := public.portal_sign_halfday_differe('jeton-0501', v_a, 'afternoon', 'data:image/png;base64,AAAA', now() - interval '20 minutes', 'ticket-anne-0501');
+  if v_r->>'error' = 'Votre accès a expiré : saisissez à nouveau votre code personnel' then raise exception '3 bis. signature faite avant l''expiration refusée'; end if;
+  update public.session_trainees set portal_ticket_expires_at = now() + interval '1 hour' where session_id = v_se and trainee_id = v_a;
+  -- lien inconnu : refus du corps inchangé
+  v_r := public.portal_sign_halfday('lien-inconnu-0501', v_a, 'morning', 'data:image/png;base64,AAAA', null);
+  if v_r->>'error' <> 'Lien invalide' then raise exception '3 bis. refus du lien inconnu changé : %', v_r; end if;
+
   -- 4. Quiz : résumé, questions et quiz final
   begin
     perform public.portal_quiz_summary('jeton-0501', v_a, null);
@@ -256,15 +306,17 @@ begin
 
   -- 5. Anciennes signatures retirées, corps fermés aux comptes
   if to_regprocedure('public.save_evaluation(text,uuid,jsonb)') is not null
-     or to_regprocedure('public.portal_sign_halfday(text,uuid,text,text)') is not null then
+     or to_regprocedure('public.portal_sign_halfday(text,uuid,text,text)') is not null
+     or to_regprocedure('public.portal_sign_halfday_differe(text,uuid,text,text,timestamptz)') is not null then
     raise exception '5. ancienne fonction sans ticket encore publique';
   end if;
   select count(*) into v_n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'app' and p.proname like '%\_corps' escape '\'
     and p.proname in ('save_evaluation_corps', 'save_positioning_test_answers_corps', 'portal_set_email_refused_corps',
-                      'portal_quiz_questions_corps', 'portal_quiz_finish_corps', 'portal_quiz_summary_corps', 'portal_sign_halfday_corps')
+                      'portal_quiz_questions_corps', 'portal_quiz_finish_corps', 'portal_quiz_summary_corps', 'portal_sign_halfday_corps',
+                      'portal_sign_halfday_differe_corps')
     and not has_function_privilege('anon', p.oid, 'execute') and not has_function_privilege('authenticated', p.oid, 'execute');
-  if v_n <> 7 then raise exception '5. % corps fermés sur 7', v_n; end if;
+  if v_n <> 8 then raise exception '5. % corps fermés sur 8', v_n; end if;
   if not has_function_privilege('anon', 'public.save_evaluation(text,uuid,jsonb,text)', 'execute') then raise exception '5. portail fermé à anon'; end if;
 end $$;
 select 'ESSAI PROPRE VERT : supabase/tests/portail_ticket_0501.sql' as resultat;
@@ -5602,7 +5654,8 @@ begin
   end if;
 
   -- Émargement sans réseau (0417) : signature envoyée plus tard avec son heure, mêmes contrôles, réception notée
-  if to_regprocedure('public.portal_sign_halfday_differe(text,uuid,text,text,timestamptz)') is not null then
+  -- 0501 : le ticket du code personnel, gardé avec la signature, est transmis
+  if to_regprocedure('public.portal_sign_halfday_differe(text,uuid,text,text,timestamptz,text)') is not null then
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
     v_total := v_total + 3;
@@ -5612,25 +5665,27 @@ begin
         returning id, attendance_token into h_s, h_tok;
       insert into public.trainees (first_name, last_name) values ('Essai', 'Hors ligne') returning id into h_t;
       insert into public.session_trainees (session_id, trainee_id) values (h_s, h_t);
+      update public.session_trainees set portal_ticket = 'ticket-0417', portal_ticket_expires_at = now() + interval '1 hour'
+      where session_id = h_s and trainee_id = h_t;
       execute 'set local role anon';
-      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now() - interval '20 minutes');
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now() - interval '20 minutes', 'ticket-0417');
       execute 'reset role';
       if (h_j->>'ok')::boolean and exists (select 1 from public.attendance_halfdays where session_id = h_s and trainee_id = h_t
            and morning and signed_morning_received_at is not null and signed_morning_at < signed_morning_received_at - interval '10 minutes') then
         v_lines := v_lines || 'OK      anon  0417 : signature faite sans réseau reçue plus tard, heure de la signature et de réception'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0417 : envoi différé ' || coalesce(h_j::text, 'vide'))::text; end if;
       execute 'set local role anon';
-      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now());
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now(), 'ticket-0417');
       h_ok := not (h_j->>'ok')::boolean;
-      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() - interval '3 days');
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() - interval '3 days', 'ticket-0417');
       h_ok := h_ok and not (h_j->>'ok')::boolean;
-      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() + interval '1 hour');
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() + interval '1 hour', 'ticket-0417');
       h_ok := h_ok and not (h_j->>'ok')::boolean;
       execute 'reset role';
       if h_ok then v_lines := v_lines || 'OK      anon  0417 : déjà signée, trop ancienne ou dans le futur : refusée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0417 : envoi différé accepté à tort'::text; end if;
       execute 'set local role anon';
-      h_j := public.portal_sign_halfday_differe('lien-inconnu', h_t, 'afternoon', h_sig, now());
+      h_j := public.portal_sign_halfday_differe('lien-inconnu', h_t, 'afternoon', h_sig, now(), 'ticket-0417');
       execute 'reset role';
       if not (h_j->>'ok')::boolean then v_lines := v_lines || 'OK      anon  0417 : lien inconnu refusé'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0417 : lien inconnu accepté'::text; end if;

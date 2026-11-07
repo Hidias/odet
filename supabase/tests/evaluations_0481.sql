@@ -16,14 +16,17 @@ begin
   insert into public.trainees (first_name, last_name, client_id, company_id) values ('Anne', 'Un', v_cli, v_cie) returning id into v_tr;
   insert into public.trainees (first_name, last_name, client_id, company_id) values ('Bob', 'Deux', v_cli, v_cie) returning id into v_tr2;
   insert into public.session_trainees (session_id, trainee_id) values (v_se, v_tr), (v_se, v_tr2);
+  -- 0501 : ticket du code personnel exigé par le portail
+  update public.session_trainees set portal_ticket = 'ticket-0481', portal_ticket_expires_at = now() + interval '1 hour'
+  where session_id = v_se and trainee_id = v_tr;
   alter table public.profiles disable trigger user;
   update public.profiles set role = 'superadmin' where id = '00000000-0000-4000-8000-000000000002';
   alter table public.profiles enable trigger user;
 
   -- 1. Portail : première évaluation reçue, la seconde refusée
-  perform public.save_evaluation('jeton-0481', v_tr, '{"q_org_documents": 4, "would_recommend": true}');
+  perform public.save_evaluation('jeton-0481', v_tr, '{"q_org_documents": 4, "would_recommend": true}', 'ticket-0481');
   v_ok := false;
-  begin perform public.save_evaluation('jeton-0481', v_tr, '{"q_org_documents": 1}'); exception when others then v_ok := sqlerrm like 'Votre évaluation est déjà enregistrée%'; end;
+  begin perform public.save_evaluation('jeton-0481', v_tr, '{"q_org_documents": 1}', 'ticket-0481'); exception when others then v_ok := sqlerrm like 'Votre évaluation est déjà enregistrée%'; end;
   if not v_ok then raise exception '1. évaluation à chaud réécrite par le portail'; end if;
   if (select q_org_documents from public.trainee_evaluations where session_id = v_se and trainee_id = v_tr) <> 4 then raise exception '1. note modifiée'; end if;
 

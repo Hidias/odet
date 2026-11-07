@@ -35,4 +35,9 @@ alter function app.portal_sign_halfday_corps(text,uuid,text,text) set schema pub
 alter function public.portal_sign_halfday_corps(text,uuid,text,text) rename to portal_sign_halfday;
 grant execute on function public.portal_sign_halfday(text,uuid,text,text) to anon, authenticated, service_role;
 
+drop function if exists public.portal_sign_halfday_differe(text,uuid,text,text,timestamp with time zone,text);
+alter function app.portal_sign_halfday_differe_corps(text,uuid,text,text,timestamp with time zone) set schema public;
+alter function public.portal_sign_halfday_differe_corps(text,uuid,text,text,timestamp with time zone) rename to portal_sign_halfday_differe;
+grant execute on function public.portal_sign_halfday_differe(text,uuid,text,text,timestamp with time zone) to anon, authenticated, service_role;
+
 delete from public.schema_migrations where version = '0501_portail_ticket';

@@ -1,4 +1,4 @@
--- Essai propre de 0501 : le ticket du code personnel est exigé par les sept fonctions du portail stagiaire.
+-- Essai propre de 0501 : le ticket du code personnel est exigé par les huit fonctions du portail stagiaire.
 begin;
 set local client_min_messages = warning;
 do $$
@@ -74,6 +74,21 @@ begin
   v_r := public.portal_sign_halfday('jeton-0501', v_a, 'morning', 'data:image/png;base64,AAAA', 'ticket-anne-0501');
   if v_r->>'error' = 'Votre accès a expiré : saisissez à nouveau votre code personnel' then raise exception '3. émargement refusé avec le bon ticket'; end if;
 
+  -- 3 bis. Émargement envoyé plus tard (sans réseau) : ticket gardé avec la signature, valable à l'heure de la signature
+  v_r := public.portal_sign_halfday_differe('jeton-0501', v_a, 'afternoon', 'data:image/png;base64,AAAA', now() - interval '5 minutes', null);
+  if (v_r->>'ok')::boolean or v_r->>'error' <> 'Votre accès a expiré : saisissez à nouveau votre code personnel' then raise exception '3 bis. envoi différé sans ticket : %', v_r; end if;
+  v_r := public.portal_sign_halfday_differe('jeton-0501', v_a, 'afternoon', 'data:image/png;base64,AAAA', now() - interval '5 minutes', 'ticket-de-bob');
+  if (v_r->>'ok')::boolean then raise exception '3 bis. envoi différé avec un mauvais ticket'; end if;
+  update public.session_trainees set portal_ticket_expires_at = now() - interval '10 minutes' where session_id = v_se and trainee_id = v_a;
+  v_r := public.portal_sign_halfday_differe('jeton-0501', v_a, 'afternoon', 'data:image/png;base64,AAAA', now() - interval '5 minutes', 'ticket-anne-0501');
+  if (v_r->>'ok')::boolean then raise exception '3 bis. signature faite après l''expiration du ticket acceptée'; end if;
+  v_r := public.portal_sign_halfday_differe('jeton-0501', v_a, 'afternoon', 'data:image/png;base64,AAAA', now() - interval '20 minutes', 'ticket-anne-0501');
+  if v_r->>'error' = 'Votre accès a expiré : saisissez à nouveau votre code personnel' then raise exception '3 bis. signature faite avant l''expiration refusée'; end if;
+  update public.session_trainees set portal_ticket_expires_at = now() + interval '1 hour' where session_id = v_se and trainee_id = v_a;
+  -- lien inconnu : refus du corps inchangé
+  v_r := public.portal_sign_halfday('lien-inconnu-0501', v_a, 'morning', 'data:image/png;base64,AAAA', null);
+  if v_r->>'error' <> 'Lien invalide' then raise exception '3 bis. refus du lien inconnu changé : %', v_r; end if;
+
   -- 4. Quiz : résumé, questions et quiz final
   begin
     perform public.portal_quiz_summary('jeton-0501', v_a, null);
@@ -94,15 +109,17 @@ begin
 
   -- 5. Anciennes signatures retirées, corps fermés aux comptes
   if to_regprocedure('public.save_evaluation(text,uuid,jsonb)') is not null
-     or to_regprocedure('public.portal_sign_halfday(text,uuid,text,text)') is not null then
+     or to_regprocedure('public.portal_sign_halfday(text,uuid,text,text)') is not null
+     or to_regprocedure('public.portal_sign_halfday_differe(text,uuid,text,text,timestamptz)') is not null then
     raise exception '5. ancienne fonction sans ticket encore publique';
   end if;
   select count(*) into v_n from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'app' and p.proname like '%\_corps' escape '\'
     and p.proname in ('save_evaluation_corps', 'save_positioning_test_answers_corps', 'portal_set_email_refused_corps',
-                      'portal_quiz_questions_corps', 'portal_quiz_finish_corps', 'portal_quiz_summary_corps', 'portal_sign_halfday_corps')
+                      'portal_quiz_questions_corps', 'portal_quiz_finish_corps', 'portal_quiz_summary_corps', 'portal_sign_halfday_corps',
+                      'portal_sign_halfday_differe_corps')
     and not has_function_privilege('anon', p.oid, 'execute') and not has_function_privilege('authenticated', p.oid, 'execute');
-  if v_n <> 7 then raise exception '5. % corps fermés sur 7', v_n; end if;
+  if v_n <> 8 then raise exception '5. % corps fermés sur 8', v_n; end if;
   if not has_function_privilege('anon', 'public.save_evaluation(text,uuid,jsonb,text)', 'execute') then raise exception '5. portail fermé à anon'; end if;
 end $$;
 rollback;

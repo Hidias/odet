@@ -5329,7 +5329,8 @@ begin
   end if;
 
   -- Émargement sans réseau (0417) : signature envoyée plus tard avec son heure, mêmes contrôles, réception notée
-  if to_regprocedure('public.portal_sign_halfday_differe(text,uuid,text,text,timestamptz)') is not null then
+  -- 0501 : le ticket du code personnel, gardé avec la signature, est transmis
+  if to_regprocedure('public.portal_sign_halfday_differe(text,uuid,text,text,timestamptz,text)') is not null then
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
     v_total := v_total + 3;
@@ -5339,25 +5340,27 @@ begin
         returning id, attendance_token into h_s, h_tok;
       insert into public.trainees (first_name, last_name) values ('Essai', 'Hors ligne') returning id into h_t;
       insert into public.session_trainees (session_id, trainee_id) values (h_s, h_t);
+      update public.session_trainees set portal_ticket = 'ticket-0417', portal_ticket_expires_at = now() + interval '1 hour'
+      where session_id = h_s and trainee_id = h_t;
       execute 'set local role anon';
-      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now() - interval '20 minutes');
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now() - interval '20 minutes', 'ticket-0417');
       execute 'reset role';
       if (h_j->>'ok')::boolean and exists (select 1 from public.attendance_halfdays where session_id = h_s and trainee_id = h_t
            and morning and signed_morning_received_at is not null and signed_morning_at < signed_morning_received_at - interval '10 minutes') then
         v_lines := v_lines || 'OK      anon  0417 : signature faite sans réseau reçue plus tard, heure de la signature et de réception'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   anon  0417 : envoi différé ' || coalesce(h_j::text, 'vide'))::text; end if;
       execute 'set local role anon';
-      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now());
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now(), 'ticket-0417');
       h_ok := not (h_j->>'ok')::boolean;
-      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() - interval '3 days');
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() - interval '3 days', 'ticket-0417');
       h_ok := h_ok and not (h_j->>'ok')::boolean;
-      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() + interval '1 hour');
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() + interval '1 hour', 'ticket-0417');
       h_ok := h_ok and not (h_j->>'ok')::boolean;
       execute 'reset role';
       if h_ok then v_lines := v_lines || 'OK      anon  0417 : déjà signée, trop ancienne ou dans le futur : refusée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0417 : envoi différé accepté à tort'::text; end if;
       execute 'set local role anon';
-      h_j := public.portal_sign_halfday_differe('lien-inconnu', h_t, 'afternoon', h_sig, now());
+      h_j := public.portal_sign_halfday_differe('lien-inconnu', h_t, 'afternoon', h_sig, now(), 'ticket-0417');
       execute 'reset role';
       if not (h_j->>'ok')::boolean then v_lines := v_lines || 'OK      anon  0417 : lien inconnu refusé'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0417 : lien inconnu accepté'::text; end if;

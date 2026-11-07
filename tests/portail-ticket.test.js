@@ -33,3 +33,19 @@ describe('ticket du code personnel dans le portail (0501)', () => {
     expect(messagePortail(null, 'x')).toBe('x')
   })
 })
+
+describe('émargement gardé sans réseau (0501)', () => {
+  it('le ticket est gardé avec la signature et transmis à l\'envoi différé', async () => {
+    const memoire = {}
+    globalThis.localStorage = { getItem: (k) => memoire[k] ?? null, setItem: (k, v) => { memoire[k] = v } }
+    const { garder, envoyerEnAttente } = await import('../src/modules/portail/lib/fileSignatures.js')
+    garder({ token: 't', traineeId: 'a', period: 'morning', image: 'x', date: '2026-11-07', ticket: 'tic' })
+    const appels = []
+    const supabase = { rpc: async (nom, args) => { appels.push([nom, args]); return { data: { ok: true }, error: null } } }
+    await envoyerEnAttente(supabase, 't')
+    expect(appels).toHaveLength(1)
+    expect(appels[0][0]).toBe('portal_sign_halfday_differe')
+    expect(appels[0][1].p_ticket).toBe('tic')
+    expect(portail).toContain('ticket: portalTicket })) throw reponse.error')
+  })
+})

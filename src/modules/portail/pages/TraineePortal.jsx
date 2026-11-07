@@ -768,7 +768,7 @@ export default function TraineePortal() {
       } catch (e) { reponse = { error: e } }
       // Coupure de réseau : la signature est gardée sur ce téléphone avec son heure, envoyée au retour du réseau
       if (reponse.error && estPanneReseau(reponse.error)) {
-        if (!garder({ token, traineeId: selectedTrainee.id, period, image, date: today })) throw reponse.error
+        if (!garder({ token, traineeId: selectedTrainee.id, period, image, date: today, ticket: portalTicket })) throw reponse.error
         setSignaturesEnAttente(enAttente(token).length)
         reponse = { data: { ok: true } }
       }
