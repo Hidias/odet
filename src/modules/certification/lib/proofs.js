@@ -274,9 +274,9 @@ export const RULES = {
     items: [
       e.trainers.total && e.trainers.qualified === e.trainers.total ? ok(`Qualifications renseignées : ${e.trainers.qualified} formateurs sur ${e.trainers.total}`, L.formateurs) : ko(`Qualifications renseignées : ${e.trainers.qualified} formateurs sur ${e.trainers.total}`, L.formateurs),
       e.n.trainerCerts ? ok(`Certificats des formateurs : ${e.n.trainerCerts}`, L.formateurs) : ko('Aucun certificat de formateur déposé', L.formateurs),
-      e.n.trainerEvals ? ok(`Évaluations formateur : ${e.n.trainerEvals}`, L.sessions) : ko('Aucune évaluation des intervenants', L.sessions),
     ],
-    missing: [],
+    // L'évaluation de la session par le formateur est une appréciation de l'équipe pédagogique : indicateur 30, pas 21
+    missing: ['Garder la trace de l\'évaluation des compétences des formateurs et intervenants (entretien, observation en séance)'],
   }),
   22: (e) => ({
     items: [

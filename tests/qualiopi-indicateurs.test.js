@@ -9,6 +9,9 @@ describe('indicateurs Qualiopi des documents', () => {
     for (const p of ['src/modules/formation/pages/Documents.jsx', 'src/modules/formation/pages/DocumentsVierges.jsx']) {
       expect(readFileSync(p, 'utf8'), p).toMatch(/id: 'evaluationFormateur', label: 'Évaluation formateur', qualiopi: '30'/)
     }
-    expect(readFileSync('src/modules/certification/lib/proofs.js', 'utf8')).toMatch(/30: \(e\) => \(\{[\s\S]{0,400}valuations formateur/)
+    const proofs = readFileSync('src/modules/certification/lib/proofs.js', 'utf8')
+    expect(proofs).toMatch(/30: \(e\) => \(\{[\s\S]{0,400}valuations formateur/)
+    const ind21 = proofs.slice(proofs.indexOf('  21: (e) =>'), proofs.indexOf('  22: (e) =>'))
+    expect(ind21).not.toMatch(/trainerEvals/)
   })
 })
