@@ -20,10 +20,12 @@ export async function buildRevisionPDF({ contract, client, revision, org = null 
     // Mêmes mots que la fiche du contrat et le contrat signé (FORMULE_REVISION), sans sigles (07/11)
     f.para(`Conformément à la clause de révision de votre contrat, le prix annuel est révisé à la date anniversaire du ${dateFr(revision.anniversary)}, selon la formule : ${FORMULE_REVISION}.`, { after: 3 })
     f.kv([
-      ['Indice', [contract.index_label, contract.index_series ? `identifiant INSEE ${contract.index_series}` : null].filter(Boolean).join(', ') || 'Indice du contrat'],
-      ['Valeur de référence de l\'indice', `${nombre(contract.index_base_value)}${contract.index_base_month ? `, ${mois(contract.index_base_month)}` : ''}`],
+      // Valeurs figées dans la révision quand elles y sont (0462), sinon celles du contrat
+      ['Indice', [revision.index_label || contract.index_label, contract.index_series ? `identifiant INSEE ${contract.index_series}` : null].filter(Boolean).join(', ') || 'Indice du contrat'],
+      ['Valeur de référence de l\'indice', `${nombre(revision.base_value ?? contract.index_base_value)}${contract.index_base_month ? `, ${mois(contract.index_base_month)}` : ''}`],
       ['Dernière valeur de l\'indice', `${nombre(revision.new_value)}${revision.new_value_month ? `, ${mois(revision.new_value_month)}` : ''}`],
       ['Prix de départ', euros(contract.base_price_ht ?? revision.price_before)],
+      ...(revision.price_before != null ? [['Prix annuel en cours', euros(revision.price_before)]] : []),
       ['Nouveau prix annuel', euros(revision.price_after)],
     ], { labelW: 55 })
     f.para(`Le nouveau prix s'applique aux échéances à compter du ${dateFr(revision.anniversary)}. Nous restons à votre disposition pour toute question.`, { after: 6 })

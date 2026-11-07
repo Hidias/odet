@@ -8,7 +8,9 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- Il change les dates de chaque facture de l'échéancier : après signature, il ne change plus que par un avenant, comme le
 -- prix, la durée, la périodicité, le délai de dépannage et ce que le contrat comprend (0466). L'écran ne l'envoyait déjà
 -- plus pour un contrat signé (Contrats.jsx) ; la base le refuse maintenant aussi. Corps de app.contrat_signe_fige repris
--- de 0466 à l'identique, une condition ajoutée.
+-- de 0466 ; ajouts : moment des factures, nom de l'indice et mois de la valeur de référence figés (ils sont imprimés sur
+-- le contrat signé), moment des factures vide fixé à la signature selon la règle par défaut ; contrainte : une valeur de
+-- référence va avec le nom ou l'identifiant de l'indice et son mois.
 -- Retour arrière : supabase/rollback/0510_contrat_terme_fige_retour.sql (définition de 0466).
 
 CREATE OR REPLACE FUNCTION app.contrat_signe_fige()
@@ -27,12 +29,24 @@ begin
     or new.signature_id is distinct from old.signature_id or new.base_price_ht is distinct from old.base_price_ht
     or new.index_base_value is distinct from old.index_base_value or new.index_series is distinct from old.index_series
     or new.emergency_hours is distinct from old.emergency_hours or new.includes is distinct from old.includes
-    or new.billing_term is distinct from old.billing_term) then
+    or new.billing_term is distinct from old.billing_term
+    or new.index_label is distinct from old.index_label or new.index_base_month is distinct from old.index_base_month) then
     raise exception 'Contrat signé : ses conditions se changent par un avenant' using errcode = '42501';
+  end if;
+  -- À la signature, le moment des factures vide prend la règle par défaut du moment (0461 : client public après la
+  -- période, sinon au début) et ne change plus, même si le type du client change ensuite
+  if old.signed_at is null and new.signed_at is not null and new.billing_term is null then
+    new.billing_term := case when (select c.client_type from public.clients c where c.id = new.client_id) = 'public' then 'echu' else 'echoir' end;
   end if;
   return new;
 end
 $function$;
+
+-- Clause de révision imprimée sur le contrat (relecture de 0510) : une valeur de référence ne va pas sans l'indice
+-- qu'elle désigne (nom ou identifiant INSEE) ni le mois de sa publication. 0 contrat en production le 08/11.
+alter table public.itv_contracts drop constraint if exists itv_contracts_indice_complet;
+alter table public.itv_contracts add constraint itv_contracts_indice_complet
+  check (index_base_value is null or (coalesce(nullif(btrim(index_label), ''), nullif(btrim(index_series), '')) is not null and index_base_month is not null));
 
 insert into public.schema_migrations (version) values ('0510_contrat_terme_fige') on conflict (version) do nothing;
 
@@ -62,6 +76,31 @@ begin
   if v_ok then raise exception '3. compris modifiable après signature'; end if;
   update public.itv_contracts set notes = 'ok', billing_term = 'echoir' where id = v_k;
   if (select billing_term from public.itv_contracts where id = v_k) <> 'echoir' then raise exception '3b. moment de facturation changé'; end if;
+  -- 4. Signé avec un moment vide : fixé à la signature selon le client, puis plus changé par le type du client
+  insert into public.itv_contracts (client_id, company_id, start_on, annual_price_ht, visit_months, status)
+  values (v_client, v_cie, current_date, 500, array[3], 'actif') returning id into v_k;
+  update public.itv_contracts set signed_at = now(), signed_on_paper = true where id = v_k;
+  if (select billing_term from public.itv_contracts where id = v_k) is distinct from 'echoir' then raise exception '4. moment non fixé à la signature'; end if;
+  update public.clients set client_type = 'public' where id = v_client;
+  if (select billing_term from public.itv_contracts where id = v_k) is distinct from 'echoir' then raise exception '4b. moment changé avec le client'; end if;
+  insert into public.itv_contracts (client_id, company_id, start_on, annual_price_ht, visit_months, status)
+  values (v_client, v_cie, current_date, 500, array[3], 'actif') returning id into v_k;
+  update public.itv_contracts set signed_at = now(), signed_on_paper = true where id = v_k;
+  if (select billing_term from public.itv_contracts where id = v_k) is distinct from 'echu' then raise exception '4c. client public : moment faux'; end if;
+  -- 5. Indice : nom et mois figés après signature ; valeur de référence sans indice ni mois refusée
+  insert into public.itv_contracts (client_id, company_id, start_on, annual_price_ht, visit_months, status, index_label, index_base_value, index_base_month)
+  values (v_client, v_cie, current_date, 500, array[3], 'actif', 'Indice essai', 100, '2026-06-01') returning id into v_k;
+  update public.itv_contracts set signed_at = now(), signed_on_paper = true where id = v_k;
+  begin update public.itv_contracts set index_label = 'Autre' where id = v_k; v_ok := true; exception when insufficient_privilege then v_ok := false; end;
+  if v_ok then raise exception '5. nom de l''indice modifiable après signature'; end if;
+  begin update public.itv_contracts set index_base_month = '2026-07-01' where id = v_k; v_ok := true; exception when insufficient_privilege then v_ok := false; end;
+  if v_ok then raise exception '5b. mois de référence modifiable après signature'; end if;
+  begin
+    insert into public.itv_contracts (client_id, company_id, start_on, annual_price_ht, visit_months, status, index_base_value)
+    values (v_client, v_cie, current_date, 500, array[3], 'actif', 100);
+    raise exception '5c. valeur de référence sans indice acceptée';
+  exception when check_violation then null;
+  end;
 end
 $$;
 select 'ESSAI PROPRE VERT : supabase/tests/contrats_0510.sql' as resultat;

@@ -27,5 +27,8 @@ describe('facture de visite et échéancier (0461)', () => {
     expect(l[1].unit_price_ht).toBe(6)
     expect(l[2].unit_price_ht).toBe(40)
     expect(l.some((x) => x.description_detail === 'Compris au contrat')).toBe(false)
+    // périodicité vide (écriture directe en base) : facturée comme à la visite, rien de compris non plus
+    const v = invoiceLinesForVisit(visite({ label: 'Contrat', annual_price_ht: 1200, billing_period: null, includes: { pieces: true } }), pieces, { tva_rate: 20 }, 2, [], cats)
+    expect(v[1].unit_price_ht).toBe(6)
   })
 })

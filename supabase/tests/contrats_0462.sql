@@ -8,8 +8,8 @@ begin
   insert into public.clients (name, company_id) values ('Client 0462', v_cie) returning id into v_client;
   -- Contrat signé il y a presque un an, annuel, 3 ans, indice 120 au départ
   insert into public.itv_contracts (client_id, company_id, start_on, annual_price_ht, visit_months, status, duration_years, tacit_renewal, billing_period,
-    index_label, index_series, index_base_value, term_on, signed_at, signed_name)
-  values (v_client, v_cie, current_date - 350, 1000, array[3], 'actif', 3, true, 'annuel', 'ICHTrev-TS', '001565183', 120,
+    index_label, index_series, index_base_value, index_base_month, term_on, signed_at, signed_name)
+  values (v_client, v_cie, current_date - 350, 1000, array[3], 'actif', 3, true, 'annuel', 'ICHTrev-TS', '001565183', 120, date_trunc('month', current_date - 400)::date,
     (current_date - 350 + interval '3 years' - interval '1 day')::date, now(), 'Client') returning id into v_k;
   if (select base_price_ht from public.itv_contracts where id = v_k) <> 1000 then raise exception 'P0 non posé'; end if;
   perform app.contrat_echeancier(v_k);

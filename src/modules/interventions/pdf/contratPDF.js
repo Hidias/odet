@@ -11,7 +11,7 @@ import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { monthLabel } from '../lib/schedule'
-import { phraseConditions, dateFr, limiteRefus, libellePeriodicite, termeFacture, comprisDuContrat, FORMULE_REVISION } from '../lib/contrat'
+import { phraseConditions, dateFr, limiteRefus, libellePeriodicite, termeFacture, comprisDuContrat, parEcheancier, FORMULE_REVISION } from '../lib/contrat'
 
 const euros = (n) => `${Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € HT`
 const enOctets = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
@@ -69,10 +69,12 @@ export async function buildContratPDF({ contract, client, sites = [], types = []
       ['Prix annuel', euros(contract.annual_price_ht)],
       ['Facturation', libellePeriodicite(conds.periodicite)],
       // Échéancier (0461) : moment des factures et ce que le prix comprend ; à la visite, chaque visite est facturée
-      ...(conds.periodicite !== 'visite' ? [
+      ...(parEcheancier(contract) ? [
         ['Date des factures', termeFacture(contract, client?.client_type) === 'echu' ? 'après chaque période, une fois le service fait' : 'au début de chaque période, pour la période à venir'],
         ['Compris dans le prix', comprisDuContrat(contract).join(', ') || 'les visites seulement ; pièces, recharges, déplacement et dépannage facturés en plus'],
-      ] : []),
+      ] : [
+        ['Factures', 'une facture après chaque visite ; pièces, recharges, déplacement et dépannage facturés en plus'],
+      ]),
       ['Prise d\'effet', dateFr(contract.start_on)],
       ['Durée', `${conds.duree_ans} an${conds.duree_ans > 1 ? 's' : ''}${echeance ? `, échéance le ${dateFr(echeance)}` : ''}`],
       ['À l\'échéance', conds.reconduction
@@ -91,7 +93,7 @@ export async function buildContratPDF({ contract, client, sites = [], types = []
         ['Valeur de référence', `${Number(contract.index_base_value).toLocaleString('fr-FR', { maximumFractionDigits: 4 })}${moisRef ? `, ${moisRef}` : ''}`],
         ['Prix de départ', euros(contract.base_price_ht ?? contract.annual_price_ht)],
       ], { labelW: 40 })
-      f.para(`Chaque année, à la date anniversaire de la prise d'effet, le prix annuel est révisé selon la formule : ${FORMULE_REVISION}. Le client reçoit un courrier qui indique le nouveau prix.`, { size: 8.5, after: 2 })
+      f.para(`Chaque année, à la date anniversaire de la prise d'effet, le prix annuel peut être révisé selon la formule : ${FORMULE_REVISION}. Le nouveau prix est communiqué au client par courrier.`, { size: 8.5, after: 2 })
     }
     f.para('Le présent contrat est régi par les conditions particulières ci-dessus et par les conditions générales de maintenance et de vérification jointes, dont le client reconnaît avoir pris connaissance. En cas de contradiction, les conditions particulières prévalent.', { size: 8.5, after: 4 })
 

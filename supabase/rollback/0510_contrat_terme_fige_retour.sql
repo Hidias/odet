@@ -1,5 +1,6 @@
 -- Retour arrière de 0510 : app.contrat_signe_fige remise à la définition de 0466 (moment de facturation de nouveau
--- modifiable par la base sur un contrat signé ; l'écran ne l'envoie toujours pas).
+-- modifiable par la base sur un contrat signé ; l'écran ne l'envoie toujours pas), contrainte de l'indice retirée. Un
+-- moment des factures fixé à la signature reste écrit (même valeur que la règle par défaut à ce moment).
 
 CREATE OR REPLACE FUNCTION app.contrat_signe_fige()
  RETURNS trigger
@@ -22,5 +23,7 @@ begin
   return new;
 end
 $function$;
+
+alter table public.itv_contracts drop constraint if exists itv_contracts_indice_complet;
 
 delete from public.schema_migrations where version = '0510_contrat_terme_fige';

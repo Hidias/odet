@@ -149,6 +149,7 @@ describe('Contrat signé : moment des factures, compris et révision (07/11)', (
     const t = textes(docs[docs.length - 1])
     expect(t).not.toContain('Date des factures')
     expect(t).not.toContain('Compris dans le prix')
+    expect(t).toContain('une facture après chaque visite')
   })
   it('aucune dernière page presque vide, de 0 à 40 types d\'appareils, avec la clause de révision', async () => {
     for (let n = 0; n <= 40; n++) {
@@ -158,10 +159,11 @@ describe('Contrat signé : moment des factures, compris et révision (07/11)', (
     }
   }, 120000)
   it('courrier de révision : mêmes mots, sans sigles', async () => {
-    await buildRevisionPDF({ contract: { reference: 'C1', base_price_ht: 1000, index_base_value: 100, index_label: 'Indice' }, client: { name: 'Client Essai' }, revision: { anniversary: '2026-11-01', new_value: 103, price_after: 1030 }, org })
+    await buildRevisionPDF({ contract: { reference: 'C1', base_price_ht: 1000, index_base_value: 100, index_label: 'Indice' }, client: { name: 'Client Essai' }, revision: { anniversary: '2026-11-01', new_value: 103, price_before: 1010, price_after: 1030 }, org })
     const t = textes(docs[docs.length - 1])
     expect(t).toMatch(/nouveau prix = prix de départ × dernière valeur/)
     expect(t).toContain('VALEUR DE RÉFÉRENCE DE L\'INDICE')
+    expect(t).toMatch(/PRIX ANNUEL EN COURS 1.010,00/)
     expect(t).not.toMatch(/\bP0\b|\bI0\b|\(I\)|\(P\)/)
     expect(dernierePagePeuRemplie(docs[docs.length - 1])).toBe(false)
   })

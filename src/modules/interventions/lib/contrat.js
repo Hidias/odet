@@ -48,10 +48,14 @@ export const phraseTerme = (terme) => (terme === 'echu'
   ? 'Facture préparée le lendemain de chaque période, une fois le service fait.'
   : 'Facture préparée au premier jour de chaque période, pour la période à venir.')
 
-// Ce que le prix du contrat comprend (0461). À la visite, rien n'est compris : chaque visite est facturée avec ses
-// fournitures (le choix n'est pas proposé à l'écran, et une valeur restée en base est ignorée).
+// Contrat facturé par échéancier (0461) : mêmes périodicités que la base (0465) et la facture de visite
+export const PAR_ECHEANCIER = ['mensuel', 'trimestriel', 'annuel']
+export const parEcheancier = (contract) => PAR_ECHEANCIER.includes(contract?.billing_period)
+
+// Ce que le prix du contrat comprend (0461). Hors échéancier (à la visite), rien n'est compris : chaque visite est
+// facturée avec ses fournitures (le choix n'est pas proposé à l'écran, et une valeur restée en base est ignorée).
 export const COMPRIS = [['pieces', 'Pièces'], ['recharges', 'Recharges'], ['deplacement', 'Déplacement'], ['depannage', 'Main-d\'œuvre de dépannage']]
-export const comprisApplicable = (contract) => (contract && contract.billing_period !== 'visite' ? contract.includes || {} : {})
+export const comprisApplicable = (contract) => (parEcheancier(contract) ? contract.includes || {} : {})
 export const comprisDuContrat = (contract) => { const c = comprisApplicable(contract); return COMPRIS.filter(([k]) => c[k] === true).map(([, l]) => l) }
 
 // Révision du prix (0462) : formule en mots simples, la même à l'écran, sur le contrat et sur le courrier

@@ -421,6 +421,10 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
   const save = async () => {
     if (!f.client_id) { toast.error('Choisissez le client'); return }
     if (!f.visit_months.length) { toast.error('Choisissez au moins un mois de visite'); return }
+    // Clause de révision imprimée sur le contrat : la valeur de référence va avec l'indice qu'elle désigne et son mois (0510)
+    if (String(f.index_base_value ?? '').trim() !== '' && (!(f.index_label.trim() || f.index_series.trim()) || !f.index_base_month)) {
+      toast.error('Révision du prix : indiquez le nom ou l\'identifiant de l\'indice et le mois de la valeur de référence'); return
+    }
     if (f.status === 'a_valider' && contract.status !== 'a_valider') { toast.error('Statut invalide'); return }
     setBusy(true)
     try {
@@ -440,7 +444,7 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         if (!contract.validated_at) row.validated_at = new Date().toISOString()
       }
       // Contrat signé : ses conditions ne se modifient plus (avenant) ; seuls les visites, sites, notes et statut changent
-      if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id', 'index_base_value', 'index_series', 'emergency_hours', 'includes', 'billing_term']) delete row[k]
+      if (signe) for (const k of ['annual_price_ht', 'duration_years', 'tacit_renewal', 'renewal_years', 'notice_months', 'billing_period', 'start_on', 'client_id', 'index_base_value', 'index_series', 'index_label', 'index_base_month', 'emergency_hours', 'includes', 'billing_term']) delete row[k]
       const saved = await saveContract(row)
       // Engagement de l'exercice (client public) : une saisie par an, reprise sur chaque facture de l'année
       if (publicClient && engagement.number.trim()) {
@@ -537,9 +541,10 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
       <fieldset>
         <legend className="label">Révision du prix chaque année selon un indice</legend>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="sm:col-span-2"><label className="text-ui-sm text-gray-500" htmlFor="ct-ind">Nom de l'indice</label><input id="ct-ind" className="input" maxLength={200} value={f.index_label} onChange={(e) => setF({ ...f, index_label: e.target.value })} placeholder="Ex. : ICHTrev-TS, activité à préciser (insee.fr)" /></div>
+          <div className="sm:col-span-2"><label className="text-ui-sm text-gray-500" htmlFor="ct-ind">Nom de l'indice</label><input id="ct-ind" className="input" maxLength={200} disabled={signe} value={f.index_label} onChange={(e) => setF({ ...f, index_label: e.target.value })} placeholder="Ex. : ICHTrev-TS, activité à préciser (insee.fr)" /></div>
           <div><label className="text-ui-sm text-gray-500" htmlFor="ct-ser">Identifiant INSEE de l'indice</label><input id="ct-ser" className="input" maxLength={40} disabled={signe} value={f.index_series} onChange={(e) => setF({ ...f, index_series: e.target.value })} /></div>
           <div><label className="text-ui-sm text-gray-500" htmlFor="ct-i0">Valeur de référence de l'indice (prévue au contrat)</label><input id="ct-i0" className="input" inputMode="decimal" disabled={signe} value={f.index_base_value} onChange={(e) => setF({ ...f, index_base_value: e.target.value })} /></div>
+          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-i0m">Mois de cette valeur</label><input id="ct-i0m" className="input" type="month" disabled={signe} value={String(f.index_base_month || '').slice(0, 7)} onChange={(e) => setF({ ...f, index_base_month: e.target.value ? `${e.target.value}-01` : '' })} /></div>
         </div>
         <p className="text-ui-sm text-gray-500 mt-1">{FORMULE_REVISION.charAt(0).toUpperCase() + FORMULE_REVISION.slice(1)}. Sans valeur de référence, aucune révision n'est proposée. Valeurs officielles : insee.fr.</p>
       </fieldset>
