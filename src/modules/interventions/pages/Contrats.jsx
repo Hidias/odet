@@ -506,12 +506,13 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
       </fieldset>
       {f.billing_period !== 'visite' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div><label className="label" htmlFor="ct-terme">Facture émise</label>
-            <select id="ct-terme" className="select" value={f.billing_term} onChange={(e) => setF({ ...f, billing_term: e.target.value })}>
-              <option value="">{publicClient ? 'Après la période (client public)' : 'En début de période'}</option>
-              <option value="echoir">En début de période</option><option value="echu">Après la période</option>
-            </select></div>
-          <fieldset><legend className="label">Compris au contrat (0 € sur la visite)</legend>
+          <div><label className="label" htmlFor="ct-terme">Quand envoyer la facture</label>
+            {/* Vide en base : règle par défaut selon le client (0461 : public après la période, sinon au début) */}
+            <select id="ct-terme" className="select" aria-describedby="ct-terme-aide" value={f.billing_term || (publicClient ? 'echu' : 'echoir')} onChange={(e) => setF({ ...f, billing_term: e.target.value })}>
+              <option value="echoir">Au début de chaque période</option><option value="echu">À la fin de chaque période</option>
+            </select>
+            <p id="ct-terme-aide" className="text-ui-sm text-gray-500 mt-1">{publicClient ? 'Client public : à la fin de la période, une fois le service fait.' : 'Le client paie la période à venir.'}</p></div>
+          <fieldset><legend className="label">Déjà compris dans le prix du contrat (rien de plus facturé à la visite)</legend>
             <div className="flex flex-wrap gap-3 pt-1">{[['pieces', 'Pièces'], ['recharges', 'Recharges'], ['deplacement', 'Déplacement'], ['depannage', 'Main-d\'œuvre de dépannage']].map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 text-ui"><input type="checkbox" disabled={signe} checked={f.includes?.[k] === true} onChange={(e) => setF({ ...f, includes: { ...(f.includes || {}), [k]: e.target.checked } })} />{l}</label>
             ))}</div>
@@ -519,18 +520,18 @@ export function ContractForm({ contract, sites: sitesIn = null, types, onClose, 
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div><label className="label" htmlFor="ct-urg">Dépannage urgent : arrivée promise sous (heures)</label><input id="ct-urg" className="input" type="number" min={1} max={720} disabled={signe} value={f.emergency_hours} onChange={(e) => setF({ ...f, emergency_hours: e.target.value })} placeholder="Vide : aucun engagement" /></div>
-        <div><label className="label" htmlFor="ct-bc">N° de bon de commande</label><input id="ct-bc" className="input" maxLength={60} value={f.purchase_order_ref} onChange={(e) => setF({ ...f, purchase_order_ref: e.target.value })} placeholder="Repris sur chaque facture" /></div>
+        <div><label className="label" htmlFor="ct-urg">Dépannage urgent : arrivée sur place sous (heures)</label><input id="ct-urg" className="input" type="number" min={1} max={720} disabled={signe} value={f.emergency_hours} onChange={(e) => setF({ ...f, emergency_hours: e.target.value })} placeholder="Laisser vide si aucun délai promis" /></div>
+        <div><label className="label" htmlFor="ct-bc">N° de bon de commande</label><input id="ct-bc" className="input" maxLength={60} value={f.purchase_order_ref} onChange={(e) => setF({ ...f, purchase_order_ref: e.target.value })} placeholder="Facultatif, repris sur chaque facture" /></div>
         {publicClient && <div><label className="label" htmlFor="ct-eng">N° d'engagement {engagement.year}</label><input id="ct-eng" className="input" maxLength={60} value={engagement.number} onChange={(e) => setEngagement({ ...engagement, number: e.target.value })} placeholder="Obligatoire pour émettre sur Chorus Pro" /></div>}
       </div>
       <fieldset>
-        <legend className="label">Révision annuelle du prix (P = P0 × I / I0)</legend>
+        <legend className="label">Révision du prix chaque année selon un indice</legend>
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="sm:col-span-2"><label className="text-ui-sm text-gray-500" htmlFor="ct-ind">Indice</label><input id="ct-ind" className="input" maxLength={200} value={f.index_label} onChange={(e) => setF({ ...f, index_label: e.target.value })} placeholder="Ex. : ICHTrev-TS, activité à préciser (insee.fr)" /></div>
-          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-ser">Identifiant de série</label><input id="ct-ser" className="input" maxLength={40} disabled={signe} value={f.index_series} onChange={(e) => setF({ ...f, index_series: e.target.value })} /></div>
-          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-i0">Valeur de référence (I0)</label><input id="ct-i0" className="input" inputMode="decimal" disabled={signe} value={f.index_base_value} onChange={(e) => setF({ ...f, index_base_value: e.target.value })} /></div>
+          <div className="sm:col-span-2"><label className="text-ui-sm text-gray-500" htmlFor="ct-ind">Nom de l'indice</label><input id="ct-ind" className="input" maxLength={200} value={f.index_label} onChange={(e) => setF({ ...f, index_label: e.target.value })} placeholder="Ex. : ICHTrev-TS, activité à préciser (insee.fr)" /></div>
+          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-ser">Identifiant INSEE de l'indice</label><input id="ct-ser" className="input" maxLength={40} disabled={signe} value={f.index_series} onChange={(e) => setF({ ...f, index_series: e.target.value })} /></div>
+          <div><label className="text-ui-sm text-gray-500" htmlFor="ct-i0">Valeur de l'indice à la signature</label><input id="ct-i0" className="input" inputMode="decimal" disabled={signe} value={f.index_base_value} onChange={(e) => setF({ ...f, index_base_value: e.target.value })} /></div>
         </div>
-        <p className="text-ui-sm text-gray-500 mt-1">Sans valeur de référence, aucune révision n'est proposée. Valeurs officielles : insee.fr.</p>
+        <p className="text-ui-sm text-gray-500 mt-1">Nouveau prix = prix de départ × dernière valeur de l'indice ÷ valeur à la signature. Sans valeur à la signature, aucune révision n'est proposée. Valeurs officielles : insee.fr.</p>
       </fieldset>
       <div><label className="label" htmlFor="ct-notes">Notes</label><textarea id="ct-notes" className="textarea" rows={2} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></div>
       {contract.start_on && <p className="muted text-ui-sm">En vigueur depuis le {frShort(contract.start_on)}.</p>}
