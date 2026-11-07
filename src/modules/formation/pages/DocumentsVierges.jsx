@@ -151,7 +151,7 @@ export default function DocumentsVierges() {
     { id: 'ficheRenseignements', label: 'Fiche de renseignements stagiaire', qualiopi: '4' },
     { id: 'evaluation', label: 'Évaluation à chaud', qualiopi: '30' },
     { id: 'evaluationFroid', label: 'Évaluation à froid', qualiopi: '30' },
-    { id: 'evaluationFormateur', label: 'Évaluation formateur', qualiopi: '17' },
+    { id: 'evaluationFormateur', label: 'Évaluation formateur', qualiopi: '30' },
   ]
 
   return (

@@ -2089,7 +2089,7 @@ export const useDataStore = create((set, get) => ({
         // Session terminée devrait avoir des attestations
       }
       
-      // Indicateur 17 - Formateur qualifié
+      // Indicateur 17 (décret n° 2026-728) : moyens humains adaptés, ici un formateur affecté à la session ; la qualification du formateur relève du 21 (plus bas)
       if (!s.trainer_id) {
         issues.push({ indicateur: 17, session: s.reference, probleme: 'Aucun formateur assigné' })
       }
