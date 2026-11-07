@@ -6,6 +6,7 @@ import { downloadPasseportPrevention } from '../../prevention/pdf/pdfPasseportPr
 import { downloadKitSecours, KIT_CONFIG } from '../../prevention/pdf/pdfKitSecours'
 import { useDataStore } from '../../../core/store'
 import toast from 'react-hot-toast'
+import { Q, DOCS_ADMINISTRATIFS, DOCS_FORMATION } from '../lib/indicateursDocuments'
 
 // Couleurs des thèmes selon leur nom
 const getThemeColor = (themeName) => {
@@ -140,19 +141,8 @@ export default function DocumentsVierges() {
     setKitProgress(null)
   }
 
-  const adminDocs = [
-    { id: 'reglement', label: 'Règlement intérieur', qualiopi: '9' },
-    { id: 'livret', label: 'Livret d\'accueil', qualiopi: '1' },
-    { id: 'analyseBesoin', label: 'Analyse du besoin', qualiopi: '4' },
-  ]
-
-  const formationDocs = [
-    { id: 'emargement', label: 'Feuille d\'émargement (10 lignes)', qualiopi: '11' },
-    { id: 'ficheRenseignements', label: 'Fiche de renseignements stagiaire', qualiopi: '4' },
-    { id: 'evaluation', label: 'Évaluation à chaud', qualiopi: '30' },
-    { id: 'evaluationFroid', label: 'Évaluation à froid', qualiopi: '30' },
-    { id: 'evaluationFormateur', label: 'Évaluation formateur', qualiopi: '30' },
-  ]
+  const adminDocs = DOCS_ADMINISTRATIFS
+  const formationDocs = DOCS_FORMATION
 
   return (
     <div className="space-y-6">
@@ -292,7 +282,7 @@ export default function DocumentsVierges() {
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getThemeColor(theme.name) }} />
                     <span className="text-ui">Test {theme.name}</span>
-                    <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-800">Q8</span>
+                    <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-800">Q{Q.positionnement}</span>
                   </div>
                   {loadingTheme === theme.id ? (
                     <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
@@ -327,7 +317,7 @@ export default function DocumentsVierges() {
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: FORMATION_COLORS[key] || '#6b7280' }} />
                   <span className="text-ui">{info.title}</span>
-                  <span className="text-ui-sm px-1.5 py-0.5 rounded bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]">Q22</span>
+                  <span className="text-ui-sm px-1.5 py-0.5 rounded bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]">Q{Q.grilles}</span>
                 </div>
                 {loadingGrid === key ? (
                   <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />
@@ -388,9 +378,9 @@ export default function DocumentsVierges() {
           <div>
             <h3 className="font-medium text-[rgb(var(--c-info))] mb-1">Indicateurs Qualiopi</h3>
             <p className="text-ui text-[rgb(var(--c-info))]">
-              Les badges (Q4, Q8, Q11, Q22, Q30) indiquent l'indicateur Qualiopi auquel correspond chaque document.
+              Les badges (Q4, Q8, Q9, Q11, Q12, Q30) indiquent l'indicateur Qualiopi auquel correspond chaque document.
               Les kits secours regroupent tous les documents nécessaires par formation (×10 exemplaires).
-              Les grilles de compétences répondent à l'indicateur Q22 (évaluation des acquis).
+              Les grilles de compétences répondent à l'indicateur Q11 (évaluation de l'atteinte des objectifs).
             </p>
           </div>
         </div>
