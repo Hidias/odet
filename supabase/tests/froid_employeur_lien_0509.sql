@@ -89,6 +89,39 @@ begin
   end;
   if (select reponses from public.froid_employeur where session_id = v_sa and client_id = v_a) <> v_ok then raise exception '6b. réponse remplacée'; end if;
 
+  -- 6 bis. Salarié de l'entreprise inscrit à une formation achetée par une autre (relecture de 0509) : rien sans
+  -- demande de relance ; avec un envoi « contact » à cette entreprise, la formation est listée pour ce salarié, sans
+  -- questionnaire de l'employeur, et la réponse est refusée
+  declare v_t uuid; v_g uuid; v_si uuid;
+  begin
+    insert into public.trainees (first_name, last_name, client_id, company_id) values ('Zoé', 'ESSAI', v_a, v_cie) returning id into v_t;
+    insert into public.session_trainees (session_id, trainee_id) values (v_sb, v_t);
+    v_r := public.client_portal_froid(v_tok, '482915');
+    if v_r -> 'sessions' @> jsonb_build_array(jsonb_build_object('session_id', v_sb)) then raise exception '6c. formation d''un autre client listée (%)', v_r; end if;
+    insert into public.froid_envois (company_id, session_id, trainee_id, client_id, cible, rang, du_le, destinataire)
+      values (v_cie, v_sb, v_t, v_a, 'contact', 0, current_date, 'rh@example.invalid');
+    v_r := public.client_portal_froid(v_tok, '482915');
+    select x into v_r from jsonb_array_elements(v_r -> 'sessions') x where (x ->> 'session_id')::uuid = v_sb;
+    if v_r is null or jsonb_typeof(v_r -> 'employeur') = 'object' or jsonb_array_length(v_r -> 'stagiaires') <> 1 then
+      raise exception '6d. relance du salarié fausse (%)', v_r;
+    end if;
+    begin
+      v_r := public.client_portal_froid_repondre(v_tok, '482915', v_sb, v_ok);
+      raise exception '6e. réponse acceptée pour une formation d''un autre client';
+    exception when sqlstate '22023' then null;
+    end;
+    -- Inter : groupe de l'entreprise proposé ; groupe annulé, plus proposé
+    insert into public.sessions (reference, start_date, end_date, client_id, company_id, status, session_type)
+      values ('ESSAI-0509-I', current_date - 71, current_date - 70, v_b, v_cie, 'completed', 'inter') returning id into v_si;
+    insert into public.session_groups (session_id, client_id, kind, company_id) values (v_si, v_a, 'entreprise', v_cie) returning id into v_g;
+    v_r := public.client_portal_froid(v_tok, '482915');
+    select x into v_r from jsonb_array_elements(v_r -> 'sessions') x where (x ->> 'session_id')::uuid = v_si;
+    if jsonb_typeof(v_r -> 'employeur') <> 'object' then raise exception '6f. groupe de l''inter sans questionnaire (%)', v_r; end if;
+    update public.session_groups set status = 'cancelled' where id = v_g;
+    v_r := public.client_portal_froid(v_tok, '482915');
+    if v_r -> 'sessions' @> jsonb_build_array(jsonb_build_object('session_id', v_si)) then raise exception '6g. groupe annulé encore listé (%)', v_r; end if;
+  end;
+
   -- 7. Droits : règles communes fermées ; lien ouvert à anon ; compte réservé aux connectés
   if has_function_privilege('anon', 'app.froid_employeur_client(uuid, uuid)', 'execute')
      or has_function_privilege('authenticated', 'app.froid_employeur_client(uuid, uuid)', 'execute')
@@ -132,7 +165,7 @@ declare v_tok text := current_setting('essai.jeton'); v_s uuid := current_settin
 begin
   -- 9. Lecture et réponse par le lien en anon
   v_r := public.client_portal_froid(v_tok, '482915');
-  if jsonb_array_length(v_r -> 'sessions') <> 1 then raise exception '9. lecture en anon fausse (%)', v_r; end if;
+  if not v_r -> 'sessions' @> jsonb_build_array(jsonb_build_object('session_id', v_s)) then raise exception '9. lecture en anon fausse (%)', v_r; end if;
   -- 10. Règle commune fermée en anon
   begin
     v_r := app.froid_employeur_client(null, null);

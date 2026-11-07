@@ -97,7 +97,7 @@ export function texteContact(groupe, orgName, base, jetonAcces = null) {
     '',
   ]
   if (employeur) {
-    lignes.push(`${relance ? 'Nous n\'avons pas encore reçu votre avis d\'employeur. ' : ''}Quelques mois après la formation, votre avis nous aide à mesurer ce qu'elle apporte dans le travail. Le questionnaire vous attend dans votre espace entreprise, rubrique « Évaluations à froid »${jetonAcces ? ', avec votre code d\'accès habituel' : ''} :`, '', espaceEntreprise(base, jetonAcces), '')
+    lignes.push(`${relance ? 'Nous n\'avons pas encore reçu votre avis d\'employeur. ' : ''}Quelques mois après la formation, votre avis nous aide à mesurer ce qu'elle apporte dans le travail. Le questionnaire vous attend dans votre espace entreprise, rubrique « Évaluations à froid »${jetonAcces ? ', avec votre code d\'accès habituel (si vous ne l\'avez pas, répondez simplement à ce message)' : ''} :`, '', espaceEntreprise(base, jetonAcces), '')
   }
   if (sansAdresse.length) {
     const noms = sansAdresse.map((x) => [x.prenom, x.nom].filter(Boolean).join(' ')).join(', ')
@@ -108,13 +108,14 @@ export function texteContact(groupe, orgName, base, jetonAcces = null) {
   return { sujet: `Évaluation à froid de la formation « ${formation} »`, corps: lignes.join('\n') }
 }
 
-// Regroupe : un mail par envoi stagiaire ; un mail par (session, adresse) pour le contact et l'employeur
+// Regroupe : un mail par envoi stagiaire ; un mail par (session, client, adresse) pour le contact et l'employeur
 export function grouper(envois) {
   const out = []
   const contacts = new Map()
   for (const e of envois) {
     if (e.cible === 'stagiaire') { out.push([e]); continue }
-    const cle = `${e.session_id}|${String(e.destinataire || '').toLowerCase()}`
+    // par client aussi (0509) : chaque mail mène à l'espace de sa propre entreprise
+    const cle = `${e.session_id}|${e.client_id || ''}|${String(e.destinataire || '').toLowerCase()}`
     if (!contacts.has(cle)) { contacts.set(cle, []); out.push(contacts.get(cle)) }
     contacts.get(cle).push(e)
   }

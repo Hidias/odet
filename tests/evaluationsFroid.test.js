@@ -38,8 +38,11 @@ describe('évaluations à froid : textes et regroupement (0482)', () => {
     const tl = texteContact(g[1], 'Organisme Test', 'https://app.exemple.fr/', 'jeton123')
     expect(tl.corps).toContain('https://app.exemple.fr/#/entreprise/jeton123')
     expect(tl.corps).not.toContain('/#/mon-entreprise')
-    expect(tl.corps).toContain('avec votre code d\'accès habituel')
+    expect(tl.corps).toContain('avec votre code d\'accès habituel (si vous ne l\'avez pas, répondez simplement à ce message)')
     // Stagiaires sans adresse seulement : le lien de l'espace de l'entreprise est donné aussi
+    // Deux entreprises à la même adresse : un mail chacune (chacun mène à son espace)
+    const deux = grouper([{ ...base, id: 'x', cible: 'employeur', client_id: 'k1', destinataire: 'rh@exemple.fr' }, { ...base, id: 'y', cible: 'employeur', client_id: 'k2', destinataire: 'RH@exemple.fr' }])
+    expect(deux.map((x) => x.map((y) => y.id))).toEqual([['x'], ['y']])
     const tc = texteContact([g[1][0]], 'Organisme Test', 'https://app.exemple.fr', 'jeton123')
     expect(tc.corps).toContain('/#/entreprise/jeton123')
     expect(tc.corps).not.toContain('code d\'accès habituel')

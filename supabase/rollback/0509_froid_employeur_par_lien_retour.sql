@@ -1,12 +1,21 @@
 -- Retour arrière de 0509 : ent_froid et ent_froid_repondre remises au corps de 0482, fonctions de l'espace par lien et
 -- règles communes retirées (le questionnaire de l'employeur ne se remplit plus que par compte). Les réponses déjà
 -- reçues par le lien restent ; l'accès qui les a données est recopié dans le journal d'audit avant le retrait de la
--- colonne repondu_acces.
+-- colonne repondu_acces. À retirer avec le code de l'écran et de l'API de la même PR (le mail mènerait sinon à un espace
+-- par lien sans la rubrique).
 
-insert into public.audit_logs (action, entity_type, entity_id, entity_name, details, company_id, source)
-select 'update', 'evaluation', fe.id, 'Réponse de l''employeur reçue par l''espace par lien (retour arrière de 0509)',
-       jsonb_build_object('table', 'froid_employeur', 'repondu_acces', fe.repondu_acces, 'completed_at', fe.completed_at), fe.company_id, 'base'
-  from public.froid_employeur fe where fe.repondu_acces is not null;
+-- Rejouable : la recopie n'a lieu que si la colonne existe encore
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'froid_employeur' and column_name = 'repondu_acces') then
+    execute $q$
+      insert into public.audit_logs (action, entity_type, entity_id, entity_name, details, company_id, source)
+      select 'update', 'evaluation', fe.id, 'Réponse de l''employeur reçue par l''espace par lien (retour arrière de 0509)',
+             jsonb_build_object('table', 'froid_employeur', 'repondu_acces', fe.repondu_acces, 'completed_at', fe.completed_at), fe.company_id, 'base'
+        from public.froid_employeur fe where fe.repondu_acces is not null$q$;
+  end if;
+end
+$$;
 
 drop function if exists public.client_portal_froid_repondre(text, text, uuid, jsonb);
 drop function if exists public.client_portal_froid(text, text);

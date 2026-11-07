@@ -9,6 +9,8 @@ describe('Évaluation à froid de l’employeur par l’espace par lien (0509)',
     expect(messageFroid({ code: '22023', message: 'Merci de répondre à toutes les questions' })).toBe('Merci de répondre à toutes les questions')
     expect(messageFroid({ code: '23505', message: 'Votre réponse est déjà enregistrée : merci' })).toBe('Votre réponse est déjà enregistrée : merci')
     expect(messageFroid({ code: '42501', message: 'permission denied for function client_portal_froid_repondre' }, 'x')).toBe('x')
+    expect(messageFroid({ code: '42501', message: 'Réponse reçue : elle ne se modifie plus (correction par le super administrateur, avec un motif)' }, 'x')).toBe('Votre réponse est déjà enregistrée : merci')
+    expect(messageFroid({ code: '42501', message: 'Espace entreprise : compte inconnu ou désactivé' }, 'x')).toBe('x')
     expect(messageFroid({ message: 'TypeError: Failed to fetch' }, 'x')).toBe('x')
     expect(messageFroid({}, 'x')).toBe('x')
   })

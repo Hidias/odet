@@ -64,10 +64,14 @@ create temp table etat_essai_avant as select * from etat_essai;
 --   3. public.ent_froid et public.ent_froid_repondre appellent ces règles (même résultat qu'avant).
 --   4. public.client_portal_froid(jeton, code) et public.client_portal_froid_repondre(jeton, code, session, réponses) :
 --      mêmes règles depuis l'espace par lien, après client_portal_check (erreurs du lien en JSON { error }), dans la
---      société de l'accès. Les codes d'accès des stagiaires y figurent comme dans l'espace par compte : l'espace par
---      lien les montre déjà (client_portal_data), rien de nouveau n'est exposé.
--- Retour arrière : supabase/rollback/0509_froid_employeur_par_lien_retour.sql (corps de 0482, fonctions du lien retirées,
--- colonne gardée : les réponses reçues par le lien restent tracées).
+--      société de l'accès.
+--   5. Qui voit quoi (relecture de 0509 ; 0482 ouvrait plus large, sans conséquence tant qu'aucun compte n'existait) :
+--      le questionnaire de l'employeur n'est proposé qu'à l'entreprise qui a acheté la formation (client de la session,
+--      ou groupe non annulé d'une inter), comme client_portal_data ; une entreprise ne voit une autre formation que pour
+--      les salariés que l'organisme lui a demandé de relancer (envoi « contact » à son adresse), avec leur code.
+-- Retour arrière : supabase/rollback/0509_froid_employeur_par_lien_retour.sql (corps de 0482, fonctions du lien retirées ;
+-- l'accès qui a donné chaque réponse par le lien est recopié dans audit_logs, puis la colonne repondu_acces est retirée).
+-- Le code de l'écran et de l'API (lien du mail vers l'espace par lien) se retire avec lui.
 
 -- ── 1. Trace ──
 alter table public.froid_employeur add column if not exists repondu_acces uuid;
@@ -90,7 +94,9 @@ begin
     'actif', r.actif,
     'sessions', coalesce((select jsonb_agg(jsonb_build_object(
         'session_id', se.id, 'formation', co.title, 'debut', se.start_date, 'fin', coalesce(se.end_date, se.start_date),
-        'employeur', case when r.employeur_actif or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur' and e.statut = 'envoye') then jsonb_build_object(
+        'employeur', case when (se.client_id = p_client
+                                or exists (select 1 from public.session_groups g where g.session_id = se.id and g.client_id = p_client and g.status is distinct from 'cancelled'))
+                           and (r.employeur_actif or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur' and e.statut = 'envoye')) then jsonb_build_object(
             'recue', fe.completed_at is not null, 'recue_le', fe.completed_at,
             'questions', app.froid_questions(se.id, 'employeur')) end,
         'stagiaires', coalesce((select jsonb_agg(jsonb_build_object('prenom', tr.first_name, 'nom', tr.last_name,
@@ -98,7 +104,7 @@ begin
             from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id
             left join public.evaluations_cold ec on ec.session_id = st.session_id and ec.trainee_id = st.trainee_id
             where st.session_id = se.id and tr.client_id = p_client and not coalesce(st.absent, false)
-              and exists (select 1 from public.froid_envois e where e.session_id = se.id and e.trainee_id = st.trainee_id and e.cible = 'contact')), '[]'::jsonb))
+              and exists (select 1 from public.froid_envois e where e.session_id = se.id and e.trainee_id = st.trainee_id and e.client_id = p_client and e.cible = 'contact')), '[]'::jsonb))
         order by coalesce(se.end_date, se.start_date) desc)
       from public.sessions se left join public.courses co on co.id = se.course_id
       left join public.froid_employeur fe on fe.session_id = se.id and fe.client_id = p_client
@@ -110,8 +116,13 @@ begin
               and coalesce(se.end_date, se.start_date) + coalesce(co.froid_delai_jours, r.premier_envoi_jours) <= public.paris_today()
               and (coalesce(se.end_date, se.start_date) >= public.paris_today() - r.anciennete_max_jours or se.froid_inclure))
              or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur' and e.statut = 'envoye'))
-        and (se.client_id = p_client or exists (select 1 from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id
-                                                    where st.session_id = se.id and tr.client_id = p_client))), '[]'::jsonb));
+        -- formation achetée par l'entreprise (client ou groupe non annulé), ou salarié à relancer par elle (envoi « contact »)
+        and (se.client_id = p_client
+             or exists (select 1 from public.session_groups g where g.session_id = se.id and g.client_id = p_client and g.status is distinct from 'cancelled')
+             or exists (select 1 from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id
+                         where st.session_id = se.id and tr.client_id = p_client and not coalesce(st.absent, false)
+                           and exists (select 1 from public.froid_envois e where e.session_id = se.id and e.trainee_id = st.trainee_id
+                                        and e.client_id = p_client and e.cible = 'contact')))), '[]'::jsonb));
 end
 $$;
 revoke all on function app.froid_employeur_client(uuid, uuid) from public, anon, authenticated;
@@ -215,12 +226,21 @@ insert into public.schema_migrations (version) values ('0509_froid_employeur_par
 -- Retour arrière de 0509 : ent_froid et ent_froid_repondre remises au corps de 0482, fonctions de l'espace par lien et
 -- règles communes retirées (le questionnaire de l'employeur ne se remplit plus que par compte). Les réponses déjà
 -- reçues par le lien restent ; l'accès qui les a données est recopié dans le journal d'audit avant le retrait de la
--- colonne repondu_acces.
+-- colonne repondu_acces. À retirer avec le code de l'écran et de l'API de la même PR (le mail mènerait sinon à un espace
+-- par lien sans la rubrique).
 
-insert into public.audit_logs (action, entity_type, entity_id, entity_name, details, company_id, source)
-select 'update', 'evaluation', fe.id, 'Réponse de l''employeur reçue par l''espace par lien (retour arrière de 0509)',
-       jsonb_build_object('table', 'froid_employeur', 'repondu_acces', fe.repondu_acces, 'completed_at', fe.completed_at), fe.company_id, 'base'
-  from public.froid_employeur fe where fe.repondu_acces is not null;
+-- Rejouable : la recopie n'a lieu que si la colonne existe encore
+do $$
+begin
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'froid_employeur' and column_name = 'repondu_acces') then
+    execute $q$
+      insert into public.audit_logs (action, entity_type, entity_id, entity_name, details, company_id, source)
+      select 'update', 'evaluation', fe.id, 'Réponse de l''employeur reçue par l''espace par lien (retour arrière de 0509)',
+             jsonb_build_object('table', 'froid_employeur', 'repondu_acces', fe.repondu_acces, 'completed_at', fe.completed_at), fe.company_id, 'base'
+        from public.froid_employeur fe where fe.repondu_acces is not null$q$;
+  end if;
+end
+$$;
 
 drop function if exists public.client_portal_froid_repondre(text, text, uuid, jsonb);
 drop function if exists public.client_portal_froid(text, text);

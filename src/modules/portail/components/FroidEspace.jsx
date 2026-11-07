@@ -9,8 +9,11 @@ import { supabase } from '../../../core/supabase'
 import { QuestionnaireFroid } from './QuestionnaireFroid'
 
 // Message de la base montré tel quel (questionnaire fermé, réponse déjà reçue, réponses incomplètes), le reste en phrase simple
+// Réponse figée (déclencheur de la base, deux envois en même temps) : même phrase que « déjà enregistrée »
+export const DEJA_RECUE = 'Votre réponse est déjà enregistrée : merci'
+export const dejaRecue = (error) => error?.code === '23505' || (error?.code === '42501' && /^Réponse reçue/.test(error.message || ''))
 export const messageFroid = (error, defaut = 'Votre avis n\'a pas pu être enregistré. Réessayez plus tard.') =>
-  (['22023', '42501', '23505'].includes(error?.code) && /^[A-ZÀ-Ý]/.test(error.message || '') ? error.message : defaut)
+  (dejaRecue(error) ? DEJA_RECUE : error?.code === '22023' && /^[A-ZÀ-Ý]/.test(error.message || '') ? error.message : defaut)
 
 const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
 const periode = (a, b) => (!b || String(a).slice(0, 10) === String(b).slice(0, 10) ? `le ${dateFr(a)}` : `du ${dateFr(a)} au ${dateFr(b)}`)
@@ -35,7 +38,7 @@ export default function FroidEspace({ donnees, onChange, Carte, repondre = null 
     const { data, error } = res || {}
     if (error || data?.error) {
       setErreur(data?.error || messageFroid(error))
-      if (error?.code === '23505') onChange?.()
+      if (dejaRecue(error)) onChange?.()
       return
     }
     toast.success('Merci, votre avis est enregistré')
