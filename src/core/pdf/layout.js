@@ -388,7 +388,7 @@ export function createFlow(doc, ORG, { ref = null, docLabel = '', code = 'DOC', 
   const coupe = COUPE
   f.coupure = () => {
     const rang = f.coupures++
-    if (rang === coupe && f.y > f.haut + 1) { f.newPage(); doc.__odetCoupe = true }
+    if (rang === coupe && f.y > f.haut + 1) f.newPage()
   }
   f.finish = () => {
     drawFooter(doc, ORG, code)

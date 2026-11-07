@@ -1547,8 +1547,12 @@ function documentDuStagiaire(docType, session, trainee, { trainer, questions, ev
 }
 
 // Images identiques (logo, tampon, signature, QR code) recopiées par chaque document de stagiaire : une seule copie
-// gardée, les pages pointent toutes vers elle (07/11 : 2,2 Mo au lieu de 240 Ko pour 12 stagiaires)
+// gardée, les pages pointent toutes vers elle (07/11 : 2,2 Mo au lieu de 240 Ko pour 12 stagiaires). Réservé aux PDF
+// produits par jsPDF dans cet outil : seules les images des pages sont visées (aucun formulaire, motif ni apparence
+// d'annotation n'y dessine d'image) ; une copie retirée n'est référencée nulle part ailleurs.
 const memesOctets = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
+// Même image : mêmes octets, masque de transparence compris (une signature tracée est noire, seul son masque diffère)
+export const memeImage = (a, b) => memesOctets(a.octets, b.octets) && (!a.sousCle === !b.sousCle) && (!a.sousCle || memeImage(a.sousCle, b.sousCle))
 function cleImage(ctx, ref) {
   const obj = ctx.lookup(ref)
   if (!(obj instanceof PDFRawStream)) return null
@@ -1559,7 +1563,7 @@ function cleImage(ctx, ref) {
   const c = obj.contents
   let h = 2166136261
   for (let i = 0; i < c.length; i += 1 + (c.length >> 12)) h = Math.imul(h ^ c[i], 16777619)
-  return { texte: `${sansMasque}|${c.length}|${h >>> 0}|${sousCle ? sousCle.texte : ''}`, octets: c, masque: masque instanceof PDFRef ? masque : null }
+  return { texte: `${sansMasque}|${c.length}|${h >>> 0}|${sousCle ? sousCle.texte : ''}`, octets: c, masque: masque instanceof PDFRef ? masque : null, sousCle }
 }
 export function partagerImages(pdf) {
   const ctx = pdf.context
@@ -1575,7 +1579,7 @@ export function partagerImages(pdf) {
       const cle = cleImage(ctx, ref)
       if (!cle) continue
       const candidats = parCle.get(cle.texte) || []
-      const garde = candidats.find((x) => x.ref !== ref && memesOctets(x.cle.octets, cle.octets))
+      const garde = candidats.find((x) => x.ref !== ref && memeImage(x.cle, cle))
       if (!garde) { if (!candidats.some((x) => x.ref === ref)) parCle.set(cle.texte, [...candidats, { ref, cle }]); continue }
       remplace.set(ref.toString(), garde.ref)
       xo.set(nom, garde.ref)

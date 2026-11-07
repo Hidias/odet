@@ -65,6 +65,37 @@ describe('Génération groupée des documents', () => {
       }
     } finally { G.setOrganization({ name: 'Société Essai', city: 'Quimper' }) }
   })
+  it('deux signatures qui ne diffèrent que par la transparence restent distinctes', async () => {
+    const zlib = await import('node:zlib')
+    const crc = (b) => { let c = ~0; for (const x of b) { c ^= x; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xEDB88320 & -(c & 1)) } return ~c >>> 0 }
+    const bloc = (type, data) => { const l = Buffer.alloc(4); l.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([l, td, c]) }
+    // Signature noire 600 x 200 (RGBA), alpha pseudo-aléatoire ; la variante diffère d'un seul pixel d'alpha
+    const signature = (variante) => {
+      const w = 600; const h = 200; const brut = Buffer.alloc((w * 4 + 1) * h); let s = 11
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { s = (s * 1103515245 + 12345) & 0x7fffffff; brut[y * (w * 4 + 1) + 1 + x * 4 + 3] = (s >> 16) & 255 }
+      if (variante) brut[100 * (w * 4 + 1) + 1 + 300 * 4 + 3] ^= 1
+      const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6
+      return 'data:image/png;base64,' + Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), bloc('IHDR', ihdr), bloc('IDAT', zlib.deflateSync(brut)), bloc('IEND', Buffer.alloc(0))]).toString('base64')
+    }
+    const out = await PDFDocument.create()
+    for (const v of [false, true, false]) {
+      const d = new jsPDF({ compress: true }); d.addImage(signature(v), 'PNG', 10, 10, 60, 20)
+      const src = await PDFDocument.load(d.output('arraybuffer'))
+      ;(await out.copyPages(src, src.getPageIndices())).forEach((p) => out.addPage(p))
+    }
+    G.partagerImages(out)
+    const { PDFName, PDFDict } = await import('pdf-lib')
+    const refs = out.getPages().map((p) => p.node.Resources().lookup(PDFName.of('XObject'), PDFDict).values()[0].toString())
+    expect(refs[0]).toBe(refs[2])
+    expect(refs[1]).not.toBe(refs[0])
+  })
+  it('même image : flux principal et masque comparés octet par octet', () => {
+    const img = (o, m) => ({ octets: Uint8Array.from(o), sousCle: m ? { octets: Uint8Array.from(m), sousCle: null } : null })
+    expect(G.memeImage(img([0, 0, 0], [1, 2, 3]), img([0, 0, 0], [1, 2, 3]))).toBe(true)
+    expect(G.memeImage(img([0, 0, 0], [1, 2, 3]), img([0, 0, 0], [1, 2, 4]))).toBe(false)
+    expect(G.memeImage(img([0, 0, 0], [1, 2, 3]), img([0, 0, 0], null))).toBe(false)
+    expect(G.memeImage(img([0, 0, 1]), img([0, 0, 0]))).toBe(false)
+  })
   it('aucun stagiaire ou type inconnu : rien', async () => {
     expect(await G.generateAllPDF('evaluation', sessionAvec(1), [])).toBe(null)
     expect(await G.generateAllPDF('inconnu', sessionAvec(1), [stagiaire(1)])).toBe(null)
