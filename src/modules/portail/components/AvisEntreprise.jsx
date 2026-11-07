@@ -25,6 +25,9 @@ const parCompte = {
 // technique de PostgreSQL comme « permission denied », même code 42501) en phrase simple
 export const messageAvis = (error, defaut) => (['22023', '42501'].includes(error?.code) && /^[A-ZÀ-Ý]/.test(error.message || '') ? error.message : defaut)
 
+// Même critère que la base (0504) : session non annulée, dernier jour passé (fin, sinon début)
+export const avisPossible = (s, aujourdhui) => s?.status !== 'cancelled' && !!(s?.end_date || s?.start_date) && (s.end_date || s.start_date) <= aujourdhui
+
 const Notes = ({ valeur, onChange, label }) => (
   <div className="flex gap-1.5" role="radiogroup" aria-label={label}>
     {[1, 2, 3, 4, 5].map((n) => (
@@ -74,7 +77,7 @@ export default function AvisEntreprise({ session, onFermer, onEnvoye, charger = 
             <h2 className="font-display font-semibold text-gray-900">Votre avis sur la formation</h2>
             <p className="text-sm text-gray-500">{session.courses?.title || 'Formation'} · {session.reference}</p>
           </div>
-          <button type="button" onClick={onFermer} className="p-1 text-gray-400 hover:text-gray-600" aria-label="Fermer"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onFermer} disabled={busy} className="p-2 -m-1 text-gray-400 hover:text-gray-600" aria-label="Fermer"><X className="w-5 h-5" /></button>
         </div>
         {erreurLecture ? (
           <div className="space-y-3">
@@ -101,7 +104,7 @@ export default function AvisEntreprise({ session, onFermer, onEnvoye, charger = 
               <div className="flex gap-2">
                 {[[true, 'Oui'], [false, 'Non']].map(([v, l]) => (
                   <button key={l} type="button" onClick={() => setR({ ...r, recommande: r.recommande === v ? null : v })}
-                    className={`px-4 py-1.5 rounded-ui text-sm font-medium border ${r.recommande === v ? 'bg-accent-500 text-accent-fg border-accent-500' : 'bg-white text-gray-700 border-gray-200'}`}>{l}</button>
+                    className={`px-4 py-2.5 rounded-ui text-sm font-medium border ${r.recommande === v ? 'bg-accent-500 text-accent-fg border-accent-500' : 'bg-white text-gray-700 border-gray-200'}`}>{l}</button>
                 ))}
               </div>
             </div>
@@ -116,7 +119,7 @@ export default function AvisEntreprise({ session, onFermer, onEnvoye, charger = 
                 value={r.besoins} onChange={(e) => setR({ ...r, besoins: e.target.value })} />
             </label>
             <div className="flex gap-2">
-              <button type="button" onClick={onFermer} className="btn btn-secondary flex-1">Annuler</button>
+              <button type="button" onClick={onFermer} disabled={busy} className="btn btn-secondary flex-1">Annuler</button>
               <button type="button" onClick={envoyer} disabled={busy} className="btn btn-primary flex-1">{busy && <Loader2 className="w-4 h-4 animate-spin" />}Envoyer</button>
             </div>
           </>

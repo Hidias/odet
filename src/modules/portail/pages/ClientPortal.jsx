@@ -27,7 +27,8 @@ import { rechargerSiMiseAJour } from '../../../core/errors/chunkReload'
 import { lireDocumentPortail, versBase64, deposerSigne } from '../../../core/portail/documentsClient'
 import { empreinteAppareil } from '../../../core/portail/appareil'
 import SecuriteEspace from '../components/SecuriteEspace'
-import AvisEntreprise from '../components/AvisEntreprise'
+import AvisEntreprise, { avisPossible } from '../components/AvisEntreprise'
+import { todayIso } from '../../certification/lib/certData'
 
 // Espace entreprise par lien + code à 6 chiffres : vitrine de l'organisme pour ses clients. Consultation des
 // sessions de l'entreprise et téléchargement de ses documents, en lecture seule. Aux couleurs de l'instance,
@@ -540,7 +541,7 @@ export default function ClientPortal() {
                 </div>
               )
             })()}
-            {finished && avisDispo && (
+            {finished && avisDispo && avisPossible(s, todayIso()) && (
               <div className="mt-4 rounded-ui border border-gray-200 bg-gray-50 p-3 flex items-center gap-3 flex-wrap">
                 <Award className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
                 <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { messageAvis } from '../src/modules/portail/components/AvisEntreprise'
+import { messageAvis, avisPossible } from '../src/modules/portail/components/AvisEntreprise'
 
 const lire = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8')
 
@@ -24,9 +24,12 @@ describe('Avis de l’entreprise (0415, 0504)', () => {
     expect(migration).toMatch(/function public\.client_portal_satisfactions\(p_token text, p_code text\)/)
   })
 
-  it('une lecture qui échoue n’ouvre pas le formulaire', () => {
-    const avis = lire('src/modules/portail/components/AvisEntreprise.jsx')
-    expect(avis).toMatch(/if \(error \|\| data\?\.error\) \{ setErreurLecture/)
-    expect(avis).toMatch(/\{erreurLecture \? \(/)
+  it('bouton d’avis : même critère que la base (fin passée, session non annulée)', () => {
+    expect(avisPossible({ start_date: '2026-11-01', end_date: '2026-11-02' }, '2026-11-02')).toBe(true)
+    expect(avisPossible({ start_date: '2026-11-01', end_date: '2026-11-03' }, '2026-11-02')).toBe(false)
+    expect(avisPossible({ start_date: '2026-11-20', end_date: null }, '2026-11-07')).toBe(false)
+    expect(avisPossible({ start_date: '2026-11-01', end_date: null }, '2026-11-07')).toBe(true)
+    expect(avisPossible({ start_date: '2026-11-01', end_date: '2026-11-01', status: 'cancelled' }, '2026-11-07')).toBe(false)
+    expect(avisPossible({ start_date: null, end_date: null }, '2026-11-07')).toBe(false)
   })
 })

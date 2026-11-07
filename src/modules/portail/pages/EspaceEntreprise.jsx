@@ -28,7 +28,8 @@ import { rubriqueDocument } from '../../../core/portail/typeDocument'
 import { nomSignable, signeAvecPreuve } from '../lib/signatureDocument'
 import { deposerConvention, conventionSignee } from '../lib/conventionSignee'
 import MesDocuments from '../components/MesDocuments'
-import AvisEntreprise from '../components/AvisEntreprise'
+import AvisEntreprise, { avisPossible } from '../components/AvisEntreprise'
+import { todayIso } from '../../certification/lib/certData'
 import ParticipantsSession from '../components/ParticipantsSession'
 import CertificatsEntree from '../components/CertificatsEntree'
 import NumerosDemandes from '../components/NumerosDemandes'
@@ -448,7 +449,7 @@ function Formations() {
             </div>
           )
         })()}
-        {finie && avisDispo && (
+        {finie && avisDispo && avisPossible(s, todayIso()) && (
           <div className="mt-3 rounded-ui border border-gray-200 bg-gray-50 p-3 flex items-center gap-3 flex-wrap">
             <Award className="w-5 h-5 text-accent-600 shrink-0" aria-hidden="true" />
             <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">

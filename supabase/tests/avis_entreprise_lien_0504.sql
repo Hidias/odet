@@ -5,7 +5,7 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; v_a uuid; v_b uuid; v_sa uuid; v_sf uuid; v_sb uuid; v_si uuid; v_tok text; v_r jsonb; v_msg text; v_n int; v_claims text := current_setting('request.jwt.claims', true);
+  v_cie uuid; v_a uuid; v_b uuid; v_sa uuid; v_sf uuid; v_sb uuid; v_si uuid; v_sx uuid; i int; v_tok text; v_r jsonb; v_msg text; v_n int; v_claims text := current_setting('request.jwt.claims', true);
 begin
   select id into v_cie from public.companies limit 1;
   insert into public.clients (name, company_id) values ('Alpha essai 0504', v_cie) returning id into v_a;
@@ -20,7 +20,11 @@ begin
   insert into public.sessions (reference, start_date, end_date, client_id, company_id, session_type)
     values ('ESSAI-0504-I', current_date - 5, current_date - 5, v_b, v_cie, 'inter') returning id into v_si;
   insert into public.session_groups (session_id, client_id, kind, company_id) values (v_si, v_a, 'entreprise', v_cie);
+  insert into public.sessions (reference, start_date, end_date, client_id, company_id, status)
+    values ('ESSAI-0504-X', current_date - 4, current_date - 4, v_a, v_cie, 'cancelled') returning id into v_sx;
   insert into public.client_portal_access (client_id, access_code, company_id) values (v_a, '482915', v_cie) returning token into v_tok;
+  perform set_config('essai.jeton', v_tok, true);
+  perform set_config('essai.session', v_sa::text, true);
 
   -- 1. Mauvais code : erreur du lien, rien écrit
   v_r := public.client_portal_satisfaction(v_tok, '000000', v_sa, '{"note_globale": 4}'::jsonb);
@@ -86,16 +90,18 @@ begin
   exception when sqlstate '22023' then null;
   end;
 
+  -- 8 bis. Session annulée : refusée
+  begin
+    v_r := public.client_portal_satisfaction(v_tok, '482915', v_sx, '{"note_globale": 1}'::jsonb);
+    raise exception '8b. session annulée notée';
+  exception when sqlstate '22023' then get stacked diagnostics v_msg = message_text;
+    if v_msg <> 'Cette formation a été annulée' then raise exception '8b. message faux (%)', v_msg; end if;
+  end;
+
   -- 9. Liste des avis du client : ses deux sessions, rien de Beta
   v_r := public.client_portal_satisfactions(v_tok, '482915');
   if jsonb_array_length(v_r) <> 2 or v_r @> jsonb_build_array(jsonb_build_object('session_id', v_sb)) then raise exception '9. liste fausse (%)', v_r; end if;
   if not v_r @> jsonb_build_array(jsonb_build_object('session_id', v_sa, 'note_globale', 2)) then raise exception '9. note de la session absente (%)', v_r; end if;
-
-  -- 10. Lien désactivé : refusé
-  update public.client_portal_access set is_active = false where token = v_tok;
-  v_r := public.client_portal_satisfaction(v_tok, '482915', v_sa, '{"note_globale": 5}'::jsonb);
-  if not v_r ? 'error' then raise exception '10. lien désactivé accepté (%)', v_r; end if;
-  if (select note_globale from public.client_satisfactions where client_id = v_a and session_id = v_sa) <> 2 then raise exception '10. avis changé par un lien désactivé'; end if;
 
   -- 11. Droits : règles communes fermées ; lien ouvert à anon ; compte réservé aux connectés
   if has_function_privilege('anon', 'app.satisfaction_client(uuid, uuid, uuid, jsonb)', 'execute')
@@ -115,6 +121,40 @@ begin
     if v_msg not like 'Espace entreprise%' then raise exception '12. message faux (%)', v_msg; end if;
   end;
   perform set_config('request.jwt.claims', coalesce(v_claims, ''), true);
+end
+$$;
+
+-- Visiteur de l'espace par lien (rôle anon), appels réels
+set local role anon;
+do $$
+declare v_tok text := current_setting('essai.jeton'); v_s uuid := current_setting('essai.session')::uuid; v_r jsonb; i int;
+begin
+  -- 13. Lecture et envoi par le lien en anon
+  v_r := public.client_portal_satisfaction(v_tok, '482915', v_s, '{"note_globale": 3}'::jsonb);
+  if (v_r->>'note_globale')::int <> 3 then raise exception '13. envoi en anon refusé (%)', v_r; end if;
+  -- 14. Règle commune fermée en anon
+  begin
+    v_r := app.satisfaction_client(null, null, v_s, null);
+    raise exception '14. règle commune appelée en anon';
+  exception when insufficient_privilege then null;
+  end;
+  -- 15. Cinq mauvais codes : le bon code est ensuite refusé, rien écrit
+  for i in 1..5 loop v_r := public.client_portal_satisfactions(v_tok, '000000'); end loop;
+  v_r := public.client_portal_satisfaction(v_tok, '482915', v_s, '{"note_globale": 1}'::jsonb);
+  if coalesce(v_r->>'error', '') not like 'Trop de tentatives%' then raise exception '15. lien non bloqué (%)', v_r; end if;
+end
+$$;
+reset role;
+
+do $$
+declare v_tok text := current_setting('essai.jeton'); v_s uuid := current_setting('essai.session')::uuid; v_r jsonb;
+begin
+  if (select note_globale from public.client_satisfactions where session_id = v_s) <> 3 then raise exception '15. avis changé pendant le blocage'; end if;
+  -- 10. Lien désactivé : refusé
+  update public.client_portal_access set is_active = false, locked_until = null, attempts = 0 where token = v_tok;
+  v_r := public.client_portal_satisfaction(v_tok, '482915', v_s, '{"note_globale": 5}'::jsonb);
+  if not v_r ? 'error' then raise exception '10. lien désactivé accepté (%)', v_r; end if;
+  if (select note_globale from public.client_satisfactions where session_id = v_s) <> 3 then raise exception '10. avis changé par un lien désactivé'; end if;
 end
 $$;
 
