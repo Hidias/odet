@@ -5,7 +5,7 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; v_a uuid; v_b uuid; v_sa uuid; v_sf uuid; v_sb uuid; v_si uuid; v_sx uuid; i int; v_tok text; v_r jsonb; v_msg text; v_n int; v_claims text := current_setting('request.jwt.claims', true);
+  v_cie uuid; v_a uuid; v_b uuid; v_sa uuid; v_sf uuid; v_sb uuid; v_si uuid; v_sx uuid; v_sg uuid; v_g uuid; i int; v_tok text; v_r jsonb; v_msg text; v_n int; v_claims text := current_setting('request.jwt.claims', true);
 begin
   select id into v_cie from public.companies limit 1;
   insert into public.clients (name, company_id) values ('Alpha essai 0504', v_cie) returning id into v_a;
@@ -97,6 +97,21 @@ begin
   exception when sqlstate '22023' then get stacked diagnostics v_msg = message_text;
     if v_msg <> 'Cette formation a été annulée' then raise exception '8b. message faux (%)', v_msg; end if;
   end;
+
+  -- 8 ter. Inter où le seul groupe du client est annulé : refusée à l'écriture, avis déjà donné lisible
+  insert into public.sessions (reference, start_date, end_date, client_id, company_id, session_type)
+    values ('ESSAI-0504-G', current_date - 6, current_date - 6, v_b, v_cie, 'inter') returning id into v_sg;
+  insert into public.session_groups (session_id, client_id, kind, company_id) values (v_sg, v_a, 'entreprise', v_cie) returning id into v_g;
+  v_r := public.client_portal_satisfaction(v_tok, '482915', v_sg, '{"note_globale": 4}'::jsonb);
+  update public.session_groups set status = 'cancelled' where id = v_g;
+  begin
+    v_r := public.client_portal_satisfaction(v_tok, '482915', v_sg, '{"note_globale": 1}'::jsonb);
+    raise exception '8c. groupe annulé noté';
+  exception when sqlstate '22023' then get stacked diagnostics v_msg = message_text;
+    if v_msg <> 'Votre inscription à cette formation a été annulée' then raise exception '8c. message faux (%)', v_msg; end if;
+  end;
+  if (public.client_portal_satisfaction(v_tok, '482915', v_sg, null)->>'note_globale')::int <> 4 then raise exception '8c. avis donné plus lisible'; end if;
+  delete from public.client_satisfactions where session_id = v_sg;
 
   -- 9. Liste des avis du client : ses deux sessions, rien de Beta
   v_r := public.client_portal_satisfactions(v_tok, '482915');

@@ -10,8 +10,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- entreprise ne pouvait donc donner son avis.
 --   1. app.satisfaction_client(client, profil, session, réponses) : la règle de 0415 (session de ce client, terminée,
 --      note globale de 1 à 5, notes facultatives de 1 à 5, textes bornés, notification au premier avis), sortie telle
---      quelle de public.ent_satisfaction pour servir aux deux espaces ; une session annulée n'est plus notée (relevé
---      par la relecture : le bouton s'affichait aussi pour elle). app.satisfactions_client(client) : avis donnés.
+--      quelle de public.ent_satisfaction pour servir aux deux espaces ; une session annulée, ou une inter où le seul
+--      groupe du client est annulé, n'est plus notée (relevé par la relecture ; l'avis déjà donné reste lisible). app.satisfactions_client(client) : avis donnés.
 --   2. public.ent_satisfaction et public.ent_satisfactions appellent ces règles (même résultat qu'avant).
 --   3. public.client_portal_satisfaction(jeton, code, session, réponses) et public.client_portal_satisfactions(jeton,
 --      code) : même règle depuis l'espace par lien, après client_portal_check (erreurs du lien en JSON { error },
@@ -40,6 +40,11 @@ begin
       from public.sessions se left join public.courses co on co.id = se.course_id where se.id = p_session;
     if s.status = 'cancelled' then
       raise exception 'Cette formation a été annulée' using errcode = '22023';
+    end if;
+    if not exists (select 1 from public.sessions se where se.id = p_session and se.client_id = p_client)
+       and not exists (select 1 from public.session_groups g where g.session_id = p_session and g.client_id = p_client
+                        and g.status is distinct from 'cancelled') then
+      raise exception 'Votre inscription à cette formation a été annulée' using errcode = '22023';
     end if;
     if s.fin > (now() at time zone 'Europe/Paris')::date then
       raise exception 'L''avis se donne à la fin de la formation' using errcode = '22023';
@@ -170,7 +175,7 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; v_a uuid; v_b uuid; v_sa uuid; v_sf uuid; v_sb uuid; v_si uuid; v_sx uuid; i int; v_tok text; v_r jsonb; v_msg text; v_n int; v_claims text := current_setting('request.jwt.claims', true);
+  v_cie uuid; v_a uuid; v_b uuid; v_sa uuid; v_sf uuid; v_sb uuid; v_si uuid; v_sx uuid; v_sg uuid; v_g uuid; i int; v_tok text; v_r jsonb; v_msg text; v_n int; v_claims text := current_setting('request.jwt.claims', true);
 begin
   select id into v_cie from public.companies limit 1;
   insert into public.clients (name, company_id) values ('Alpha essai 0504', v_cie) returning id into v_a;
@@ -262,6 +267,21 @@ begin
   exception when sqlstate '22023' then get stacked diagnostics v_msg = message_text;
     if v_msg <> 'Cette formation a été annulée' then raise exception '8b. message faux (%)', v_msg; end if;
   end;
+
+  -- 8 ter. Inter où le seul groupe du client est annulé : refusée à l'écriture, avis déjà donné lisible
+  insert into public.sessions (reference, start_date, end_date, client_id, company_id, session_type)
+    values ('ESSAI-0504-G', current_date - 6, current_date - 6, v_b, v_cie, 'inter') returning id into v_sg;
+  insert into public.session_groups (session_id, client_id, kind, company_id) values (v_sg, v_a, 'entreprise', v_cie) returning id into v_g;
+  v_r := public.client_portal_satisfaction(v_tok, '482915', v_sg, '{"note_globale": 4}'::jsonb);
+  update public.session_groups set status = 'cancelled' where id = v_g;
+  begin
+    v_r := public.client_portal_satisfaction(v_tok, '482915', v_sg, '{"note_globale": 1}'::jsonb);
+    raise exception '8c. groupe annulé noté';
+  exception when sqlstate '22023' then get stacked diagnostics v_msg = message_text;
+    if v_msg <> 'Votre inscription à cette formation a été annulée' then raise exception '8c. message faux (%)', v_msg; end if;
+  end;
+  if (public.client_portal_satisfaction(v_tok, '482915', v_sg, null)->>'note_globale')::int <> 4 then raise exception '8c. avis donné plus lisible'; end if;
+  delete from public.client_satisfactions where session_id = v_sg;
 
   -- 9. Liste des avis du client : ses deux sessions, rien de Beta
   v_r := public.client_portal_satisfactions(v_tok, '482915');

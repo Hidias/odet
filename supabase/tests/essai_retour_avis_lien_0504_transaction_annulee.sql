@@ -57,8 +57,8 @@ create temp table etat_essai_avant as select * from etat_essai;
 -- entreprise ne pouvait donc donner son avis.
 --   1. app.satisfaction_client(client, profil, session, réponses) : la règle de 0415 (session de ce client, terminée,
 --      note globale de 1 à 5, notes facultatives de 1 à 5, textes bornés, notification au premier avis), sortie telle
---      quelle de public.ent_satisfaction pour servir aux deux espaces ; une session annulée n'est plus notée (relevé
---      par la relecture : le bouton s'affichait aussi pour elle). app.satisfactions_client(client) : avis donnés.
+--      quelle de public.ent_satisfaction pour servir aux deux espaces ; une session annulée, ou une inter où le seul
+--      groupe du client est annulé, n'est plus notée (relevé par la relecture ; l'avis déjà donné reste lisible). app.satisfactions_client(client) : avis donnés.
 --   2. public.ent_satisfaction et public.ent_satisfactions appellent ces règles (même résultat qu'avant).
 --   3. public.client_portal_satisfaction(jeton, code, session, réponses) et public.client_portal_satisfactions(jeton,
 --      code) : même règle depuis l'espace par lien, après client_portal_check (erreurs du lien en JSON { error },
@@ -87,6 +87,11 @@ begin
       from public.sessions se left join public.courses co on co.id = se.course_id where se.id = p_session;
     if s.status = 'cancelled' then
       raise exception 'Cette formation a été annulée' using errcode = '22023';
+    end if;
+    if not exists (select 1 from public.sessions se where se.id = p_session and se.client_id = p_client)
+       and not exists (select 1 from public.session_groups g where g.session_id = p_session and g.client_id = p_client
+                        and g.status is distinct from 'cancelled') then
+      raise exception 'Votre inscription à cette formation a été annulée' using errcode = '22023';
     end if;
     if s.fin > (now() at time zone 'Europe/Paris')::date then
       raise exception 'L''avis se donne à la fin de la formation' using errcode = '22023';
