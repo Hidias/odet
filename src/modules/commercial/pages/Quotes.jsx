@@ -47,7 +47,7 @@ import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
 import { confirmer, demander } from '../../../ui/Confirm'
-import { confirmationModificationDevisPublie, confirmationPassageEnvoye, confirmationSuppressionDevis } from '../../../core/portail/alertesPublication'
+import { confirmationModificationDevisPublie, confirmationPassageEnvoye, confirmationSuppressionDevis, PUBLICATION_DEVIS_ACCEPTE } from '../../../core/portail/alertesPublication'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
@@ -585,7 +585,7 @@ export default function Quotes() {
   function confirmerAcceptation(statut) {
     return confirmer({
       title: `Passer le devis en « ${STATUS_CONFIG[statut]?.label || statut} »`,
-      message: 'Selon son contenu, un contrat de maintenance « à valider » et une livraison du matériel à planifier seront préparés, pour les lignes acceptées et celles pas encore tranchées. Cela ne se fait qu\'une fois par devis : refuser une ligne ou revenir en arrière ensuite ne les retire pas.\n\nLes sessions de formation ne sont préparées que si le client a signé en ligne ; sinon, créez-les depuis le devis.',
+      message: 'Selon son contenu, un contrat de maintenance « à valider » et une livraison du matériel à planifier seront préparés, pour les lignes acceptées et celles pas encore tranchées. Cela ne se fait qu\'une fois par devis : refuser une ligne ou revenir en arrière ensuite ne les retire pas.\n\nLes sessions de formation ne sont préparées que si le client a signé en ligne ; sinon, créez-les depuis le devis.\n\n' + PUBLICATION_DEVIS_ACCEPTE,
       confirmLabel: 'Confirmer',
     })
   }
@@ -600,7 +600,8 @@ export default function Quotes() {
     if (!ok) return
     await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
     toast.success(`Statut → ${STATUS_CONFIG[newStatus].label}`)
-    if (newStatus === 'sent') regenererEtPublier(id)
+    // Devis remis (envoyé, accepté même sur papier sans envoi, en partie) : mis à disposition, sauf s'il est signé
+    if (['sent', 'accepted', 'partial'].includes(newStatus)) regenererEtPublier(id)
     if (currentQuote && currentQuote.id === id) setCurrentQuote(prev => ({ ...prev, status: newStatus }))
     loadAll()
   }
@@ -611,11 +612,6 @@ export default function Quotes() {
   async function publierDevisPdf(quote, items, client, base64) {
     const pub = await preparerDevisPublie(quote, items, client, base64)
     return mettreADisposition({ objectType: 'quote', objectId: quote.id, kind: 'devis', label: pub.label, base64: pub.base64 })
-  }
-  function publierDevis(quote, doc, items) {
-    if (!quote?.id || !doc || !['sent', 'accepted', 'partial'].includes(quote.status)) return
-    const client = clients.find(c => c.id === quote.client_id) || quote.clients || {}
-    publierDevisPdf(quote, items || [], client, versBase64(doc.output('arraybuffer'))).catch((e) => console.warn('Mise à disposition du devis :', e.message))
   }
 
   // Devis passé en « envoyé » ou modifié après envoi : son PDF est refait et mis à disposition, pour que le client le
@@ -647,8 +643,10 @@ export default function Quotes() {
         const { data } = await supabase.from('client_contacts').select('*').eq('id', quote.contact_id).single()
         contactData = data
       }
-      const doc = await generateQuotePDF(quote, loadedItems, clientData, contactData, { orgSettings: organization })
-      publierDevis(quote, doc, loadedItems)
+      // Téléchargement seul : rien n'est republié dans l'espace client (constat du 06/11). La mise à disposition se fait
+      // à l'envoi, au passage en « envoyé », « accepté » ou « partiel » (aussi ligne par ligne) et à l'enregistrement
+      // d'un devis remis (regenererEtPublier, lu en base)
+      await generateQuotePDF(quote, loadedItems, clientData, contactData, { orgSettings: organization })
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
     setGeneratingPdf(false)
@@ -661,8 +659,8 @@ export default function Quotes() {
       const clientData = clients.find(c => c.id === currentQuote.client_id) || {}
       const contactData = currentQuote.contact_id ? contacts.find(c => c.id === currentQuote.contact_id) || null : null
       const itemsForPdf = items.filter(it => it.description_title).map(it => ({ ...it, total_ht: calcItemTotal(it) }))
-      const doc = await generateQuotePDF(currentQuote, itemsForPdf, clientData, contactData, { orgSettings: organization })
-      publierDevis(currentQuote, doc, itemsForPdf)
+      // Aperçu du formulaire, peut-être non enregistré : jamais publié (la version enregistrée l'est à l'enregistrement)
+      await generateQuotePDF(currentQuote, itemsForPdf, clientData, contactData, { orgSettings: organization })
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
     setGeneratingPdf(false)
@@ -845,6 +843,8 @@ export default function Quotes() {
       setCurrentQuote(prev => ({ ...prev, status: newStatus }))
       setQuotes(prev => prev.map(q => q.id === currentQuote.id ? { ...q, status: newStatus } : q))
       toast.success(`Statut → ${STATUS_CONFIG[newStatus]?.label || newStatus}`)
+      // Publié à l'entrée en acceptation seulement : une bascule entre « partiel » et « accepté » ne refait pas de version
+      if (['accepted', 'partial'].includes(newStatus) && !['accepted', 'partial'].includes(currentQuote.status)) regenererEtPublier(currentQuote.id)
     }
   }
 

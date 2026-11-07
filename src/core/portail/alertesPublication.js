@@ -55,6 +55,10 @@ export function confirmationPassageEnvoye() {
   }
 }
 
+// Passage en « Accepté » ou « Partiellement accepté » (même sans envoi préalable) : version à jour mise à disposition,
+// sauf pour un devis signé en ligne (gardé tel quel)
+export const PUBLICATION_DEVIS_ACCEPTE = `Le devis sera aussi mis à disposition dans l'espace du client, pour lecture, sans signature en ligne (sauf s'il l'a déjà signé en ligne : sa version signée reste). ${AUCUN_MAIL}`
+
 // B4 : facture émise téléchargée, publiée une fois dans l'espace du client. `r` : réponse du serveur (ou null)
 export function messageFacturePubliee(r, estAvoir = false) {
   if (!r?.id || r.deja) return null
