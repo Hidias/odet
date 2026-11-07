@@ -15,7 +15,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      lieu de la contrainte de la table affichée en anglais au visiteur ; SIRET, entreprise et fonction gardés seulement
 --      pour une entreprise ; un dépôt à la fois par session (verrou).
 --   3. public.inscription_confirmer : refus clair si la confirmation dépasserait l'effectif maximum, places réservées
---      proposées et aux demandes en attente plus anciennes (rien n'est créé) ; une confirmation à la fois par
+--      proposées et aux demandes en attente plus anciennes, ou à toutes les demandes en attente pour une demande de la
+--      liste d'attente (rien n'est créé) ; places libérées à la confirmation proposées à la liste d'attente ; une confirmation à la fois par
 --      session, verrous pris dans l'ordre session puis demande.
 --   4. app.liste_attente_avancer : une demande confirmée ou refusée entre-temps n'est jamais remise en place proposée.
 -- Aucune donnée modifiée. Production le 07/11 : 0 demande en ligne (calendrier non publié). Retour arrière :
@@ -267,15 +268,16 @@ begin
     end if;
   end loop;
   -- Effectif maximum de la session (0500) : jamais dépassé par une confirmation, places réservées comprises (places
-  -- proposées, demandes en attente plus anciennes : l'ordre d'arrivée est respecté) ; tout ce qui précède est annulé
+  -- proposées ; demandes en attente plus anciennes ; pour une demande de la liste d'attente, toutes les demandes en
+  -- attente, déjà acceptées au dépôt) ; tout ce qui précède est annulé
   if s.max_participants is not null then
     select count(*) into v_n from public.session_trainees st
      where st.session_id = r.session_id and not coalesce(st.absent, false);
     select coalesce(sum(jsonb_array_length(o.participants)), 0) into v_res from public.online_registrations o
      where o.session_id = r.session_id and o.id <> r.id
-       and (o.status = 'place_proposee' or (o.status = 'en_attente' and o.created_at < r.created_at));
+       and (o.status = 'place_proposee' or (o.status = 'en_attente' and (r.status = 'liste_attente' or o.created_at < r.created_at)));
     if v_n + v_res > s.max_participants then
-      raise exception 'Confirmation impossible : la session dépasserait son effectif maximum (% inscrits, dont cette demande, et % places réservées à des demandes plus anciennes, pour % places). Relevez l''effectif maximum de la session ou refusez une demande.', v_n, v_res, s.max_participants
+      raise exception 'Confirmation impossible : la session dépasserait son effectif maximum (% inscrits, dont cette demande, et % places réservées à d''autres demandes, pour % places). Relevez l''effectif maximum de la session ou refusez une demande.', v_n, v_res, s.max_participants
         using errcode = '23514';
     end if;
   end if;
@@ -285,6 +287,8 @@ begin
   update public.online_registrations
      set status = 'confirmee', client_id = v_client, group_id = v_group, handled_by = auth.uid(), handled_at = now()
    where id = r.id;
+  -- Participants déjà inscrits : places libérées proposées à la liste d'attente (0500)
+  perform app.liste_attente_avancer(r.session_id);
   return jsonb_build_object('ok', true, 'client_id', v_client, 'group_id', v_group);
 end
 $function$;

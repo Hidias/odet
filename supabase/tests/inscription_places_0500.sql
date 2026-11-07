@@ -77,7 +77,7 @@ begin
     v_err := null;
   exception when others then v_err := sqlerrm;
   end;
-  if coalesce(v_err, '') not like '%réservées à des demandes plus anciennes%' then raise exception '5b. place réservée prise par la liste d''attente (%)', v_err; end if;
+  if coalesce(v_err, '') not like '%réservées à d''autres demandes%' then raise exception '5b. place réservée prise par la liste d''attente (%)', v_err; end if;
   perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and company_name = 'Alpha essai 0500'));
   -- Beta forcée alors qu'il ne reste qu'une place : refusée, rien d'écrit
   begin
@@ -124,7 +124,48 @@ begin
   insert into public.trainees (first_name, last_name, company_id) values ('Main', 'AJOUT', v_cie) returning id into v_t;
   insert into public.session_trainees (session_id, trainee_id, company_id) values (v_s, v_t, v_cie);
 end $$;
+-- Liste d'attente ancienne contre demande en attente récente (déjà acceptée au dépôt) ; participant déjà inscrit
+do $$
+declare v_cie uuid; v_co uuid; v_s3 uuid; v_s4 uuid; v_t uuid; v_c uuid;
+begin
+  select id into v_cie from public.companies limit 1;
+  select course_id into v_co from public.sessions where id = current_setting('essai.session')::uuid;
+  insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token, max_participants, company_id)
+  values ('ESSAI-0500-C', v_co, 'inter', true, current_date + 26, current_date + 26, 'essai-0500-c', 4, v_cie) returning id into v_s3;
+  insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token, max_participants, company_id)
+  values ('ESSAI-0500-D', v_co, 'inter', true, current_date + 27, current_date + 27, 'essai-0500-d', 2, v_cie) returning id into v_s4;
+  perform set_config('essai.session3', v_s3::text, true);
+  perform set_config('essai.session4', v_s4::text, true);
+  for i in 1..2 loop
+    insert into public.trainees (first_name, last_name, company_id) values ('Deja', 'INSCRIT' || i, v_cie) returning id into v_t;
+    insert into public.session_trainees (session_id, trainee_id, company_id) values (v_s3, v_t, v_cie);
+  end loop;
+  insert into public.online_registrations (session_id, kind, contact_first_name, contact_last_name, contact_email, company_name, participants, status, created_at) values
+    (v_s3, 'entreprise', 'Wa', 'Liste', 'wa@example.invalid', 'Liste essai 0500', '[{"first_name":"W","last_name":"Un"},{"first_name":"W","last_name":"Deux"}]', 'liste_attente', now() - interval '2 hours'),
+    (v_s3, 'entreprise', 'Na', 'Neuve', 'na@example.invalid', 'Neuve essai 0500', '[{"first_name":"N","last_name":"Un"}]', 'en_attente', now() - interval '1 hour');
+  -- Session D : Paul déjà inscrit dans son entreprise, sa demande en attente le compte une seconde fois
+  insert into public.clients (name, siret, company_id) values ('Deja essai 0500', '11122233344455', v_cie) returning id into v_c;
+  insert into public.trainees (first_name, last_name, client_id, company_id) values ('Paul', 'DEJA', v_c, v_cie) returning id into v_t;
+  insert into public.session_trainees (session_id, trainee_id, company_id) values (v_s4, v_t, v_cie);
+  insert into public.online_registrations (session_id, kind, contact_first_name, contact_last_name, contact_email, company_name, siret, participants, status, created_at) values
+    (v_s4, 'entreprise', 'Paul', 'Deja', 'pd@example.invalid', 'Deja essai 0500', '11122233344455', '[{"first_name":"Paul","last_name":"Deja"}]', 'en_attente', now() - interval '2 hours'),
+    (v_s4, 'entreprise', 'Xa', 'Attente', 'xa@example.invalid', 'Attente essai 0500', null, '[{"first_name":"X","last_name":"Un"}]', 'liste_attente', now() - interval '1 hour');
+end $$;
 set local role authenticated;
+do $$
+declare v_err text; v_st text;
+begin
+  begin
+    perform public.inscription_confirmer((select id from public.online_registrations where company_name = 'Liste essai 0500'));
+    v_err := null;
+  exception when others then v_err := sqlerrm;
+  end;
+  if coalesce(v_err, '') not like '%effectif maximum%' then raise exception '14. liste d''attente confirmée sur la place d''une demande récente (%)', v_err; end if;
+  perform public.inscription_confirmer((select id from public.online_registrations where company_name = 'Neuve essai 0500'));
+  perform public.inscription_confirmer((select id from public.online_registrations where company_name = 'Deja essai 0500'));
+  select status into v_st from public.online_registrations where company_name = 'Attente essai 0500';
+  if v_st <> 'place_proposee' then raise exception '15. place libérée à la confirmation non proposée (%)', v_st; end if;
+end $$;
 do $$
 declare v_s uuid := current_setting('essai.session2')::uuid; v_err text;
 begin

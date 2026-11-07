@@ -15,7 +15,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      lieu de la contrainte de la table affichée en anglais au visiteur ; SIRET, entreprise et fonction gardés seulement
 --      pour une entreprise ; un dépôt à la fois par session (verrou).
 --   3. public.inscription_confirmer : refus clair si la confirmation dépasserait l'effectif maximum, places réservées
---      proposées et aux demandes en attente plus anciennes (rien n'est créé) ; une confirmation à la fois par
+--      proposées et aux demandes en attente plus anciennes, ou à toutes les demandes en attente pour une demande de la
+--      liste d'attente (rien n'est créé) ; places libérées à la confirmation proposées à la liste d'attente ; une confirmation à la fois par
 --      session, verrous pris dans l'ordre session puis demande.
 --   4. app.liste_attente_avancer : une demande confirmée ou refusée entre-temps n'est jamais remise en place proposée.
 -- Aucune donnée modifiée. Production le 07/11 : 0 demande en ligne (calendrier non publié). Retour arrière :
@@ -267,15 +268,16 @@ begin
     end if;
   end loop;
   -- Effectif maximum de la session (0500) : jamais dépassé par une confirmation, places réservées comprises (places
-  -- proposées, demandes en attente plus anciennes : l'ordre d'arrivée est respecté) ; tout ce qui précède est annulé
+  -- proposées ; demandes en attente plus anciennes ; pour une demande de la liste d'attente, toutes les demandes en
+  -- attente, déjà acceptées au dépôt) ; tout ce qui précède est annulé
   if s.max_participants is not null then
     select count(*) into v_n from public.session_trainees st
      where st.session_id = r.session_id and not coalesce(st.absent, false);
     select coalesce(sum(jsonb_array_length(o.participants)), 0) into v_res from public.online_registrations o
      where o.session_id = r.session_id and o.id <> r.id
-       and (o.status = 'place_proposee' or (o.status = 'en_attente' and o.created_at < r.created_at));
+       and (o.status = 'place_proposee' or (o.status = 'en_attente' and (r.status = 'liste_attente' or o.created_at < r.created_at)));
     if v_n + v_res > s.max_participants then
-      raise exception 'Confirmation impossible : la session dépasserait son effectif maximum (% inscrits, dont cette demande, et % places réservées à des demandes plus anciennes, pour % places). Relevez l''effectif maximum de la session ou refusez une demande.', v_n, v_res, s.max_participants
+      raise exception 'Confirmation impossible : la session dépasserait son effectif maximum (% inscrits, dont cette demande, et % places réservées à d''autres demandes, pour % places). Relevez l''effectif maximum de la session ou refusez une demande.', v_n, v_res, s.max_participants
         using errcode = '23514';
     end if;
   end if;
@@ -285,6 +287,8 @@ begin
   update public.online_registrations
      set status = 'confirmee', client_id = v_client, group_id = v_group, handled_by = auth.uid(), handled_at = now()
    where id = r.id;
+  -- Participants déjà inscrits : places libérées proposées à la liste d'attente (0500)
+  perform app.liste_attente_avancer(r.session_id);
   return jsonb_build_object('ok', true, 'client_id', v_client, 'group_id', v_group);
 end
 $function$;
@@ -405,7 +409,7 @@ begin
     v_err := null;
   exception when others then v_err := sqlerrm;
   end;
-  if coalesce(v_err, '') not like '%réservées à des demandes plus anciennes%' then raise exception '5b. place réservée prise par la liste d''attente (%)', v_err; end if;
+  if coalesce(v_err, '') not like '%réservées à d''autres demandes%' then raise exception '5b. place réservée prise par la liste d''attente (%)', v_err; end if;
   perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and company_name = 'Alpha essai 0500'));
   -- Beta forcée alors qu'il ne reste qu'une place : refusée, rien d'écrit
   begin
@@ -452,7 +456,48 @@ begin
   insert into public.trainees (first_name, last_name, company_id) values ('Main', 'AJOUT', v_cie) returning id into v_t;
   insert into public.session_trainees (session_id, trainee_id, company_id) values (v_s, v_t, v_cie);
 end $$;
+-- Liste d'attente ancienne contre demande en attente récente (déjà acceptée au dépôt) ; participant déjà inscrit
+do $$
+declare v_cie uuid; v_co uuid; v_s3 uuid; v_s4 uuid; v_t uuid; v_c uuid;
+begin
+  select id into v_cie from public.companies limit 1;
+  select course_id into v_co from public.sessions where id = current_setting('essai.session')::uuid;
+  insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token, max_participants, company_id)
+  values ('ESSAI-0500-C', v_co, 'inter', true, current_date + 26, current_date + 26, 'essai-0500-c', 4, v_cie) returning id into v_s3;
+  insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token, max_participants, company_id)
+  values ('ESSAI-0500-D', v_co, 'inter', true, current_date + 27, current_date + 27, 'essai-0500-d', 2, v_cie) returning id into v_s4;
+  perform set_config('essai.session3', v_s3::text, true);
+  perform set_config('essai.session4', v_s4::text, true);
+  for i in 1..2 loop
+    insert into public.trainees (first_name, last_name, company_id) values ('Deja', 'INSCRIT' || i, v_cie) returning id into v_t;
+    insert into public.session_trainees (session_id, trainee_id, company_id) values (v_s3, v_t, v_cie);
+  end loop;
+  insert into public.online_registrations (session_id, kind, contact_first_name, contact_last_name, contact_email, company_name, participants, status, created_at) values
+    (v_s3, 'entreprise', 'Wa', 'Liste', 'wa@example.invalid', 'Liste essai 0500', '[{"first_name":"W","last_name":"Un"},{"first_name":"W","last_name":"Deux"}]', 'liste_attente', now() - interval '2 hours'),
+    (v_s3, 'entreprise', 'Na', 'Neuve', 'na@example.invalid', 'Neuve essai 0500', '[{"first_name":"N","last_name":"Un"}]', 'en_attente', now() - interval '1 hour');
+  -- Session D : Paul déjà inscrit dans son entreprise, sa demande en attente le compte une seconde fois
+  insert into public.clients (name, siret, company_id) values ('Deja essai 0500', '11122233344455', v_cie) returning id into v_c;
+  insert into public.trainees (first_name, last_name, client_id, company_id) values ('Paul', 'DEJA', v_c, v_cie) returning id into v_t;
+  insert into public.session_trainees (session_id, trainee_id, company_id) values (v_s4, v_t, v_cie);
+  insert into public.online_registrations (session_id, kind, contact_first_name, contact_last_name, contact_email, company_name, siret, participants, status, created_at) values
+    (v_s4, 'entreprise', 'Paul', 'Deja', 'pd@example.invalid', 'Deja essai 0500', '11122233344455', '[{"first_name":"Paul","last_name":"Deja"}]', 'en_attente', now() - interval '2 hours'),
+    (v_s4, 'entreprise', 'Xa', 'Attente', 'xa@example.invalid', 'Attente essai 0500', null, '[{"first_name":"X","last_name":"Un"}]', 'liste_attente', now() - interval '1 hour');
+end $$;
 set local role authenticated;
+do $$
+declare v_err text; v_st text;
+begin
+  begin
+    perform public.inscription_confirmer((select id from public.online_registrations where company_name = 'Liste essai 0500'));
+    v_err := null;
+  exception when others then v_err := sqlerrm;
+  end;
+  if coalesce(v_err, '') not like '%effectif maximum%' then raise exception '14. liste d''attente confirmée sur la place d''une demande récente (%)', v_err; end if;
+  perform public.inscription_confirmer((select id from public.online_registrations where company_name = 'Neuve essai 0500'));
+  perform public.inscription_confirmer((select id from public.online_registrations where company_name = 'Deja essai 0500'));
+  select status into v_st from public.online_registrations where company_name = 'Attente essai 0500';
+  if v_st <> 'place_proposee' then raise exception '15. place libérée à la confirmation non proposée (%)', v_st; end if;
+end $$;
 do $$
 declare v_s uuid := current_setting('essai.session2')::uuid; v_err text;
 begin
