@@ -1,13 +1,35 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
-// Onglets communs. Les premiers onglets restent visibles ; au-delà de `visible`, les autres passent
-// dans un menu « Plus » (même contenu, aucun onglet supprimé). L'onglet actif caché reste signalé.
+// Onglets communs. Tous les onglets s'affichent quand ils tiennent ; sinon les premiers restent visibles (au plus
+// `visible`) et les autres passent dans un menu « Plus » (même contenu, aucun onglet supprimé). L'onglet actif caché reste signalé.
 // Le nombre d'onglets visibles s'adapte aussi à la largeur disponible (téléphone, tablette) : un onglet qui ne
 // tient pas entier passe dans « Plus » au lieu d'être coupé au bord de l'écran.
 // tabs : [{ id, label, count? }]
 
 const PLACE_PLUS = 96 // largeur réservée au bouton « Plus » (libellé de l'onglet actif compris, au plus court)
+
+// Nombre d'onglets entiers qui tiennent dans la largeur `dispo` (tous si la rangée entière tient)
+export function ongletsQuiTiennent(largeurs, dispo) {
+  const total = largeurs.reduce((a, b) => a + b, 0)
+  if (total <= dispo) return largeurs.length
+  let somme = 0
+  let n = 0
+  for (const w of largeurs) {
+    if (somme + w > dispo - PLACE_PLUS) break
+    somme += w
+    n += 1
+  }
+  return Math.max(1, n)
+}
+
+// Quand tous les onglets tiennent, ils sont tous affichés : « Plus » ne sert qu'au manque de place
+// (signalé par H le 07/11 : Stock gardait 2 onglets dans « Plus » avec la moitié de la rangée vide).
+// `visible` ne limite que lorsque la rangée ne tient pas entière.
+export function ongletsAffiches(nombre, tient, visible) {
+  if (tient >= nombre) return nombre
+  return Math.min(visible, tient)
+}
 
 export function Tabs({ tabs, value, onChange, visible = 6, className = '' }) {
   const [open, setOpen] = useState(false)
@@ -21,27 +43,14 @@ export function Tabs({ tabs, value, onChange, visible = 6, className = '' }) {
     const el = cadre.current
     const m = mesure.current
     if (!el || !m) return undefined
-    const calculer = () => {
-      const dispo = el.clientWidth
-      const largeurs = [...m.children].map((c) => c.getBoundingClientRect().width + 4)
-      const total = largeurs.reduce((a, b) => a + b, 0)
-      if (total <= dispo) { setTient(tabs.length); return }
-      let somme = 0
-      let n = 0
-      for (const w of largeurs) {
-        if (somme + w > dispo - PLACE_PLUS) break
-        somme += w
-        n += 1
-      }
-      setTient(Math.max(1, n))
-    }
+    const calculer = () => setTient(ongletsQuiTiennent([...m.children].map((c) => c.getBoundingClientRect().width + 4), el.clientWidth))
     calculer()
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(calculer) : null
     ro?.observe(el)
     return () => ro?.disconnect()
   }, [tabs])
 
-  const limite = Math.min(visible, tient)
+  const limite = ongletsAffiches(tabs.length, tient, visible)
   const shown = tabs.slice(0, limite)
   const more = tabs.slice(limite)
   const activeInMore = more.find((t) => t.id === value)
