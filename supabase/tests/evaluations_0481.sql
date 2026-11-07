@@ -17,7 +17,7 @@ begin
   insert into public.trainees (first_name, last_name, client_id, company_id) values ('Bob', 'Deux', v_cli, v_cie) returning id into v_tr2;
   insert into public.session_trainees (session_id, trainee_id) values (v_se, v_tr), (v_se, v_tr2);
   -- 0501 : ticket du code personnel exigé par le portail
-  update public.session_trainees set portal_ticket = 'ticket-0481', portal_ticket_expires_at = now() + interval '1 hour'
+  update public.session_trainees set access_code = '000481', portal_ticket = 'ticket-0481', portal_ticket_expires_at = now() + interval '1 hour'
   where session_id = v_se and trainee_id = v_tr;
   alter table public.profiles disable trigger user;
   update public.profiles set role = 'superadmin' where id = '00000000-0000-4000-8000-000000000002';

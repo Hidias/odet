@@ -10,7 +10,9 @@
 --   puis appelle le corps. Les fonctions qui rendaient leurs refus en json (émargement, refus d'e-mail) rendent
 --   aussi ce refus en json.
 --   Émargement gardé sans réseau (portal_sign_halfday_differe, 0417) : le portail garde le ticket avec la signature ;
---   il est accepté s'il est toujours celui du stagiaire et qu'il était valable à l'heure de la signature.
+--   il est accepté s'il est toujours celui du stagiaire et que l'heure de la signature ne dépasse pas sa fin de
+--   validité. Limite connue (déjà là avec 0417) : l'heure de signature est donnée par le téléphone, jusqu'à 48 heures
+--   en arrière ; il n'y a pas d'heure de délivrance du ticket pour la borner.
 --   Gardés sans ticket, exprès : portal_quiz_check (aucun stagiaire), portal_log_download (trace seulement).
 -- Aucune donnée modifiée. Retour arrière : supabase/rollback/0501_portail_ticket_retour.sql
 
@@ -169,8 +171,8 @@ declare
   v_st record;
 begin
   -- Signature gardée sans réseau : le ticket est celui du moment de la signature. Il est accepté s'il est encore celui du
-  -- stagiaire et s'il était valable à l'heure de la signature, même expiré depuis (le ticket dure 12 heures, la
-  -- signature est gardée jusqu'à 48 heures ; portal_entrer redonne le même ticket tant qu'il est valable).
+  -- stagiaire et si l'heure de la signature ne dépasse pas sa fin de validité, même expiré depuis (le ticket dure
+  -- 12 heures, la signature est gardée jusqu'à 48 heures ; portal_entrer redonne le même ticket tant qu'il est valable).
   select st.access_code, st.portal_ticket, st.portal_ticket_expires_at into v_st
   from public.sessions s join public.session_trainees st on st.session_id = s.id and st.trainee_id = p_trainee_id
   where s.attendance_token = p_token and coalesce(p_token, '') <> '';

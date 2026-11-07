@@ -5340,7 +5340,7 @@ begin
         returning id, attendance_token into h_s, h_tok;
       insert into public.trainees (first_name, last_name) values ('Essai', 'Hors ligne') returning id into h_t;
       insert into public.session_trainees (session_id, trainee_id) values (h_s, h_t);
-      update public.session_trainees set portal_ticket = 'ticket-0417', portal_ticket_expires_at = now() + interval '1 hour'
+      update public.session_trainees set access_code = '000417', portal_ticket = 'ticket-0417', portal_ticket_expires_at = now() + interval '1 hour'
       where session_id = h_s and trainee_id = h_t;
       execute 'set local role anon';
       h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'morning', h_sig, now() - interval '20 minutes', 'ticket-0417');
@@ -5357,7 +5357,9 @@ begin
       h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() + interval '1 hour', 'ticket-0417');
       h_ok := h_ok and not (h_j->>'ok')::boolean;
       execute 'reset role';
-      if h_ok then v_lines := v_lines || 'OK      anon  0417 : déjà signée, trop ancienne ou dans le futur : refusée'::text;
+      h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() - interval '5 minutes', null);
+      h_ok := h_ok and not (h_j->>'ok')::boolean;
+      if h_ok then v_lines := v_lines || 'OK      anon  0417 : déjà signée, trop ancienne, dans le futur ou sans ticket (0501) : refusée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0417 : envoi différé accepté à tort'::text; end if;
       execute 'set local role anon';
       h_j := public.portal_sign_halfday_differe('lien-inconnu', h_t, 'afternoon', h_sig, now(), 'ticket-0417');
