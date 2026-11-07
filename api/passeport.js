@@ -110,8 +110,8 @@ async function reprendreAnciens(admin, by, { dry = false } = {}) {
   // Numéros chiffrés en base depuis 0502 : déchiffrés par la base pour la seule clé de service
   const { data: rows, error: e1 } = await admin.rpc('trainee_ssn_a_reprendre')
   if (e1) {
-    // Table ou fonction absente (chantier 2 ou 0502 non appliqués) : rien à reprendre
-    if (['42P01', '42883', 'PGRST202', 'PGRST205'].includes(e1.code)) return { en_attente: 0, repris: 0, invalides: 0, deja_dans_le_passeport: 0 }
+    // Fonction absente (0502 non appliquée) : rien à reprendre ; toute autre erreur remonte
+    if (['PGRST202', 'PGRST205'].includes(e1.code)) return { en_attente: 0, repris: 0, invalides: 0, deja_dans_le_passeport: 0 }
     throw Object.assign(new Error('Lecture impossible'), { code: e1.code })
   }
   const ids = (rows || []).map((r) => r.trainee_id)

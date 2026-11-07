@@ -13,9 +13,12 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      dépôt ni dans les sauvegardes en clair. app.ssn_cle() la lit, fermée à tous les comptes.
 --   2. trainee_ssn.ssn_chiffre (pgp_sym_encrypt) et trainee_ssn.fin (3 derniers chiffres) ; un déclencheur chiffre tout
 --      numéro écrit, la colonne ssn reste vide (contrainte).
---   3. Lectures : load_trainee_data (portail) et get_trainee_with_ssn (fiche stagiaire) lisent fin, comme avant les
+--   3. Saisies : trainee_ssn_capture et info_sheet_ssn_capture écrivent par « insert ... on conflict do update » ; le
+--      déclencheur chiffre la ligne proposée avant le conflit, la mise à jour reprend donc ssn_chiffre et fin (une
+--      correction du numéro remplace l'ancien). Seule ligne changée dans chacune.
+--   4. Lectures : load_trainee_data (portail) et get_trainee_with_ssn (fiche stagiaire) lisent fin, comme avant les
 --      3 derniers chiffres ; seul changement de leur corps.
---   4. public.trainee_ssn_a_reprendre() : numéros déchiffrés pour la reprise du Passeport, réservée au serveur
+--   5. public.trainee_ssn_a_reprendre() : numéros déchiffrés pour la reprise du Passeport, réservée au serveur
 --      (service_role).
 -- Production le 07/11 : 0 ligne dans trainee_ssn. Retour arrière : supabase/rollback/0502_nir_chiffre_retour.sql
 -- (remet les numéros en clair avant de retirer les colonnes : possible après usage réel).
@@ -174,6 +177,60 @@ begin
 end
 $function$;
 
+CREATE OR REPLACE FUNCTION public.trainee_ssn_capture()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_ssn text := nullif(regexp_replace(coalesce(new.social_security_number, ''), '\s', '', 'g'), '');
+begin
+  if new.id is null then
+    new.id := gen_random_uuid();
+  end if;
+  if coalesce(new.refused_ssn, false) then
+    delete from public.trainee_ssn where trainee_id = new.id;
+    new.ssn_present := false;
+  elsif v_ssn is not null then
+    insert into public.trainee_ssn (trainee_id, ssn, updated_at) values (new.id, v_ssn, now())
+    on conflict (trainee_id) do update set ssn_chiffre = excluded.ssn_chiffre, fin = excluded.fin, updated_at = now();
+    new.ssn_present := true;
+  elsif tg_op = 'INSERT' then
+    new.ssn_present := false;
+  end if;
+  new.social_security_number := null;
+  new.ssn_encrypted := null;
+  return new;
+end
+$function$;
+
+CREATE OR REPLACE FUNCTION public.info_sheet_ssn_capture()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_ssn text := nullif(regexp_replace(coalesce(new.ssn, ''), '\s', '', 'g'), '');
+begin
+  if coalesce(new.ssn_refused, false) then
+    delete from public.trainee_ssn where trainee_id = new.trainee_id;
+    update public.trainees set ssn_present = false where id = new.trainee_id and ssn_present;
+    new.ssn_present := false;
+  elsif v_ssn is not null then
+    insert into public.trainee_ssn (trainee_id, ssn, updated_at) values (new.trainee_id, v_ssn, now())
+    on conflict (trainee_id) do update set ssn_chiffre = excluded.ssn_chiffre, fin = excluded.fin, updated_at = now();
+    update public.trainees set ssn_present = true where id = new.trainee_id and not ssn_present;
+    new.ssn_present := true;
+  else
+    new.ssn_present := exists (select 1 from public.trainee_ssn s where s.trainee_id = new.trainee_id);
+  end if;
+  new.ssn := null;
+  return new;
+end
+$function$;
+
 -- Reprise du Passeport (api/passeport.js, clé de service) : numéros déchiffrés, jamais pour un compte
 create or replace function public.trainee_ssn_a_reprendre()
 returns table (trainee_id uuid, ssn text)
@@ -225,6 +282,20 @@ begin
   -- 3. Écrire en clair directement : chiffré quand même ; contrainte : jamais de numéro en clair
   update public.trainee_ssn set ssn = '199127512345678' where trainee_id = v_t2;
   if (select ssn is not null or fin <> '678' from public.trainee_ssn where trainee_id = v_t2) then raise exception '3. mise à jour en clair'; end if;
+
+  -- 3 bis. Correction : une seconde saisie remplace la première, par la fiche du stagiaire et par la fiche de renseignements
+  update public.trainees set social_security_number = '299127512345678' where id = v_t;
+  if (select fin from public.trainee_ssn where trainee_id = v_t) <> '678'
+     or (select ssn from public.trainee_ssn_a_reprendre() where trainee_id = v_t) <> '299127512345678' then
+    raise exception '3 bis. correction par la fiche ignorée';
+  end if;
+  update public.trainees set social_security_number = v_nir where id = v_t;
+  update public.trainee_info_sheets set ssn = '1 99 12 75 123 456 99' where session_id = v_se and trainee_id = v_t2;
+  if (select fin from public.trainee_ssn where trainee_id = v_t2) <> '699'
+     or (select ssn from public.trainee_ssn_a_reprendre() where trainee_id = v_t2) <> '199127512345699' then
+    raise exception '3 bis. correction par la fiche de renseignements ignorée';
+  end if;
+  update public.trainee_ssn set ssn = '199127512345678' where trainee_id = v_t2;
 
   -- 4. Reprise du Passeport : numéros déchiffrés, réservée à la clé de service
   if (select ssn from public.trainee_ssn_a_reprendre() where trainee_id = v_t) <> v_nir then raise exception '4. déchiffrement faux'; end if;

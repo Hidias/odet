@@ -60,9 +60,12 @@ create temp table etat_essai_avant as select * from etat_essai;
 --      dépôt ni dans les sauvegardes en clair. app.ssn_cle() la lit, fermée à tous les comptes.
 --   2. trainee_ssn.ssn_chiffre (pgp_sym_encrypt) et trainee_ssn.fin (3 derniers chiffres) ; un déclencheur chiffre tout
 --      numéro écrit, la colonne ssn reste vide (contrainte).
---   3. Lectures : load_trainee_data (portail) et get_trainee_with_ssn (fiche stagiaire) lisent fin, comme avant les
+--   3. Saisies : trainee_ssn_capture et info_sheet_ssn_capture écrivent par « insert ... on conflict do update » ; le
+--      déclencheur chiffre la ligne proposée avant le conflit, la mise à jour reprend donc ssn_chiffre et fin (une
+--      correction du numéro remplace l'ancien). Seule ligne changée dans chacune.
+--   4. Lectures : load_trainee_data (portail) et get_trainee_with_ssn (fiche stagiaire) lisent fin, comme avant les
 --      3 derniers chiffres ; seul changement de leur corps.
---   4. public.trainee_ssn_a_reprendre() : numéros déchiffrés pour la reprise du Passeport, réservée au serveur
+--   5. public.trainee_ssn_a_reprendre() : numéros déchiffrés pour la reprise du Passeport, réservée au serveur
 --      (service_role).
 -- Production le 07/11 : 0 ligne dans trainee_ssn. Retour arrière : supabase/rollback/0502_nir_chiffre_retour.sql
 -- (remet les numéros en clair avant de retirer les colonnes : possible après usage réel).
@@ -221,6 +224,60 @@ begin
 end
 $function$;
 
+CREATE OR REPLACE FUNCTION public.trainee_ssn_capture()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_ssn text := nullif(regexp_replace(coalesce(new.social_security_number, ''), '\s', '', 'g'), '');
+begin
+  if new.id is null then
+    new.id := gen_random_uuid();
+  end if;
+  if coalesce(new.refused_ssn, false) then
+    delete from public.trainee_ssn where trainee_id = new.id;
+    new.ssn_present := false;
+  elsif v_ssn is not null then
+    insert into public.trainee_ssn (trainee_id, ssn, updated_at) values (new.id, v_ssn, now())
+    on conflict (trainee_id) do update set ssn_chiffre = excluded.ssn_chiffre, fin = excluded.fin, updated_at = now();
+    new.ssn_present := true;
+  elsif tg_op = 'INSERT' then
+    new.ssn_present := false;
+  end if;
+  new.social_security_number := null;
+  new.ssn_encrypted := null;
+  return new;
+end
+$function$;
+
+CREATE OR REPLACE FUNCTION public.info_sheet_ssn_capture()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_ssn text := nullif(regexp_replace(coalesce(new.ssn, ''), '\s', '', 'g'), '');
+begin
+  if coalesce(new.ssn_refused, false) then
+    delete from public.trainee_ssn where trainee_id = new.trainee_id;
+    update public.trainees set ssn_present = false where id = new.trainee_id and ssn_present;
+    new.ssn_present := false;
+  elsif v_ssn is not null then
+    insert into public.trainee_ssn (trainee_id, ssn, updated_at) values (new.trainee_id, v_ssn, now())
+    on conflict (trainee_id) do update set ssn_chiffre = excluded.ssn_chiffre, fin = excluded.fin, updated_at = now();
+    update public.trainees set ssn_present = true where id = new.trainee_id and not ssn_present;
+    new.ssn_present := true;
+  else
+    new.ssn_present := exists (select 1 from public.trainee_ssn s where s.trainee_id = new.trainee_id);
+  end if;
+  new.ssn := null;
+  return new;
+end
+$function$;
+
 -- Reprise du Passeport (api/passeport.js, clé de service) : numéros déchiffrés, jamais pour un compte
 create or replace function public.trainee_ssn_a_reprendre()
 returns table (trainee_id uuid, ssn text)
@@ -238,8 +295,9 @@ grant execute on function public.trainee_ssn_a_reprendre() to service_role;
 insert into public.schema_migrations (version) values ('0502_nir_chiffre') on conflict (version) do nothing;
 
 -- ===== supabase/rollback/0502_nir_chiffre_retour.sql =====
--- Retour arrière de 0502 : numéros remis en clair dans trainee_ssn.ssn (avant de retirer les colonnes), lectures
--- d'origine, clé retirée du coffre.
+-- Retour arrière de 0502 : numéros remis en clair dans trainee_ssn.ssn (avant de retirer les colonnes), lectures et
+-- saisies d'origine, clé retirée du coffre. À faire avec le retour de api/passeport.js (lecture de la table) : sinon la
+-- reprise du Passeport ne trouve plus trainee_ssn_a_reprendre et laisse les numéros dans trainee_ssn (sans perte).
 drop function if exists public.trainee_ssn_a_reprendre();
 alter table public.trainee_ssn drop constraint if exists trainee_ssn_jamais_en_clair;
 drop trigger if exists a_trainee_ssn_chiffrer on public.trainee_ssn;
@@ -342,6 +400,60 @@ begin
   from public.trainees t
   left join public.trainee_disability d on d.trainee_id = t.id
   where t.id = p_id;
+end
+$function$;
+
+CREATE OR REPLACE FUNCTION public.trainee_ssn_capture()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_ssn text := nullif(regexp_replace(coalesce(new.social_security_number, ''), '\s', '', 'g'), '');
+begin
+  if new.id is null then
+    new.id := gen_random_uuid();
+  end if;
+  if coalesce(new.refused_ssn, false) then
+    delete from public.trainee_ssn where trainee_id = new.id;
+    new.ssn_present := false;
+  elsif v_ssn is not null then
+    insert into public.trainee_ssn (trainee_id, ssn, updated_at) values (new.id, v_ssn, now())
+    on conflict (trainee_id) do update set ssn = excluded.ssn, updated_at = now();
+    new.ssn_present := true;
+  elsif tg_op = 'INSERT' then
+    new.ssn_present := false;
+  end if;
+  new.social_security_number := null;
+  new.ssn_encrypted := null;
+  return new;
+end
+$function$;
+
+CREATE OR REPLACE FUNCTION public.info_sheet_ssn_capture()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_ssn text := nullif(regexp_replace(coalesce(new.ssn, ''), '\s', '', 'g'), '');
+begin
+  if coalesce(new.ssn_refused, false) then
+    delete from public.trainee_ssn where trainee_id = new.trainee_id;
+    update public.trainees set ssn_present = false where id = new.trainee_id and ssn_present;
+    new.ssn_present := false;
+  elsif v_ssn is not null then
+    insert into public.trainee_ssn (trainee_id, ssn, updated_at) values (new.trainee_id, v_ssn, now())
+    on conflict (trainee_id) do update set ssn = excluded.ssn, updated_at = now();
+    update public.trainees set ssn_present = true where id = new.trainee_id and not ssn_present;
+    new.ssn_present := true;
+  else
+    new.ssn_present := exists (select 1 from public.trainee_ssn s where s.trainee_id = new.trainee_id);
+  end if;
+  new.ssn := null;
+  return new;
 end
 $function$;
 

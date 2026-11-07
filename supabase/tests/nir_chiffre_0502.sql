@@ -34,6 +34,20 @@ begin
   update public.trainee_ssn set ssn = '199127512345678' where trainee_id = v_t2;
   if (select ssn is not null or fin <> '678' from public.trainee_ssn where trainee_id = v_t2) then raise exception '3. mise à jour en clair'; end if;
 
+  -- 3 bis. Correction : une seconde saisie remplace la première, par la fiche du stagiaire et par la fiche de renseignements
+  update public.trainees set social_security_number = '299127512345678' where id = v_t;
+  if (select fin from public.trainee_ssn where trainee_id = v_t) <> '678'
+     or (select ssn from public.trainee_ssn_a_reprendre() where trainee_id = v_t) <> '299127512345678' then
+    raise exception '3 bis. correction par la fiche ignorée';
+  end if;
+  update public.trainees set social_security_number = v_nir where id = v_t;
+  update public.trainee_info_sheets set ssn = '1 99 12 75 123 456 99' where session_id = v_se and trainee_id = v_t2;
+  if (select fin from public.trainee_ssn where trainee_id = v_t2) <> '699'
+     or (select ssn from public.trainee_ssn_a_reprendre() where trainee_id = v_t2) <> '199127512345699' then
+    raise exception '3 bis. correction par la fiche de renseignements ignorée';
+  end if;
+  update public.trainee_ssn set ssn = '199127512345678' where trainee_id = v_t2;
+
   -- 4. Reprise du Passeport : numéros déchiffrés, réservée à la clé de service
   if (select ssn from public.trainee_ssn_a_reprendre() where trainee_id = v_t) <> v_nir then raise exception '4. déchiffrement faux'; end if;
   if (select ssn from public.trainee_ssn_a_reprendre() where trainee_id = v_t2) <> '199127512345678' then raise exception '4. déchiffrement de la fiche faux'; end if;
