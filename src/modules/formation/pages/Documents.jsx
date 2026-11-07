@@ -15,6 +15,7 @@ import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 import { confirmer } from '../../../ui/Confirm'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
+import { Q, DOCS_ADMINISTRATIFS, DOCS_FORMATION } from '../lib/indicateursDocuments'
 const categories = [
   { id: 'all', name: 'Tous' },
   { id: 'programme', name: 'Programmes' },
@@ -136,19 +137,8 @@ export default function Documents() {
     setLoadingTheme(null)
   }
   
-  const adminDocs = [
-    { id: 'reglement', label: 'Règlement intérieur', qualiopi: '9' },
-    { id: 'livret', label: 'Livret d\'accueil', qualiopi: '1' },
-    { id: 'analyseBesoin', label: 'Analyse du besoin', qualiopi: '4' },
-  ]
-  
-  const formationDocs = [
-    { id: 'emargement', label: 'Feuille d\'émargement (10 lignes)', qualiopi: '11' },
-    { id: 'ficheRenseignements', label: 'Fiche de renseignements stagiaire', qualiopi: '4' },
-    { id: 'evaluation', label: 'Évaluation à chaud', qualiopi: '30' },
-    { id: 'evaluationFroid', label: 'Évaluation à froid', qualiopi: '30' },
-    { id: 'evaluationFormateur', label: 'Évaluation formateur', qualiopi: '30' },
-  ]
+  const adminDocs = DOCS_ADMINISTRATIFS
+  const formationDocs = DOCS_FORMATION
   
   const handleDrag = (e) => {
     e.preventDefault()
@@ -535,7 +525,7 @@ export default function Documents() {
                         style={{ backgroundColor: getThemeColor(theme.name) }}
                       />
                       <span className="text-ui">Test {theme.name}</span>
-                      <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-800">Q8</span>
+                      <span className="text-ui-sm px-1.5 py-0.5 rounded bg-gray-100 text-gray-800">Q{Q.positionnement}</span>
                     </div>
                     {loadingTheme === theme.id ? (
                       <Loader2 className="w-4 h-4 text-gray-400 animate-spin" />

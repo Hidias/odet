@@ -4,11 +4,14 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { RULES, evaluateIndicators } from '../src/modules/certification/lib/proofs'
+import { DOCS_FORMATION } from '../src/modules/formation/lib/indicateursDocuments'
 
 describe('indicateurs Qualiopi des documents', () => {
   it("l'évaluation formateur est rattachée à l'indicateur 30, comme dans les preuves d'audit", () => {
+    // liste commune aux pages Documents et Documents vierges (indicateursDocuments.js)
+    expect(DOCS_FORMATION.find((d) => d.id === 'evaluationFormateur').qualiopi).toBe('30')
     for (const p of ['src/modules/formation/pages/Documents.jsx', 'src/modules/formation/pages/DocumentsVierges.jsx']) {
-      expect(readFileSync(p, 'utf8'), p).toMatch(/id: 'evaluationFormateur', label: 'Évaluation formateur', qualiopi: '30'/)
+      expect(readFileSync(p, 'utf8'), p).toContain('const formationDocs = DOCS_FORMATION')
     }
     const proofs = readFileSync('src/modules/certification/lib/proofs.js', 'utf8')
     expect(proofs).toMatch(/30: \(e\) => \(\{[\s\S]{0,400}valuations formateur/)
