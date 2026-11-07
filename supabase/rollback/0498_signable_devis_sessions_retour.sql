@@ -143,6 +143,7 @@ $$;
 revoke all on function app.devis_prepare_sessions(uuid) from public, anon, authenticated;
 
 drop function if exists app.jour_ouvre(uuid, date, int);
+drop function if exists app.est_ouvre(uuid, date);
 drop function if exists app.signataire_du_devis(uuid);
 drop function if exists app.signataire_du_contact(uuid, uuid);
 drop function if exists app.document_signable(public.client_shared_documents);

@@ -1,8 +1,9 @@
 -- 0498 : espace client et devis signé (constats du 06/11 sur les données d'essai, décisions de H du 06/11 et du 07/11).
 -- 1. « À signer » rendu par la base : chaque document de l'espace client porte « signable ». Un devis ne se signe que
---    brouillon, envoyé ou accepté en partie (pas accepté, refusé, expiré, facturé ni remplacé) ; la convention ou le
+--    brouillon ou envoyé (pas accepté, même en partie, ni refusé, expiré, facturé ou remplacé) ; la convention ou le
 --    contrat d'un groupe inter ne se signe plus quand le groupe est annulé ou son document marqué signé (sur papier
---    ou en ligne) ; la convention d'une session ne se signe plus quand la session l'a signée ou est annulée ; le bon
+--    ou en ligne) ; la convention d'une session ne se signe plus quand la session l'a signée ou est annulée ; un contrat
+--    de maintenance ne se signe plus une fois signé (papier ou en ligne) ou terminé ; le bon
 --    d'intervention garde sa règle (0451). La signature (app.portail_signer_document) refuse un document non signable,
 --    après le cas « déjà signé » (réponse inchangée).
 -- 2. Signataire prévu d'un devis (extension de 0496) : le contact du devis, s'il appartient au client du devis, figé à
@@ -10,7 +11,8 @@
 --    Les devis déjà publiés gardent un signataire vide (2 en production le 07/11, tous deux signés).
 -- 3. Session préparée depuis un devis signé (0430) : date par défaut reportée au premier jour ouvré (ni samedi, ni
 --    dimanche, ni jour férié non travaillé de la société) ; fin à 9 h plus la durée de la formation pour moins de
---    6 heures (13 h pour 4 heures), 17 h sinon ; sur plusieurs jours ouvrés quand la formation dépasse une journée.
+--    6 heures (13 h pour 4 heures), 17 h sinon ; une formation de plusieurs jours (jusqu'à 5) tient sur des jours
+--    ouvrés qui se suivent, car l'émargement compte chaque jour du calendrier entre le début et la fin.
 --    Une date écrite dans l'objet du devis reste celle du client. Sessions déjà préparées inchangées.
 
 -- 1. Document signable
@@ -24,11 +26,13 @@ as $$
   select case
     when d.id is null or d.withdrawn_at is not null then false
     when d.kind = 'devis' then d.object_type = 'quote'
-      and exists (select 1 from public.quotes q where q.id = d.object_id and q.status in ('draft', 'sent', 'partial'))
+      and exists (select 1 from public.quotes q where q.id = d.object_id and q.status in ('draft', 'sent'))
     when d.kind = 'contrat' and d.object_type = 'session_group' then exists (select 1 from public.session_groups g
       where g.id = d.object_id and g.client_id = d.client_id and g.status is distinct from 'cancelled' and g.doc_status is distinct from 'signe')
     when d.kind = 'contrat' and d.object_type = 'session' then exists (select 1 from public.sessions s
       where s.id = d.object_id and not coalesce(s.convention_signed, false) and s.status is distinct from 'cancelled')
+    when d.kind = 'contrat' and d.object_type = 'itv_contract' then exists (select 1 from public.itv_contracts k
+      where k.id = d.object_id and k.signed_at is null and k.status is distinct from 'termine')
     when d.kind = 'contrat' then true
     when d.kind = 'rapport' then d.object_type = 'itv_visit' and exists (select 1 from public.itv_visits v where v.id = d.object_id
       and v.status = 'terminee' and v.client_signature is null and v.remote_signature_requested_at is not null and v.remote_signed_at is null)
@@ -161,9 +165,22 @@ as $$
 $$;
 revoke all on function app.signataire_prevu(uuid, uuid) from public, anon, authenticated;
 
--- 3. Jour ouvré de la société : p_date ou le suivant (ni samedi, ni dimanche, ni jour férié non travaillé), puis
--- p_plus jours ouvrés de plus
-create or replace function app.jour_ouvre(p_company uuid, p_date date, p_plus int default 0)
+-- 3. Jour ouvré de la société : ni samedi, ni dimanche, ni jour férié non travaillé saisi pour la société
+create or replace function app.est_ouvre(p_company uuid, p_date date)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select extract(isodow from p_date) < 6 and not exists (select 1 from public.hr_public_holidays h
+    where h.company_id = p_company and h.day = p_date and not h.is_worked)
+$$;
+revoke all on function app.est_ouvre(uuid, date) from public, anon, authenticated;
+
+-- Premier jour à partir de p_date qui ouvre p_jours jours ouvrés qui se suivent (1 à 5) ; au-delà de 5 jours, ou rien
+-- trouvé en 400 jours, le premier jour ouvré. Nombre de tours borné.
+create or replace function app.jour_ouvre(p_company uuid, p_date date, p_jours int default 1)
 returns date
 language plpgsql
 stable
@@ -171,21 +188,24 @@ security definer
 set search_path = ''
 as $$
 declare
-  v date := p_date;
-  v_reste int := greatest(coalesce(p_plus, 0), 0);
+  v_n int := least(greatest(coalesce(p_jours, 1), 1), 5);
+  v date;
+  k int;
+  ok boolean;
 begin
-  if v is null then return null; end if;
-  loop
-    if extract(isodow from v) < 6 and not exists (select 1 from public.hr_public_holidays h
-         where h.company_id = p_company and h.day = v and not h.is_worked) then
-      exit when v_reste = 0;
-      v_reste := v_reste - 1;
-    end if;
-    v := v + 1;
-    -- Garde-fou : jamais plus d'un an de recherche
-    if v > p_date + 400 then return p_date; end if;
+  if p_date is null or not isfinite(p_date) then return p_date; end if;
+  for i in 0 .. 400 loop
+    v := p_date + i;
+    ok := true;
+    for k in 0 .. v_n - 1 loop
+      if not app.est_ouvre(p_company, v + k) then ok := false; exit; end if;
+    end loop;
+    if ok then return v; end if;
   end loop;
-  return v;
+  for i in 0 .. 400 loop
+    if app.est_ouvre(p_company, p_date + i) then return p_date + i; end if;
+  end loop;
+  return p_date;
 end
 $$;
 revoke all on function app.jour_ouvre(uuid, date, int) from public, anon, authenticated;
@@ -208,6 +228,7 @@ declare
   v_fund text;
   v_h numeric;
   v_jours int;
+  v_debut date;
 begin
   select * into q from public.quotes where id = p_quote;
   if q.id is null or q.status not in ('accepted', 'partial') then return 0; end if;
@@ -217,7 +238,6 @@ begin
   v_texte := app.date_fr_du_texte(q.object);
   v_date := coalesce(v_texte, coalesce(q.quote_date, current_date) + 30);
   if v_date < current_date then v_date := current_date + 7; v_texte := null; end if;
-  if v_texte is null then v_date := app.jour_ouvre(q.company_id, v_date); end if;
   v_fund := coalesce(nullif(to_jsonb(q) ->> 'funding_type', ''), 'none');
   if v_fund not in ('none', 'opco', 'cpf', 'faf', 'region', 'france_travail', 'ptp', 'fne', 'direct', 'other') then v_fund := 'none'; end if;
   for it in
@@ -230,14 +250,15 @@ begin
     -- jours ouvrés que la formation en demande
     v_h := coalesce(nullif(it.duration_hours, 0), 7);
     v_jours := greatest(coalesce(it.duration_days, 1), ceil(v_h / 7.0)::int, 1);
+    -- Début : la date écrite dans l'objet du devis, sinon le premier jour qui ouvre assez de jours ouvrés à la suite
+    v_debut := case when v_texte is null then app.jour_ouvre(q.company_id, v_date, v_jours) else v_date end;
     insert into public.sessions (course_id, client_id, contact_id, quote_id, trainer_id, company_id, start_date, end_date,
       start_time, end_time,
       status, is_intra, session_type, day_type, location_name, location_address, location_postal_code, location_city,
       total_price, funding_type, validation_requise, notes)
-    values (it.course_id, q.client_id, q.contact_id, q.id, it.default_trainer_id, q.company_id, v_date,
-      case when v_jours > 1 then app.jour_ouvre(q.company_id, v_date, v_jours - 1) else v_date end,
+    values (it.course_id, q.client_id, q.contact_id, q.id, it.default_trainer_id, q.company_id, v_debut, v_debut + (v_jours - 1),
       time '09:00', case when v_jours = 1 and v_h < 6 then time '09:00' + make_interval(mins => round(v_h * 60)::int) else time '17:00' end,
-      'planned', true, 'intra', case when v_h <= 4.5 then 'half' else 'full' end,
+      'planned', true, 'intra', case when v_jours = 1 and v_h <= 4.5 then 'half' else 'full' end,
       c.name, c.address, c.postal_code, c.city,
       round(coalesce(it.quantity, 1) * coalesce(it.unit_price_ht, 0) * (1 - coalesce(q.discount_percent, 0) / 100), 2), v_fund, true,
       'Préparée depuis le devis signé ' || coalesce(q.reference, '') || ' : dates et formateur à confirmer.')

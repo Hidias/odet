@@ -17,7 +17,8 @@ describe('Document signable rendu par la base', () => {
     const liste = readFileSync('src/modules/portail/components/MesDocuments.jsx', 'utf8')
     expect(liste).toMatch(/const deposable = [^\n]*d\.signable !== false/)
     const api = readFileSync('api/documents-client.js', 'utf8')
-    expect(api).toMatch(/!\['draft', 'sent', 'partial'\]\.includes\(q\.status\)/)
+    expect(api).toMatch(/doc\.signable === false/)
+    expect(api).toMatch(/!\['draft', 'sent'\]\.includes\(q\.status\)/)
   })
   it('la migration rend signable dans la liste et refuse la signature', () => {
     const sql = readFileSync('supabase/migrations/0498_signable_devis_sessions.sql', 'utf8')
