@@ -2,7 +2,8 @@
 // app.prenom_forme, app.contact_nom_affiche), qui la réapplique de toute façon à l'enregistrement ; ici pour l'aperçu et
 // l'affichage immédiat après enregistrement.
 
-const espaces = (v) => String(v ?? '').trim().replace(/\s+/g, ' ')
+// Mêmes espaces que app.espaces_nom (insécables, fines, invisibles)
+const espaces = (v) => String(v ?? '').replace(/[\s\u00a0\u1680\u2000-\u200b\u2028\u2029\u202f\u205f\u3000\ufeff]+/g, ' ').trim()
 
 // « le régent » → « LE RÉGENT » (particules comprises)
 export function nomMajuscules(nom) {
@@ -28,9 +29,9 @@ export function nomAffiche(nom, prenom) {
   return [nomMajuscules(nom), prenomForme(prenom)].filter(Boolean).join(' ') || null
 }
 
-// Mêmes mots sans tenir compte de l'ordre ni de la casse (« Paul Durand » et « DURAND Paul ») : app.memes_mots en base
+// Mêmes mots sans tenir compte de l'ordre, de la casse, des tirets ni des virgules (« Paul Durand » et « DURAND Paul ») : app.memes_mots en base
 export function memesMots(a, b) {
-  const mots = (v) => espaces(v).toLocaleLowerCase('fr-FR').split(' ').filter(Boolean).sort().join(' ')
+  const mots = (v) => espaces(v).toLocaleLowerCase('fr-FR').split(/[ ,-]+/).filter(Boolean).sort().join(' ')
   return mots(a) !== '' && mots(a) === mots(b)
 }
 

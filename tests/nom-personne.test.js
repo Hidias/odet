@@ -16,11 +16,14 @@ describe('contacts en « NOM Prénom » (même règle que 0508)', () => {
     expect(prenomForme('')).toBeNull()
     expect(prenomForme('jean\u00a0pierre')).toBe('Jean Pierre')
     expect(nomMajuscules('\u00a0durand\u00a0')).toBe('DURAND')
+    expect(prenomForme('\ufeffjean\u202fpierre\u200b')).toBe('Jean Pierre')
   })
 
   it('même personne quel que soit l\'ordre ou la casse', () => {
     expect(memesMots('Paul Durand', 'DURAND Paul')).toBe(true)
     expect(memesMots('Paul Durand', 'DURAND Pierre')).toBe(false)
+    expect(memesMots('Jean Pierre Durand', 'DURAND Jean-Pierre')).toBe(true)
+    expect(memesMots('Durand, Paul', 'DURAND Paul')).toBe(true)
     expect(memesMots('', '')).toBe(false)
   })
 

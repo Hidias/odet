@@ -12,13 +12,16 @@
 --      vidés, pour ne jamais garder deux noms différents. Le même nom renvoyé dans un autre ordre ou une autre casse (« Paul
 --      Durand » d'une fiche client pas encore rechargée, d'une inscription, d'un écran) ne vide rien : le nom est recalculé
 --      (app.memes_mots).
---   6. Espaces insécables (copier-coller, import) traités comme des espaces (app.espaces_nom).
---   7. Les contacts qui ont déjà nom ou prénom séparés sont recalculés ici (le principal est recopié sur sa fiche client).
+--   6. Espaces insécables, fines et invisibles (copier-coller, import) traités comme des espaces (app.espaces_nom) ; la
+--      comparaison des mots ignore aussi tirets et virgules (« Jean Pierre Durand » = « DURAND Jean-Pierre »).
+--   7. Reprise des contacts déjà séparés : ceux dont le nom affiché désigne une autre personne (séparés périmés, renommés
+--      avant 0508 par la fiche client) perdent leurs séparés et gardent leur nom ; les autres sont recalculés (le principal
+--      est recopié sur sa fiche client). Production le 07/11 : 10 séparés, 0 périmé, 0 client à deux principaux.
 -- Le déclencheur s'exécute avant client_contact_to_client (après), qui recopie donc le nom remis en forme sur la fiche client.
 
 create or replace function app.espaces_nom(p text) returns text
   language sql immutable set search_path = pg_catalog as
-$$ select btrim(regexp_replace(coalesce(p, ''), '[\s\u00a0]+', ' ', 'g')) $$;
+$$ select btrim(regexp_replace(coalesce(p, ''), '[\s\u00a0\u1680\u2000-\u200b\u2028\u2029\u202f\u205f\u3000\ufeff]+', ' ', 'g')) $$;
 
 create or replace function app.nom_majuscules(p text) returns text
   language sql immutable set search_path = pg_catalog as
@@ -50,8 +53,8 @@ $$ select nullif(concat_ws(' ', app.nom_majuscules(p_nom), app.prenom_forme(p_pr
 -- Mêmes mots, sans tenir compte de l'ordre ni de la casse : « Paul Durand » et « DURAND Paul »
 create or replace function app.memes_mots(a text, b text) returns boolean
   language sql immutable set search_path = pg_catalog as
-$$ select coalesce((select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(a)), ' ') x where x <> '')
-                 = (select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(b)), ' ') x where x <> ''), false) $$;
+$$ select coalesce((select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(a)), '[ ,-]+') x where x <> '')
+                 = (select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(b)), '[ ,-]+') x where x <> ''), false) $$;
 
 create or replace function app.contact_nom_prenom() returns trigger
   language plpgsql set search_path = pg_catalog, public as
@@ -83,7 +86,9 @@ drop trigger if exists client_contacts_nom on public.client_contacts;
 create trigger client_contacts_nom before insert or update on public.client_contacts
   for each row execute function app.contact_nom_prenom();
 
--- Règle 7 : recalcul des contacts déjà séparés (mise à jour sans changement de nom : recalcul, recopie sur la fiche)
+-- Règle 7 : séparés périmés retirés (le nom affiché reste), puis recalcul des autres (recopie sur la fiche)
+update public.client_contacts set last_name = null, first_name = null
+ where coalesce(last_name, first_name) is not null and not app.memes_mots(name, concat_ws(' ', last_name, first_name));
 update public.client_contacts set last_name = last_name where coalesce(last_name, first_name) is not null;
 
 insert into public.schema_migrations (version) values ('0508_contacts_nom_prenom') on conflict (version) do nothing;

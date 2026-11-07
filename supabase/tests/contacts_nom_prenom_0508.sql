@@ -57,6 +57,13 @@ begin
     values (v_cl, 'x', U&'\00A0durand\00A0', U&'jean\00A0pierre') returning id into c6;
   if (select name from public.client_contacts where id = c6) is distinct from 'DURAND Jean Pierre' then
     raise exception '8. espace insécable : %', (select name from public.client_contacts where id = c6); end if;
+  update public.client_contacts set first_name = U&'\FEFFjean\202Fpierre\200B' where id = c6;
+  if (select name from public.client_contacts where id = c6) is distinct from 'DURAND Jean Pierre' then
+    raise exception '8. espaces fines et invisibles : %', (select name from public.client_contacts where id = c6); end if;
+  -- tirets : « Jean Pierre Durand » renvoyé sur « DURAND Jean-Pierre » ne vide rien
+  update public.client_contacts set first_name = 'jean-pierre' where id = c6;
+  update public.client_contacts set name = 'Jean Pierre Durand' where id = c6;
+  if (select first_name from public.client_contacts where id = c6) is distinct from 'Jean-Pierre' then raise exception '8. tiret'; end if;
 
   -- 9. Même nom renvoyé dans un autre ordre ou une autre casse (écran, inscription « Paul DURAND ») : rien n'est vidé
   insert into public.client_contacts (client_id, name, last_name, first_name) values (v_cl, 'x', 'durand', 'paul') returning id into c5;
