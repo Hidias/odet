@@ -39,7 +39,7 @@ export default function DesignReference() {
   const [banner, setBanner] = useState(true)
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 pb-10" style={{ maxWidth: 1100 }}>
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8 pb-10">
       <PageHeader
         crumbs={[{ label: 'Paramètres', to: '/parametres' }, { label: 'Système de design' }]}
         eyebrow="Référence interne"

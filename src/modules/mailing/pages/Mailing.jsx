@@ -419,7 +419,7 @@ export default function Mailing() {
     const minutesLeft = Math.ceil(remaining * Number(activeContext?.cadence || 180) / 60)
     const activeCampaign = campaigns.find(c => c.id === activeCampaignId)
     return (
-      <div className="max-w-2xl mx-auto py-12">
+      <div className="py-6">
         <div className="bg-white rounded-ui shadow-sm border border-gray-200 p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-6">
             {progress.done ? ' Campagne terminée' : progress.stopped ? ' Envoi arrêté' : ' Envoi en cours…'}

@@ -389,7 +389,7 @@ export default function BudgetModule() {
     toast.success('Supprimée'); loadAll()
   }
 
-  if (loading) return <div className="p-8 text-center text-gray-400"> Chargement...</div>
+  if (loading) return <div className="py-8 text-center text-gray-400"> Chargement...</div>
 
   return (
     <div>

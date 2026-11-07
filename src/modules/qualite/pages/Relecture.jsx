@@ -330,7 +330,7 @@ function Circuit({ id }) {
     }, 'Version validée : elle s\'applique désormais')
   }
 
-  if (erreur) return <div className="max-w-xl mx-auto p-6 text-center space-y-3"><p className="text-gray-700">{erreur}</p><Link to="/relectures" className="btn btn-secondary">Mes relectures</Link></div>
+  if (erreur) return <div className="py-10 text-center space-y-3"><p className="text-gray-700">{erreur}</p><Link to="/relectures" className="btn btn-secondary">Mes relectures</Link></div>
   if (!r) return <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
 
   const liste = etapes(r.mode)

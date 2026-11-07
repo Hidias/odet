@@ -130,6 +130,6 @@ export default function SetPassword({ mode = 'change', onDone }) {
     </div>
   )
 
-  if (mode === 'change') return <div className="card max-w-md">{card}</div>
-  return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'rgb(var(--ground))' }}>{card}</div>
+  if (mode === 'change') return <div className="card">{card}</div>
+  return <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'rgb(var(--ground))' }}>{card}</div> // hors du cadre : première connexion par lien
 }
