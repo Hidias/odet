@@ -1,6 +1,6 @@
 -- Retour arrière de 0499 : préparation de session de 0498 (autre redevient none) et liste de documents publiés de 0036.
 -- Une session déjà préparée en other garde son financement ; une version validée d'un document métier reste en base,
--- simplement plus lue par published_quality_doc (jointe « non validée », comme avant 0499).
+-- qui n'est simplement plus lue par published_quality_doc (jointe « non validée », comme avant 0499).
 
 create or replace function app.devis_prepare_sessions(p_quote uuid)
 returns int
