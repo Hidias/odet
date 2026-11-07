@@ -6418,7 +6418,7 @@ function ProspectCreateModal({ initial, onClose, onCreated }) {
     contact_email: '',
     contact_name: initial?.contact_name || '',
     notes: '',
-    status: 'prospect',
+    status: 'actif',
   })
   const [saving, setSaving] = useState(false)
   const { checkSiren, clearSirenCheck } = useSirenCheck()
@@ -6437,7 +6437,7 @@ function ProspectCreateModal({ initial, onClose, onCreated }) {
         contact_email: formData.contact_email || null,
         contact_name: formData.contact_name || null,
         notes: formData.notes || null,
-        status: 'prospect',
+        status: 'actif',
       }).select().single()
       if (error) throw error
       onCreated(data)

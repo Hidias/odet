@@ -26,9 +26,9 @@ import { confirmer } from '../../../ui/Confirm'
 const STATUTS_CLIENT = {
   actif: { label: 'Actif', cls: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
   en_discussion: { label: 'Discussion', cls: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
-  prospect: { label: 'Prospect', cls: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
   a_completer: { label: 'À compléter', cls: 'bg-gray-100 text-gray-800' },
   archive: { label: 'Archivé', cls: 'bg-gray-100 text-gray-500' },
+  inactif: { label: 'Inactif', cls: 'bg-gray-100 text-gray-500' },
 }
 
 // Formatage nom entreprise (majuscules)
@@ -261,6 +261,8 @@ export default function Clients() {
   const [filterStatus, setFilterStatus] = useState('all')
   // Entreprises (tous les professionnels) ou particuliers : deux listes séparées
   const [clientKind, setClientKind] = useState('pro')
+  // Clients ou prospects (0507) : une fiche passe « client » d'elle-même au premier devis validé ou à la première facture émise
+  const [typeFiche, setTypeFiche] = useState('client')
   const [sortField, setSortField] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
   const [showForm, setShowForm] = useState(false)
@@ -283,7 +285,7 @@ export default function Clients() {
   const [enriching, setEnriching] = useState(false)
   const fileInputRef = useRef(null)
   const [form, setForm] = useState({
-    name: '', siret: '', address: '', postal_code: '', city: '', tva: '', vat_exempt: false, email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise'
+    name: '', siret: '', address: '', postal_code: '', city: '', tva: '', vat_exempt: false, email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'actif', client_type: 'entreprise'
   })
 
   const [autoFilled, setAutoFilled] = useState(false)
@@ -369,7 +371,7 @@ export default function Clients() {
         if (generic) entries.push({ contact: generic, client })
       })
       if (entries.length === 0) { toast.error('Aucun contact à exporter'); return }
-      downloadVCard(buildVCards(entries), vcfFilename(`contacts_${filtered.length}_clients`))
+      downloadVCard(buildVCards(entries), vcfFilename(`contacts_${filtered.length}_${typeFiche === 'client' ? 'clients' : 'prospects'}`))
       toast.success(`${entries.length} contact${entries.length > 1 ? 's' : ''} exporté${entries.length > 1 ? 's' : ''}`)
     } catch (err) {
       console.error('Export vCard :', err)
@@ -380,7 +382,11 @@ export default function Clients() {
   }
 
   const isParticulier = (c) => c.client_type === 'particulier'
-  const kindClients = clients.filter(c => clientKind === 'particulier' ? isParticulier(c) : !isParticulier(c))
+  const estClient = (c) => c.type === 'client'
+  const memeGenre = (c) => (clientKind === 'particulier' ? isParticulier(c) : !isParticulier(c))
+  const kindClients = clients.filter(c => memeGenre(c) && (typeFiche === 'client' ? estClient(c) : !estClient(c)))
+  const correspond = (c) => !search || `${c.name || ''} ${c.siret || ''} ${c.contact_name || ''} ${c.address || ''} ${c.email || ''} ${c.contact_email || ''}`.toLowerCase().includes(search.toLowerCase())
+  const autreOnglet = clients.filter(c => memeGenre(c) && (typeFiche === 'client' ? !estClient(c) : estClient(c)) && c.status !== 'archive' && correspond(c)).length
   const filtered = kindClients.filter(c => {
     const searchFields = `${c.name || ''} ${c.siret || ''} ${c.contact_name || ''} ${c.address || ''} ${c.email || ''} ${c.contact_email || ''}`.toLowerCase()
     const matchSearch = !search || searchFields.includes(search.toLowerCase())
@@ -410,12 +416,12 @@ export default function Clients() {
         contact_name: client.contact_name || '',
         contact_function: client.contact_function || '',
         notes: client.notes || '',
-        status: client.status || 'prospect',
+        status: client.status === 'prospect' ? 'actif' : (client.status || 'actif'),
         client_type: client.client_type || 'entreprise',
       })
       setSelectedClient(client)
     } else {
-      setForm({ name: '', siret: '', address: '', postal_code: '', city: '', tva: '', vat_exempt: false, email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'prospect', client_type: 'entreprise' })
+      setForm({ name: '', siret: '', address: '', postal_code: '', city: '', tva: '', vat_exempt: false, email: '', phone: '', contact_name: '', contact_function: '', notes: '', status: 'actif', client_type: 'entreprise' })
       setAutoFilled(false)
       setSelectedClient(null)
     }
@@ -444,7 +450,7 @@ export default function Clients() {
       postal_code: formData.postal_code || null,
       city: formData.city ? formData.city.toUpperCase() : null,
     })
-    toast.success('Client créé')
+    toast.success('Fiche créée dans Prospects : elle passera dans Clients au premier devis validé ou à la première facture émise.', { duration: 6000 })
     setShowForm(false)
     setAutoFilled(false)
   }
@@ -727,7 +733,7 @@ export default function Clients() {
       // Recharger les clients
       await fetchClients()
       
-      toast.success(`${created} prospect(s) importé(s)${skipped > 0 ? ` • ${skipped} ignoré(s) (doublons)` : ''}`)
+      toast.success(`${pluriel(created, 'prospect importé', 'prospects importés')}${skipped > 0 ? `, ${pluriel(skipped, 'doublon ignoré', 'doublons ignorés')}` : ''}`)
       setImportPreview(null)
     } catch (err) {
       console.error('Erreur import:', err)
@@ -739,7 +745,7 @@ export default function Clients() {
   
   return (
     <div>
-      <PageHeader className="mb-6" title="Clients" meta={<span>{pluriel(filtered.length, 'client')}</span>}
+      <PageHeader className="mb-6" title="Clients" meta={<span>{pluriel(filtered.length, typeFiche === 'client' ? 'client' : 'prospect')}</span>}
         actions={<>
           {vcardAllowed && (
             <button
@@ -786,9 +792,9 @@ export default function Clients() {
           )}
         </>} />
 
-      <Tabs className="mb-3" value={clientKind} onChange={(k) => { setClientKind(k); setFilterStatus('all') }} tabs={[
-        { id: 'pro', label: 'Entreprises', count: clients.filter(c => !isParticulier(c) && c.status !== 'archive').length },
-        { id: 'particulier', label: 'Particuliers', count: clients.filter(c => isParticulier(c) && c.status !== 'archive').length },
+      <Tabs className="mb-3" value={typeFiche} onChange={(k) => { setTypeFiche(k); setFilterStatus('all') }} tabs={[
+        { id: 'client', label: 'Clients', count: clients.filter(c => memeGenre(c) && estClient(c) && c.status !== 'archive').length },
+        { id: 'prospect', label: 'Prospects', count: clients.filter(c => memeGenre(c) && !estClient(c) && c.status !== 'archive').length },
       ]} />
 
       <div className="card mb-4">
@@ -803,12 +809,16 @@ export default function Clients() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <label className="sr-only" htmlFor="clients-genre">Entreprises ou particuliers</label>
+          <select id="clients-genre" className="input w-full sm:w-44" value={clientKind} onChange={(e) => { setClientKind(e.target.value); setFilterStatus('all') }}>
+            <option value="pro">Entreprises</option>
+            <option value="particulier">Particuliers</option>
+          </select>
           <div className="flex bg-gray-100 rounded-ui-sm p-1 gap-0.5 max-w-full overflow-x-auto">
             {[
               { key: 'all', label: 'Tous', count: kindClients.filter(c => c.status !== 'archive').length },
               { key: 'actif', label: 'Actif', count: kindClients.filter(c => c.status === 'actif').length, cls: 'text-[rgb(var(--c-success))]' },
               { key: 'en_discussion', label: 'Discussion', count: kindClients.filter(c => c.status === 'en_discussion').length, cls: 'text-[rgb(var(--c-info))]' },
-              { key: 'prospect', label: 'Prospect', count: kindClients.filter(c => c.status === 'prospect').length, cls: 'text-[rgb(var(--c-warning))]' },
               { key: 'a_completer', label: 'À compléter', count: kindClients.filter(c => c.status === 'a_completer').length, cls: 'text-gray-800' },
               { key: 'archive', label: 'Archivé', count: kindClients.filter(c => c.status === 'archive').length, cls: 'text-gray-500' },
             ].map(tab => (
@@ -824,13 +834,19 @@ export default function Clients() {
       <p className="text-ui-sm text-gray-400 mb-2">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
 
       <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
-        <DataTable caption="Clients" rows={filtered} rowHref={(client) => `/clients/${client.id}`} rowClassName={() => 'group'}
+        <DataTable caption={typeFiche === 'client' ? 'Clients' : 'Prospects'} rows={filtered} rowHref={(client) => `/clients/${client.id}`} rowClassName={() => 'group'}
           sort={{ key: sortField, dir: sortDir }}
           onSort={(key) => (sortField === key ? setSortDir(d => d === 'asc' ? 'desc' : 'asc') : (setSortField(key), setSortDir('asc')))}
           empty={(
             <div className="text-center py-12 text-gray-500">
               <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Aucun client trouvé</p>
+              <p>{typeFiche === 'client' ? 'Aucun client trouvé' : 'Aucun prospect trouvé'}</p>
+              {/* La recherche porte sur l'onglet affiché : on signale ce qui se trouve dans l'autre, pour éviter un doublon */}
+              {search && autreOnglet > 0 && (
+                <button type="button" className="btn btn-secondary btn-sm mt-3" onClick={() => { setTypeFiche(typeFiche === 'client' ? 'prospect' : 'client'); setFilterStatus('all') }}>
+                  {pluriel(autreOnglet, 'résultat')} dans {typeFiche === 'client' ? 'Prospects' : 'Clients'}
+                </button>
+              )}
             </div>
           )}
           columns={[
@@ -845,7 +861,7 @@ export default function Clients() {
               client.city && <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-gray-400" />{client.city}</span>
             ) },
             { key: 'status', label: 'Statut', sortKey: 'status', mobile: 'aside', render: (client) => {
-              const st = STATUTS_CLIENT[client.status] || STATUTS_CLIENT.prospect
+              const st = STATUTS_CLIENT[client.status] || STATUTS_CLIENT.actif
               return <span className={'px-2 py-0.5 rounded-full text-ui-sm font-medium whitespace-nowrap ' + st.cls}>{st.label}</span>
             } },
             { key: 'contact_email', label: 'Contact', className: 'text-ui text-gray-600 truncate max-w-[200px]', render: (client) => (
@@ -1103,7 +1119,6 @@ export default function Clients() {
                   <h4 className="font-medium text-gray-700 mb-3">Statut</h4>
                   <div className="flex gap-2 flex-wrap">
                     {[
-                      { value: 'prospect', label: 'Prospect', active: 'bg-[rgb(var(--c-warning))] text-white', inactive: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] hover:bg-[rgb(var(--c-warning-bg))]' },
                       { value: 'en_discussion', label: 'En discussion', active: 'bg-[rgb(var(--c-info))] text-white', inactive: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info-bg))]' },
                       { value: 'actif', label: 'Actif', active: 'bg-[rgb(var(--c-success))] text-white', inactive: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] hover:bg-[rgb(var(--c-success-bg))]' },
                       { value: 'a_completer', label: 'À compléter', active: 'bg-gray-700 text-white', inactive: 'bg-gray-50 text-gray-800 hover:bg-gray-100' },

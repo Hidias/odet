@@ -42,11 +42,11 @@ import { telephoneLisible, lienTelephone } from '../../../core/telephone.js'
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
 const STATUS_OPTIONS = [
-  { value: 'prospect', label: 'Prospect', color: 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' },
   { value: 'en_discussion', label: 'En discussion', color: 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' },
   { value: 'actif', label: 'Actif', color: 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' },
   { value: 'a_completer', label: 'À compléter', color: 'bg-gray-100 text-gray-800' },
   { value: 'inactif', label: 'Inactif', color: 'bg-gray-100 text-gray-500' },
+  { value: 'archive', label: 'Archivé', color: 'bg-gray-100 text-gray-500' },
 ]
 
 const INTERACTION_TYPES = [
@@ -462,13 +462,13 @@ export default function ClientDetail() {
   async function saveClient() {
     const sirenVal = editForm.siren || (editForm.siret ? editForm.siret.slice(0, 9) : null)
     
-    // Auto-promotion : si status = 'a_completer' et champs clés remplis → passer en 'prospect'
+    // Auto-promotion : si status = 'a_completer' et champs clés remplis, passer en « Actif » (statut « Prospect » retiré, 0507)
     let finalStatus = editForm.status
     const wasAutoPromoted = finalStatus === 'a_completer' && (() => {
       const hasName = !!editForm.name?.trim()
       const hasContact = !!(editForm.contact_email?.trim() || editForm.contact_phone?.trim())
       const hasSiret = !!editForm.siret?.trim()
-      if (hasName && hasContact && hasSiret) { finalStatus = 'prospect'; return true }
+      if (hasName && hasContact && hasSiret) { finalStatus = 'actif'; return true }
       return false
     })()
     
@@ -497,7 +497,7 @@ export default function ClientDetail() {
       ...(Array.isArray(editForm.company_ids) && editForm._societes_modifiees ? { company_ids: editForm.company_ids } : {}),
     }).eq('id', id)
     if (error) return toast.error('Erreur sauvegarde')
-    toast.success(wasAutoPromoted ? 'Fiche complétée → statut passé en Prospect ' : 'Client mis à jour', wasAutoPromoted ? { icon: '' } : {})
+    toast.success(wasAutoPromoted ? 'Fiche complétée : statut passé en Actif' : 'Client mis à jour', wasAutoPromoted ? { icon: '' } : {})
     // Marquer prospect deja_client si des liens détectés
     if (sirenVal && clientLinks) {
       const hasUnmarked = [
@@ -869,7 +869,7 @@ export default function ClientDetail() {
   // ═══════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════
-  const statusInfo = STATUS_OPTIONS.find(s => s.value === client?.status) || STATUS_OPTIONS[0]
+  const statusInfo = STATUS_OPTIONS.find(s => s.value === client?.status) || STATUS_OPTIONS.find(s => s.value === 'actif')
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" /></div>
   if (!client) return <div className="py-6"><Link to="/clients" className="text-primary-600 hover:underline flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Retour</Link><p className="mt-4 text-gray-500">Client introuvable</p></div>
@@ -1025,13 +1025,18 @@ export default function ClientDetail() {
                 </div>
               )}
               {editing ? (
-                <select value={editForm.status || 'prospect'} onChange={e => setEditForm({ ...editForm, status: e.target.value })}
+                <select value={editForm.status === 'prospect' ? 'actif' : (editForm.status || 'actif')} aria-label="Statut de la fiche" onChange={e => setEditForm({ ...editForm, status: e.target.value })}
                   className="px-3 py-1.5 border rounded-ui-sm text-ui">
                   {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               ) : (
                 <span className={'px-3 py-1.5 rounded-full text-ui font-medium ' + statusInfo.color}>{statusInfo.label}</span>
               )}
+              {/* Client ou prospect : posé par la base (premier devis validé ou première facture émise), jamais à la main */}
+              <span className={'px-3 py-1.5 rounded-full text-ui font-medium ' + (client?.type === 'client' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]')}
+                title={client?.type === 'client' ? 'Client depuis son premier devis validé ou sa première facture émise' : 'Prospect : deviendra client au premier devis validé ou à la première facture émise'}>
+                {client?.type === 'client' ? 'Client' : 'Prospect'}
+              </span>
             </div>
           </div>
         </div>

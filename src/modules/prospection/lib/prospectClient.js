@@ -27,7 +27,7 @@ export async function createClientFromProspect(prospect, cleanSiren, cleanSiret)
     email: prospect.email || null,
     website: prospect.site_web || null,
     taille_entreprise: prospect.effectif || null,
-    status: 'prospect',
+    status: 'actif',
     type: 'prospect',
   }).select('id').single()
   if (error) throw error

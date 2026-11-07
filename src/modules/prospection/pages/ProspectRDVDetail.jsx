@@ -327,7 +327,7 @@ export default function ProspectRDVDetail() {
         siret: siretVal, siren: sirenVal,
         address: newClientData.address, postal_code: newClientData.postal_code,
         city: newClientData.city, contact_phone: newClientData.contact_phone,
-        contact_email: newClientData.email, status: 'prospect', client_type: 'entreprise',
+        contact_email: newClientData.email, status: 'actif', client_type: 'entreprise',
       }]).select().single()
       if (error) throw error
       if (sirenVal) {

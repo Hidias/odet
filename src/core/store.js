@@ -259,7 +259,7 @@ export const useDataStore = create((set, get) => ({
       tva: client.vat_exempt ? null : (client.tva || null),
       vat_exempt: !!client.vat_exempt,
       notes: client.notes || null,
-      status: client.status || 'prospect',
+      status: client.status === 'prospect' ? 'actif' : (client.status || 'actif'),
       client_type: client.client_type || 'entreprise',
     }
     // Lot 2 (0041) : informations reprises du répertoire, envoyées seulement quand elles existent
