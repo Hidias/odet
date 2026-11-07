@@ -14,6 +14,7 @@ describe('jour de formation', () => {
   it('sans date de fin : le seul jour ; sans session : faux', () => {
     expect(jourDeFormation({ start_date: '2026-12-07' }, new Date(2026, 11, 7, 9))).toBe(true)
     expect(jourDeFormation(null)).toBe(false)
+    expect(jourDeFormation({ start_date: '2026-12-07', status: 'cancelled' }, new Date(2026, 11, 7, 9))).toBe(false)
   })
   it('la fiche session choisit le style du bouton par cette règle', () => {
     const f = readFileSync('src/modules/formation/pages/SessionDetail.jsx', 'utf8')
