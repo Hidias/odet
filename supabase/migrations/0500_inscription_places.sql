@@ -6,9 +6,10 @@
 --   1. app.places_libres_inter(session) : effectif maximum moins inscrits présents et demandes en cours (en attente,
 --      place proposée). Règle unique pour le calendrier public, le dépôt d'une demande et la liste d'attente.
 --   2. public.public_inscrire : champs contrôlés avec un message en français (SIRET, email, longueurs, entreprise), au
---      lieu de la contrainte de la table affichée en anglais au visiteur.
---   3. public.inscription_confirmer : refus clair si la confirmation dépasserait l'effectif maximum (rien n'est créé) ;
---      l'organisme relève l'effectif de la session ou refuse la demande.
+--      lieu de la contrainte de la table affichée en anglais au visiteur ; SIRET, entreprise et fonction gardés seulement
+--      pour une entreprise ; un dépôt à la fois par session (verrou).
+--   3. public.inscription_confirmer : refus clair si la confirmation dépasserait l'effectif maximum, places réservées
+--      aux autres demandes en cours comprises (rien n'est créé) ; une confirmation à la fois par session (verrou).
 -- Aucune donnée modifiée. Production le 07/11 : 0 demande en ligne (calendrier non publié). Retour arrière :
 -- supabase/rollback/0500_inscription_places_retour.sql
 
@@ -91,6 +92,8 @@ begin
    where se.id = p_session and se.session_type = 'inter' and coalesce(se.is_public, false)
      and se.start_date >= (now() at time zone 'Europe/Paris')::date and coalesce(se.status, '') not in ('cancelled', 'annulee');
   if s.id is null then raise exception 'Session introuvable ou fermée aux inscriptions' using errcode = '22023'; end if;
+  -- Un dépôt à la fois par session (0500) : deux visiteurs simultanés ne prennent jamais la même dernière place
+  perform 1 from public.sessions where id = s.id for update;
   if v_kind not in ('particulier', 'entreprise') then raise exception 'Type d''inscription inconnu' using errcode = '22023'; end if;
   if not coalesce((p_inscription->>'consent')::boolean, false) then
     raise exception 'Accord sur l''usage des données requis' using errcode = '22023';
@@ -103,7 +106,7 @@ begin
      or length(btrim(coalesce(p_inscription->>'contact_last_name', ''))) not between 1 and 80 then
     raise exception 'Indiquez votre prénom et votre nom (80 caractères au plus chacun)' using errcode = '22023';
   end if;
-  if nullif(regexp_replace(coalesce(p_inscription->>'siret', ''), '\s', '', 'g'), '') !~ '^[0-9]{14}$' then
+  if v_kind = 'entreprise' and nullif(regexp_replace(coalesce(p_inscription->>'siret', ''), '\s', '', 'g'), '') !~ '^[0-9]{14}$' then
     raise exception 'Le SIRET compte 14 chiffres (laissez le champ vide si vous ne l''avez pas)' using errcode = '22023';
   end if;
   if length(btrim(coalesce(p_inscription->>'postal_code', ''))) > 10 then
@@ -139,9 +142,9 @@ begin
   insert into public.online_registrations (session_id, kind, contact_first_name, contact_last_name, contact_email, contact_phone,
     contact_function, company_name, siret, address, postal_code, city, participants, message, status)
   values (s.id, v_kind, btrim(p_inscription->>'contact_first_name'), btrim(p_inscription->>'contact_last_name'), v_email,
-    nullif(btrim(coalesce(p_inscription->>'contact_phone', '')), ''), nullif(btrim(coalesce(p_inscription->>'contact_function', '')), ''),
-    nullif(btrim(coalesce(p_inscription->>'company_name', '')), ''),
-    nullif(regexp_replace(coalesce(p_inscription->>'siret', ''), '\s', '', 'g'), ''),
+    nullif(btrim(coalesce(p_inscription->>'contact_phone', '')), ''), case when v_kind = 'entreprise' then nullif(btrim(coalesce(p_inscription->>'contact_function', '')), '') end,
+    case when v_kind = 'entreprise' then nullif(btrim(coalesce(p_inscription->>'company_name', '')), '') end,
+    case when v_kind = 'entreprise' then nullif(regexp_replace(coalesce(p_inscription->>'siret', ''), '\s', '', 'g'), '') end,
     nullif(btrim(coalesce(p_inscription->>'address', '')), ''), nullif(btrim(coalesce(p_inscription->>'postal_code', '')), ''),
     nullif(btrim(coalesce(p_inscription->>'city', '')), ''),
     (select jsonb_agg(jsonb_build_object('first_name', btrim(x->>'first_name'), 'last_name', btrim(x->>'last_name'),
@@ -187,6 +190,8 @@ begin
     raise exception 'Accès refusé' using errcode = '42501';
   end if;
   if r.status not in ('en_attente', 'place_proposee', 'liste_attente') then raise exception 'Inscription déjà traitée' using errcode = '22023'; end if;
+  -- Une confirmation à la fois par session (0500) : deux confirmations simultanées ne dépassent jamais l'effectif
+  perform 1 from public.sessions where id = r.session_id for update;
   select se.id, se.course_id, se.public_price_per_person, se.max_participants into s from public.sessions se where se.id = r.session_id;
 
   -- Client : retrouvé (entreprise par SIRET, sinon par nom et code postal ; particulier par adresse email), sinon créé
@@ -249,12 +254,15 @@ begin
       insert into public.session_trainees (session_id, trainee_id, group_id) values (r.session_id, v_trainee, v_group);
     end if;
   end loop;
-  -- Effectif maximum de la session (0500) : jamais dépassé par une confirmation ; tout ce qui précède est annulé
+  -- Effectif maximum de la session (0500) : jamais dépassé par une confirmation, places réservées aux autres demandes
+  -- en cours (en attente, place proposée) comprises ; tout ce qui précède est annulé
   if s.max_participants is not null then
-    select count(*) into v_n from public.session_trainees st
+    select count(*) + coalesce((select sum(jsonb_array_length(o.participants)) from public.online_registrations o
+                                 where o.session_id = r.session_id and o.id <> r.id and o.status in ('en_attente', 'place_proposee')), 0)
+      into v_n from public.session_trainees st
      where st.session_id = r.session_id and not coalesce(st.absent, false);
     if v_n > s.max_participants then
-      raise exception 'Confirmation impossible : la session dépasserait son effectif maximum (% participants pour % places). Relevez l''effectif maximum de la session ou refusez la demande.', v_n, s.max_participants
+      raise exception 'Confirmation impossible : la session dépasserait son effectif maximum (% participants inscrits ou en attente de confirmation pour % places). Relevez l''effectif maximum de la session ou refusez une demande.', v_n, s.max_participants
         using errcode = '23514';
     end if;
   end if;

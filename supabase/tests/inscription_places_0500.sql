@@ -48,10 +48,18 @@ begin
   exception when others then v_err := sqlerrm;
   end;
   if coalesce(v_err, '') not like 'Code postal trop long%' then raise exception '4c. code postal trop long : %', v_err; end if;
+  -- Particulier : un SIRET resté dans le formulaire n'est ni contrôlé ni gardé
+  v_r := public.public_inscrire(v_s, '{"kind":"particulier","consent":true,"contact_first_name":"Wil","contact_last_name":"Wait","contact_email":"wil@example.invalid","siret":"1234","company_name":"Caché","participants":[{"first_name":"Wil","last_name":"Wait"}]}');
+  if not (v_r->>'liste_attente')::boolean then raise exception '4d. particulier sans place restante pas mis en liste d''attente'; end if;
   v_p := (public.public_calendrier()->'sessions'->0->>'places')::int;
   if v_p is distinct from 0 then raise exception '5. % place(s) affichée(s) au lieu de 0', v_p; end if;
 end $$;
 reset role;
+do $$ begin
+  if exists (select 1 from public.online_registrations where contact_last_name = 'Wait' and (siret is not null or company_name is not null)) then
+    raise exception '4e. SIRET ou entreprise gardés pour un particulier';
+  end if;
+end $$;
 
 -- Organisme
 select set_config('request.jwt.claims', json_build_object('sub', current_setting('essai.compte'), 'role', 'authenticated')::text, true);
@@ -59,6 +67,13 @@ set local role authenticated;
 do $$
 declare v_s uuid := current_setting('essai.session')::uuid; v_err text; v_n int; v_st text;
 begin
+  -- Wil (liste d'attente) confirmée avant les demandes déjà comptées : refusée (places réservées), rien d'écrit
+  begin
+    perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and contact_last_name = 'Wait'));
+    v_err := null;
+  exception when others then v_err := sqlerrm;
+  end;
+  if coalesce(v_err, '') not like '%en attente de confirmation%' then raise exception '5b. place réservée prise par la liste d''attente (%)', v_err; end if;
   perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and company_name = 'Alpha essai 0500'));
   -- Beta forcée alors qu'il ne reste qu'une place : refusée, rien d'écrit
   begin
@@ -71,21 +86,26 @@ begin
   if v_st <> 'liste_attente' then raise exception '7. demande refusée passée en %', v_st; end if;
   if exists (select 1 from public.clients where name = 'Beta essai 0500') then raise exception '8. client créé malgré le refus'; end if;
   -- Particulier pour la dernière place : confirmé
-  perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and kind = 'particulier'));
+  perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and contact_last_name = 'Perso'));
   select count(*) into v_n from public.session_trainees where session_id = v_s;
   if v_n <> 3 then raise exception '9. % inscrit(s) au lieu de 3', v_n; end if;
-  -- Un participant retiré : la place est proposée à Beta ? Non, Beta demande 2 places, 1 seule libre : reste en liste
+  -- Un participant retiré : Beta (2 personnes, plus ancienne) reste en liste ; la place libre va à Wil (1 personne)
   delete from public.session_trainees where session_id = v_s
      and trainee_id = (select t.id from public.trainees t where t.last_name = 'PERSO' and t.first_name = 'Paul' limit 1);
   select status into v_st from public.online_registrations where session_id = v_s and company_name = 'Beta essai 0500';
   if v_st <> 'liste_attente' then raise exception '10. Beta (2 personnes) en % pour une seule place libre', v_st; end if;
-  -- Effectif maximum relevé à 5 : Beta peut être confirmée
+  select status into v_st from public.online_registrations where session_id = v_s and contact_last_name = 'Wait';
+  if v_st <> 'place_proposee' then raise exception '10b. place libre non proposée à Wil (%)', v_st; end if;
+  -- Effectif maximum relevé à 5 : la place proposée à Wil reste réservée, Beta peut être confirmée
   update public.sessions set max_participants = 5 where id = v_s;
   perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and company_name = 'Beta essai 0500'));
   select count(*) into v_n from public.session_trainees where session_id = v_s;
   if v_n <> 4 then raise exception '11. % inscrit(s) au lieu de 4 après relèvement', v_n; end if;
 end $$;
 reset role;
+do $$ begin
+  if app.places_libres_inter(current_setting('essai.session')::uuid) <> 0 then raise exception '12. places libres fausses'; end if;
+end $$;
 
 select 'inscription_places_0500 : vert' as resultat;
 rollback;

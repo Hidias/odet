@@ -23,5 +23,7 @@ describe('inscription en ligne : message montré au visiteur', () => {
     expect(m).toMatch(/vérifiez les champs/)
     expect(messageErreur({ message: 'violates check constraint' })).not.toMatch(/violates/)
     expect(messageErreur(null)).toMatch(/Inscription impossible/)
+    expect(messageErreur({ message: 'TypeError: Failed to fetch' })).toMatch(/Inscription impossible/)
+    expect(messageErreur({ code: '42501', message: 'Inscriptions en ligne fermées' })).toBe('Inscriptions en ligne fermées')
   })
 })

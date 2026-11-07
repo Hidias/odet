@@ -12,14 +12,11 @@ const vide = { first_name: '', last_name: '', email: '', job_title: '' }
 // SIRET facultatif : vide, ou 14 chiffres (espaces ignorés)
 export const siretValide = (s) => { const v = String(s || '').replace(/\s/g, ''); return v === '' || /^[0-9]{14}$/.test(v) }
 
-// Message montré au visiteur : celui de la base s'il est rédigé pour lui, sinon un message simple (jamais le texte
-// technique d'une contrainte, en anglais)
+// Message montré au visiteur : celui de la base quand elle l'a rédigé pour lui (codes 22023 et 42501), sinon un
+// message simple (jamais une contrainte de la table ni une erreur réseau, en anglais)
 export function messageErreur(error) {
-  const m = error?.message || ''
-  if (!m || error?.code === '23514' || error?.code === '23502' || /violates|constraint|relation|syntax|function/i.test(m)) {
-    return 'Inscription impossible : vérifiez les champs saisis, ou contactez l\'organisme'
-  }
-  return m
+  if (error?.message && ['22023', '42501'].includes(error.code)) return error.message
+  return 'Inscription impossible : vérifiez les champs saisis, ou contactez l\'organisme'
 }
 
 export default function InscriptionEnLigne({ session, mention, onFermer }) {
@@ -54,7 +51,10 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
     setBusy(true)
     const { data: rep, error } = await supabase.rpc('public_inscrire', {
       p_session: session.id,
-      p_inscription: { ...c, kind, consent, participants: parts, siret: c.siret.replace(/\s/g, '') },
+      // Entreprise, SIRET et fonction seulement pour une entreprise : jamais un champ caché après changement de type
+      p_inscription: kind === 'entreprise'
+        ? { ...c, kind, consent, participants: parts, siret: c.siret.replace(/\s/g, '') }
+        : { ...c, kind, consent, participants: parts, siret: '', company_name: '', contact_function: '' },
     })
     setBusy(false)
     if (error) return setErreur(messageErreur(error))
