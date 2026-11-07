@@ -176,7 +176,7 @@ export default function Console() {
 
       <Section icon={Bug} title="Erreurs" actions={<Link to="/console/erreurs" className="btn btn-secondary btn-sm">Voir les erreurs</Link>}>
         {!errSummary ? <p className="muted text-ui">…</p> : errSummary.unavailable ? (
-          <p className="muted text-ui">Suivi des erreurs indisponible : appliquer la mise à jour de la base 0070_suivi_erreurs.</p>
+          <p className="muted text-ui">Suivi des erreurs indisponible pour le moment : la base de données n'est pas encore à jour.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             <span className={`badge ${errSummary.recent > 0 ? 'badge-danger' : 'badge-neutral'}`}>{errSummary.recent} nouvelle{errSummary.recent > 1 ? 's' : ''} (24 h)</span>
@@ -407,7 +407,7 @@ function DemoDataSection({ onPurged }) {
             {entries.map(([k, n]) => <span key={k} className="badge badge-neutral">{n} {DEMO_LABELS[k] || k}</span>)}
           </div>
           {liens?.indisponible && (
-            <p className="text-ui-sm text-gray-500">Contrôle des saisies réelles rattachées au fictif : disponible après la migration 0264.</p>
+            <p className="text-ui-sm text-gray-500">Contrôle des saisies réelles rattachées au fictif : indisponible pour le moment, la base de données n'est pas encore à jour.</p>
           )}
           {liens && !liens.indisponible && reelles === 0 && (
             <p className="text-ui-sm text-[rgb(var(--c-success))] flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Aucune saisie récente rattachée aux données fictives : la purge n'emportera rien de réel.</p>
@@ -475,7 +475,7 @@ function RapportReelTest({ rapport, charge, onPreparer, vu, onVu }) {
       </div>
     )
   }
-  if (rapport?.indisponible) return <p className="text-ui-sm text-gray-500">Le rapport « réel / test » sera disponible après la mise à jour de la base 0385.</p>
+  if (rapport?.indisponible) return <p className="text-ui-sm text-gray-500">Le rapport « réel / test » est indisponible pour le moment : la base de données n'est pas encore à jour.</p>
   if (rapport?.erreur || rapport?.ok === false) return <p className="text-ui-sm text-[rgb(var(--c-danger))] break-words">Rapport impossible : {rapport.erreur}</p>
   const lignes = (rapport.tables || []).filter((l) => l.avant > 0)
   return (

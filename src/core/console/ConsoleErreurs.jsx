@@ -202,7 +202,7 @@ export default function ConsoleErreurs() {
       {error && (
         <div className="card flex gap-2 items-start text-ui" style={{ background: 'rgb(var(--c-warning-bg))', color: 'rgb(var(--c-warning))' }}>
           <AlertTriangle className="w-5 h-5 flex-none" />
-          <div>Lecture impossible ({error}). La mise à jour de la base 0070_suivi_erreurs est-elle appliquée ? Voir Console › Mises à jour de la base.</div>
+          <div>Lecture impossible ({error}). Vérifiez dans Console › Mises à jour de la base que tout est appliqué.</div>
         </div>
       )}
 

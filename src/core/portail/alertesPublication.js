@@ -97,6 +97,26 @@ export function confirmationSuppressionDevis(devis) {
   }
 }
 
+// Statuts où un devis a pu être signé par le client (0435 : `app.devis_signe`, lu par `devis_est_signe`)
+export const devisPeutEtreSigne = (status) => ['accepted', 'partial', 'invoiced', 'replaced'].includes(status)
+
+export const REFUS_SUPPRESSION_DEVIS_SIGNE = "Ce devis est signé par le client : il ne se supprime pas, il sert de preuve de l'accord."
+
+// Ce qui reste possible selon l'état du devis signé (Quotes.jsx : nouvelle version refusée pour un devis facturé)
+export function refusSuppressionDevisSigne(status) {
+  if (status === 'replaced') return `${REFUS_SUPPRESSION_DEVIS_SIGNE} Une version plus récente existe : travaillez sur la dernière version.`
+  if (status === 'invoiced') return `${REFUS_SUPPRESSION_DEVIS_SIGNE} Il est déjà facturé : pour un écart, faites un avenant ou un avoir.`
+  return `${REFUS_SUPPRESSION_DEVIS_SIGNE} Pour un changement, faites un avenant ou une nouvelle version depuis le devis.`
+}
+
+// Motif montré quand la base refuse la suppression d'un devis (jamais de message technique en anglais)
+export function messageRefusSuppressionDevis(error, status = null) {
+  const m = error?.message || ''
+  if (/foreign key|violates/i.test(m)) return 'Ce devis est relié à une facture ou une session : il ne peut pas être supprimé. Passez-le plutôt en « Refusé ».'
+  if (/sign[ée] par le client/i.test(m)) return refusSuppressionDevisSigne(status)
+  return "Le devis n'a pas pu être supprimé."
+}
+
 export function confirmationRetraitPreuve(preuve) {
   return {
     title: 'Retirer cette preuve ?',

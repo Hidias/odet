@@ -77,7 +77,7 @@ export function BandeauConsole() {
   return (
     <Section icon={Megaphone} title="Bandeau d'information">
       {absent ? (
-        <p className="muted text-ui">Disponible après la migration 0262 (mise en service).</p>
+        <p className="muted text-ui">Indisponible pour le moment : la base de données n'est pas encore à jour.</p>
       ) : ligne === undefined ? <p className="muted text-ui">Chargement</p> : (
         <>
           <p className="muted text-ui">Affiché en haut de l'application pour tous les comptes internes connectés. Chacun peut le fermer pour la journée ; il réapparaît dès que le texte change.</p>
@@ -172,7 +172,7 @@ export function NouveautesConsole() {
     <Section icon={Sparkles} title="Quoi de neuf"
       actions={!absent && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEdition({ title: '', body: '', status: 'brouillon' })}><Plus className="w-4 h-4" /> Écrire une entrée</button>}>
       {absent ? (
-        <p className="muted text-ui">Disponible après la migration 0262 (mise en service).</p>
+        <p className="muted text-ui">Indisponible pour le moment : la base de données n'est pas encore à jour.</p>
       ) : (
         <>
           <p className="muted text-ui">Chaque fusion sur main propose une entrée en brouillon, reprise du titre et de la description de la modification. Relisez-la en français simple, sans jargon ni donnée personnelle, puis publiez-la.</p>
