@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { libelleRelance } from '../src/modules/commercial/components/RelancePreviewModal.jsx'
-import { devisPeutEtreSigne, messageRefusSuppressionDevis, REFUS_SUPPRESSION_DEVIS_SIGNE } from '../src/core/portail/alertesPublication'
+import { devisPeutEtreSigne, messageRefusSuppressionDevis, refusSuppressionDevisSigne, REFUS_SUPPRESSION_DEVIS_SIGNE } from '../src/core/portail/alertesPublication'
 
 describe('suppression d\'un devis', () => {
   it('statuts où le devis a pu être signé', () => {
@@ -10,9 +10,15 @@ describe('suppression d\'un devis', () => {
     for (const s of ['draft', 'sent', 'refused', 'expired', null]) expect(devisPeutEtreSigne(s)).toBe(false)
   })
   it('le refus de la base dit pourquoi, sans message technique', () => {
-    expect(messageRefusSuppressionDevis({ message: "Devis signé par le client : il ne s'efface pas" })).toBe(REFUS_SUPPRESSION_DEVIS_SIGNE)
+    expect(messageRefusSuppressionDevis({ message: "Devis signé par le client : il ne s'efface pas" })).toContain(REFUS_SUPPRESSION_DEVIS_SIGNE)
     expect(messageRefusSuppressionDevis({ message: 'update or delete on table "quotes" violates foreign key constraint' })).toMatch(/relié à une facture/)
     expect(messageRefusSuppressionDevis({ message: 'x' })).toBe("Le devis n'a pas pu être supprimé.")
+  })
+  it('ce qui reste possible dépend de l\'état du devis signé', () => {
+    expect(refusSuppressionDevisSigne('invoiced')).toMatch(/avoir/)
+    expect(refusSuppressionDevisSigne('invoiced')).not.toMatch(/nouvelle version/)
+    expect(refusSuppressionDevisSigne('replaced')).toMatch(/dernière version/)
+    expect(refusSuppressionDevisSigne('accepted')).toMatch(/avenant ou une nouvelle version/)
   })
   it('la signature est vérifiée avant de proposer « Supprimer définitivement »', () => {
     const f = readFileSync('src/modules/commercial/pages/Quotes.jsx', 'utf8')
@@ -44,7 +50,13 @@ describe('relance de devis du Suivi commercial (D4)', () => {
     expect(corps.indexOf('confirmer(')).toBeLessThan(corps.indexOf('onConfirm('))
   })
   it('les états sont déclarés avant la sortie sans aperçu', () => {
-    expect(f.indexOf('useState(')).toBeLessThan(f.indexOf('if (!previewData) return null'))
+    const sortie = f.indexOf('if (!previewData) return null')
+    expect(f.lastIndexOf('useState(')).toBeLessThan(sortie)
+  })
+  it('le texte modifié part, même après retour à l\'aperçu', () => {
+    expect(f).toContain('onConfirm(editSubject, editBody)')
+    expect(f).not.toMatch(/\{subject\}|\{body\}/)
+    expect(f).not.toMatch(/setEditSubject\(subject\)/)
   })
 })
 

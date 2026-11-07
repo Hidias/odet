@@ -14,7 +14,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
   const [editBody, setEditBody] = useState(previewData?.body || '')
   if (!previewData) return null
 
-  const { quote, clientEmail, subject, body, tone, relanceNum, isFallback } = previewData
+  const { quote, clientEmail, tone, relanceNum, isFallback } = previewData
 
   const toneLabels = { courtois: 'Ton courtois', direct: 'Ton direct', ferme: 'Ton ferme' }
   const relanceLabel = libelleRelance(relanceNum)
@@ -22,7 +22,8 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
   // Envoi réel au client : confirmation avec le destinataire, comme la relance depuis la page Devis
   const handleSend = async () => {
     if (!await confirmer({ title: 'Envoyer la relance', message: `La relance du devis ${quote?.reference || ''} part maintenant vers ${clientEmail}.`, confirmLabel: 'Envoyer' })) return
-    onConfirm(editMode ? editSubject : subject, editMode ? editBody : body)
+    // Le texte modifié est la seule source, que l'on soit revenu à l'aperçu ou non
+    onConfirm(editSubject, editBody)
   }
 
   return (
@@ -73,7 +74,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
                 className="w-full border rounded-ui-sm px-3 py-2 text-ui focus:ring-2 focus:ring-[rgb(var(--c-info)/0.3)] outline-none"
               />
             ) : (
-              <div className="bg-gray-50 rounded-ui-sm px-3 py-2 text-ui font-medium">{subject}</div>
+              <div className="bg-gray-50 rounded-ui-sm px-3 py-2 text-ui font-medium">{editSubject}</div>
             )}
           </div>
 
@@ -89,7 +90,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
               />
             ) : (
               <div className="bg-gray-50 rounded-ui-sm px-4 py-3 text-ui whitespace-pre-line leading-relaxed">
-                {body}
+                {editBody}
               </div>
             )}
           </div>
@@ -103,13 +104,7 @@ export default function RelancePreviewModal({ previewData, onConfirm, onCancel, 
         {/* Actions */}
         <div className="border-t px-5 py-3 flex items-center justify-between bg-gray-50">
           <button
-            onClick={() => {
-              if (!editMode) {
-                setEditSubject(subject)
-                setEditBody(body)
-              }
-              setEditMode(!editMode)
-            }}
+            onClick={() => setEditMode(!editMode)}
             className="flex items-center gap-1.5 px-3 py-2 text-ui-sm font-medium text-gray-600 hover:bg-gray-200 rounded-ui-sm transition-colors"
           >
             <Edit2 className="w-3.5 h-3.5" />

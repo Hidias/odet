@@ -47,7 +47,7 @@ import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
 import { confirmer, demander } from '../../../ui/Confirm'
-import { confirmationModificationDevisPublie, confirmationPassageEnvoye, confirmationSuppressionDevis, devisPeutEtreSigne, messageRefusSuppressionDevis, PUBLICATION_DEVIS_ACCEPTE, REFUS_SUPPRESSION_DEVIS_SIGNE } from '../../../core/portail/alertesPublication'
+import { confirmationModificationDevisPublie, confirmationPassageEnvoye, confirmationSuppressionDevis, devisPeutEtreSigne, messageRefusSuppressionDevis, PUBLICATION_DEVIS_ACCEPTE, refusSuppressionDevisSigne } from '../../../core/portail/alertesPublication'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
@@ -567,8 +567,10 @@ export default function Quotes() {
     const devis = quotes.find((q) => q.id === id) || (currentQuote?.id === id ? currentQuote : null)
     // Devis signé par le client (0435) : la base refuse la suppression ; on le dit avant de proposer « Supprimer définitivement »
     if (devisPeutEtreSigne(devis?.status)) {
-      const { data: signe } = await supabase.rpc('devis_est_signe', { p_quote: id })
-      if (signe) { toast.error(REFUS_SUPPRESSION_DEVIS_SIGNE, { duration: 8000 }); return false }
+      const { data: signe, error: errSigne } = await supabase.rpc('devis_est_signe', { p_quote: id })
+      // Lecture impossible : on continue, la base refusera de toute façon un devis signé (motif traduit plus bas)
+      if (errSigne) console.warn('[devis] signature non vérifiée avant suppression', errSigne.code)
+      if (signe) { toast.error(refusSuppressionDevisSigne(devis?.status), { duration: 8000 }); return false }
     }
     if (!await confirmer(confirmationSuppressionDevis(devis))) return false
     // Les lignes partent avec le devis (clé étrangère en cascade) : un devis qui ne peut pas être supprimé garde ses lignes

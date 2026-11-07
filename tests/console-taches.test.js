@@ -20,6 +20,25 @@ describe('Console, heures des tâches planifiées', () => {
     }
   })
 
+  it('chaque tâche de vercel.json est dans la Console, sauf celles sans journal', () => {
+    const sansJournal = ['/api/passeport'] // n'écrit pas dans job_runs (api/passeport.js)
+    for (const c of crons) {
+      if (sansJournal.includes(c.path)) continue
+      expect(TACHES.some((t) => `/api/${t.job}` === c.path), c.path).toBe(true)
+    }
+  })
+
+  it('les jours annoncés suivent le planning', () => {
+    for (const t of TACHES) {
+      const c = crons.find((x) => x.path === `/api/${t.job}`)
+      if (!c) continue
+      const jours = c.schedule.split(' ')[4]
+      if (/En semaine/.test(t.rythme)) expect(jours, t.job).toBe('1-5')
+      else if (/Le lundi/.test(t.rythme)) expect(jours, t.job).toBe('1')
+      else if (/Chaque (nuit|jour)/.test(t.rythme)) expect(jours, t.job).toBe('*')
+    }
+  })
+
   it('aucun libellé ne garde une heure écrite en dur', () => {
     for (const t of TACHES) expect(rythmeDe(t, new Date('2026-11-07T12:00:00Z'))).not.toMatch(/\{h\}/)
     expect(rythmeDe(TACHES[0], new Date('2026-11-07T12:00:00Z'))).toBe('Chaque nuit, vers 3h')
