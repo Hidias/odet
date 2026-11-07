@@ -36,7 +36,7 @@ export async function loadEvidence() {
   const [
     needs, positioning, positioningTests, objectivesValidated, results, convocations, infoSheets, psh, disability,
     attendance, partial, equipment, courseDocs, sessionTrainers, trainerCerts, trainerTrainings, trainerInterviews,
-    hotEvals, coldEvals, trainerEvals, satisfactionSent, reclamations, ncs, alertsTreated, programmes, sst, opcoSessions,
+    hotEvals, coldEvals, coldEmployeurs, trainerEvals, satisfactionSent, reclamations, ncs, alertsTreated, programmes, sst, opcoSessions,
     audits, signedConventions, formativeSheets, formativeSessions, formativeOn,
   ] = await Promise.all([
     // 0486 : une analyse remplie par l'entreprise ne compte qu'une fois validée par l'organisme
@@ -60,6 +60,7 @@ export async function loadEvidence() {
     count('trainer_interviews'),
     count('trainee_evaluations'),
     count('evaluations_cold', (q) => q.not('completed_at', 'is', null)),
+    count('froid_employeur', (q) => q.not('completed_at', 'is', null)),
     count('trainer_evaluations'),
     // Filtre « pièce jointe contenant satisfaction » non exprimable côté PostgREST
     // (pas de cast jsonb → texte dans un filtre) : fetchAll sur la seule colonne utile,
@@ -143,7 +144,7 @@ export async function loadEvidence() {
     n: {
       sessionsTotal, sessionsDone, needs, positioning: positioning + positioningTests, objectivesValidated, results,
       convocations, infoSheets, psh, disability, attendance, partial, equipment, courseDocs, sessionTrainers,
-      trainerCerts, trainerTrainings, trainerInterviews, hotEvals, coldEvals, trainerEvals, satisfactionSent,
+      trainerCerts, trainerTrainings, trainerInterviews, hotEvals, coldEvals, coldEmployeurs, trainerEvals, satisfactionSent,
       reclamations, ncs, alertsTreated, programmes, sst, opcoSessions, audits, signedConventions,
       formativeSheets, formativeSessions,
     },
@@ -324,6 +325,9 @@ export const RULES = {
       e.n.coldEvals ? ok(`Stagiaires, évaluations à froid : ${e.n.coldEvals}`, L.indicateurs) : ko('Aucune évaluation à froid', L.indicateurs),
       e.n.trainerEvals ? ok(`Équipe pédagogique, évaluations formateur : ${e.n.trainerEvals}`, L.indicateurs) : ko('Aucune évaluation formateur', L.indicateurs),
       e.n.satisfactionSent ? ok(`Entreprises et donneurs d'ordre, questionnaires envoyés : ${e.n.satisfactionSent}`, L.sessions) : ko('Aucun questionnaire entreprise envoyé', L.sessions),
+      // Évaluation à froid de l'employeur (0482) : preuve en plus quand il y en a ; son absence n'est pas un manque à elle
+      // seule (le questionnaire entreprise ci-dessus couvre aussi les entreprises)
+      ...(e.n.coldEmployeurs ? [ok(`Entreprises, évaluations à froid de l'employeur : ${e.n.coldEmployeurs}`, L.indicateurs)] : []),
       ...(e.n.opcoSessions ? [ko(`Financeurs : ${plural(e.n.opcoSessions, 'session financée')} par un OPCO, recueil à prévoir`, null)] : []),
     ],
     missing: ['Déposer ici les questionnaires entreprise et donneur d\'ordre retournés signés'],
