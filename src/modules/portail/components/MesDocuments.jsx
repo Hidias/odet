@@ -31,9 +31,11 @@ function sauver(buf, nom) {
 const SIGNABLES = ['devis', 'contrat']
 
 /** Document à signer par le client : pas encore signé en ligne, signable, et pas déposé signé (ou dépôt refusé).
- *  Règle unique de la liste et du bandeau du haut de l'espace (06/11) */
+ *  Règle unique de la liste et du bandeau du haut de l'espace (06/11). La base dit si le document se signe encore
+ *  (0498, `signable`) : devis accepté ou refusé, groupe annulé, convention signée sur papier : plus rien à signer */
 export function estASigner(d, { signatureDe = null, depotDe = null, aSignerEnPlus = null } = {}) {
   if (signatureDe && signatureDe(d)) return false
+  if (d.signable === false) return false
   if (!(SIGNABLES.includes(d.kind) || (d.kind === 'rapport' && aSignerEnPlus?.has?.(d.id)))) return false
   const depot = depotDe ? depotDe(d) : null
   return !depot || depot.status === 'refuse'
@@ -111,7 +113,7 @@ export default function MesDocuments({ charger, lire, noter, titre = 'Vos docume
                   const sig = signatureDe ? signatureDe(d) : null
                   const depot = depotDe ? depotDe(d) : null
                   const aSigner = !!onSigner && estASigner(d, { signatureDe, depotDe, aSignerEnPlus })
-                  const deposable = !sig && onDeposer && d.kind === 'devis' && (!depot || depot.status === 'refuse')
+                  const deposable = !sig && onDeposer && d.kind === 'devis' && d.signable !== false && (!depot || depot.status === 'refuse')
                   return (
                     <li key={d.id} id={`doc-${d.id}`} className="flex flex-wrap items-center gap-x-2 scroll-mt-[calc(5rem+env(safe-area-inset-top))]">
                       <button type="button" onClick={() => ouvrir(d)} disabled={!!busy} className="flex-1 min-w-[12rem] py-2 flex items-center gap-3 text-left text-sm hover:text-primary-800 disabled:opacity-50">

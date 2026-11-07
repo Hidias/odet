@@ -182,11 +182,12 @@ async function deposerSigne(req, res) {
   if (docId) {
     if (!UUID.test(String(docId))) return res.status(400).json({ error: 'Document invalide' })
     const doc = a.docs.find((x) => x.id === docId)
-    if (!doc || doc.kind !== 'devis') return res.status(403).json({ error: 'Document non signable' })
+    if (!doc || doc.kind !== 'devis' || doc.signable === false) return res.status(403).json({ error: 'Document non signable' })
     const { data: row } = await a.admin.from('client_shared_documents').select('object_type, object_id, label').eq('id', docId).maybeSingle()
     if (!row || row.object_type !== 'quote') return res.status(403).json({ error: 'Document non signable' })
     const { data: q } = await a.admin.from('quotes').select('id, status, reference').eq('id', row.object_id).maybeSingle()
-    if (!q || ['accepted', 'refused', 'expired', 'invoiced'].includes(q.status)) return res.status(400).json({ error: 'Ce devis ne se signe plus' })
+    // La base dit si le devis se signe encore (0498, `signable`) ; base d'avant : brouillon ou envoyé seulement
+    if (!q || !['draft', 'sent'].includes(q.status)) return res.status(400).json({ error: 'Ce devis ne se signe plus' })
     cible = { type: 'quote', id: q.id, kind: 'devis', label: `${row.label} (signé, déposé par le client)`, bucket: BUCKET, lien: `/devis?open=${q.id}`, ref: q.reference }
   } else if (sessionId) {
     if (!UUID.test(String(sessionId))) return res.status(400).json({ error: 'Session invalide' })
