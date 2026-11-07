@@ -30,7 +30,7 @@ export function htmlEnTexte(html) {
     .replace(/<p[^>]*>/gi, '')
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
+    .replace(/&nbsp;|&#160;|&#xa0;/gi, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')

@@ -55,7 +55,6 @@ const personName = (p) => {
   return n || p.display_name || p.email || ''
 }
 
-
 function formatNda(nda) {
   const d = String(nda || '').replace(/\s+/g, '')
   if (!d) return "en cours d'enregistrement"

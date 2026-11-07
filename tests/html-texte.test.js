@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { echapperHtml, texteEnHtml, htmlEnTexte } from '../src/core/html'
-import { wrapEmailHTML } from '../api/_lib/mailer.js'
+import { wrapEmailHTML, finirParCordialement } from '../api/_lib/mailer.js'
 
 describe('texte saisi mis en HTML', () => {
   it('échappe les caractères spéciaux', () => {
@@ -34,11 +34,21 @@ describe('texte saisi mis en HTML', () => {
     expect(avec.match(/cordialement/gi)).toHaveLength(1)
     expect(sans.match(/cordialement/gi)).toHaveLength(1)
   })
+  it('la formule se reconnaît sur la dernière ligne seulement', () => {
+    expect(finirParCordialement(htmlEnTexte('<p>Nous vous remercions de nous avoir reçus si cordialement</p>'))).toBe(false)
+    expect(finirParCordialement(htmlEnTexte('<p>Merci.</p><p>Bien cordialement&#160;!</p>'))).toBe(true)
+    expect(finirParCordialement('Merci.\nTrès cordialement.')).toBe(true)
+    expect(finirParCordialement('Cordialement,\nL\'équipe')).toBe(false)
+    const sender = { name: 'A', email: 'a@example.invalid' }
+    const avecTournure = wrapEmailHTML(texteEnHtml('Merci de nous avoir reçus si cordialement'), sender, {})
+    expect(avecTournure.match(/cordialement/gi)).toHaveLength(2)
+  })
   it('relance, fiche client et aperçu enregistré passent par la règle partagée', () => {
     expect(readFileSync('src/modules/commercial/lib/useRelanceIA.js', 'utf8')).toContain('texteEnHtml(body, { ligneParParagraphe: true })')
     const fiche = readFileSync('src/modules/commercial/pages/ClientDetail.jsx', 'utf8')
     expect(fiche).toContain('texteEnHtml(emailForm.body)')
     expect(fiche).toContain('htmlEnTexte(data.body)')
     expect(readFileSync('api/send-prospect-email.js', 'utf8')).toContain('body_preview: htmlEnTexte(body)')
+    expect(readFileSync('api/send-invoice-email.js', 'utf8')).toContain('wrapEmailHTML(texteEnHtml(body)')
   })
 })

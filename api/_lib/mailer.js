@@ -303,8 +303,11 @@ export function boutonHTML(url, libelle, couleur = '#C8102E') {
 }
 
 // Corps du message : le texte saisi se termine souvent par « Bien cordialement, » : la formule n'est pas répétée
+// La dernière ligne doit être la formule elle-même (« Cordialement, », « Bien cordialement ! ») : « reçus si
+// cordialement » en fin de phrase n'en est pas une.
 export function finirParCordialement(texte) {
-  return /cordialement,?\s*$/i.test(String(texte || '').trim())
+  const derniere = String(texte || '').replace(/\u00a0/g, ' ').trim().split('\n').pop().trim()
+  return /^(?:(?:bien|tr[eè]s)\s+)?cordialement[\s,.!]*$/i.test(derniere)
 }
 
 // ---- HTML : signature et habillage -----------------------------------------

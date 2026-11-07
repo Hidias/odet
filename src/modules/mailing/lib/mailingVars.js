@@ -1,4 +1,3 @@
-import { echapperHtml as escapeHtml } from '../../../core/html.js'
 // src/lib/mailingVars.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Variables de personnalisation des campagnes mailing - l'application
@@ -14,6 +13,7 @@ import { echapperHtml as escapeHtml } from '../../../core/html.js'
 //   {bonjour}     « Bonjour Madame Dupont, » si civilité + nom connus,
 //                 sinon « Bonjour, »
 // ─────────────────────────────────────────────────────────────────────────────
+import { echapperHtml as escapeHtml } from '../../../core/html.js'
 
 export const MAILING_VARIABLES = [
   { key: 'bonjour',    label: 'Formule d’appel', example: 'Bonjour Madame Dupont,' },
