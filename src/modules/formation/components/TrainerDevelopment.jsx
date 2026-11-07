@@ -11,6 +11,7 @@ import { buildTrainerDevelopmentPDF } from '../pdf/trainerDevelopmentPDF'
 import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer } from '../../../ui/Confirm'
+import { Tabs } from '../../../ui/Tabs'
 const TRAINING_TYPES = {
   externe: { label: 'Formation externe', color: 'blue', icon: '' },
   interne: { label: 'Formation interne', color: 'green', icon: '' },
@@ -352,35 +353,12 @@ export default function TrainerDevelopment({ trainerId, trainerName }) {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b">
-        <button
-          onClick={() => setActiveTab('trainings')}
-          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-            activeTab === 'trainings'
-              ? 'border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Award className="w-4 h-4" />
-            Formations ({trainings.length})
-          </div>
-        </button>
-        <button
-          onClick={() => setActiveTab('interviews')}
-          className={`px-4 py-2 font-medium transition-colors border-b-2 ${
-            activeTab === 'interviews'
-              ? 'border-[rgb(var(--c-success)/0.3)] text-[rgb(var(--c-success))]'
-              : 'border-transparent text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            Entretiens ({interviews.length})
-          </div>
-        </button>
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'trainings', label: 'Formations', count: trainings.length },
+          { id: 'interviews', label: 'Entretiens', count: interviews.length },
+        ]}
+        value={activeTab} onChange={setActiveTab} />
 
       {/* TAB: TRAININGS */}
       {activeTab === 'trainings' && (

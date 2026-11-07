@@ -2,6 +2,8 @@ import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import toast from 'react-hot-toast'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 import { useDataStore } from '../../../core/store'
 import { orgName, orgCity } from '../../../core/org/currentOrg'
 import { buildSocialSystemPrompt, brandHashtag } from '../lib/socialPrompt'
@@ -207,37 +209,13 @@ export default function SocialMedia() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title"> Social & Communication</h1>
-          <p className="text-ui text-gray-500 mt-1">Générez et planifiez vos publications sur tous vos réseaux</p>
-        </div>
-      </div>
+      <PageHeader title="Social & Communication" meta={<span>Générez et planifiez vos publications sur tous vos réseaux</span>} />
 
       {/* Panneau Connexions */}
       <ConnectionPanel connections={connections} onRefresh={loadConnections} />
 
       {/* Onglets */}
-      <div className="flex gap-1 bg-gray-100 rounded-ui p-1 overflow-x-auto">
-        {tabs.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex-1 py-2 px-3 rounded-ui-sm text-ui font-medium transition-all whitespace-nowrap ${
-              activeTab === t.id
-                ? 'bg-white text-[#0F2D35] shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {t.label}
-            {t.count > 0 && (
-              <span className="ml-1.5 bg-[#E9B44C] text-[#0F2D35] text-ui-sm font-bold px-1.5 py-0.5 rounded-full">
-                {t.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={tabs.map(t => ({ id: t.id, label: t.label, count: t.count > 0 ? t.count : null }))} value={activeTab} onChange={setActiveTab} />
 
       {/* Contenu */}
       {activeTab === 'generator' && <GeneratorTab stats={stats} onSave={loadData} media={media} editingDraft={editingDraft} onClearDraft={() => setEditingDraft(null)} connections={connections} />}

@@ -1,15 +1,17 @@
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
 import { useDataStore } from '../../../core/store'
 import {
-  ArrowLeft, Shield, Building2, Calendar, MapPin, ChevronDown, ChevronUp,
+  Building2, Calendar, MapPin, ChevronDown, ChevronUp,
   X, Save, AlertTriangle, CheckCircle, Clock, FileText, Trash2, Plus,
   Edit, Loader2, Target, Users, BarChart3, Filter, Search, Copy,
   Briefcase, GraduationCap, RefreshCw, Info, Zap, Eye, Hash, Bot, Sparkles, ThumbsUp, ThumbsDown, Download
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { generateDuerpPDF, generateDuerpExcel } from '../lib/duerpExport'
@@ -833,38 +835,26 @@ export default function DuerpDetail() {
     <div>
 
       {/* ═══════════ HEADER ═══════════ */}
-      <div className="mb-4">
-        <Link to="/duerp" className="inline-flex items-center gap-1 text-ui text-gray-500 hover:text-[rgb(var(--c-warning))] mb-2">
-          <ArrowLeft className="w-4 h-4" /> Retour aux projets
-        </Link>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="page-title flex items-center gap-2 truncate">
-              <Shield className="w-6 h-6 text-[rgb(var(--c-warning))] shrink-0" />
-              {project.company_name}
-            </h1>
-            <div className="flex flex-wrap items-center gap-2 mt-1 text-ui text-gray-500">
-              <span className="font-mono text-ui-sm">{project.reference}</span>
-              {project.version > 1 && <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 rounded">v{project.version}</span>}
-              {project.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{project.postal_code} {project.city}</span>}
-              {project.effectif && <span> {project.effectif}</span>}
-              {project.naf_code && <span className="text-[rgb(var(--c-warning))] text-ui-sm">NAF {project.naf_code}</span>}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setShowInfoPanel(!showInfoPanel); setEditingProject(null) }}
-              className="p-2 rounded-ui-sm hover:bg-gray-100 text-gray-500" title="Infos projet">
-              <Info className="w-5 h-5" />
-            </button>
-            <select value={project.status} onChange={e => updateProjectStatus(e.target.value)}
-              className={`px-3 py-2 rounded-ui-sm text-ui font-medium border cursor-pointer ${st.color}`}>
-              {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                <option key={k} value={k}>{v.emoji} {v.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+      <PageHeader className="mb-4" crumbs={[{ label: 'DUERP', to: '/duerp' }, { label: project.company_name }]} title={project.company_name}
+        meta={<>
+          <span className="font-mono text-ui-sm">{project.reference}</span>
+          {project.version > 1 && <span className="text-ui-sm bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))] px-1.5 rounded">v{project.version}</span>}
+          {project.city && <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{project.postal_code} {project.city}</span>}
+          {project.effectif && <span> {project.effectif}</span>}
+          {project.naf_code && <span className="text-[rgb(var(--c-warning))] text-ui-sm">NAF {project.naf_code}</span>}
+        </>}
+        actions={<>
+          <button onClick={() => { setShowInfoPanel(!showInfoPanel); setEditingProject(null) }}
+            className="p-2 rounded-ui-sm hover:bg-gray-100 text-gray-500" title="Infos projet">
+            <Info className="w-5 h-5" />
+          </button>
+          <select value={project.status} onChange={e => updateProjectStatus(e.target.value)}
+            className={`px-3 py-2 rounded-ui-sm text-ui font-medium border cursor-pointer ${st.color}`}>
+            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+              <option key={k} value={k}>{v.emoji} {v.label}</option>
+            ))}
+          </select>
+        </>} />
 
       {/* ═══════════ BARRE PROGRESSION RISQUES ═══════════ */}
       <div className="bg-white rounded-ui border shadow-sm p-3 mb-4">
@@ -979,29 +969,13 @@ export default function DuerpDetail() {
       )}
 
       {/* ═══════════ ONGLETS ═══════════ */}
-      <div className="border-b border-gray-200 mb-4 overflow-x-auto">
-        <div className="flex min-w-max">
-          {[
-            { id: 'units',    label: 'Unités',     count: units.length },
-            { id: 'risks',    label: 'Risques',    count: risks.length },
-            { id: 'actions',  label: 'Actions',    count: actions.length },
-            { id: 'conformite', label: 'Conformité' },
-            { id: 'synthese', label: 'Synthèse' },
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`pb-3 pt-2 px-3 sm:px-4 text-ui font-medium border-b-2 whitespace-nowrap transition ${
-                activeTab === tab.id ? 'border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}>
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className={`ml-1.5 text-ui-sm px-1.5 py-0.5 rounded-full ${
-                  activeTab === tab.id ? 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]' : 'bg-gray-100 text-gray-500'
-                }`}>{tab.count}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Tabs className="mb-4" value={activeTab} onChange={setActiveTab} tabs={[
+        { id: 'units',    label: 'Unités',     count: units.length },
+        { id: 'risks',    label: 'Risques',    count: risks.length },
+        { id: 'actions',  label: 'Actions',    count: actions.length },
+        { id: 'conformite', label: 'Conformité' },
+        { id: 'synthese', label: 'Synthèse' },
+      ]} />
 
       {/* ════════════════════════════════════════════════════════════════ */}
       {/* ONGLET 1 : UNITÉS DE TRAVAIL                                   */}

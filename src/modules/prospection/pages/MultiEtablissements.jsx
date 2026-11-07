@@ -13,6 +13,7 @@ import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { Building2, MapPin, Phone, AlertTriangle, CheckCircle, HelpCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { PageHeader } from '../../../ui/PageHeader'
 
 export default function MultiEtablissements() {
   const [groupes, setGroupes] = useState([])
@@ -123,14 +124,8 @@ export default function MultiEtablissements() {
     <div>
       <div>
         
-        <div className="mb-6">
-          <h1 className="page-title mb-2">
-             Entreprises Multi-Établissements
-          </h1>
-          <p className="text-gray-600">
-            {groupes.length} entreprises avec plusieurs établissements • Aide à la décision d'appel
-          </p>
-        </div>
+        <PageHeader className="mb-6" title="Entreprises Multi-Établissements"
+          meta={<span>{groupes.length} entreprises avec plusieurs établissements • Aide à la décision d'appel</span>} />
 
         <div className="bg-white p-4 rounded-ui-sm shadow mb-6">
           <h2 className="font-semibold mb-3"> Comment utiliser cette page ?</h2>

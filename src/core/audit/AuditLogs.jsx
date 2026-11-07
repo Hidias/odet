@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { PageHeader } from '../../ui/PageHeader'
 
 const ACTION_CONFIG = {
   view: { label: 'Consultation', icon: Eye, color: 'blue' },
@@ -176,23 +177,17 @@ export default function AuditLogs() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Shield className="w-6 h-6 text-primary-500" />
-            Journal d'audit RGPD
-          </h1>
-          <p className="text-ui text-gray-500 mt-1">Traçabilité des accès et modifications</p>
-        </div>
-        <button 
-          onClick={loadLogs} 
-          className="btn btn-secondary flex items-center gap-2"
-          disabled={auditLogsLoading}
-        >
-          <RefreshCw className={`w-4 h-4 ${auditLogsLoading ? 'animate-spin' : ''}`} />
-          Actualiser
-        </button>
-      </div>
+      <PageHeader title="Journal d'audit RGPD" meta={<span>Traçabilité des accès et modifications</span>}
+        actions={
+          <button 
+            onClick={loadLogs} 
+            className="btn btn-secondary flex items-center gap-2"
+            disabled={auditLogsLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ${auditLogsLoading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </button>
+        } />
       
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

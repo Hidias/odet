@@ -6,7 +6,7 @@ import { Routes, Route, NavLink, Navigate, Link } from 'react-router-dom'
 import { Loader2, BookUser } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
 import { loadFormat, loadSettings, loadDonnees, loadFichiers, loadCourses, loadPresets, PP_ROLES, apiPasseport } from '../lib/ppData'
-import { Banner, Button } from '../../../ui'
+import { Banner, Button, PageHeader } from '../../../ui'
 import { statutInscription, dateLimite, obligatoire, couleurDelai, isoDate, daysBetween } from '../lib/rules'
 import PpBref from './PpBref'
 import PpADeclarer from './PpADeclarer'
@@ -141,10 +141,7 @@ export default function Passeport() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <div className="muted text-ui-sm">Formation</div>
-        <h1 className="page-title">Passeport de prévention</h1>
-      </div>
+      <PageHeader eyebrow="Formation" title="Passeport de prévention" />
       {ancien > 0 && (
         <Banner tone="warning" title={`${ancien} numéro(s) de sécurité sociale illisible(s) à vérifier`}
           action={<Button size="sm" variant="secondary" loading={reprise.busy} onClick={reprendre}>Réessayer</Button>}>

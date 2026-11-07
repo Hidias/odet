@@ -15,6 +15,7 @@ import SearchSelect from '../../../ui/SearchSelect'
 import { Banner } from '../../../ui'
 
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
 // ===== LABELS & ICÔNES =====
 const sourceLabels = {
   stagiaire: { label: 'Stagiaire',  icon: User },
@@ -193,18 +194,7 @@ export default function RegistrePSH() {
   // ===== RENDER =====
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Users className="w-6 h-6 text-[rgb(var(--c-info))]" />
-            Registre PSH
-          </h1>
-          <p className="text-ui text-gray-500 mt-1">
-            Personnes en Situation de Handicap - Indicateur Qualiopi 26
-          </p>
-        </div>
-      </div>
+      <PageHeader title="Registre PSH" meta={<span>Personnes en Situation de Handicap - Indicateur Qualiopi 26</span>} />
       {!canSee && (
         <Banner tone="info">
           Ce registre contient des données de santé : il n'est visible que par la direction et le référent handicap (Qualité &gt; Référents).

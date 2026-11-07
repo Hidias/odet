@@ -32,6 +32,7 @@ import TarifsClient from '../components/TarifsClient'
 import ChoixSocietesFiche from '../../../core/company/ChoixSocietesFiche'
 import { useDroits } from '../../../core/rights/useDroit'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
+import { PageHeader } from '../../../ui/PageHeader'
 
 import { confirmer } from '../../../ui/Confirm'
 import { useCapacites } from '../../../core/capacites'
@@ -897,11 +898,9 @@ export default function ClientDetail() {
     <div className="space-y-4 sm:space-y-6">
 
       {/* ══════ HEADER ══════ */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <Link to="/clients" className="text-ui text-gray-500 hover:text-gray-700 flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">Retour aux clients</span><span className="sm:hidden">Retour</span>
-        </Link>
-        <div className="flex items-center gap-2">
+      <PageHeader crumbs={[{ label: 'Clients', to: '/clients' }, { label: client.name }]} title={client.name}
+        status={<BadgeTest tbl="clients" id={client.id} />}
+        actions={<>
           {/* Navigation précédent/suivant */}
           <div className="flex items-center gap-1 mr-1 sm:mr-2">
             <button onClick={() => navigateToClient(prevClientId)} disabled={!prevClientId}
@@ -934,8 +933,7 @@ export default function ClientDetail() {
               )}
             </>
           )}
-        </div>
-      </div>
+        </>} />
 
       {/* ══════ BANNIÈRE FICHE À COMPLÉTER ══════ */}
       {client.status === 'a_completer' && (
@@ -1002,11 +1000,10 @@ export default function ClientDetail() {
                 <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                {editing ? (
+                {/* Le nom s'affiche dans l'en-tête de page ; ici seulement le champ de saisie en modification */}
+                {editing && (
                   <input value={editForm.name || ''} onChange={e => setEditForm({ ...editForm, name: e.target.value.toUpperCase() })}
                     className="text-lg sm:text-xl font-bold bg-white border rounded px-2 py-1 w-full sm:w-80" />
-                ) : (
-                  <h1 className="page-title break-words sm:truncate">{client.name} <BadgeTest tbl="clients" id={client.id} /></h1>
                 )}
                 {client.siret && <p className="text-ui-sm sm:text-sm text-gray-500 font-mono mt-0.5">SIRET {client.siret}</p>}
                 {!editing && client.client_type !== 'particulier' && <AnnuaireClient client={client} peutModifier={d.modifier} onChange={loadClient} />}

@@ -27,6 +27,7 @@ import { peut } from '../rights/useDroit'
 import { THEMES, FORMES, ROLES, Field, Toggle, uploadBrandingFile, ModulesSection, ColorPicker } from './shared'
 
 import { confirmer } from '../../ui/Confirm'
+import { PageHeader } from '../../ui/PageHeader'
 const SECTIONS = [
   { id: 'identite', label: 'Identité', icon: Building2 },
   { id: 'coordonnees', label: 'Coordonnées et signataire', icon: MapPin },
@@ -163,15 +164,12 @@ export default function Settings() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="page-title">Paramètres</h1>
-          <p className="muted mt-1">Identité, marque, textes et accès de votre organisme. Aucune valeur n'est écrite ailleurs que dans ces réglages.</p>
-        </div>
-        <button type="button" onClick={save} disabled={saving} className="btn btn-primary">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer
-        </button>
-      </div>
+      <PageHeader title="Paramètres" meta={<span>Identité, marque, textes et accès de votre organisme. Aucune valeur n'est écrite ailleurs que dans ces réglages.</span>}
+        actions={
+          <button type="button" onClick={save} disabled={saving} className="btn btn-primary">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Enregistrer
+          </button>
+        } />
 
       {surchargee && (
         <div className="rounded-ui border border-gray-300 bg-gray-50 p-3 text-ui">

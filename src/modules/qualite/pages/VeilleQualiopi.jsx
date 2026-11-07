@@ -12,6 +12,8 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 const VEILLE_TYPES = {
   legale: { 
     label: 'Veille légale et réglementaire', 
@@ -251,49 +253,29 @@ export default function VeilleQualiopi() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title">Veille Qualiopi</h1>
-          <p className="text-ui text-gray-500 mt-1">Suivi des veilles légale, métiers et pédagogique</p>
-        </div>
-        <button onClick={() => openModal()} className="btn btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Nouvelle entrée
-        </button>
-      </div>
+      <PageHeader
+        title="Veille Qualiopi"
+        meta={<span>Suivi des veilles légale, métiers et pédagogique</span>}
+        actions={<>
+          <button onClick={() => openModal()} className="btn btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Nouvelle entrée
+          </button>
+        </>}
+      />
 
-      {/* Onglets */}
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(VEILLE_TYPES).map(([key, config]) => {
-          const Icon = config.icon
+      <Tabs
+        tabs={Object.entries(VEILLE_TYPES).map(([key, config]) => {
           const stats = getStats(key)
-          const isActive = activeTab === key
-          return (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-ui-sm font-medium transition-all whitespace-nowrap ${
-                isActive 
-                  ? `bg-${config.color}-100 text-${config.color}-700 ring-2 ring-${config.color}-500` 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              style={isActive ? { 
-                backgroundColor: config.color === 'blue' ? '#dbeafe' : config.color === 'green' ? '#dcfce7' : '#f3e8ff',
-                color: config.color === 'blue' ? '#1d4ed8' : config.color === 'green' ? '#15803d' : '#7e22ce'
-              } : {}}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{{ legale: 'Légale', metiers: 'Métiers', pedagogique: 'Pédagogique' }[key] || config.label.split(' ')[1]}</span>
-              {stats.aTraiter > 0 && (
-                <span className="bg-[rgb(var(--c-danger))] text-white text-ui-sm px-1.5 py-0.5 rounded-full">
-                  {stats.aTraiter}
-                </span>
-              )}
-            </button>
-          )
+          return {
+            id: key,
+            label: { legale: 'Légale', metiers: 'Métiers', pedagogique: 'Pédagogique' }[key] || config.label.split(' ')[1],
+            count: stats.aTraiter > 0 ? stats.aTraiter : null
+          }
         })}
-      </div>
+        value={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* Description du type */}
       <div className={`p-4 rounded-ui-sm border-l-4`} style={{ 

@@ -3,7 +3,7 @@ import { useDataStore } from '../../../core/store'
 import { 
   FileText, Download, Trash2, Upload, Search, Filter, 
   X, FolderOpen, File, Image, FileSpreadsheet, Paperclip,
-  Plus, Eye, ExternalLink, BookOpen, ClipboardList, Loader2, PenTool, Sparkles
+  Plus, Eye, ExternalLink, BookOpen, ClipboardList, Loader2, Sparkles
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -14,6 +14,8 @@ import { useDroits } from '../../../core/rights/useDroit'
 import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
 
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { Q, DOCS_ADMINISTRATIFS, DOCS_FORMATION } from '../lib/indicateursDocuments'
 const categories = [
@@ -230,12 +232,9 @@ export default function Documents() {
   
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Documents</h1>
-          <p className="text-gray-500 mt-1">Fichiers déposés et documents vierges</p>
-        </div>
+      <PageHeader title="Documents"
+        meta={<span>Fichiers déposés et documents vierges</span>}
+        actions={<>
         {activeTab === 'uploaded' && d.modifier && (
           <button 
             onClick={() => fileInputRef.current?.click()}
@@ -258,53 +257,15 @@ export default function Documents() {
           className="hidden"
           accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif"
         />
-      </div>
-      
-      {/* Onglets */}
-      <div className="border-b border-gray-200">
-        <nav className="flex overflow-x-auto whitespace-nowrap gap-4">
-          <button
-            onClick={() => setActiveTab('uploaded')}
-            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
-              activeTab === 'uploaded' 
-                ? 'border-primary-500 text-primary-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <FolderOpen className="w-4 h-4" />
-              Fichiers uploadés
-              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-ui-sm">{uploadedFiles.length}</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('vierges')}
-            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
-              activeTab === 'vierges' 
-                ? 'border-primary-500 text-primary-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Documents vierges
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('editeur')}
-            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
-              activeTab === 'editeur' 
-                ? 'border-primary-500 text-primary-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <PenTool className="w-4 h-4" />
-               Éditeur courrier
-            </div>
-          </button>
-        </nav>
-      </div>
+        </>} />
+
+      <Tabs
+        tabs={[
+          { id: 'uploaded', label: 'Fichiers uploadés', count: uploadedFiles.length },
+          { id: 'vierges', label: 'Documents vierges' },
+          { id: 'editeur', label: 'Éditeur courrier' },
+        ]}
+        value={activeTab} onChange={setActiveTab} />
       
       {/* Contenu onglet Fichiers uploadés */}
       {activeTab === 'uploaded' && (

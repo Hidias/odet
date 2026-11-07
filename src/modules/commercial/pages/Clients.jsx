@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
-import { CHOIX_CIVILITE_CONTACT } from '../../../core/genre'
+import { CHOIX_CIVILITE_CONTACT, pluriel } from '../../../core/genre'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 import { Link } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
@@ -727,12 +729,8 @@ export default function Clients() {
   
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 mb-6">
-        <div className="min-w-0">
-          <h1 className="page-title">Clients</h1>
-          <p className="text-gray-600 text-ui mt-1">{filtered.length} client{filtered.length > 1 ? 's' : ''}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader className="mb-6" title="Clients" meta={<span>{pluriel(filtered.length, 'client')}</span>}
+        actions={<>
           {vcardAllowed && (
             <button
               onClick={exportContactsVCard}
@@ -776,21 +774,12 @@ export default function Clients() {
               </button>
             </>
           )}
-        </div>
-      </div>
-      
-      <div className="flex gap-1 mb-3 border-b border-gray-200" role="tablist" aria-label="Type de client">
-        {[
-          { key: 'pro', label: 'Entreprises', count: clients.filter(c => !isParticulier(c) && c.status !== 'archive').length },
-          { key: 'particulier', label: 'Particuliers', count: clients.filter(c => isParticulier(c) && c.status !== 'archive').length },
-        ].map(tab => (
-          <button key={tab.key} type="button" role="tab" aria-selected={clientKind === tab.key}
-            onClick={() => { setClientKind(tab.key); setFilterStatus('all') }}
-            className={'px-4 py-2.5 -mb-px text-ui font-semibold border-b-2 transition-colors ' + (clientKind === tab.key ? 'border-accent-600 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-800')}>
-            {tab.label} <span className="ml-1 text-ui-sm font-medium text-gray-400">{tab.count}</span>
-          </button>
-        ))}
-      </div>
+        </>} />
+
+      <Tabs className="mb-3" value={clientKind} onChange={(k) => { setClientKind(k); setFilterStatus('all') }} tabs={[
+        { id: 'pro', label: 'Entreprises', count: clients.filter(c => !isParticulier(c) && c.status !== 'archive').length },
+        { id: 'particulier', label: 'Particuliers', count: clients.filter(c => isParticulier(c) && c.status !== 'archive').length },
+      ]} />
 
       <div className="card mb-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center">

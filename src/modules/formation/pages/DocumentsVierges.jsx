@@ -5,6 +5,7 @@ import { downloadCompetencyGrid, GRID_INFO } from '../../prevention/pdf/pdfCompe
 import { downloadPasseportPrevention } from '../../prevention/pdf/pdfPasseportPrevention'
 import { downloadKitSecours, KIT_CONFIG } from '../../prevention/pdf/pdfKitSecours'
 import { useDataStore } from '../../../core/store'
+import { PageHeader } from '../../../ui/PageHeader'
 import toast from 'react-hot-toast'
 import { Q, DOCS_ADMINISTRATIFS, DOCS_FORMATION } from '../lib/indicateursDocuments'
 
@@ -146,10 +147,8 @@ export default function DocumentsVierges() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Documents vierges</h1>
-        <p className="text-gray-500">Téléchargez les documents vierges et kits terrain pour vos formations</p>
-      </div>
+      <PageHeader title="Documents vierges"
+        meta={<span>Téléchargez les documents vierges et kits terrain pour vos formations</span>} />
 
       {/* ═══ Kit Secours Formation ═══ */}
       <div className="card border-2 border-[rgb(var(--c-danger)/0.3)] bg-[rgb(var(--c-danger-bg))]">

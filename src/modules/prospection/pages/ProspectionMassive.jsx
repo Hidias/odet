@@ -14,6 +14,7 @@ import { fetchAll } from '../../../core/fetchAll'
 import { Search, Download, Phone, Mail, Globe, Filter, TrendingUp } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useDataStore } from '../../../core/store'
+import { PageHeader } from '../../../ui/PageHeader'
 import { useZoneDepartements, zoneLabel } from '../../../core/org/departements'
 
 
@@ -273,14 +274,8 @@ export default function ProspectionMassive() {
     <div>
       <div>
         
-        <div className="mb-6">
-          <h1 className="page-title mb-2">
-             Prospection Massive
-          </h1>
-          <p className="text-gray-600">
-            {zoneLabel(organization) || 'Toutes zones'} • 6-499 salariés
-          </p>
-        </div>
+        <PageHeader className="mb-6" title="Prospection Massive"
+          meta={<span>{zoneLabel(organization) || 'Toutes zones'} • 6-499 salariés</span>} />
 
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

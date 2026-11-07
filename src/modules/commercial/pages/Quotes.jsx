@@ -1,4 +1,5 @@
 import { toneStyle } from '../../../ui/StatusBadge'
+import { PageHeader } from '../../../ui/PageHeader'
 import { nomContact } from '../../../core/genre'
 import { contactPropose } from '../../formation/lib/conventionGroupe'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
@@ -1360,16 +1361,13 @@ export default function Quotes() {
   function renderList() {
     return (
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <div>
-            <h1 className="page-title">Devis</h1>
-            <p className="text-ui text-gray-500 mt-1">{loading ? 'Chargement…' : `${filteredQuotes.length} devis`}</p>
-          </div>
-          <button onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 transition-colors font-medium">
-            <Plus size={18} /> Nouveau devis
-          </button>
-        </div>
+        <PageHeader className="mb-6" title="Devis" meta={<span>{loading ? 'Chargement…' : `${filteredQuotes.length} devis`}</span>}
+          actions={<>
+            <button onClick={openCreate}
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-ui-sm hover:bg-primary-700 transition-colors font-medium">
+              <Plus size={18} /> Nouveau devis
+            </button>
+          </>} />
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <div className="relative flex-1 sm:max-w-md">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />

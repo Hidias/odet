@@ -9,6 +9,7 @@ import {
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx-js-style'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
+import { PageHeader } from '../../../ui/PageHeader'
 
 export default function ProfilStagiaires() {
   const { sessions, fetchSessions, clients, fetchClients, courses, fetchCourses } = useDataStore()
@@ -434,18 +435,9 @@ export default function ProfilStagiaires() {
   
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Users className="w-7 h-7 text-primary-600" />
-            Profil des Stagiaires
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Statistiques démographiques RGPD-compliant pour OPCO et BPF
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader title="Profil des Stagiaires"
+        meta={<span>Statistiques démographiques RGPD-compliant pour OPCO et BPF</span>}
+        actions={<>
           <button
             onClick={exportCSV}
             className="btn btn-secondary flex items-center gap-2"
@@ -462,8 +454,7 @@ export default function ProfilStagiaires() {
             <Download className="w-4 h-4" />
             Excel
           </button>
-        </div>
-      </div>
+        </>} />
       
       {/* Filtres */}
       <div className="card">

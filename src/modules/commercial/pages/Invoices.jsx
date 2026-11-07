@@ -1,4 +1,5 @@
 import { toneStyle } from '../../../ui/StatusBadge'
+import { PageHeader } from '../../../ui/PageHeader'
 import { formuleAppel } from '../../../core/genre'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch, callApi } from '../../../core/api'
@@ -1311,16 +1312,14 @@ export default function Invoices() {
   // ═══════════════════════════════════════
   if (mode === 'list') return (
     <div>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
-        <h1 className="page-title">Facturation</h1>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
+      <PageHeader className="mb-6" title="Facturation"
+        actions={<>
           <button onClick={() => setShowQuoteSelector(true)} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Depuis un devis</button>
           <button onClick={openSessionSelector} className="btn btn-secondary flex items-center gap-2 text-ui"><CheckCircle size={16} />Depuis une session</button>
           <button onClick={() => handleNew('invoice')} className="btn btn-primary flex items-center gap-2 text-ui"><Plus size={16} />Facture libre</button>
           <button onClick={() => { setGroupedClientSearch(''); setGroupedClientId(''); setGroupedClientOpen(false); setShowGroupedModal(true) }} className="btn btn-secondary flex items-center gap-2 text-ui"><Receipt size={16} />Factures de sous-traitance</button>
           <button onClick={() => handleNew('credit_note')} className="btn btn-secondary flex items-center gap-2 text-ui"><Plus size={16} />Avoir</button>
-        </div>
-      </div>
+        </>} />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">

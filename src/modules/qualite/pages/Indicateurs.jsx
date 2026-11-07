@@ -4,7 +4,7 @@ import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { 
-  BarChart3, Filter, Users, Star, TrendingUp, ThumbsUp, 
+  Filter, Users, Star, TrendingUp, ThumbsUp, 
   Thermometer, Clock, Building, BookOpen, UserCheck, Target,
   Send, CheckCircle, AlertTriangle, ExternalLink, MessageSquare, Plus, Info, Link2, LogOut,
   Download, PieChart, Table2
@@ -13,6 +13,9 @@ import toast from 'react-hot-toast'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 import { useDroits } from '../../../core/rights/useDroit'
 import { statsEmployeurs } from '../lib/froid'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
+import { pluriel } from '../../../core/genre'
 
 const ratingColor = (value, max = 5) => {
   const percent = (value / max) * 100
@@ -883,16 +886,7 @@ export default function Indicateurs() {
   
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <BarChart3 className="w-7 h-7 text-primary" />
-            Indicateurs de Résultats
-          </h1>
-          <p className="text-gray-600 mt-1">Synthèse des évaluations et indicateurs qualité</p>
-        </div>
-      </div>
+      <PageHeader title="Indicateurs de Résultats" meta={<span>Synthèse des évaluations et indicateurs qualité</span>} />
       
       {/* Filtres */}
       <div className="card bg-white p-4">
@@ -929,7 +923,7 @@ export default function Indicateurs() {
           </select>
           
           <span className="text-ui text-gray-500">
-            {filteredSessions.length} session(s) • {totalTrainees} stagiaires • {filteredHotEvals.length} éval. à chaud ({totalTrainees > 0 ? Math.round(filteredHotEvals.length / totalTrainees * 100) : 0}%) • {coldStats ? `${coldStats.sentCount} éval. à froid envoyées (${coldStats.sendRate}%)` : '0 éval. à froid'}
+            {pluriel(filteredSessions.length, 'session')} • {totalTrainees} stagiaires • {filteredHotEvals.length} éval. à chaud ({totalTrainees > 0 ? Math.round(filteredHotEvals.length / totalTrainees * 100) : 0}%) • {coldStats ? `${coldStats.sentCount} éval. à froid envoyées (${coldStats.sendRate}%)` : '0 éval. à froid'}
           </span>
         </div>
       </div>
@@ -1032,39 +1026,16 @@ export default function Indicateurs() {
         </div>
       </div>
       
-      {/* Tabs (défilent sur téléphone au lieu de dépasser) */}
-      <div className="flex gap-2 border-b overflow-x-auto max-w-full [&>button]:whitespace-nowrap [&>button]:flex-none">
-        <button 
-          onClick={() => setActiveTab('hot')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'hot' ? 'border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <Thermometer className="w-4 h-4 inline mr-2" />
-          À chaud ({filteredHotEvals.length})
-        </button>
-        <button 
-          onClick={() => setActiveTab('trainer')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'trainer' ? 'border-[rgb(var(--c-info)/0.3)] text-[rgb(var(--c-info))]' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <UserCheck className="w-4 h-4 inline mr-2" />
-          Formateur ({filteredTrainerEvals.length})
-        </button>
-        <button 
-          onClick={() => setActiveTab('cold')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'cold' ? 'border-gray-400 text-gray-800' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-        >
-          <Clock className="w-4 h-4 inline mr-2" />
-          À froid ({coldStats ? `${coldStats.sentCount}/${coldStats.totalTrainees}` : '0'})
-        </button>
-        {isAdmin && (
-          <button 
-            onClick={() => setActiveTab('stats')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === 'stats' ? 'border-gray-400 text-gray-800' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            <PieChart className="w-4 h-4 inline mr-2" />
-            Stats détaillées
-          </button>
-        )}
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'hot', label: 'À chaud', count: filteredHotEvals.length },
+          { id: 'trainer', label: 'Formateur', count: filteredTrainerEvals.length },
+          { id: 'cold', label: 'À froid', count: coldStats ? `${coldStats.sentCount}/${coldStats.totalTrainees}` : '0' },
+          ...(isAdmin ? [{ id: 'stats', label: 'Stats détaillées' }] : [])
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
       
       {/* Contenu des tabs */}
       <div className="card bg-white p-6">

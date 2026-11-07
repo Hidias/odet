@@ -2,12 +2,14 @@
 // planning et tournées, contrats de maintenance. Module activable (org_modules, clé « interventions »).
 
 import { useCallback, useEffect, useState } from 'react'
-import { Routes, Route, NavLink, Navigate, Link, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Loader2, MapPin } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
 import { loadSettings, loadTypes, loadTechnicians, loadParts, setPrixMasques } from '../lib/itvData'
 import { prixMasques } from '../../../core/rights/rights'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 import MaJournee from './MaJournee'
 import Visite from './Visite'
 import Appareil from './Appareil'
@@ -24,6 +26,7 @@ export default function Interventions() {
   // Droits composés (C1b) : sans le droit des prix, lecture des vues sans prix (aucun changement à l'écran)
   const masques = prixMasques(rights)
   const location = useLocation()
+  const navigate = useNavigate()
   const [settings, setSettings] = useState(null)
   const [types, setTypes] = useState([])
   const [parts, setParts] = useState([])
@@ -67,20 +70,19 @@ export default function Interventions() {
   ].filter((t) => t.show)
   // Écrans plein usage terrain : pas d'onglets (visite en cours, appareil scanné)
   const fieldScreen = /\/interventions\/(visite|appareil)\//.test(location.pathname)
+  // Rubrique active déduite de l'adresse (parc/:clientId reste sous « Parc et visites »)
+  const rubrique = (location.pathname.split('/interventions/')[1] || '').split('/')[0]
 
   return (
     <div className="space-y-4">
       {!fieldScreen && (
         <>
-          <div>
-            <div className="muted text-ui-sm">Maintenance</div>
-            <h1 className="page-title">Interventions</h1>
-          </div>
-          <nav className="tabs" aria-label="Rubriques des interventions">
-            {tabs.map((t) => (
-              <NavLink key={t.to} to={t.to} className={({ isActive }) => `tab ${isActive ? 'tab-active' : ''}`}>{t.label}</NavLink>
-            ))}
-          </nav>
+          <PageHeader eyebrow="Maintenance" title="Interventions" />
+          <Tabs
+            tabs={tabs.map((t) => ({ id: t.to, label: t.label }))}
+            value={rubrique}
+            onChange={(id) => navigate(id)}
+          />
         </>
       )}
       <Routes>

@@ -5,7 +5,7 @@ import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { useDataStore } from '../../../core/store'
 import { 
-  Award, FileText, Scale, BookOpen, Briefcase, TrendingUp, 
+  Award, FileText, Scale, BookOpen, Briefcase, 
   Plus, Edit, Trash2, Save, X, Eye, ExternalLink, Rss, RefreshCw,
   CheckCircle, AlertTriangle, Clock, Archive, Users, Star, Target,
   ThumbsUp, UserCheck, Calendar, Building, ChevronDown, ChevronUp,
@@ -23,6 +23,8 @@ import { docStatus } from '../richdocs/model'
 import { StatusChip } from '../richdocs/RichDocEditor'
 
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
@@ -473,42 +475,19 @@ export default function Qualiopi() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title flex items-center gap-3">
-            <Award className="w-8 h-8 text-primary-600" />
-            Espace Qualiopi
-          </h1>
-          <p className="text-gray-600 mt-1">Gestion qualité et conformité Qualiopi</p>
-        </div>
-      </div>
+      <PageHeader title="Espace Qualiopi" meta={<span>Gestion qualité et conformité Qualiopi</span>} />
 
-      {/* Navigation par onglets */}
-      <div className="border-b border-gray-200 overflow-x-auto">
-        <nav className="flex gap-4 whitespace-nowrap">
-          {[
-            { id: 'dashboard', label: 'Tableau de bord', icon: TrendingUp },
-            { id: 'documents', label: 'Documents', icon: FileText },
-            { id: 'process', label: 'Process', icon: Target },
-            { id: 'veille', label: 'Veille', icon: Eye },
-            { id: 'sources', label: 'Sources', icon: Rss }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600 font-medium'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <tab.icon className="w-5 h-5" />
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'dashboard', label: 'Tableau de bord' },
+          { id: 'documents', label: 'Documents' },
+          { id: 'process', label: 'Process' },
+          { id: 'veille', label: 'Veille' },
+          { id: 'sources', label: 'Sources' }
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
 
       {/* ONGLET: Tableau de bord */}
       {activeTab === 'dashboard' && (

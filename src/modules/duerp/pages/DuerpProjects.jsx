@@ -10,6 +10,7 @@ import {
   Eye, MoreVertical, RefreshCw, Loader2, ArrowRight, Filter, Archive
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { PageHeader } from '../../../ui/PageHeader'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -510,19 +511,13 @@ export default function DuerpProjects() {
   return (
     <div>
       {/* HEADER */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Shield className="w-7 h-7 text-[rgb(var(--c-warning))]" />
-            DUERP - Documents Uniques
-          </h1>
-          <p className="text-gray-500 text-ui mt-1">Évaluation des Risques Professionnels</p>
-        </div>
-        <button onClick={() => { resetCreateForm(); setShowCreate(true) }}
-          className="flex items-center gap-2 btn btn-secondary transition font-medium shadow-sm">
-          <Plus className="w-5 h-5" /> Nouveau DUERP
-        </button>
-      </div>
+      <PageHeader className="mb-6" title="DUERP - Documents Uniques" meta={<span>Évaluation des Risques Professionnels</span>}
+        actions={
+          <button onClick={() => { resetCreateForm(); setShowCreate(true) }}
+            className="flex items-center gap-2 btn btn-secondary transition font-medium shadow-sm">
+            <Plus className="w-5 h-5" /> Nouveau DUERP
+          </button>
+        } />
 
       {/* STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

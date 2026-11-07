@@ -17,6 +17,7 @@ import {
   ShieldAlert, Pause, Copy, Reply, BarChart3, Server, Monitor, Paperclip, Clock,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { PageHeader } from '../../../ui/PageHeader'
 import MailingQualite from '../components/MailingQualite'
 import MailingComposer, { senderEmailFor } from '../components/MailingComposer'
 import { loadMailingExclusions, getExclusionReason, normNaf } from '../lib/mailingExclusions'
@@ -632,12 +633,8 @@ export default function Mailing() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Mailing</h1>
-          <p className="text-ui text-gray-500 mt-1">Campagnes d&apos;emails de prospection</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader title="Mailing" meta={<span>Campagnes d&apos;emails de prospection</span>}
+        actions={<>
           <button onClick={() => setShowStats(s => !s)}
             className={`flex items-center gap-2 px-4 py-2.5 border rounded-ui-sm text-ui font-medium ${showStats ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
             <BarChart3 className="w-4 h-4" /> Statistiques
@@ -650,8 +647,7 @@ export default function Mailing() {
             className="flex items-center gap-2 px-5 py-2.5 bg-[rgb(var(--c-info))] hover:bg-[rgb(var(--c-info))] text-white rounded-ui-sm text-ui font-medium">
             <Plus className="w-4 h-4" /> Nouvelle campagne
           </button>
-        </div>
-      </div>
+        </>} />
 
       {campaigns.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

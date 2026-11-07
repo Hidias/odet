@@ -2,7 +2,7 @@
 // La nuit prépare les premiers envois et les relances dus ; ici on relit, on coche, on valide en un clic.
 // Rien ne part seul : l'interrupteur « Questionnaires à froid » de la Console reste le verrou général.
 import { useEffect, useMemo, useState } from 'react'
-import { Clock, Eye, Loader2, Mail, RefreshCw, Send, Settings2, XCircle } from 'lucide-react'
+import { Eye, Loader2, Mail, RefreshCw, Send, Settings2, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
 import { callApi } from '../../../core/api'
@@ -10,6 +10,8 @@ import { useDroits } from '../../../core/rights/useDroit'
 import { libelleEnvoi, filtrerEnvois, grouperParSession, cochable, decouperEnLots, nombreDeMails, nomPersonne, libelleDestinataire } from '../lib/froid'
 import ReglagesFroid from '../components/ReglagesFroid'
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
+import { pluriel } from '../../../core/genre'
 
 const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR') : '')
 const STATUTS = { prepare: 'À envoyer', en_cours: 'En cours', envoye: 'Envoyé', ignore: 'Écarté', erreur: 'En erreur' }
@@ -115,16 +117,14 @@ export default function EvaluationsFroid() {
   if (!donnees) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gray-400" /></div>
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="page-title flex items-center gap-2"><Clock className="w-5 h-5" />Évaluations à froid</h1>
-          <p className="text-ui text-gray-500 mt-1">Préparées chaque nuit, envoyées seulement après votre validation. Un mail par personne, aucun autre destinataire visible.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader
+        title="Évaluations à froid"
+        meta={<span>Préparées chaque nuit, envoyées seulement après votre validation. Un mail par personne, aucun autre destinataire visible.</span>}
+        actions={<>
           {d.gerer && <button type="button" className="btn btn-secondary btn-sm flex items-center gap-1" onClick={preparer} disabled={enCours}><RefreshCw className="w-4 h-4" />Préparer maintenant</button>}
           {d.reglages && <button type="button" className="btn btn-secondary btn-sm flex items-center gap-1" onClick={() => setReglages((v) => !v)}><Settings2 className="w-4 h-4" />Réglages</button>}
-        </div>
-      </div>
+        </>}
+      />
 
       {reglages && <ReglagesFroid reglages={donnees.reglages} onEnregistre={charger} catalogue={d.catalogue} />}
 
@@ -144,7 +144,7 @@ export default function EvaluationsFroid() {
       {vue === 'prepare' && aEnvoyer.length > 0 && d.envoyer && (
         <div className="card flex flex-wrap items-center gap-2">
           <button type="button" className="btn btn-secondary btn-sm" onClick={toutCocher}>Tout cocher ({aEnvoyer.length})</button>
-          <span className="text-ui-sm text-gray-500">{ids.length} sélectionné(s)</span>
+          <span className="text-ui-sm text-gray-500">{pluriel(ids.length, 'sélectionné')}</span>
           <button type="button" className="btn btn-secondary btn-sm flex items-center gap-1" disabled={!ids.length} onClick={voirApercu}><Eye className="w-4 h-4" />Aperçu</button>
           <button type="button" className="btn btn-secondary btn-sm flex items-center gap-1" disabled={!ids.length} onClick={testerSurMoi}><Mail className="w-4 h-4" />M'envoyer un exemple</button>
           {d.gerer && <button type="button" className="btn btn-secondary btn-sm flex items-center gap-1" disabled={!ids.length} onClick={ecarter}><XCircle className="w-4 h-4" />Écarter</button>}
