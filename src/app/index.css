@@ -340,6 +340,9 @@ button, a, nav { -webkit-tap-highlight-color: transparent; }
    ============================================================ */
 
 /* Tableau : tableau sur PC, cartes sur téléphone ou si « Listes en cartes » est choisi */
+/* Cadre positionné : un libellé caché (sr-only, en position absolue) d'un en-tête reste dans le tableau qui défile,
+   au lieu de faire défiler toute la page de côté (relevé à la tablette sur les devis, 07/11) */
+.dt-table { position: relative; }
 .dt-cards { display: none; margin: 0; padding: 0; list-style: none; }
 .dt-card { padding: var(--row-py) var(--space-3); border-top: 1px solid rgb(var(--c-line)); }
 .dt-card:first-child { border-top: 0; }
