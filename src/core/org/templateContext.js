@@ -13,6 +13,7 @@
 
 import { supabase } from '../supabase'
 import { mot } from '../genre'
+import { echapperHtml as escapeHtml } from '../html.js'
 
 export const TEMPLATE_FIELDS = [
   ['{{org.nom}}', "Nom affiché de l'organisme"],
@@ -54,8 +55,6 @@ const personName = (p) => {
   return n || p.display_name || p.email || ''
 }
 
-const escapeHtml = (s) => String(s)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 function formatNda(nda) {
   const d = String(nda || '').replace(/\s+/g, '')

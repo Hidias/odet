@@ -1,3 +1,4 @@
+import { echapperHtml as escapeHtml } from '../../../core/html.js'
 // src/lib/mailingVars.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Variables de personnalisation des campagnes mailing - l'application
@@ -22,9 +23,6 @@ export const MAILING_VARIABLES = [
   { key: 'nom',        label: 'Nom',             example: 'Dupont' },
 ]
 
-const escapeHtml = (s) => String(s ?? '')
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 
 const cap = (s) => {
   const t = String(s || '').trim().toLowerCase()
