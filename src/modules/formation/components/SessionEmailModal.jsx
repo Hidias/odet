@@ -485,9 +485,10 @@ Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le
       const suite = 'Nous vous remercions pour votre confiance et restons à votre disposition.'
       const base = `${debut}\n\n${suite}`
       setEmailBody(base)
-      // Invitation en ligne ajoutée quand l'accès est lu, sans écraser un texte déjà modifié
+      // Invitation en ligne ajoutée quand l'accès est lu, comme le paragraphe du Passeport : insérée avant la formule
+      // finale si elle y est encore, jamais en double, jamais sur un texte dont la personne a retiré la formule
       const avisEnLigne = phraseAvisEnLigne(await lienAvis())
-      if (avisEnLigne) setEmailBody((b) => (b === base ? `${debut}\n\n${avisEnLigne}\n\n${suite}` : b))
+      if (avisEnLigne) setEmailBody((b) => (b.includes(avisEnLigne) ? b : b.replace(`\n\n${suite}`, `\n\n${avisEnLigne}\n\n${suite}`)))
     }
   }
 

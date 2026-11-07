@@ -45,8 +45,9 @@ describe('Invitation de l’entreprise à donner son avis (07/11)', () => {
     expect(modal).toMatch(/lienAvisEntreprise\(session, groupe\)/)
     expect(modal).toMatch(/generateSatisfactionEntreprisePDF\(session, session\?\.clients, null, \{ enLigne: await lienAvis\(\) \}\)/)
     expect(modal).toMatch(/phraseAvisEnLigne\(await lienAvis\(\)\)/)
-    // Texte déjà modifié par la personne : jamais écrasé par l'invitation
-    expect(modal).toMatch(/setEmailBody\(\(b\) => \(b === base \?/)
+    // Insérée avant la formule finale, comme le paragraphe du Passeport (qui peut arriver avant elle), jamais en double
+    expect(modal).toMatch(/setEmailBody\(\(b\) => \(b\.includes\(avisEnLigne\) \? b : b\.replace\(`\\n\\n\$\{suite\}`/)
+    expect(modal).toMatch(/const suite = 'Nous vous remercions pour votre confiance/)
   })
 
   it('bouton d’avis dès le dernier jour dans les deux espaces (même règle que la base, 0504)', () => {
