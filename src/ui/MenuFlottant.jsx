@@ -24,6 +24,8 @@ export default function MenuFlottant({ ancre, onFermer, menuRef, largeur = 180, 
     if (!ancre) return
     const h = ref.current?.offsetHeight || 0
     setPos(positionMenu(ancre, h, largeur, window.innerWidth, window.innerHeight))
+    // Clavier : le menu est en fin de page (portail), le focus va sur sa première action
+    ref.current?.querySelector('a, button')?.focus({ preventScroll: true })
   }, [ancre, largeur, ref])
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function MenuFlottant({ ancre, onFermer, menuRef, largeur = 180, 
 
   if (!ancre) return null
   return createPortal(
-    <div ref={ref} role="menu" aria-label={label}
+    <div ref={ref} role="group" aria-label={label}
       style={{ position: 'fixed', zIndex: 9999, width: largeur, visibility: pos ? 'visible' : 'hidden', ...(pos || { left: 0, top: 0 }) }}
       className="bg-white border border-gray-200 rounded-ui-sm shadow-md py-1">
       {children}

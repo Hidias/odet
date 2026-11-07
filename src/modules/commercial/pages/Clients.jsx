@@ -324,7 +324,11 @@ export default function Clients() {
       if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) setActionMenuId(null)
     }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [])
   
   const userRole = useAuthStore(state => state.userRole)
@@ -877,8 +881,8 @@ export default function Clients() {
                   <td className="px-4 py-3">
                     <div className="relative">
                       <button onClick={(e) => { e.stopPropagation(); if (actionMenuId === client.id) return fermerMenu(); setActionAncre(e.currentTarget.getBoundingClientRect()); setActionMenuId(client.id) }}
-                        aria-label="Actions du client" title="Actions du client" aria-haspopup="menu" aria-expanded={actionMenuId === client.id}
-                        className="p-2.5 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        aria-label="Actions du client" title="Actions du client" aria-expanded={actionMenuId === client.id}
+                        className="p-2.5 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 aria-expanded:opacity-100 transition-opacity">
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       {actionMenuId === client.id && (

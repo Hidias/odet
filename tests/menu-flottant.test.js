@@ -25,6 +25,9 @@ describe('Menu d’actions flottant (07/11)', () => {
     const src = lire('src/modules/commercial/pages/Clients.jsx')
     expect(src).toMatch(/<MenuFlottant ancre=\{actionAncre\}/)
     expect(src).not.toMatch(/ref=\{actionMenuRef\} className="absolute/)
-    expect(lire('src/ui/MenuFlottant.jsx')).toMatch(/createPortal\(/)
+    const menu = lire('src/ui/MenuFlottant.jsx')
+    expect(menu).toMatch(/createPortal\(/)
+    // Clavier : focus sur la première action à l'ouverture
+    expect(menu).toMatch(/querySelector\('a, button'\)\?\.focus/)
   })
 })
