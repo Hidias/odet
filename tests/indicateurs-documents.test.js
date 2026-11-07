@@ -32,13 +32,18 @@ describe('indicateurs Qualiopi des documents vierges', () => {
 })
 
 describe('preuves des indicateurs 4 et 10', async () => {
-  const { RULES } = await import('../src/modules/certification/lib/proofs.js')
+  const { RULES, evaluateIndicators } = await import('../src/modules/certification/lib/proofs.js')
   const base = { n: { needs: 1, sessionsTotal: 1, infoSheets: 0, psh: 0 }, courses: {}, org: {} }
   it('indicateur 10 sans demande d\'adaptation : pas de preuve affichée comme trouvée', () => {
     const r = RULES[10](base)
-    expect(r.items.every((i) => !i.ok)).toBe(true)
+    expect(r.items.some((i) => i.ok)).toBe(false)
     expect(r.missing.length).toBe(1)
     expect(RULES[10]({ ...base, n: { ...base.n, psh: 2 } }).missing).toEqual([])
+  })
+  it('indicateur 10 : une preuve ajoutée à la main le passe en « preuves trouvées »', () => {
+    const ev = { ...base, courses: {}, org: {}, settings: {} }
+    expect(evaluateIndicators([{ number: 10 }], ev)[0].status).not.toBe('preuves')
+    expect(evaluateIndicators([{ number: 10 }], ev, { proofs: [{ indicator_number: 10 }] })[0].status).toBe('preuves')
   })
   it('indicateur 4 : fiches de renseignements remplies seulement', () => {
     expect(RULES[4](base).items.find((i) => /renseignements/.test(i.label || i.text || JSON.stringify(i))).ok).toBe(false)

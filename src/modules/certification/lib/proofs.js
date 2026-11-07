@@ -229,9 +229,8 @@ export const RULES = {
     missing: [],
   }),
   10: (e) => ({
-    items: [
-      e.n.psh ? ok(`Demandes d'adaptation (registre PSH) : ${e.n.psh}`, L.psh) : ko('Aucune demande d\'adaptation enregistrée (registre PSH)', L.psh),
-    ],
+    // Sans demande d'adaptation : aucun élément, seulement le manque ; une preuve ajoutée à la main le lève
+    items: e.n.psh ? [ok(`Demandes d'adaptation (registre PSH) : ${e.n.psh}`, L.psh)] : [],
     // Le registre ne suffit pas à lui seul : l'auditeur cherche la trace des adaptations faites au public
     missing: e.n.psh ? [] : ['Garder la trace des adaptations de la prestation au public (entretiens, aménagements, suivi), puis l\'ajouter en preuve'],
   }),
