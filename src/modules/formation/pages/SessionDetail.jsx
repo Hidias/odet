@@ -9,7 +9,7 @@ import { downloadDocument, downloadAllDocuments, generatePDF, generateAllPDF, se
 import { documentAvecPreuve } from '../../../core/signature/preuve'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { missingOrgFields } from '../../../core/org/orgUtils'
-import { computePresenceHours, formatHours } from '../lib/presence'
+import { computePresenceHours, formatHours, jourDeFormation } from '../lib/presence'
 import { 
   ArrowLeft, Calendar, MapPin, Users, Clock, FileText, QrCode, UserPlus, UserMinus,
   Download, CheckCircle, AlertCircle, Copy, ExternalLink, X, Edit, Trash2, Save,
@@ -3379,9 +3379,10 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           </div>
         </div>
         <div className="flex gap-2 flex-wrap lg:justify-end items-center">
-          {/* Signature sur le téléphone du formateur */}
+          {/* Signature sur le téléphone du formateur : bouton principal les jours de formation seulement, sinon il prend
+              la place de l'action utile (« Contrôler et confirmer » d'une session préparée, A11 07/11) */}
           {d.envoyer && <button onClick={() => navigate(`/signature/${session.id}`)}
-            className="btn btn-primary">
+            className={`btn ${jourDeFormation(session) ? 'btn-primary' : 'btn-secondary'}`}>
             <PenLine className="w-4 h-4" />Faire signer l'émargement
           </button>}
           {/* Boutons Email */}

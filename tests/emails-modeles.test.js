@@ -21,3 +21,14 @@ describe('modèles d’emails prêts, sans IA', () => {
     expect(modeleRelanceDevis({ quote, org: 'ESSAI', numero: 3 }).body).toContain('dernière relance')
   })
 })
+
+describe('envoi de devis selon l’accès du client à son espace (07/11)', () => {
+  it('avec accès : la signature en ligne est proposée', () => {
+    expect(modeleEnvoiDevis({ quote, org: 'ESSAI' }).body).toContain('signer en ligne')
+  })
+  it('sans accès : aucune signature en ligne promise', () => {
+    const m = modeleEnvoiDevis({ quote, org: 'ESSAI', enLigne: false })
+    expect(m.body).not.toMatch(/en ligne|espace client/i)
+    expect(m.body).toContain('nous le retourner signé, ou simplement nous répondre par email')
+  })
+})

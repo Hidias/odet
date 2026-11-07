@@ -195,3 +195,12 @@ export function heuresDuDocument(session, course, st = {}, trainee = {}) {
   const partiel = st.presence_hours != null && (st.early_departure || st.arrival_time)
   return partiel ? Number(st.presence_hours) : computePresenceHours(session, course, st).hours
 }
+
+/** Jour de formation (date locale de l'appareil, entre le premier et le dernier jour inclus) : l'émargement est alors
+ *  l'action principale de la fiche (A11, 07/11) */
+export function jourDeFormation(session, maintenant = new Date()) {
+  if (!session?.start_date || session.status === 'cancelled') return false
+  const p = (n) => String(n).padStart(2, '0')
+  const jour = `${maintenant.getFullYear()}-${p(maintenant.getMonth() + 1)}-${p(maintenant.getDate())}`
+  return session.start_date <= jour && jour <= (session.end_date || session.start_date)
+}
