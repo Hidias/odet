@@ -13,17 +13,31 @@ import { getCurrentCompanyId } from '../company/companyContext'
 //  - EnvoisAutomatiques : un interrupteur par type d'envoi. Le super administrateur ouvre ou ferme ; un administrateur
 //    de la société peut seulement suspendre 24 heures, après trois confirmations (décision de H du 19/10 à 23h14).
 
+// Heures des tâches : le planning de vercel.json est en heure universelle ; l'heure annoncée est celle de Paris
+// le jour de la consultation (une heure de moins en hiver qu'en été).
+export function heureDeParis(heureUtc, minuteUtc = 0, jour = new Date()) {
+  const d = new Date(Date.UTC(jour.getUTCFullYear(), jour.getUTCMonth(), jour.getUTCDate(), heureUtc, minuteUtc))
+  const h = new Intl.DateTimeFormat('fr-FR', { hour: 'numeric', hourCycle: 'h23', timeZone: 'Europe/Paris' }).format(d)
+  return `${parseInt(h, 10)}h`
+}
+
+export function rythmeDe(t, jour = new Date()) {
+  if (!t.utc) return t.rythme
+  return t.rythme.replace('{h}', heureDeParis(t.utc[0], t.utc[1] || 0, jour))
+}
+
+// `utc` : heure et minute du planning de vercel.json (tests/console-taches.test.js vérifie la concordance)
 export const TACHES = [
-  { job: 'maintenance-nuit', label: 'Préparation de la nuit (relances, rappels, étapes des sessions, purges à valider)', rythme: 'Chaque nuit, vers 4h' },
+  { job: 'maintenance-nuit', label: 'Préparation de la nuit (relances, rappels, étapes des sessions, purges à valider)', rythme: 'Chaque nuit, vers {h}', utc: [2, 10] },
   { job: 'sync-sent-emails', label: 'Synchronisation des emails envoyés', rythme: 'Toutes les 30 min en journée, en semaine' },
-  { job: 'signature-alert', label: 'Alertes de signature', rythme: 'En semaine, vers 9h' },
-  { job: 'signature-weekly', label: 'Bilan des signatures', rythme: 'Le lundi, vers 9h' },
-  { job: 'mailing-replies-cron', label: 'Réponses aux campagnes', rythme: 'Chaque jour, vers 7h' },
+  { job: 'signature-alert', label: 'Alertes de signature', rythme: 'En semaine, vers {h}', utc: [7, 0] },
+  { job: 'signature-weekly', label: 'Bilan des signatures', rythme: 'Le lundi, vers {h}', utc: [7, 0] },
+  { job: 'mailing-replies-cron', label: 'Réponses aux campagnes', rythme: 'Chaque jour, vers {h}', utc: [5, 0] },
   { job: 'social/cron-publish', label: 'Publication des posts programmés', rythme: 'Toutes les 5 min' },
-  { job: 'import-auto-cron', label: 'Import automatique des prospects', rythme: 'Chaque nuit, vers 4h' },
-  { job: 'enrich-prospects', label: 'Enrichissement des prospects', rythme: 'Chaque nuit, vers 5h' },
+  { job: 'import-auto-cron', label: 'Import automatique des prospects', rythme: 'Chaque nuit, vers {h}', utc: [2, 0] },
+  { job: 'enrich-prospects', label: 'Enrichissement des prospects', rythme: 'Chaque nuit, vers {h}', utc: [3, 0] },
   { job: 'mailing-cron', label: 'Envoi des campagnes email', rythme: 'Selon les campagnes' },
-  { job: 'relances-circuit', label: 'Relances du circuit de formation', rythme: 'En semaine, vers 10h' },
+  { job: 'relances-circuit', label: 'Relances du circuit de formation', rythme: 'En semaine, vers {h}', utc: [8, 0] },
 ]
 
 export const TYPES_ENVOI = [
@@ -59,7 +73,7 @@ export function TachesPlanifiees() {
       setRuns(data || [])
     })
   }, [])
-  if (indispo) return <p className="text-ui-sm text-gray-500">Le journal des tâches sera disponible après la mise à jour de la base 0382.</p>
+  if (indispo) return <p className="text-ui-sm text-gray-500">Le journal des tâches est indisponible pour le moment : la base de données n'est pas encore à jour.</p>
   if (!runs) return <p className="muted text-ui">…</p>
   const par = Object.fromEntries(runs.map((r) => [r.job, r]))
   return (
@@ -70,7 +84,7 @@ export function TachesPlanifiees() {
           <div key={t.job} className="py-2.5 text-ui flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-3">
             <div className="flex-1 min-w-0">
               <div className="font-medium text-gray-900 break-words">{t.label}</div>
-              <div className="text-ui-sm text-gray-500">{t.rythme}</div>
+              <div className="text-ui-sm text-gray-500">{rythmeDe(t)}</div>
               {r && <div className="text-ui-sm text-gray-600 mt-0.5">Dernier passage : {quand(r.started_at)}{r.declencheur === 'manuel' ? ', lancé à la main' : ''}</div>}
               {r && r.status !== 'ok' && r.last_ok_at && <div className="text-ui-sm text-gray-600">Dernière réussite : {quand(r.last_ok_at)}</div>}
               {r?.status === 'refuse' && (
@@ -106,7 +120,7 @@ export function EnvoisAutomatiques({ companyId }) {
   }, [companyId])
   useEffect(() => { charger() }, [charger])
 
-  if (indispo) return <p className="text-ui-sm text-gray-500">Les interrupteurs des envois seront disponibles après la mise à jour de la base 0382.</p>
+  if (indispo) return <p className="text-ui-sm text-gray-500">Les interrupteurs des envois sont indisponibles pour le moment : la base de données n'est pas encore à jour.</p>
   if (!lignes) return <p className="muted text-ui">…</p>
   const par = Object.fromEntries(lignes.map((l) => [l.kind, l]))
 
