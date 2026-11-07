@@ -115,19 +115,34 @@ export function libelleDestinataire(e) {
 // Réglages de la société (froid_reglages) ; sans ligne : valeurs par défaut de la base (app.froid_reglage, 0482)
 export const REGLAGES_FROID_DEFAUT = { actif: true, premier_envoi_jours: 60, relance_apres_jours: 30, entre_relances_jours: 60, relances_max: 1, employeur_actif: true }
 
-// Fin du cycle d'une évaluation à froid : date de fin de la session plus le délai du premier envoi (celui de la
-// formation, sinon celui de la société), plus les relances prévues, comptées au plus tôt (une relance part au plus tôt
-// le délai réglé après l'envoi précédent, froid_preparer_corps). Avant cette date, l'évaluation est encore en cours ;
-// après, sans réponse, elle manque (Complétude).
-export function finCycleFroid(fin, reglage, delaiFormation) {
+// Fin du cycle d'une évaluation à froid, après laquelle une réponse manque vraiment (Complétude). Même règle que la
+// préparation de nuit (froid_preparer_corps) : premier envoi à la fin de la session plus le délai de la formation
+// (sinon celui de la société), relances au délai réglé après l'envoi précédent ; puis un délai de réponse après le
+// dernier envoi, égal au délai de relance. Quand un envoi est réellement parti plus tard (validation à la main), le
+// cycle part de cet envoi. L'évaluation reste due même si la société a coupé les envois (actif = false) ou si la
+// session est trop ancienne pour être préparée : Complétude la signale, c'est à l'organisme de la recueillir.
+export function finCycleFroid(fin, reglage, delaiFormation, dernierEnvoi = null, rangDernierEnvoi = 0) {
   if (!fin) return null
   const r = { ...REGLAGES_FROID_DEFAUT, ...(reglage || {}) }
+  const ajouter = (iso, n) => {
+    const d = new Date(`${String(iso).slice(0, 10)}T12:00:00Z`)
+    d.setUTCDate(d.getUTCDate() + n)
+    return d.toISOString().slice(0, 10)
+  }
   const premier = Number(delaiFormation) > 0 ? Number(delaiFormation) : Number(r.premier_envoi_jours)
   const relances = Math.max(0, Number(r.relances_max) || 0)
-  const jours = premier + (relances > 0 ? Number(r.relance_apres_jours) + (relances - 1) * Number(r.entre_relances_jours) : 0)
-  const d = new Date(`${String(fin).slice(0, 10)}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + jours)
-  return d.toISOString().slice(0, 10)
+  const apres = Number(r.relance_apres_jours)
+  const entre = Number(r.entre_relances_jours)
+  // Jours entre le premier envoi et la fin du cycle : relances prévues puis délai de réponse
+  const resteDepuis = (rang) => {
+    let n = 0
+    for (let k = rang + 1; k <= relances; k++) n += k === 1 ? apres : entre
+    return n + apres
+  }
+  const prevu = ajouter(fin, premier + resteDepuis(0))
+  if (!dernierEnvoi) return prevu
+  const reel = ajouter(dernierEnvoi, resteDepuis(Math.max(0, Number(rangDernierEnvoi) || 0)))
+  return reel > prevu ? reel : prevu
 }
 
 // Questions fermées de base de l'employeur (même liste que la base, 0482)
@@ -139,11 +154,14 @@ export const QUESTIONS_EMPLOYEUR_BASE = [
 
 // Évaluations à froid des employeurs pour les sessions retenues : entreprises sollicitées (envoi parti), réponses
 // reçues, taux de retour et part de « oui » par question de base (Indicateurs, indicateur 30).
-export function statsEmployeurs(envois, reponses, sessionIds) {
+// `clientId` : filtre client des Indicateurs (une session inter compte sinon toutes ses entreprises).
+export function statsEmployeurs(envois, reponses, sessionIds, clientId = null) {
   const dans = new Set(sessionIds || [])
+  const retenu = (x) => dans.has(x.session_id) && (!clientId || x.client_id === clientId)
   const cle = (x) => `${x.session_id}|${x.client_id}`
-  const sollicites = new Set((envois || []).filter((e) => e.cible === 'employeur' && e.statut === 'envoye' && dans.has(e.session_id)).map(cle))
-  const recues = (reponses || []).filter((r) => r.completed_at && dans.has(r.session_id))
+  const sollicites = new Set((envois || []).filter((e) => e.cible === 'employeur' && e.statut === 'envoye' && retenu(e)).map(cle))
+  // Une réponse reçue compte même si son envoi n'est pas retrouvé (saisie depuis l'espace entreprise sans relance)
+  const recues = (reponses || []).filter((r) => r.completed_at && retenu(r))
   recues.forEach((r) => sollicites.add(cle(r)))
   const questions = QUESTIONS_EMPLOYEUR_BASE.map((q) => {
     const rep = recues.filter((r) => typeof r.reponses?.[q.cle] === 'boolean')

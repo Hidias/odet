@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 import { useDroits } from '../../../core/rights/useDroit'
 import { statsEmployeurs } from '../lib/froid'
+import { useDroit } from '../../../core/rights/useDroit'
 
 const ratingColor = (value, max = 5) => {
   const percent = (value / max) * 100
@@ -44,6 +45,9 @@ export default function Indicateurs() {
   const [trainerEvals, setTrainerEvals] = useState([])
   const [coldEvals, setColdEvals] = useState([])
   const [froidEmployeur, setFroidEmployeur] = useState({ reponses: [], envois: [] })
+  // Réponses des employeurs lisibles avec « formation.suivi.voir » seulement (0482) : sans ce droit, la base n'en rend
+  // aucune, sans erreur ; on ne montre pas un faux « 0 réponse ».
+  const voitSuiviFormation = useDroit('formation.suivi.voir')
   const [traineeResults, setTraineeResults] = useState([])
   const [traineesData, setTraineesData] = useState({}) // Map trainee_id -> {csp, job_title, ...}
   
@@ -544,7 +548,7 @@ export default function Indicateurs() {
       ? (recommendCount / recommendResponses * 100).toFixed(0)
       : 0
     
-    const employeurs = statsEmployeurs(froidEmployeur.envois, froidEmployeur.reponses, completedSessionIds)
+    const employeurs = statsEmployeurs(froidEmployeur.envois, froidEmployeur.reponses, completedSessionIds, filterClient || null)
 
     return { 
       employeurs,
@@ -1290,7 +1294,9 @@ export default function Indicateurs() {
                 {/* Employeurs (0482, indicateur 30 : appréciation des entreprises concernées) */}
                 <div className="border-t pt-4">
                   <h4 className="font-medium text-gray-700 mb-2">Employeurs</h4>
-                  {coldStats.employeurs.sollicites === 0 ? (
+                  {!voitSuiviFormation ? (
+                    <p className="text-ui text-gray-500">Les réponses des employeurs sont visibles avec le droit de voir le suivi des formations.</p>
+                  ) : coldStats.employeurs.sollicites === 0 ? (
                     <p className="text-ui text-gray-500">Aucun employeur sollicité pour ces sessions.</p>
                   ) : (
                     <>
