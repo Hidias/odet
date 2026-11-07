@@ -47,6 +47,7 @@ export function Tabs({ tabs, value, onChange, visible = 6, className = '' }) {
     calculer()
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(calculer) : null
     ro?.observe(el)
+    ro?.observe(m) // largeur des onglets qui change (polices chargées, onglet actif en gras)
     return () => ro?.disconnect()
   }, [tabs])
 
@@ -72,7 +73,7 @@ export function Tabs({ tabs, value, onChange, visible = 6, className = '' }) {
   )
 
   return (
-    <div ref={cadre} className={`tabs min-w-0 max-w-full relative ${className}`} role="tablist" style={{ overflow: 'visible' }}>
+    <div ref={cadre} className={`tabs flex-1 min-w-0 max-w-full relative ${className}`} role="tablist" style={{ overflow: 'visible' }}>
       {/* Rangée invisible qui sert seulement à mesurer la largeur de chaque onglet */}
       <div ref={mesure} aria-hidden="true" className="flex gap-1 absolute left-0 top-0 pointer-events-none"
         style={{ visibility: 'hidden', height: 0, overflow: 'hidden', whiteSpace: 'nowrap' }}>
