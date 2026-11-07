@@ -12,6 +12,7 @@ import { nomComplet, chargerPersonnesChoix } from '../lib/rhData'
 import { etatEcheance } from '../lib/rhDocuments'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
+import { todayIso } from '../../certification/lib/certData'
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
 const plusAns = (iso, n) => { if (!iso) return ''; const d = new Date(`${iso}T12:00:00`); d.setFullYear(d.getFullYear() + n); return d.toISOString().slice(0, 10) }
 
@@ -102,7 +103,7 @@ export function EntretiensFiche({ companyId, personId, peutGerer = false, embauc
           </button>
         )}
       </div>
-      {liste.length === 0 && <p className="text-ui-sm muted">Aucun entretien.{premier ? ` Premier entretien de parcours à prévoir avant le ${fr(premier)}.` : ''}</p>}
+      {liste.length === 0 && <p className="text-ui-sm muted">Aucun entretien.{premier ? (premier < todayIso() ? ` Premier entretien de parcours en retard : il était à prévoir avant le ${fr(premier)}.` : ` Premier entretien de parcours à prévoir avant le ${fr(premier)}.`) : ''}</p>}
       <ul className="divide-y divide-gray-100">
         {liste.map((r) => {
           const ech = etatEcheance(r.done_on ? r.next_due_on : r.planned_on)

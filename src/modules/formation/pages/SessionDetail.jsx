@@ -4141,7 +4141,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           {session?.id && <AvisEntrepriseSession sessionId={session.id} />}
           {/* Évaluations à chaud - qualité complet */}
           <div className="card">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <div>
                 <h3 className="font-semibold flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-[rgb(var(--c-warning))]" />Évaluations à chaud (stagiaires)</h3>
                 <p className="text-ui text-gray-500 mt-1">

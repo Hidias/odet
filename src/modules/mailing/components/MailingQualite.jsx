@@ -174,7 +174,7 @@ export default function MailingQualite({ user, onBack }) {
 
   async function removeBlock(b) {
     const msg = b.category === 'desabonne'
-      ? `${b.value} s'est désabonné(e).\n\nNe le retirer QUE si cette personne a redonné son accord pour recevoir vos mails.\n\nRetirer quand même ?`
+      ? `L'adresse ${b.value} s'est désabonnée.\n\nNe la retirez de la liste que si cette personne a redonné son accord pour recevoir vos e-mails.\n\nLa retirer quand même ?`
       : `Retirer « ${b.value} » de la liste de blocage ?`
     if (!await confirmer(msg)) return
     const { error } = await supabase.from('mailing_blocklist').delete().eq('id', b.id)

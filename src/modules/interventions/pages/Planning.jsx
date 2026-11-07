@@ -10,6 +10,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { ChevronLeft, ChevronRight, GripVertical, Loader2, X, Plus } from 'lucide-react'
 import { loadDueSites, loadVisits, planSite, reorderVisits, updateVisit, affecterVisite, AffectationRefusee, verifierAffectation, leverAffectation } from '../lib/itvData'
+import { pluriel } from '../../../core/genre'
 import { todayIso, isoDay, parseDay, daysBetween, routeKm, frShort } from '../lib/schedule'
 import { Empty, Sheet } from '../components/ui'
 
@@ -177,7 +178,7 @@ export default function Planning({ technicians }) {
       <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)_380px] gap-3 items-start">
         {/* À planifier */}
         <section className="card space-y-2 xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto" aria-label="Vérifications à planifier">
-          <div className="flex items-center justify-between"><h2 className="section-title">À planifier</h2><span className="muted text-ui-sm">{dueList.length} sites</span></div>
+          <div className="flex items-center justify-between"><h2 className="section-title">À planifier</h2><span className="muted text-ui-sm">{pluriel(dueList.length, 'site')}</span></div>
           {sectors.length > 1 && (
             <select className="select" aria-label="Secteur" value={sector} onChange={(e) => setSector(e.target.value)}>
               <option value="">Tous les secteurs</option>
@@ -282,7 +283,7 @@ export default function Planning({ technicians }) {
           <p className="text-ui-sm text-gray-600">{[placing.site?.name, placing.site?.city].filter(Boolean).join(', ')}, le {frShort(day)}.</p>
           {technicians.map((t) => (
             <button key={t.id} type="button" className="btn btn-secondary w-full justify-start" onClick={() => place(placing, t.id)}>
-              <span className="w-3 h-3 rounded-full" style={{ background: t.color }} />{t.name} ({(byTech[t.id] || []).length} visites)
+              <span className="w-3 h-3 rounded-full" style={{ background: t.color }} />{t.name} ({pluriel((byTech[t.id] || []).length, 'visite')})
             </button>
           ))}
         </Sheet>

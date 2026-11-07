@@ -78,6 +78,32 @@ export default function BilanAttentes({ sessionId }) {
 
   if (!lignes || lignes.length === 0) return null
   const r = resumeBilan(lignes)
+  const nom = (l) => `${l.trainees?.first_name || ''} ${l.trainees?.last_name?.toUpperCase() || ''}`.trim()
+  const attente = (l) => (
+    <>
+      <div className="whitespace-pre-line">{l.attente}</div>
+      {l.admin_observation && <div className="text-ui-sm text-gray-500 mt-1">Réponse prévue : {l.admin_observation}</div>}
+    </>
+  )
+  const avis = (l) => (
+    <>
+      <Badge v={l.avis} />
+      {l.avisCommentaire && <div className="text-ui-sm text-gray-600 mt-1 italic">« {l.avisCommentaire} »</div>}
+    </>
+  )
+  const bilan = (l) => (
+    <div className="space-y-1">
+      <select className="select" aria-label={`Bilan des attentes de ${l.trainees?.first_name || ''} ${l.trainees?.last_name || ''}`}
+        value={l.attentes_bilan || ''} onChange={(e) => noter(l, { attentes_bilan: e.target.value || null })}>
+        <option value="">À noter</option>
+        {Object.entries(VERDICTS).map(([v, lab]) => <option key={v} value={v}>{lab}</option>)}
+      </select>
+      <input className="input" placeholder="Remarque (facultatif)" defaultValue={l.attentes_bilan_note || ''}
+        aria-label="Remarque sur le bilan des attentes"
+        onBlur={(e) => { if ((e.target.value || '') !== (l.attentes_bilan_note || '')) noter(l, { attentes_bilan_note: e.target.value || null }) }} />
+      {enregistre === l.id && <div className="text-ui-sm text-[rgb(var(--c-success))]">Enregistré</div>}
+    </div>
+  )
   return (
     <div className="card space-y-3">
       <div>
@@ -89,7 +115,18 @@ export default function BilanAttentes({ sessionId }) {
           {sansAttente > 0 && ` ${sansAttente} stagiaire${sansAttente > 1 ? 's' : ''} sans attente écrite.`}
         </p>
       </div>
-      <div className="overflow-x-auto">
+      {/* Téléphone : une carte par stagiaire (le tableau coupait l'avis et le bilan, A11 du 07/11) */}
+      <ul className="md:hidden divide-y divide-gray-100">
+        {lignes.map((l) => (
+          <li key={l.id} className="py-3 space-y-2">
+            <div className="font-medium text-gray-900">{nom(l)}</div>
+            <div className="text-ui text-gray-700"><span className="text-ui-sm text-gray-500 block">Attente</span>{attente(l)}</div>
+            <div><span className="text-ui-sm text-gray-500 block">Avis du stagiaire</span>{avis(l)}</div>
+            <div><span className="text-ui-sm text-gray-500 block">Bilan de l'organisme</span>{bilan(l)}</div>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-ui">
           <thead>
             <tr className="text-left text-ui-sm text-gray-500 border-b border-gray-100">
@@ -102,26 +139,10 @@ export default function BilanAttentes({ sessionId }) {
           <tbody>
             {lignes.map((l) => (
               <tr key={l.id} className="border-b border-gray-50 align-top">
-                <td className="py-2 pr-3 whitespace-nowrap font-medium text-gray-900">{l.trainees?.first_name} {l.trainees?.last_name?.toUpperCase()}</td>
-                <td className="py-2 pr-3 text-gray-700 min-w-[14rem]">
-                  <div className="whitespace-pre-line">{l.attente}</div>
-                  {l.admin_observation && <div className="text-ui-sm text-gray-500 mt-1">Réponse prévue : {l.admin_observation}</div>}
-                </td>
-                <td className="py-2 pr-3 min-w-[9rem]">
-                  <Badge v={l.avis} />
-                  {l.avisCommentaire && <div className="text-ui-sm text-gray-600 mt-1 italic">« {l.avisCommentaire} »</div>}
-                </td>
-                <td className="py-2 min-w-[14rem] space-y-1">
-                  <select className="select" aria-label={`Bilan des attentes de ${l.trainees?.first_name || ''} ${l.trainees?.last_name || ''}`}
-                    value={l.attentes_bilan || ''} onChange={(e) => noter(l, { attentes_bilan: e.target.value || null })}>
-                    <option value="">À noter</option>
-                    {Object.entries(VERDICTS).map(([v, lab]) => <option key={v} value={v}>{lab}</option>)}
-                  </select>
-                  <input className="input" placeholder="Remarque (facultatif)" defaultValue={l.attentes_bilan_note || ''}
-                    aria-label="Remarque sur le bilan des attentes"
-                    onBlur={(e) => { if ((e.target.value || '') !== (l.attentes_bilan_note || '')) noter(l, { attentes_bilan_note: e.target.value || null }) }} />
-                  {enregistre === l.id && <div className="text-ui-sm text-[rgb(var(--c-success))]">Enregistré</div>}
-                </td>
+                <td className="py-2 pr-3 whitespace-nowrap font-medium text-gray-900">{nom(l)}</td>
+                <td className="py-2 pr-3 text-gray-700 min-w-[14rem]">{attente(l)}</td>
+                <td className="py-2 pr-3 min-w-[9rem]">{avis(l)}</td>
+                <td className="py-2 min-w-[14rem]">{bilan(l)}</td>
               </tr>
             ))}
           </tbody>

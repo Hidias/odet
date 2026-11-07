@@ -1,6 +1,7 @@
 // Ma journée : visites du technicien pour un jour, dans l'ordre fixé au bureau.
 
 import { lienTelephone } from '../../../core/telephone'
+import { pluriel } from '../../../core/genre'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Navigation, Phone, Loader2 } from 'lucide-react'
@@ -84,8 +85,8 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
         <>
           <div className="grid grid-cols-3 gap-2">
             <Kpi value={visits.length} label={visits.length > 1 ? 'visites' : 'visite'} />
-            <Kpi value={total} label={facile ? '🧯 appareils' : 'appareils'} />
-            <Kpi value={km ? `${km} km` : '-'} label={facile ? '🚐 de route' : 'environ'} />
+            <Kpi value={total} label={`${facile ? '🧯 ' : ''}${total > 1 ? 'appareils' : 'appareil'}`} />
+            <Kpi value={km ? `${km} km` : '-'} label={facile ? '🚐 de route' : 'de route, environ'} />
           </div>
           {visits.map((v, i) => {
             const c = counts[v.site_id] || { total: 0, fam: {} }
@@ -99,7 +100,7 @@ export default function MaJournee({ technicians, isManager, isTechnician, profil
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold">{v.clients?.name}</div>
                     <div className="text-ui-sm text-gray-500">{[v.sites?.city, v.sites?.name].filter(Boolean).join(', ')}</div>
-                    <div className="text-ui-sm text-gray-500">{[v.planned_time ? v.planned_time.slice(0, 5).replace(':', 'h') : null, famText || `${c.total} appareils`].filter(Boolean).join(', ')}</div>
+                    <div className="text-ui-sm text-gray-500">{[v.planned_time ? v.planned_time.slice(0, 5).replace(':', 'h') : null, famText || pluriel(c.total, 'appareil')].filter(Boolean).join(', ')}</div>
                   </div>
                   {v.due_on && String(v.due_on).slice(0, 7) < todayIso().slice(0, 7) && !done ? <DueBadge date={v.due_on} short /> : <VisitBadge status={v.status} />}
                 </Link>
