@@ -133,7 +133,7 @@ export default function QuizEngine({ questions, mode = 'training', title, onChec
         setFinished(true)
       } catch (err) {
         console.error('Enregistrement impossible :', err)
-        toast.error("Impossible d'enregistrer le quiz. Réessayez.")
+        toast.error(err?.messageVisible || "Impossible d'enregistrer le quiz. Réessayez.")
       } finally {
         setFinishing(false)
       }
