@@ -75,6 +75,7 @@ import { pluriel } from '../../../core/genre'
 import ChoixFormateurs from '../components/ChoixFormateurs'
 import { formateursAEnvoyer } from '../../../core/session/formateursSession'
 import { money } from '../../../core/utils'
+import { Q } from '../lib/indicateursDocuments'
 const statusLabels = {
   draft: { label: 'Brouillon', class: 'badge-gray' },
   planned: { label: 'Planifiée', class: 'badge-blue' },
@@ -89,7 +90,7 @@ const docTypes = [
   { id: 'programme', name: 'Programme', icon: FileText, forAll: true, qualiopi: 5 },
   { id: 'convocation', name: 'Convocation', icon: Send, forEach: true },
   { id: 'ficheRenseignements', name: 'Fiche renseignements', icon: FileText, forEach: true, qualiopi: 8 },
-  { id: 'emargement', name: 'Émargement', icon: FileText, forAll: true, qualiopi: 11 },
+  { id: 'emargement', name: 'Émargement', icon: FileText, forAll: true, qualiopi: Number(Q.emargement) },
   { id: 'attestation', name: 'Attestation', icon: FileText, forEach: true },
   { id: 'certificat', name: 'Certificat', icon: CheckCircle, forEach: true, qualiopi: 11 },
   { id: 'fin_formation', name: 'Fin de formation', icon: CheckCircle, forEach: true, qualiopi: 11 },

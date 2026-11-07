@@ -25,9 +25,10 @@ export function enAttente(token) {
 }
 
 // Garde une signature ; renvoie false si le navigateur refuse de la garder (navigation privée, stockage plein)
-export function garder({ token, traineeId, period, image, date }) {
+export function garder({ token, traineeId, period, image, date, ticket }) {
   const liste = lireBrut().filter((x) => !(x.token === token && x.traineeId === traineeId && x.date === date && x.period === period))
-  liste.push({ id: `${traineeId}_${date}_${period}`, token, traineeId, period, image, date, signedAt: new Date().toISOString() })
+  // Ticket du code personnel (0501) gardé avec la signature : accepté s'il était valable à l'heure de la signature
+  liste.push({ id: `${traineeId}_${date}_${period}`, token, traineeId, period, image, date, ticket: ticket || null, signedAt: new Date().toISOString() })
   return ecrire(liste)
 }
 
@@ -45,7 +46,7 @@ export async function envoyerEnAttente(supabase, token) {
     let reponse
     try {
       reponse = await supabase.rpc('portal_sign_halfday_differe', {
-        p_token: x.token, p_trainee_id: x.traineeId, p_period: x.period, p_signature: x.image, p_signed_at: x.signedAt,
+        p_token: x.token, p_trainee_id: x.traineeId, p_period: x.period, p_signature: x.image, p_signed_at: x.signedAt, p_ticket: x.ticket || null,
       })
     } catch (e) {
       if (estPanneReseau(e)) break
