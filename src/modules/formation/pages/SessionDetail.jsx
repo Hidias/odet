@@ -3435,6 +3435,9 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       )}
 
+      {/* Circuit devis signé → participants → convocations (0430) : en tête de fiche, avant les infos et le suivi de
+          convention, pour que « Contrôler et confirmer » d'une session préparée se voie d'abord (A11, 07/11) */}
+      <CircuitSession session={session} peutModifier={d.modifier} onChange={() => fetchSessions()} onEnvoyer={handleSendEmailBefore} />
       {/* Infos */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card">
@@ -3613,8 +3616,6 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         />
       </div>
       
-      {/* Circuit devis signé → participants → convocations (0430) */}
-      <CircuitSession session={session} peutModifier={d.modifier} onChange={() => fetchSessions()} onEnvoyer={handleSendEmailBefore} />
       <DemandesNirSession session={session} peutEnvoyer={d.modifier} />
 
       {/* Seuil de maintien (inter, J-10) */}

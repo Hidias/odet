@@ -21,8 +21,9 @@ describe('Document à signer signalé en haut de l\'espace client', () => {
     expect(src).toMatch(/<BandeauASigner/)
     expect(src.indexOf('<BandeauASigner')).toBeLessThan(src.indexOf('<MesDocuments'))
     expect(src).toMatch(/onListe=\{setDocsPublies\}/)
-    // Un seul document : défilement jusqu'à sa ligne ; la liste ne cache jamais un document à signer
-    expect(src).toMatch(/doc-\$\{d\.id\}/)
+    // Un seul document : la signature s'ouvre directement (A11 lot 5, 07/11) ; plusieurs : la liste, qui ne cache
+    // jamais un document à signer
+    expect(src).toMatch(/d \? ouvrirSignatureDocument\(d\)/)
     const liste = readFileSync('src/modules/portail/components/MesDocuments.jsx', 'utf8')
     expect(liste).toMatch(/i < 12 \|\| \(onSigner && estASigner/)
   })

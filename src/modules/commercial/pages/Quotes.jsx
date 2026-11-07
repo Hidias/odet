@@ -54,6 +54,7 @@ import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs 
 import { FRAIS_CATALOGUE } from '../lib/fraisCatalogue'
 import BadgeTarifClient from '../components/BadgeTarifClient'
 import { isQuoteSleeping, todayStr } from '../../prospection/components/suivi/suiviUtils'
+import { adressesProposees as adressesProposeesDevis } from '../lib/adressesEnvoi'
 
 // Statuts d'un devis déjà accepté (contrat et livraison déjà préparés par la base)
 const ACCEPTE = ['accepted', 'partial', 'invoiced']
@@ -2257,6 +2258,7 @@ export default function Quotes() {
   // ============================================================
   function renderSendWizard() {
     const { quote, client, contact, pdfBlobUrl, clientContacts } = sendWizard
+    const adressesProposees = adressesProposeesDevis(clientContacts, client)
     const steps = [
       { num: 1, label: 'Aperçu PDF' },
       { num: 2, label: 'Texte email' },
@@ -2405,23 +2407,20 @@ export default function Quotes() {
                       placeholder="email@entreprise.fr"
                       className="flex-1 px-3 py-2 border border-gray-200 rounded-ui-sm text-ui"
                     />
-                    {clientContacts && clientContacts.length > 0 && (
+                    {/* Une adresse proposée une seule fois : le contact principal de la fiche est souvent aussi un contact (A11, 07/11) */}
+                    {adressesProposees.length > 0 && (
                       <select
                         className="px-3 py-2 border border-gray-200 rounded-ui-sm text-ui bg-white"
                         value=""
+                        aria-label="Choisir un contact"
                         onChange={(e) => {
                           if (e.target.value) setSendEmail(prev => ({ ...prev, to: e.target.value }))
                         }}
                       >
                         <option value="">Contacts...</option>
-                        {clientContacts.filter(c => c.email).map(c => (
-                          <option key={c.id} value={c.email}>
-                            {c.first_name || ''} {c.last_name || c.name || ''} - {c.email}
-                          </option>
+                        {adressesProposees.map(a => (
+                          <option key={a.email} value={a.email}>{a.libelle}</option>
                         ))}
-                        {client?.contact_email && (
-                          <option value={client.contact_email}>Contact principal - {client.contact_email}</option>
-                        )}
                       </select>
                     )}
                   </div>
