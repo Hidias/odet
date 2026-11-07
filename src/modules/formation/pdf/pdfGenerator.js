@@ -3,7 +3,7 @@ import 'jspdf-autotable'
 import { format, eachDayOfInterval, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import QRCode from 'qrcode'
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, PDFName, PDFDict, PDFRef, PDFRawStream } from 'pdf-lib'
 import { enBase64 } from '../../../core/fichiers/compression'
 import { lienEspaceClient, dessinerEncadreEnLigne, hauteurEncadreEnLigne } from '../../../core/portail/lienEspace'
 import { chargerRegimeTva, regimeTva } from '../../../core/billing/regimeTva'
@@ -1546,6 +1546,45 @@ function documentDuStagiaire(docType, session, trainee, { trainer, questions, ev
   }
 }
 
+// Images identiques (logo, tampon, signature, QR code) recopiées par chaque document de stagiaire : une seule copie
+// gardée, les pages pointent toutes vers elle (07/11 : 2,2 Mo au lieu de 240 Ko pour 12 stagiaires)
+const memesOctets = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
+function cleImage(ctx, ref) {
+  const obj = ctx.lookup(ref)
+  if (!(obj instanceof PDFRawStream)) return null
+  const masque = obj.dict.get(PDFName.of('SMask'))
+  const sansMasque = obj.dict.entries().filter(([k]) => k !== PDFName.of('SMask')).map(([k, v]) => `${k}${v}`).sort().join('')
+  const sousCle = masque instanceof PDFRef ? cleImage(ctx, masque) : null
+  if (masque && !sousCle) return null
+  const c = obj.contents
+  let h = 2166136261
+  for (let i = 0; i < c.length; i += 1 + (c.length >> 12)) h = Math.imul(h ^ c[i], 16777619)
+  return { texte: `${sansMasque}|${c.length}|${h >>> 0}|${sousCle ? sousCle.texte : ''}`, octets: c, masque: masque instanceof PDFRef ? masque : null }
+}
+export function partagerImages(pdf) {
+  const ctx = pdf.context
+  const parCle = new Map() // texte -> [{ ref, cle }]
+  const remplace = new Map() // ancienne référence -> référence gardée
+  for (const page of pdf.getPages()) {
+    const xo = page.node.Resources()?.lookupMaybe(PDFName.of('XObject'), PDFDict)
+    if (!xo) continue
+    for (const [nom, ref] of xo.entries()) {
+      if (!(ref instanceof PDFRef)) continue
+      const deja = remplace.get(ref.toString())
+      if (deja) { xo.set(nom, deja); continue }
+      const cle = cleImage(ctx, ref)
+      if (!cle) continue
+      const candidats = parCle.get(cle.texte) || []
+      const garde = candidats.find((x) => x.ref !== ref && memesOctets(x.cle.octets, cle.octets))
+      if (!garde) { if (!candidats.some((x) => x.ref === ref)) parCle.set(cle.texte, [...candidats, { ref, cle }]); continue }
+      remplace.set(ref.toString(), garde.ref)
+      xo.set(nom, garde.ref)
+      ctx.delete(ref)
+      if (cle.masque) ctx.delete(cle.masque)
+    }
+  }
+}
+
 /** Octets du PDF de tous les stagiaires, ou null (aucun stagiaire, type inconnu) */
 export async function documentsDesStagiaires(docType, session, trainees, options = {}) {
   if (!trainees || trainees.length === 0 || !NOMS_LOT[docType]) return null
@@ -1563,6 +1602,7 @@ export async function documentsDesStagiaires(docType, session, trainees, options
     const src = await PDFDocument.load(doc.output('arraybuffer'))
     ;(await out.copyPages(src, src.getPageIndices())).forEach((p) => out.addPage(p))
   }
+  partagerImages(out)
   return out.save()
 }
 
