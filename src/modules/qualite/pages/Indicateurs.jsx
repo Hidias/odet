@@ -12,6 +12,7 @@ import {
 import toast from 'react-hot-toast'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 import { useDroits } from '../../../core/rights/useDroit'
+import { statsEmployeurs } from '../lib/froid'
 
 const ratingColor = (value, max = 5) => {
   const percent = (value / max) * 100
@@ -42,6 +43,7 @@ export default function Indicateurs() {
   const [traineeEvals, setTraineeEvals] = useState([])
   const [trainerEvals, setTrainerEvals] = useState([])
   const [coldEvals, setColdEvals] = useState([])
+  const [froidEmployeur, setFroidEmployeur] = useState({ reponses: [], envois: [] })
   const [traineeResults, setTraineeResults] = useState([])
   const [traineesData, setTraineesData] = useState({}) // Map trainee_id -> {csp, job_title, ...}
   
@@ -95,7 +97,9 @@ export default function Indicateurs() {
       coldEvalsResult,
       resultsResult,
       alertsResult,
-      ncsResult
+      ncsResult,
+      froidEmployeurResult,
+      froidEnvoisEmployeurResult
     ] = await Promise.all([
       fetchSessions(),
       fetchClients(),
@@ -107,13 +111,17 @@ export default function Indicateurs() {
       fetchAll(() => supabase.from('evaluations_cold').select('*')),
       fetchAll(() => supabase.from('session_trainees').select('session_id, trainee_id, result, presence_complete, early_departure, situation, funding_type')),
       fetchAll(() => supabase.from('quality_alerts').select('*').order('created_at', { ascending: false })),
-      fetchAll(() => supabase.from('non_conformites').select('id, title, status').order('created_at', { ascending: false }))
+      fetchAll(() => supabase.from('non_conformites').select('id, title, status').order('created_at', { ascending: false })),
+      // Évaluations à froid de l'employeur (0482) : réponses reçues et envois partis
+      fetchAll(() => supabase.from('froid_employeur').select('id, session_id, client_id, reponses, completed_at')),
+      fetchAll(() => supabase.from('froid_envois').select('id, session_id, client_id, cible, statut').eq('cible', 'employeur'))
     ])
     
     setThemes(themesResult.data || [])
     setTraineeEvals(hotEvalsResult.data || [])
     setTrainerEvals(trainerEvalsResult.data || [])
     setColdEvals(coldEvalsResult.data || [])
+    setFroidEmployeur({ reponses: froidEmployeurResult.data || [], envois: froidEnvoisEmployeurResult.data || [] })
     setTraineeResults(resultsResult.data || [])
     setNonConformites(ncsResult.data || [])
     
@@ -536,7 +544,10 @@ export default function Indicateurs() {
       ? (recommendCount / recommendResponses * 100).toFixed(0)
       : 0
     
+    const employeurs = statsEmployeurs(froidEmployeur.envois, froidEmployeur.reponses, completedSessionIds)
+
     return { 
+      employeurs,
       stats, 
       recommendRate, 
       sendRate, 
@@ -1275,6 +1286,30 @@ export default function Indicateurs() {
                     <p className="text-ui mt-1">Les statistiques de satisfaction apparaîtront ici quand des stagiaires auront répondu</p>
                   </div>
                 )}
+
+                {/* Employeurs (0482, indicateur 30 : appréciation des entreprises concernées) */}
+                <div className="border-t pt-4">
+                  <h4 className="font-medium text-gray-700 mb-2">Employeurs</h4>
+                  {coldStats.employeurs.sollicites === 0 ? (
+                    <p className="text-ui text-gray-500">Aucun employeur sollicité pour ces sessions.</p>
+                  ) : (
+                    <>
+                      <p className="text-ui text-gray-700">
+                        {coldStats.employeurs.recues} {coldStats.employeurs.recues > 1 ? 'réponses reçues' : 'réponse reçue'} sur {coldStats.employeurs.sollicites} {coldStats.employeurs.sollicites > 1 ? 'entreprises sollicitées' : 'entreprise sollicitée'} ({coldStats.employeurs.tauxRetour} % de retour)
+                      </p>
+                      {coldStats.employeurs.recues > 0 && (
+                        <ul className="mt-2 space-y-1">
+                          {coldStats.employeurs.questions.filter((q) => q.total > 0).map((q) => (
+                            <li key={q.cle} className="text-ui flex justify-between gap-4">
+                              <span>{q.libelle}</span>
+                              <span className="font-medium">{q.taux} % oui ({q.oui} sur {q.total})</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>

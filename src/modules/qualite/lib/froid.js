@@ -111,3 +111,49 @@ export function libelleDestinataire(e) {
   if (!e.destinataire) return ''
   return e.cible !== 'stagiaire' && e.destinataire_nom ? `${e.destinataire_nom} (${e.destinataire})` : e.destinataire
 }
+
+// Réglages de la société (froid_reglages) ; sans ligne : valeurs par défaut de la base (app.froid_reglage, 0482)
+export const REGLAGES_FROID_DEFAUT = { actif: true, premier_envoi_jours: 60, relance_apres_jours: 30, entre_relances_jours: 60, relances_max: 1, employeur_actif: true }
+
+// Fin du cycle d'une évaluation à froid : date de fin de la session plus le délai du premier envoi (celui de la
+// formation, sinon celui de la société), plus les relances prévues, comptées au plus tôt (une relance part au plus tôt
+// le délai réglé après l'envoi précédent, froid_preparer_corps). Avant cette date, l'évaluation est encore en cours ;
+// après, sans réponse, elle manque (Complétude).
+export function finCycleFroid(fin, reglage, delaiFormation) {
+  if (!fin) return null
+  const r = { ...REGLAGES_FROID_DEFAUT, ...(reglage || {}) }
+  const premier = Number(delaiFormation) > 0 ? Number(delaiFormation) : Number(r.premier_envoi_jours)
+  const relances = Math.max(0, Number(r.relances_max) || 0)
+  const jours = premier + (relances > 0 ? Number(r.relance_apres_jours) + (relances - 1) * Number(r.entre_relances_jours) : 0)
+  const d = new Date(`${String(fin).slice(0, 10)}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + jours)
+  return d.toISOString().slice(0, 10)
+}
+
+// Questions fermées de base de l'employeur (même liste que la base, 0482)
+export const QUESTIONS_EMPLOYEUR_BASE = [
+  { cle: 'e_pratique', libelle: 'Le salarié met en pratique ce qu\'il a appris' },
+  { cle: 'e_besoins', libelle: 'La formation a répondu aux besoins de l\'entreprise' },
+  { cle: 'e_recommande', libelle: 'L\'employeur recommande la formation' },
+]
+
+// Évaluations à froid des employeurs pour les sessions retenues : entreprises sollicitées (envoi parti), réponses
+// reçues, taux de retour et part de « oui » par question de base (Indicateurs, indicateur 30).
+export function statsEmployeurs(envois, reponses, sessionIds) {
+  const dans = new Set(sessionIds || [])
+  const cle = (x) => `${x.session_id}|${x.client_id}`
+  const sollicites = new Set((envois || []).filter((e) => e.cible === 'employeur' && e.statut === 'envoye' && dans.has(e.session_id)).map(cle))
+  const recues = (reponses || []).filter((r) => r.completed_at && dans.has(r.session_id))
+  recues.forEach((r) => sollicites.add(cle(r)))
+  const questions = QUESTIONS_EMPLOYEUR_BASE.map((q) => {
+    const rep = recues.filter((r) => typeof r.reponses?.[q.cle] === 'boolean')
+    const oui = rep.filter((r) => r.reponses[q.cle] === true).length
+    return { ...q, oui, total: rep.length, taux: rep.length ? Math.round((oui / rep.length) * 100) : null }
+  })
+  return {
+    sollicites: sollicites.size,
+    recues: recues.length,
+    tauxRetour: sollicites.size ? Math.round((recues.length / sollicites.size) * 100) : null,
+    questions,
+  }
+}

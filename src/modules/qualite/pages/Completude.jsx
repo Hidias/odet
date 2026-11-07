@@ -16,6 +16,7 @@ import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { buildCompletudePDF } from '../pdf/completudePDF'
 import SearchSelect from '../../../ui/SearchSelect'
 import { etatConvention, groupesParSession, CONVENTION } from '../../formation/lib/etatConvention'
+import { finCycleFroid } from '../lib/froid'
 
 const PRIORITIES = {
   bloquant: { label: 'Bloquant', color: 'red', icon: '' },
@@ -242,7 +243,7 @@ export default function Completude() {
       // (émargements, évaluations et objectifs sont rattachés à session_id + trainee_id)
       const { data: doneSessions } = await fetchAll(() => supabase
         .from('sessions')
-        .select('id, reference, start_date, end_date, start_time, end_time, status, courses(title)')
+        .select('id, reference, start_date, end_date, start_time, end_time, status, company_id, courses(title, froid_delai_jours)')
         .in('status', ['in_progress', 'completed']))
       const sessionById = new Map((doneSessions || []).map((s) => [s.id, s]))
       const doneIds = [...sessionById.keys()]
@@ -253,6 +254,9 @@ export default function Completude() {
         if (error) console.error(`Complétude ${table} :`, error.message)
         return data || []
       }
+      // Délais réglés des évaluations à froid (0482), par société ; sans ligne : valeurs par défaut
+      const { data: reglagesFroid } = await supabase.from('froid_reglages').select('*')
+      const reglageFroidDe = new Map((reglagesFroid || []).map((r) => [r.company_id, r]))
       const [participants, halfdays, hotEvals, coldEvals, objectivesRows] = await Promise.all([
         inDone('session_trainees', 'id, session_id, trainee_id, absent, trainees(first_name, last_name)'),
         inDone('attendance_halfdays', 'session_id, trainee_id, morning, afternoon'),
@@ -270,8 +274,7 @@ export default function Completude() {
       const objectivesBy = groupBy(objectivesRows)
       const hotDone = new Set(hotEvals.filter((e) => e.questionnaire_submitted || e.submitted_at).map(keyOf))
       const coldDone = new Set(coldEvals.filter((e) => e.completed_at).map(keyOf))
-      const threeMonthsAgo = new Date()
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+      const aujourdhui = new Date().toISOString().slice(0, 10)
 
       participants.forEach((st) => {
         const sess = sessionById.get(st.session_id)
@@ -305,9 +308,10 @@ export default function Completude() {
           allIssues.push({ ...base, category: 'evaluations', priority: 'important', detail: 'Évaluation à chaud manquante', since: sess.end_date })
         }
 
-        // 5. ÉVALUATIONS À FROID (sessions terminées depuis plus de 3 mois)
-        if (sess.end_date && new Date(sess.end_date) < threeMonthsAgo && !coldDone.has(k)) {
-          allIssues.push({ ...base, category: 'evaluations', priority: 'important', detail: 'Évaluation à froid manquante (>3 mois)', since: sess.end_date })
+        // 5. ÉVALUATIONS À FROID : manquante une fois passés le premier envoi et les relances prévues (délais réglés)
+        const finCycle = finCycleFroid(sess.end_date, reglageFroidDe.get(sess.company_id), sess.courses?.froid_delai_jours)
+        if (finCycle && finCycle < aujourdhui && !coldDone.has(k)) {
+          allIssues.push({ ...base, category: 'evaluations', priority: 'important', detail: 'Évaluation à froid sans réponse après les relances prévues', since: sess.end_date })
         }
 
         // 7. OBJECTIFS
