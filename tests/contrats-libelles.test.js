@@ -18,3 +18,10 @@ describe('fiche contrat : moment de la facture', () => {
     for (const t of ['P = P0', '(I0)', '0 € sur la visite', 'Facture émise</label>']) expect(f).not.toContain(t)
   })
 })
+
+describe('réglages des interventions : opérations', () => {
+  it('l\'écran dit qu\'on renomme les opérations prévues, sans en ajouter', () => {
+    const r = readFileSync('src/modules/interventions/pages/Reglages.jsx', 'utf8')
+    expect(r).toContain('Renommez ici les opérations prévues par l\'outil')
+  })
+})

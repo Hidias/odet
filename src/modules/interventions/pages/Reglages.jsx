@@ -269,6 +269,7 @@ function ReportSection({ settings, setSettings }) {
         <div><label className="label" htmlFor="rg-obs">Observations de site proposées au technicien (une par ligne)</label><textarea id="rg-obs" className="textarea" rows={6} value={f.site_observations} onChange={(e) => setF({ ...f, site_observations: e.target.value })} /></div>
         <fieldset className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <legend className="label">Libellés des opérations</legend>
+          <p className="sm:col-span-2 text-ui-sm text-gray-500 -mt-1">Renommez ici les opérations prévues par l'outil, comme elles apparaîtront au technicien et sur le rapport. Chacune porte ses règles (information du client, opération proposée selon l'âge de l'appareil) : pour en ajouter une nouvelle, demandez-la au support.</p>
           {Object.keys(DEFAULT_OPERATION_LABELS).map((k) => (
             <div key={k}><label className="sr-only" htmlFor={`rg-op-${k}`}>{DEFAULT_OPERATION_LABELS[k]}</label>
               <input id={`rg-op-${k}`} className="input" value={f.operation_labels[k] || ''} onChange={(e) => setF({ ...f, operation_labels: { ...f.operation_labels, [k]: e.target.value } })} /></div>
