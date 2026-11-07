@@ -5357,8 +5357,10 @@ begin
       h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() + interval '1 hour', 'ticket-0417');
       h_ok := h_ok and not (h_j->>'ok')::boolean;
       execute 'reset role';
+      execute 'set local role anon';
       h_j := public.portal_sign_halfday_differe(h_tok, h_t, 'afternoon', h_sig, now() - interval '5 minutes', null);
-      h_ok := h_ok and not (h_j->>'ok')::boolean;
+      execute 'reset role';
+      h_ok := h_ok and h_j->>'error' = 'Votre accès a expiré : saisissez à nouveau votre code personnel';
       if h_ok then v_lines := v_lines || 'OK      anon  0417 : déjà signée, trop ancienne, dans le futur ou sans ticket (0501) : refusée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   anon  0417 : envoi différé accepté à tort'::text; end if;
       execute 'set local role anon';
