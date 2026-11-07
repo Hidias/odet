@@ -55,7 +55,7 @@ export default function QuoiDeNeuf() {
   }
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto w-full">
+    <div className="space-y-4">
       <PageHeader
         title="Quoi de neuf"
         meta={<span>Les changements de l'application, expliqués simplement.</span>}

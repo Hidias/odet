@@ -270,8 +270,8 @@ export default function ProspectionMassive() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div>
+      <div>
         
         <div className="mb-6">
           <h1 className="page-title mb-2">

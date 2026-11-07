@@ -30,7 +30,7 @@ export default function Previsionnel() {
   if (lignes === null) return <Spinner />
 
   return (
-    <div className="space-y-4 max-w-5xl">
+    <div className="space-y-4">
       <PageHeader title="Prévisionnel" meta={<span>Chiffre d'affaires attendu sur 12 mois, à partir des échéances connues. Montants hors taxes.</span>}
         actions={lignes.length ? <button type="button" className="btn btn-secondary" onClick={() => exporterCsv(lignes.filter((l) => !nature || l.nature === nature))}><Download className="w-4 h-4" /> Exporter</button> : null} />
       {erreur && <Banner tone="warning">{erreur}</Banner>}

@@ -189,7 +189,7 @@ export default function ConsoleErreurs() {
   }
 
   return (
-    <div className="space-y-4 max-w-6xl">
+    <div className="space-y-4">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <Link to="/console" className="text-ui-sm muted inline-flex items-center gap-1 hover:underline"><ArrowLeft className="w-3.5 h-3.5" /> Console</Link>

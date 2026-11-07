@@ -256,14 +256,14 @@ export default function CourseDocumentsList() {
 
   if (loading) {
     return (
-      <div className="p-6 text-center text-gray-500">
+      <div className="py-6 text-center text-gray-500">
         Chargement des formations...
       </div>
     )
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="mb-6">
         <h3 className="text-lg font-semibold mb-2">Documents de formations</h3>

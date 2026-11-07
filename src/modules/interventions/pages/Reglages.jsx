@@ -250,7 +250,7 @@ function ReportSection({ settings, setSettings }) {
     } catch (e) { toast.error(e.message) } finally { setBusy(false) }
   }
   return (
-    <section className="space-y-4 max-w-3xl">
+    <section className="space-y-4">
       <div className="card space-y-3">
         <h3 className="section-title">Étiquettes et facturation</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

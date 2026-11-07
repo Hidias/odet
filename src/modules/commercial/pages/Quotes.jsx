@@ -1359,7 +1359,7 @@ export default function Quotes() {
 
   function renderList() {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
             <h1 className="page-title">Devis</h1>
@@ -1575,7 +1575,7 @@ export default function Quotes() {
     const st = STATUS_CONFIG[currentQuote.status] || STATUS_CONFIG.draft
     const q = currentQuote
     return (
-      <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+      <div>
         <BandeauTest tbl="quotes" id={q.id} />
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
           <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
@@ -1849,7 +1849,7 @@ export default function Quotes() {
     const totals = calcTotals(items, currentQuote.discount_percent, currentQuote.tva_rate, currentQuote.tva_applicable)
     const selectedClient = clients.find(c => c.id === currentQuote.client_id)
     return (
-      <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 sm:mb-6">
           <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
             <button onClick={() => setMode('list')} aria-label="Retour à la liste" className="p-2 -ml-2 sm:ml-0 hover:bg-gray-100 rounded-ui-sm transition-colors shrink-0">

@@ -159,7 +159,7 @@ export default function Console() {
   const supabaseHost = (() => { try { return new URL(import.meta.env.VITE_SUPABASE_URL).host } catch { return '' } })()
 
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="page-title">Console</h1>

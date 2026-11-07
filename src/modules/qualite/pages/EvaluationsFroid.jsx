@@ -117,7 +117,7 @@ export default function EvaluationsFroid() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2"><Clock className="w-5 h-5" />Évaluations à froid</h1>
+          <h1 className="page-title flex items-center gap-2"><Clock className="w-5 h-5" />Évaluations à froid</h1>
           <p className="text-ui text-gray-500 mt-1">Préparées chaque nuit, envoyées seulement après votre validation. Un mail par personne, aucun autre destinataire visible.</p>
         </div>
         <div className="flex flex-wrap gap-2">

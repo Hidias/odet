@@ -159,7 +159,7 @@ export default function Settings() {
     }
   }
 
-  if (loading) return <div className="p-8 text-gray-500">Chargement des paramètres</div>
+  if (loading) return <div className="py-8 text-gray-500">Chargement des paramètres</div>
 
   return (
     <div className="space-y-5">

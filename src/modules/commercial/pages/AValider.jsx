@@ -88,7 +88,7 @@ export default function AValider() {
   }
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4">
       <PageHeader title="Relances à valider" meta={<span>Préparées chaque nuit par l'application ; rien n'est envoyé sans vous.</span>}
         actions={peutRegler ? <button type="button" className="btn btn-secondary" onClick={() => setReglages(true)}>Pilote des sessions</button> : null} />
       {reglages && <PiloteReglages onClose={() => { setReglages(false); load() }} />}
