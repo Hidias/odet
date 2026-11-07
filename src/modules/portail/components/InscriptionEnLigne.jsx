@@ -9,6 +9,19 @@ import { supabase } from '../../../core/supabase'
 
 const vide = { first_name: '', last_name: '', email: '', job_title: '' }
 
+// SIRET facultatif : vide, ou 14 chiffres (espaces ignorés)
+export const siretValide = (s) => { const v = String(s || '').replace(/\s/g, ''); return v === '' || /^[0-9]{14}$/.test(v) }
+
+// Message montré au visiteur : celui de la base s'il est rédigé pour lui, sinon un message simple (jamais le texte
+// technique d'une contrainte, en anglais)
+export function messageErreur(error) {
+  const m = error?.message || ''
+  if (!m || error?.code === '23514' || error?.code === '23502' || /violates|constraint|relation|syntax|function/i.test(m)) {
+    return 'Inscription impossible : vérifiez les champs saisis, ou contactez l\'organisme'
+  }
+  return m
+}
+
 export default function InscriptionEnLigne({ session, mention, onFermer }) {
   const [kind, setKind] = useState('entreprise')
   const [c, setC] = useState({ contact_first_name: '', contact_last_name: '', contact_email: '', contact_phone: '', contact_function: '', company_name: '', siret: '', address: '', postal_code: '', city: '', message: '' })
@@ -36,6 +49,7 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
       ? [{ first_name: c.contact_first_name, last_name: c.contact_last_name, email: c.contact_email }]
       : participants.filter((p) => p.first_name.trim() || p.last_name.trim())
     if (kind === 'entreprise' && parts.length === 0) return setErreur('Indiquez au moins un participant')
+    if (kind === 'entreprise' && !siretValide(c.siret)) return setErreur('Le SIRET compte 14 chiffres (laissez le champ vide si vous ne l\'avez pas)')
     if (!consent) return setErreur('Merci de cocher l\'accord sur l\'usage de vos données')
     setBusy(true)
     const { data: rep, error } = await supabase.rpc('public_inscrire', {
@@ -43,7 +57,7 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
       p_inscription: { ...c, kind, consent, participants: parts, siret: c.siret.replace(/\s/g, '') },
     })
     setBusy(false)
-    if (error) return setErreur(error.message || 'Inscription impossible pour le moment')
+    if (error) return setErreur(messageErreur(error))
     setEnAttente(!!rep?.liste_attente)
     setFait(true)
   }
@@ -63,8 +77,9 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
           <div className="text-center py-6 space-y-2">
             <CheckCircle className="w-12 h-12 mx-auto text-[rgb(var(--c-success))]" aria-hidden="true" />
             <p className="font-medium text-gray-900">{enAttente ? 'Vous êtes sur la liste d\'attente' : 'Demande d\'inscription enregistrée'}</p>
-            {enAttente && <p className="text-sm text-gray-600">La session est complète : dès qu'une place se libère, elle vous est proposée et l'organisme vous recontacte.</p>}
-            <p className="text-sm text-gray-600">L'organisme vous recontacte pour confirmer l'inscription et vous transmettre {kind === 'particulier' ? 'le contrat de formation' : 'la convention'} à signer en ligne. Aucun paiement n'est demandé à ce stade.</p>
+            {enAttente
+              ? <p className="text-sm text-gray-600">La session est complète : dès qu'une place se libère, elle vous est proposée et l'organisme vous recontacte. Aucun paiement n'est demandé à ce stade.</p>
+              : <p className="text-sm text-gray-600">L'organisme vous recontacte pour confirmer l'inscription et vous transmettre {kind === 'particulier' ? 'le contrat de formation' : 'la convention'} à signer en ligne. Aucun paiement n'est demandé à ce stade.</p>}
             <button type="button" className="btn btn-primary" onClick={onFermer}>Fermer</button>
           </div>
         ) : (
@@ -75,33 +90,34 @@ export default function InscriptionEnLigne({ session, mention, onFermer }) {
                   className={`rounded-ui border px-3 py-2 text-sm font-medium ${kind === k ? 'bg-accent-500 text-accent-fg border-accent-500' : 'bg-white text-gray-700 border-gray-200'}`}>{l}</button>
               ))}
             </div>
+            {kind === 'entreprise' && <div className="text-sm font-medium text-gray-800">Vos coordonnées (personne à contacter)</div>}
             <div className="grid grid-cols-2 gap-2">
-              {champ('contact_first_name', 'Prénom *', { required: true, autoComplete: 'given-name' })}
-              {champ('contact_last_name', 'Nom *', { required: true, autoComplete: 'family-name' })}
-              {champ('contact_email', 'Email *', { required: true, type: 'email', autoComplete: 'email' })}
-              {champ('contact_phone', 'Téléphone', { type: 'tel', autoComplete: 'tel' })}
+              {champ('contact_first_name', 'Prénom *', { required: true, maxLength: 80, autoComplete: 'given-name' })}
+              {champ('contact_last_name', 'Nom *', { required: true, maxLength: 80, autoComplete: 'family-name' })}
+              {champ('contact_email', 'Email *', { required: true, maxLength: 200, type: 'email', autoComplete: 'email' })}
+              {champ('contact_phone', 'Téléphone', { maxLength: 40, type: 'tel', autoComplete: 'tel' })}
             </div>
             {kind === 'entreprise' && (
               <>
-                {champ('contact_function', 'Votre fonction')}
+                {champ('contact_function', 'Votre fonction', { maxLength: 120 })}
                 <div className="grid grid-cols-2 gap-2">
-                  {champ('company_name', 'Entreprise *', { required: true, autoComplete: 'organization' })}
-                  {champ('siret', 'SIRET', { inputMode: 'numeric', placeholder: '14 chiffres' })}
+                  {champ('company_name', 'Entreprise *', { required: true, maxLength: 200, autoComplete: 'organization' })}
+                  {champ('siret', 'SIRET', { inputMode: 'numeric', placeholder: '14 chiffres', maxLength: 20 })}
                 </div>
               </>
             )}
             <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-3">{champ('address', 'Adresse', { autoComplete: 'street-address' })}</div>
-              {champ('postal_code', 'Code postal', { autoComplete: 'postal-code', inputMode: 'numeric' })}
-              <div className="col-span-2">{champ('city', 'Ville', { autoComplete: 'address-level2' })}</div>
+              <div className="col-span-3">{champ('address', 'Adresse', { maxLength: 300, autoComplete: 'street-address' })}</div>
+              {champ('postal_code', 'Code postal', { maxLength: 10, autoComplete: 'postal-code', inputMode: 'numeric' })}
+              <div className="col-span-2">{champ('city', 'Ville', { maxLength: 120, autoComplete: 'address-level2' })}</div>
             </div>
             {kind === 'entreprise' && (
               <div className="space-y-2">
                 <div className="text-sm font-medium text-gray-800">Participants ({participants.length} / {max})</div>
                 {participants.map((p, i) => (
                   <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-                    <div><label className="block text-xs text-gray-600" htmlFor={`p-${i}-fn`}>Prénom</label><input id={`p-${i}-fn`} className="input" value={p.first_name} onChange={(e) => setParticipants(participants.map((x, j) => (j === i ? { ...x, first_name: e.target.value } : x)))} /></div>
-                    <div><label className="block text-xs text-gray-600" htmlFor={`p-${i}-ln`}>Nom</label><input id={`p-${i}-ln`} className="input" value={p.last_name} onChange={(e) => setParticipants(participants.map((x, j) => (j === i ? { ...x, last_name: e.target.value } : x)))} /></div>
+                    <div><label className="block text-xs text-gray-600" htmlFor={`p-${i}-fn`}>Prénom</label><input id={`p-${i}-fn`} className="input" maxLength={80} value={p.first_name} onChange={(e) => setParticipants(participants.map((x, j) => (j === i ? { ...x, first_name: e.target.value } : x)))} /></div>
+                    <div><label className="block text-xs text-gray-600" htmlFor={`p-${i}-ln`}>Nom</label><input id={`p-${i}-ln`} className="input" maxLength={80} value={p.last_name} onChange={(e) => setParticipants(participants.map((x, j) => (j === i ? { ...x, last_name: e.target.value } : x)))} /></div>
                     <button type="button" className="p-2 text-gray-400 hover:text-[rgb(var(--c-danger))] disabled:opacity-30" disabled={participants.length === 1} aria-label={`Retirer le participant ${i + 1}`} onClick={() => setParticipants(participants.filter((_, j) => j !== i))}><Trash2 className="w-4 h-4" /></button>
                   </div>
                 ))}
