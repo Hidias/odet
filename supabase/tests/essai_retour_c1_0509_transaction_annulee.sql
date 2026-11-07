@@ -67,8 +67,10 @@ create temp table etat_essai_avant as select * from etat_essai;
 --      société de l'accès.
 --   5. Qui voit quoi (relecture de 0509 ; 0482 ouvrait plus large, sans conséquence tant qu'aucun compte n'existait) :
 --      le questionnaire de l'employeur n'est proposé qu'à l'entreprise qui a acheté la formation (client de la session,
---      ou groupe non annulé d'une inter), comme client_portal_data ; une entreprise ne voit une autre formation que pour
---      les salariés que l'organisme lui a demandé de relancer (envoi « contact » à son adresse), avec leur code.
+--      ou groupe non annulé d'une inter), ou à l'employeur d'un stagiaire que l'organisme a choisi d'interroger (envoi
+--      « employeur » préparé pour lui par app.froid_preparer_corps, qui retient le client de la session et celui de chaque
+--      stagiaire présent) ; une entreprise ne voit une autre formation que pour ce questionnaire ou pour les salariés que
+--      l'organisme lui a demandé de relancer (envoi « contact » à son adresse), avec leur code.
 -- Retour arrière : supabase/rollback/0509_froid_employeur_par_lien_retour.sql (corps de 0482, fonctions du lien retirées ;
 -- l'accès qui a donné chaque réponse par le lien est recopié dans audit_logs, puis la colonne repondu_acces est retirée).
 -- Le code de l'écran et de l'API (lien du mail vers l'espace par lien) se retire avec lui.
@@ -95,7 +97,8 @@ begin
     'sessions', coalesce((select jsonb_agg(jsonb_build_object(
         'session_id', se.id, 'formation', co.title, 'debut', se.start_date, 'fin', coalesce(se.end_date, se.start_date),
         'employeur', case when (se.client_id = p_client
-                                or exists (select 1 from public.session_groups g where g.session_id = se.id and g.client_id = p_client and g.status is distinct from 'cancelled'))
+                                or exists (select 1 from public.session_groups g where g.session_id = se.id and g.client_id = p_client and g.status is distinct from 'cancelled')
+                                or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur'))
                            and (r.employeur_actif or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur' and e.statut = 'envoye')) then jsonb_build_object(
             'recue', fe.completed_at is not null, 'recue_le', fe.completed_at,
             'questions', app.froid_questions(se.id, 'employeur')) end,
@@ -119,6 +122,7 @@ begin
         -- formation achetée par l'entreprise (client ou groupe non annulé), ou salarié à relancer par elle (envoi « contact »)
         and (se.client_id = p_client
              or exists (select 1 from public.session_groups g where g.session_id = se.id and g.client_id = p_client and g.status is distinct from 'cancelled')
+             or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur')
              or exists (select 1 from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id
                          where st.session_id = se.id and tr.client_id = p_client and not coalesce(st.absent, false)
                            and exists (select 1 from public.froid_envois e where e.session_id = se.id and e.trainee_id = st.trainee_id

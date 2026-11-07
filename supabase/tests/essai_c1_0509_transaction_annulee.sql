@@ -20,8 +20,10 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      société de l'accès.
 --   5. Qui voit quoi (relecture de 0509 ; 0482 ouvrait plus large, sans conséquence tant qu'aucun compte n'existait) :
 --      le questionnaire de l'employeur n'est proposé qu'à l'entreprise qui a acheté la formation (client de la session,
---      ou groupe non annulé d'une inter), comme client_portal_data ; une entreprise ne voit une autre formation que pour
---      les salariés que l'organisme lui a demandé de relancer (envoi « contact » à son adresse), avec leur code.
+--      ou groupe non annulé d'une inter), ou à l'employeur d'un stagiaire que l'organisme a choisi d'interroger (envoi
+--      « employeur » préparé pour lui par app.froid_preparer_corps, qui retient le client de la session et celui de chaque
+--      stagiaire présent) ; une entreprise ne voit une autre formation que pour ce questionnaire ou pour les salariés que
+--      l'organisme lui a demandé de relancer (envoi « contact » à son adresse), avec leur code.
 -- Retour arrière : supabase/rollback/0509_froid_employeur_par_lien_retour.sql (corps de 0482, fonctions du lien retirées ;
 -- l'accès qui a donné chaque réponse par le lien est recopié dans audit_logs, puis la colonne repondu_acces est retirée).
 -- Le code de l'écran et de l'API (lien du mail vers l'espace par lien) se retire avec lui.
@@ -48,7 +50,8 @@ begin
     'sessions', coalesce((select jsonb_agg(jsonb_build_object(
         'session_id', se.id, 'formation', co.title, 'debut', se.start_date, 'fin', coalesce(se.end_date, se.start_date),
         'employeur', case when (se.client_id = p_client
-                                or exists (select 1 from public.session_groups g where g.session_id = se.id and g.client_id = p_client and g.status is distinct from 'cancelled'))
+                                or exists (select 1 from public.session_groups g where g.session_id = se.id and g.client_id = p_client and g.status is distinct from 'cancelled')
+                                or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur'))
                            and (r.employeur_actif or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur' and e.statut = 'envoye')) then jsonb_build_object(
             'recue', fe.completed_at is not null, 'recue_le', fe.completed_at,
             'questions', app.froid_questions(se.id, 'employeur')) end,
@@ -72,6 +75,7 @@ begin
         -- formation achetée par l'entreprise (client ou groupe non annulé), ou salarié à relancer par elle (envoi « contact »)
         and (se.client_id = p_client
              or exists (select 1 from public.session_groups g where g.session_id = se.id and g.client_id = p_client and g.status is distinct from 'cancelled')
+             or exists (select 1 from public.froid_envois e where e.session_id = se.id and e.client_id = p_client and e.cible = 'employeur')
              or exists (select 1 from public.session_trainees st join public.trainees tr on tr.id = st.trainee_id
                          where st.session_id = se.id and tr.client_id = p_client and not coalesce(st.absent, false)
                            and exists (select 1 from public.froid_envois e where e.session_id = se.id and e.trainee_id = st.trainee_id
@@ -286,6 +290,18 @@ begin
       raise exception '6e. réponse acceptée pour une formation d''un autre client';
     exception when sqlstate '22023' then null;
     end;
+    -- Employeur du salarié interrogé par l'organisme (envoi « employeur » préparé par la vraie préparation, 0482) :
+    -- questionnaire proposé et réponse acceptée, même si l'entreprise n'a pas acheté la formation
+    insert into public.client_contacts (client_id, name, email, is_followup) values (v_a, 'Service RH', 'rh-alpha@example.invalid', true);
+    perform app.froid_preparer_corps(array[v_cie], current_date);
+    if not exists (select 1 from public.froid_envois e where e.session_id = v_sb and e.client_id = v_a and e.cible = 'employeur') then
+      raise exception '6h. préparation : employeur du salarié non retenu';
+    end if;
+    v_r := public.client_portal_froid(v_tok, '482915');
+    select x into v_r from jsonb_array_elements(v_r -> 'sessions') x where (x ->> 'session_id')::uuid = v_sb;
+    if jsonb_typeof(v_r -> 'employeur') <> 'object' then raise exception '6h2. employeur du salarié sans questionnaire (%)', v_r; end if;
+    v_r := public.client_portal_froid_repondre(v_tok, '482915', v_sb, v_ok);
+    if not coalesce((v_r ->> 'success')::boolean, false) then raise exception '6i. réponse de l''employeur du salarié refusée (%)', v_r; end if;
     -- Inter : groupe de l'entreprise proposé ; groupe annulé, plus proposé
     insert into public.sessions (reference, start_date, end_date, client_id, company_id, status, session_type)
       values ('ESSAI-0509-I', current_date - 71, current_date - 70, v_b, v_cie, 'completed', 'inter') returning id into v_si;

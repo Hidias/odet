@@ -110,6 +110,18 @@ begin
       raise exception '6e. réponse acceptée pour une formation d''un autre client';
     exception when sqlstate '22023' then null;
     end;
+    -- Employeur du salarié interrogé par l'organisme (envoi « employeur » préparé par la vraie préparation, 0482) :
+    -- questionnaire proposé et réponse acceptée, même si l'entreprise n'a pas acheté la formation
+    insert into public.client_contacts (client_id, name, email, is_followup) values (v_a, 'Service RH', 'rh-alpha@example.invalid', true);
+    perform app.froid_preparer_corps(array[v_cie], current_date);
+    if not exists (select 1 from public.froid_envois e where e.session_id = v_sb and e.client_id = v_a and e.cible = 'employeur') then
+      raise exception '6h. préparation : employeur du salarié non retenu';
+    end if;
+    v_r := public.client_portal_froid(v_tok, '482915');
+    select x into v_r from jsonb_array_elements(v_r -> 'sessions') x where (x ->> 'session_id')::uuid = v_sb;
+    if jsonb_typeof(v_r -> 'employeur') <> 'object' then raise exception '6h2. employeur du salarié sans questionnaire (%)', v_r; end if;
+    v_r := public.client_portal_froid_repondre(v_tok, '482915', v_sb, v_ok);
+    if not coalesce((v_r ->> 'success')::boolean, false) then raise exception '6i. réponse de l''employeur du salarié refusée (%)', v_r; end if;
     -- Inter : groupe de l'entreprise proposé ; groupe annulé, plus proposé
     insert into public.sessions (reference, start_date, end_date, client_id, company_id, status, session_type)
       values ('ESSAI-0509-I', current_date - 71, current_date - 70, v_b, v_cie, 'completed', 'inter') returning id into v_si;
