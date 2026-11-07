@@ -128,7 +128,7 @@ export function useRelanceIA() {
 
     try {
       // Texte saisi mis en HTML, toujours échappé (« R&D », « < 10 »)
-      const htmlBody = texteEnHtml(body)
+      const htmlBody = texteEnHtml(body, { ligneParParagraphe: true })
 
       const res = await apiFetch('/api/send-prospect-email', {
         method: 'POST',

@@ -10,13 +10,32 @@ export const echapperHtml = (texte) => String(texte ?? '')
   .replace(/'/g, '&#39;')
 
 // Une ligne vide sépare deux paragraphes, un simple retour à la ligne reste
-// dans le paragraphe.
-export function texteEnHtml(texte) {
-  return String(texte ?? '')
-    .replace(/\r\n?/g, '\n')
-    .split(/\n\s*\n/)
-    .map((bloc) => bloc.split('\n').map((l) => l.trim()).filter(Boolean))
+// dans le paragraphe. { ligneParParagraphe: true } : chaque ligne non vide
+// devient un paragraphe (relances de devis, texte écrit ligne à ligne).
+export function texteEnHtml(texte, { ligneParParagraphe = false } = {}) {
+  const propre = String(texte ?? '').replace(/\r\n?/g, '\n')
+  const blocs = ligneParParagraphe ? propre.split('\n').map((l) => [l]) : propre.split(/\n\s*\n/).map((b) => b.split('\n'))
+  return blocs
+    .map((lignes) => lignes.map((l) => l.trim()).filter(Boolean))
     .filter((lignes) => lignes.length)
     .map((lignes) => `<p>${lignes.map(echapperHtml).join('<br>')}</p>`)
     .join('')
+}
+
+// HTML ramené au texte lisible (zone de texte, aperçu d'un e-mail envoyé).
+// « &amp; » est décodé en dernier : « &amp;lt; » redonne « &lt; », pas « < ».
+export function htmlEnTexte(html) {
+  return String(html ?? '')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<p[^>]*>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }

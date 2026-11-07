@@ -5,6 +5,7 @@
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import crypto from 'crypto'
+import { htmlEnTexte } from '../../src/core/html.js'
 
 // ---- Supabase (clé serveur) -------------------------------------------------
 export function getSupabaseAdmin() {
@@ -381,7 +382,7 @@ export function wrapEmailHTML(body, sender, org, variant = 'standard') {
   return `
     <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 650px;">
       ${normalizeBodyStyles(body || '')}
-      <p style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:16px 0 10px 0;">Bien cordialement,</p>
+      ${finirParCordialement(htmlEnTexte(body)) ? '' : '<p style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:16px 0 10px 0;">Bien cordialement,</p>'}
       ${buildSignatureHTML(sender, org, variant)}
     </div>
   `
