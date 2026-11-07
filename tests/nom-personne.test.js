@@ -80,3 +80,13 @@ describe('formule d\'appel en casse normale, affichage en « NOM Prénom »', ()
     expect(l[0].libelle).toBe('Paul - p@example.invalid')
   })
 })
+
+import { texteRelance } from '../api/relances-circuit.js'
+import { texteDemande } from '../api/nir-demande.js'
+
+describe('e-mails automatiques au contact : formule d\'appel en casse normale', () => {
+  it('relance participants et demande de numéro', () => {
+    expect(texteRelance({ kind: 'participants', contact_name: 'MARTIN', start_date: '2026-12-01' }, 'Org').corps.startsWith('Bonjour Martin,')).toBe(true)
+    expect(texteDemande({ contact_name: 'DURAND Paul', first_name: 'Léa', last_name: 'Roux', start_date: '2026-12-01', end_date: '2026-12-01' }).corps.startsWith('Bonjour Paul Durand,')).toBe(true)
+  })
+})

@@ -16,6 +16,7 @@ import { requireCronOrRole, ADMINS } from './_lib/auth.js'
 import { internalMailer } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
 import { withJobLog } from './_lib/taches.js'
+import { nomPourAppel } from '../src/core/nomPersonne.js'
 
 export const config = { maxDuration: 60 }
 
@@ -24,7 +25,7 @@ const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLoca
 
 export function texteRelance(r, orgName) {
   const quand = `${dateFr(r.start_date)}${r.start_time ? ` à ${String(r.start_time).slice(0, 5).replace(':', 'h')}` : ''}`
-  const bonjour = r.contact_name ? `Bonjour ${r.contact_name},` : 'Bonjour,'
+  const bonjour = r.contact_name ? `Bonjour ${nomPourAppel(r.contact_name)},` : 'Bonjour,'
   if (r.kind === 'participants') {
     return {
       sujet: `Participants à indiquer : ${r.course || 'votre formation'} du ${dateFr(r.start_date)}`,

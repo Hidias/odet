@@ -18,6 +18,7 @@ import { getSupabaseAdmin, getMailer, getMailerByEmail, getSender, getOrg, build
 import { internalMailer } from './_lib/internal.js'
 import { requireRight, OFFICE_WRITE, clientDeLAppelant } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { nomPourAppel } from '../src/core/nomPersonne.js'
 
 export const config = { maxDuration: 30 }
 
@@ -32,7 +33,7 @@ export function texteDemande(d, orgName = '') {
   const quand = d.start_date && d.end_date && d.start_date !== d.end_date ? `du ${dateFr(d.start_date)} au ${dateFr(d.end_date)}` : `le ${dateFr(d.start_date)}`
   return {
     sujet: `N° de sécurité sociale de ${qui} : formation ${d.course ? `« ${d.course} »` : ''} ${quand}`.replace(/\s+/g, ' '),
-    corps: `${d.contact_name ? `Bonjour ${d.contact_name},` : 'Bonjour,'}\n\n`
+    corps: `${d.contact_name ? `Bonjour ${nomPourAppel(d.contact_name)},` : 'Bonjour,'}\n\n`
       + `${qui} suit la formation${d.course ? ` « ${d.course} »` : ''} ${quand}. Pour l'inscrire à son passeport de prévention, nous avons besoin de son numéro de sécurité sociale, qu'il ne retrouve pas.\n\n`
       + `Il autorise votre entreprise à nous le transmettre : son autorisation signée est jointe à ce message.\n\n`
       + `Merci de saisir ce numéro dans votre espace client${orgName ? ` ${orgName}` : ''}, rubrique « Numéros demandés » (accès avec l'adresse et le code habituels). Il est vérifié à la saisie et rangé à part. Pour sa protection, merci de ne pas nous l'envoyer par e-mail.\n\n`
