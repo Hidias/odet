@@ -830,7 +830,7 @@ export default function DuerpDetail() {
   const st = STATUS_CONFIG[project.status] || STATUS_CONFIG.brouillon
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-6">
+    <div>
 
       {/* ═══════════ HEADER ═══════════ */}
       <div className="mb-4">

@@ -113,15 +113,15 @@ export default function MultiEtablissements() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <p className="text-gray-600">Chargement...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
+    <div>
+      <div>
         
         <div className="mb-6">
           <h1 className="page-title mb-2">

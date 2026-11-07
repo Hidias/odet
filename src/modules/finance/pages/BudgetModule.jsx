@@ -392,7 +392,7 @@ export default function BudgetModule() {
   if (loading) return <div className="p-8 text-center text-gray-400"> Chargement...</div>
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
+    <div>
       {/* Header */}
       <div className="bg-white rounded-ui shadow-sm border p-4 mb-4">
         <div className="flex justify-between items-center mb-2">

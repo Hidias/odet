@@ -894,7 +894,7 @@ export default function ClientDetail() {
   const nextActionRdv = rdvs.find(r => r.status !== 'annule' && r.next_action)
 
   return (
-    <div className="p-3 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6">
 
       {/* ══════ HEADER ══════ */}
       <div className="flex items-center justify-between flex-wrap gap-2">

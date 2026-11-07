@@ -211,5 +211,5 @@ export default function EmailSettings({ embedded = false }) {
   )
 
   if (embedded) return content
-  return <div className="card max-w-3xl">{content}</div>
+  return <div className="card">{content}</div>
 }

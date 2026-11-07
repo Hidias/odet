@@ -207,9 +207,9 @@ function ListeRelectures() {
     )
   }
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-5">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Relectures de documents</h1>
+        <h1 className="page-title">Relectures de documents</h1>
         <p className="text-ui-sm text-gray-500">Documents à relire, à arbitrer ou chez l'expert. Un document se met en relecture depuis Processus qualité, Documents.</p>
       </div>
       <section><h2 className="text-ui-sm font-semibold text-gray-500 uppercase mb-2">En cours</h2>
@@ -345,7 +345,7 @@ function Circuit({ id }) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto p-3 sm:p-4 space-y-4">
+    <div className="space-y-4">
       <div className="flex items-start gap-2">
         <button type="button" onClick={() => navigate('/relectures')} className="h-11 w-11 flex items-center justify-center rounded-ui-sm hover:bg-gray-100" aria-label="Retour aux relectures"><ChevronLeft className="w-5 h-5" /></button>
         <div className="flex-1 min-w-0">

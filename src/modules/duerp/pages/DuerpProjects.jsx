@@ -508,7 +508,7 @@ export default function DuerpProjects() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div>
       {/* HEADER */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>

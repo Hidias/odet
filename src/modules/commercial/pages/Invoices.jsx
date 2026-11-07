@@ -1310,7 +1310,7 @@ export default function Invoices() {
   // LIST
   // ═══════════════════════════════════════
   if (mode === 'list') return (
-    <div className="md:p-6 max-w-7xl mx-auto">
+    <div>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-6">
         <h1 className="page-title">Facturation</h1>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:justify-end">
@@ -1724,7 +1724,7 @@ export default function Invoices() {
   const client = clients.find(c => c.id === current?.client_id)
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl mx-auto">
+    <div>
       {estTest('invoices', current?.id) ? <BandeauTest tbl="invoices" id={current?.id} /> : <BandeauTest tbl="clients" id={current?.client_id} />}
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => { setMode('list'); loadAll() }} className="p-2 hover:bg-gray-100 rounded-ui-sm"><ChevronLeft size={20} /></button>

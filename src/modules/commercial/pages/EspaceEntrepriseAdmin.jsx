@@ -81,7 +81,7 @@ export default function EspaceEntrepriseAdmin() {
   const nbOuvertes = (demandes || []).filter((r) => ['nouvelle', 'en_cours'].includes(r.status)).length
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4">
       <PageHeader title="Espace entreprise" meta={<span>Demandes des clients et actualités publiées dans leurs espaces. Les comptes se créent sur la fiche client.</span>} />
       {indispo && <Banner tone="warning">L'espace entreprise n'est pas encore disponible. Prévenez le support.</Banner>}
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Espace entreprise">
