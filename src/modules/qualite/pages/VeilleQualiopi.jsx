@@ -332,7 +332,7 @@ export default function VeilleQualiopi() {
             return (
               <div key={veille.id} className="card hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 [overflow-wrap:anywhere]">
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-ui-sm font-medium`}
                         style={{ 
