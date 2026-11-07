@@ -4828,8 +4828,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </button>}
           </div>
 
-          {/* Barre de couverture. Entreprise qui paie seule (financement « aucun ») et aucun financeur saisi : rien
-              « à financer », pas de barre orange à 0 % qui inquiète pour rien (A11, 07/11) */}
+          {/* Barre de couverture. Aucun financeur extérieur prévu (financement « aucun », non choisi ou « direct ») et aucun
+              financeur saisi : pas de barre orange à 0 % qui inquiète pour rien (A11, 07/11) */}
           {sessionFundings.length === 0 && sansFinanceurPrevu(session.funding_type) ? (
             <p className="mb-5 p-4 rounded-ui-sm border bg-gray-50 text-ui text-gray-700">
               Aucun financeur extérieur prévu (OPCO, CPF...).{d.modifier ? ' Ajoutez-en un seulement si un organisme prend en charge tout ou partie du prix.' : ''}
@@ -4871,7 +4871,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
           {/* Liste des financeurs */}
           {sessionFundings.length === 0 ? (
-            !sansFinanceurPrevu(session.funding_type) && <p className="text-gray-500 text-center py-8">Aucun financement renseigné. Cliquez sur « Ajouter un financeur » pour commencer.</p>
+            !sansFinanceurPrevu(session.funding_type) && <p className="text-gray-500 text-center py-8">Aucun financement renseigné.{d.modifier ? ' Cliquez sur « Ajouter un financeur » pour commencer.' : ''}</p>
           ) : (
             <div className="space-y-3">
               <table className="w-full text-ui">

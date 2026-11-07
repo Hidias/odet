@@ -198,7 +198,7 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div><label className="label" htmlFor="cr-nbj">Jours ouvrés</label><input id="cr-nbj" type="number" min="1" max="10" className="input" value={form.nb_jours} onChange={(e) => f('nb_jours', e.target.value)} /></div>
+              <div><label className="label" htmlFor="cr-nbj">Jours ouvrés</label><input id="cr-nbj" type="number" min="1" max="10" className="input" value={form.nb_jours} onChange={(e) => { const co = courses.find((x) => x.id === form.course_id); setForm({ ...form, nb_jours: e.target.value, end_time: co && form.end_time === finConseillee(form.start_time, co.duration_hours, form.nb_jours) ? finConseillee(form.start_time, co.duration_hours, e.target.value) : form.end_time }) }} /></div>
               <div><label className="label" htmlFor="cr-hd">Début</label><input id="cr-hd" type="time" className="input" value={form.start_time} onChange={(e) => { const co = courses.find((x) => x.id === form.course_id); setForm({ ...form, start_time: e.target.value, end_time: co ? finApresDebut(form.start_time, e.target.value, form.end_time, co.duration_hours, form.nb_jours) : form.end_time }) }} /></div>
               <div><label className="label" htmlFor="cr-hf">Fin</label><input id="cr-hf" type="time" className="input" value={form.end_time} onChange={(e) => f('end_time', e.target.value)} /></div>
             </div>
