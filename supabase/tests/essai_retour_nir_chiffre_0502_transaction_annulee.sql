@@ -53,7 +53,7 @@ create temp table etat_essai_avant as select * from etat_essai;
 -- ===== supabase/migrations/0502_nir_chiffre.sql =====
 -- 0502 : numéro de sécurité sociale chiffré dans trainee_ssn (décision de H du 07/11 : coffre Supabase).
 -- trainee_ssn reçoit le numéro saisi sur la fiche de renseignements du portail, la liste des participants ou transmis
--- par l'entreprise (déclencheurs trainee_ssn_capture et info_sheet_ssn_capture, inchangés) ; la reprise automatique
+-- par l'entreprise (déclencheurs trainee_ssn_capture et info_sheet_ssn_capture, voir 3) ; la reprise automatique
 -- du Passeport (api/passeport.js, toutes les 15 minutes) le passe dans pp_nir, chiffré par le serveur, puis l'efface.
 -- Jusqu'ici il restait en clair entre les deux (table fermée à tous les comptes).
 --   1. Clé tirée au hasard et rangée dans le coffre Supabase (vault, secret odet_trainee_ssn) ; elle n'est ni dans le
