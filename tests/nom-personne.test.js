@@ -90,3 +90,10 @@ describe('e-mails automatiques au contact : formule d\'appel en casse normale', 
     expect(texteDemande({ contact_name: 'DURAND Paul', first_name: 'Léa', last_name: 'Roux', start_date: '2026-12-01', end_date: '2026-12-01' }).corps.startsWith('Bonjour Paul Durand,')).toBe(true)
   })
 })
+
+describe('espace entreprise : invitation au nom affiché', () => {
+  it('« NOM Prénom » et non « Prénom NOM »', () => {
+    const s = readFileSync('src/modules/commercial/components/ComptesEntreprise.jsx', 'utf8')
+    expect(s).toContain("c.name || [c.last_name, c.first_name]")
+  })
+})
