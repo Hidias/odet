@@ -28,29 +28,41 @@ export const TEXTE_EN_LIGNE_COURT = 'Scannez le QR code ou saisissez l\'adresse 
 
 const mesures = (compact) => (compact ? { qrS: 22, taille: 7.8, url: 6.6, pas: 3.5, pasUrl: 3 } : { qrS: 26, taille: 8.5, url: 8, pas: 4, pasUrl: 3.6 })
 
-// Hauteur de l'encadré (mm) pour une largeur donnée
-export function hauteurEncadreEnLigne(doc, w, lien = null, compact = false) {
+// Encadré « Répondre en ligne » du questionnaire de satisfaction entreprise (invitation à donner son avis, 07/11) :
+// même encadré, autres textes
+export const TEXTES_AVIS = {
+  titre: 'RÉPONDRE EN LIGNE',
+  texte: 'Vous pouvez aussi donner votre avis en ligne depuis votre espace client : scannez le QR code ou saisissez l\'adresse ci-dessous, puis « Donner mon avis » sur la formation.',
+}
+const textesDe = (textes, compact) => ({
+  titre: textes?.titre || 'SIGNER EN LIGNE',
+  texte: textes?.texte || (compact ? TEXTE_EN_LIGNE_COURT : TEXTE_EN_LIGNE),
+})
+
+// Hauteur de l'encadré (mm) pour une largeur donnée ; textes : TEXTES_AVIS, sinon « Signer en ligne »
+export function hauteurEncadreEnLigne(doc, w, lien = null, compact = false, textes = null) {
   const m = mesures(compact)
   const tw = w - m.qrS - 18
   setF(doc, 'normal'); doc.setFontSize(m.taille)
-  const lignes = doc.splitTextToSize(compact ? TEXTE_EN_LIGNE_COURT : TEXTE_EN_LIGNE, tw).length
+  const lignes = doc.splitTextToSize(textesDe(textes, compact).texte, tw).length
   doc.setFontSize(m.url)
   const url = lien ? doc.splitTextToSize(lien.url, tw).length : 2
   return Math.max(m.qrS + 8, 11 + lignes * m.pas + 1.5 + url * m.pasUrl + 2 + 6)
 }
 
 /** Dessine l'encadré à (x, y), largeur w ; theme = { accent, text, muted, surface, line } en [r, g, b] ; renvoie sa hauteur */
-export function dessinerEncadreEnLigne(doc, theme, x, y, w, lien, compact = false) {
+export function dessinerEncadreEnLigne(doc, theme, x, y, w, lien, compact = false, textes = null) {
   const m = mesures(compact)
-  const h = hauteurEncadreEnLigne(doc, w, lien, compact)
+  const tx = textesDe(textes, compact)
+  const h = hauteurEncadreEnLigne(doc, w, lien, compact, textes)
   const qrS = m.qrS
   doc.setFillColor(...theme.surface); doc.rect(x, y, w, h, 'F')
   doc.setFillColor(...theme.accent); doc.rect(x, y, 1.2, h, 'F')
   setF(doc, 'bold'); doc.setFontSize(7); doc.setTextColor(...theme.accent)
-  doc.text('SIGNER EN LIGNE', x + 5, y + 6, { charSpace: 0.4 })
+  doc.text(tx.titre, x + 5, y + 6, { charSpace: 0.4 })
   setF(doc, 'normal'); doc.setFontSize(m.taille); doc.setTextColor(...theme.text)
   const tw = w - qrS - 18
-  const lignes = doc.splitTextToSize(compact ? TEXTE_EN_LIGNE_COURT : TEXTE_EN_LIGNE, tw)
+  const lignes = doc.splitTextToSize(tx.texte, tw)
   lignes.forEach((l, i) => doc.text(l, x + 5, y + 11.5 + i * m.pas))
   let yy = y + 11.5 + lignes.length * m.pas + 1.5
   doc.setFontSize(m.url); doc.setTextColor(...theme.accent)
