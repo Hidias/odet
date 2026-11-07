@@ -253,8 +253,6 @@ html[data-radius='lg'] { --radius-ui-sm: 8px; --radius-ui: 12px; --radius-ui-lg:
   .badge-red { @apply badge-danger; }
   .badge-blue { @apply badge-info; }
   .badge-gray { @apply badge-neutral; }
-  .badge-campus { @apply badge-brand; }
-  .btn-campus { @apply btn-primary; }
 
   .page-title { @apply font-display font-semibold text-gray-900; font-size: calc(var(--text-ui) * 1.7); }
   .section-title { @apply font-display font-semibold text-gray-900; font-size: calc(var(--text-ui) * 1.1); }

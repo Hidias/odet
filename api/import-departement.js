@@ -15,7 +15,7 @@ import { withErrorLog } from './_lib/errors.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const CLE_SERVEUR = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const TRANCHES_EFFECTIF = ['53', '52', '51', '42', '41', '32', '31', '22', '21', '12', '11', '03', '02', '01']
 const API_BASE_URL = 'https://recherche-entreprises.api.gouv.fr/search'
@@ -242,10 +242,10 @@ async function handler(req, res) {
   }
   
   try {
-    if (!SUPABASE_SERVICE_KEY) {
+    if (!CLE_SERVEUR) {
       return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY manquante' })
     }
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    const supabase = createClient(SUPABASE_URL, CLE_SERVEUR)
     
     let allResults = []
     

@@ -28,7 +28,7 @@ import { withJobLog } from './_lib/taches.js'
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL
 // Clé serveur : la table prospection_massive est protégée (RLS, accès connecté uniquement)
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const CLE_SERVEUR = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 // ============================================================================
 // CONFIGURATION PRUDENTE
@@ -354,10 +354,10 @@ async function handler(req, res) {
   const batchSize = Math.min(req.body?.batch_size || DEFAULT_BATCH_SIZE, 15) // Max 15 sécurité
 
   try {
-    if (!SUPABASE_SERVICE_KEY) {
+    if (!CLE_SERVEUR) {
       return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY manquante' })
     }
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    const supabase = createClient(SUPABASE_URL, CLE_SERVEUR)
     // Module Prospection coupé : rien ne tourne, ni la nuit ni à la main (état des lieux du 04/11, écart E6)
     const { data: mod } = await supabase.from('org_modules').select('enabled').eq('key', 'prospection').maybeSingle()
     if (!mod?.enabled) {
