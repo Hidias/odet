@@ -276,7 +276,7 @@ export const RULES = {
       e.n.trainerCerts ? ok(`Certificats des formateurs : ${e.n.trainerCerts}`, L.formateurs) : ko('Aucun certificat de formateur déposé', L.formateurs),
     ],
     // L'évaluation de la session par le formateur est une appréciation de l'équipe pédagogique : indicateur 30, pas 21
-    missing: ['Garder la trace de l\'évaluation des compétences des formateurs et intervenants (entretien, observation en séance)'],
+    missing: ['Garder une trace de l\'évaluation des compétences des formateurs et intervenants, par exemple une observation en séance'],
   }),
   22: (e) => ({
     items: [
