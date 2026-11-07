@@ -24,6 +24,7 @@ describe('contacts en « NOM Prénom » (même règle que 0508)', () => {
     expect(memesMots('Paul Durand', 'DURAND Pierre')).toBe(false)
     expect(memesMots('Jean Pierre Durand', 'DURAND Jean-Pierre')).toBe(true)
     expect(memesMots('Durand, Paul', 'DURAND Paul')).toBe(true)
+    expect(memesMots('Helene Durand', 'DURAND Hélène')).toBe(true)
     expect(memesMots('', '')).toBe(false)
   })
 
@@ -49,5 +50,25 @@ describe('contacts en « NOM Prénom » (même règle que 0508)', () => {
       expect(s, f).not.toMatch(/Prénom Nom \*|Nom complet \*/)
     }
     expect(readFileSync('src/modules/formation/components/MultiSiretWizard.jsx', 'utf8')).not.toMatch(/ilike\('name'/)
+  })
+})
+
+import { nomContact, formuleAppel, nomAppel } from '../src/core/genre.js'
+import { adressesProposees } from '../src/modules/commercial/lib/adressesEnvoi.js'
+
+describe('formule d\'appel en casse normale, affichage en « NOM Prénom »', () => {
+  const c = { civilite: 'M', name: 'LE MEUR Ronan', last_name: 'LE MEUR', first_name: 'Ronan' }
+  it('e-mails : « Ronan Le Meur », « Monsieur Le Meur »', () => {
+    expect(nomContact({ ...c, civilite: null }, { appel: true })).toBe('Ronan Le Meur')
+    expect(nomContact(c, { courte: false, nomDeFamille: true, appel: true })).toBe('Monsieur Le Meur')
+    expect(formuleAppel({ genre: 'Mme', nom: nomAppel({ last_name: 'DURAND' }).nom })).toBe('Madame Durand,')
+  })
+  it('affichage : nom enregistré', () => {
+    expect(nomContact(c)).toBe('M. LE MEUR Ronan')
+    expect(nomContact({ name: 'Contact général' }, { appel: true })).toBe('Contact général')
+  })
+  it('choix d\'adresse : pas de prénom doublé', () => {
+    const l = adressesProposees([{ name: 'Paul', first_name: 'Paul', last_name: null, email: 'p@example.invalid' }])
+    expect(l[0].libelle).toBe('Paul - p@example.invalid')
   })
 })

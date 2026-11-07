@@ -12,6 +12,7 @@ import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { chargerCapacites } from '../../../core/capacites'
 import { modeleRelanceDevis } from '../../../core/emails/modeles'
+import { nomContact } from '../../../core/genre'
 
 /**
  * Hook pour gérer les relances de devis avec génération IA
@@ -47,7 +48,7 @@ export function useRelanceIA() {
 
     // Sans assistant de rédaction : texte modèle directement, sans message d'erreur (décision de H du 19/10)
     const modele = () => {
-      const m = modeleRelanceDevis({ quote, contactName: quote.clients?.contact_name || '', org: orgName(), numero: relanceNum })
+      const m = modeleRelanceDevis({ quote, contactName: (quote.contact ? nomContact(quote.contact, { appel: true }) : '') || quote.clients?.contact_name || '', org: orgName(), numero: relanceNum })
       setPreviewData({ quote, clientEmail, subject: m.subject, body: m.body, tone: 'courtois', relanceNum, isFallback: true })
     }
     const { ia } = await chargerCapacites()

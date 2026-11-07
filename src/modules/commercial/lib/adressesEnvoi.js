@@ -12,7 +12,7 @@ export function adressesProposees(contacts = [], client = null) {
     liste.push({ email: e, libelle })
   }
   for (const c of contacts || []) {
-    const nom = `${c.first_name || ''} ${c.last_name || c.name || ''}`.replace(/\s+/g, ' ').trim()
+    const nom = String(c.name || [c.last_name, c.first_name].filter(Boolean).join(' ')).replace(/\s+/g, ' ').trim()
     ajouter(c.email, nom ? `${nom} - ${String(c.email || '').trim()}` : String(c.email || '').trim())
   }
   if (client?.contact_email) ajouter(client.contact_email, `Contact principal - ${String(client.contact_email).trim()}`)

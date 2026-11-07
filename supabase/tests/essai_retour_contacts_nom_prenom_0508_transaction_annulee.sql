@@ -66,7 +66,8 @@ create temp table etat_essai_avant as select * from etat_essai;
 --      Durand » d'une fiche client pas encore rechargée, d'une inscription, d'un écran) ne vide rien : le nom est recalculé
 --      (app.memes_mots).
 --   6. Espaces insécables, fines et invisibles (copier-coller, import) traités comme des espaces (app.espaces_nom) ; la
---      comparaison des mots ignore aussi tirets et virgules (« Jean Pierre Durand » = « DURAND Jean-Pierre »).
+--      comparaison des mots ignore aussi tirets, virgules et accents (« Jean Pierre Durand » = « DURAND Jean-Pierre »).
+--      Un nom vide envoyé seul ne vide rien : le nom est recalculé.
 --   7. Reprise des contacts déjà séparés : ceux dont le nom affiché désigne une autre personne (séparés périmés, renommés
 --      avant 0508 par la fiche client) perdent leurs séparés et gardent leur nom ; les autres sont recalculés (le principal
 --      est recopié sur sa fiche client). Production le 07/11 : 10 séparés, 0 périmé, 0 client à deux principaux.
@@ -103,11 +104,11 @@ create or replace function app.contact_nom_affiche(p_nom text, p_prenom text) re
   language sql immutable set search_path = pg_catalog as
 $$ select nullif(concat_ws(' ', app.nom_majuscules(p_nom), app.prenom_forme(p_prenom)), '') $$;
 
--- Mêmes mots, sans tenir compte de l'ordre ni de la casse : « Paul Durand » et « DURAND Paul »
+-- Mêmes mots, sans tenir compte de l'ordre, de la casse ni des accents : « Helene Durand » et « DURAND Hélène »
 create or replace function app.memes_mots(a text, b text) returns boolean
   language sql immutable set search_path = pg_catalog as
-$$ select coalesce((select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(a)), '[ ,-]+') x where x <> '')
-                 = (select array_agg(x order by x) from regexp_split_to_table(lower(app.espaces_nom(b)), '[ ,-]+') x where x <> ''), false) $$;
+$$ select coalesce((select array_agg(x order by x) from regexp_split_to_table(translate(lower(app.espaces_nom(a)), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ', 'aaaaaaceeeeiiiinooooouuuuyy'), '[ ,-]+') x where x <> '')
+                 = (select array_agg(x order by x) from regexp_split_to_table(translate(lower(app.espaces_nom(b)), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ', 'aaaaaaceeeeiiiinooooouuuuyy'), '[ ,-]+') x where x <> ''), false) $$;
 
 create or replace function app.contact_nom_prenom() returns trigger
   language plpgsql set search_path = pg_catalog, public as
@@ -115,6 +116,7 @@ $$
 begin
   if tg_op = 'UPDATE'
      and new.name is distinct from old.name
+     and btrim(coalesce(new.name, '')) <> ''
      and new.last_name is not distinct from old.last_name
      and new.first_name is not distinct from old.first_name
      and coalesce(old.last_name, old.first_name) is not null

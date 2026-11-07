@@ -37,7 +37,7 @@ import { PageHeader } from '../../../ui/PageHeader'
 
 import { confirmer } from '../../../ui/Confirm'
 import { useCapacites } from '../../../core/capacites'
-import { CHOIX_CIVILITE_CONTACT, civilite as civiliteDe } from '../../../core/genre'
+import { CHOIX_CIVILITE_CONTACT, civilite as civiliteDe, nomContact } from '../../../core/genre'
 import { telephoneLisible, lienTelephone } from '../../../core/telephone.js'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
@@ -657,7 +657,7 @@ export default function ClientDetail() {
         body: JSON.stringify({
           brief: emailForm.brief,
           clientName: client?.name,
-          contactName: selectedContact?.name || client?.contact_name,
+          contactName: (selectedContact ? nomContact(selectedContact, { appel: true }) : '') || client?.contact_name,
           contactFunction: selectedContact?.fonction || selectedContact?.role || client?.contact_function,
           senderName: emailForm.sender,
           clientInfo: {

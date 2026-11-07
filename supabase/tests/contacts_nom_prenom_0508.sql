@@ -64,6 +64,15 @@ begin
   update public.client_contacts set first_name = 'jean-pierre' where id = c6;
   update public.client_contacts set name = 'Jean Pierre Durand' where id = c6;
   if (select first_name from public.client_contacts where id = c6) is distinct from 'Jean-Pierre' then raise exception '8. tiret'; end if;
+  -- accent oublié : même personne ; nom vide envoyé seul : rien n'est vidé, nom recalculé
+  update public.client_contacts set name = 'Jean-Pierre Durand' where id = c6;
+  update public.client_contacts set first_name = 'hélène' where id = c6;
+  update public.client_contacts set name = 'Helene Durand' where id = c6;
+  if (select first_name from public.client_contacts where id = c6) is distinct from 'Hélène' then raise exception '8. accent'; end if;
+  update public.client_contacts set name = '' where id = c6;
+  select name, first_name, last_name into v_n, v_f, v_l from public.client_contacts where id = c6;
+  if v_n is distinct from 'DURAND Hélène' or v_f is distinct from 'Hélène' or v_l is distinct from 'DURAND' then
+    raise exception '8. nom vide : % / % / %', v_n, v_f, v_l; end if;
 
   -- 9. Même nom renvoyé dans un autre ordre ou une autre casse (écran, inscription « Paul DURAND ») : rien n'est vidé
   insert into public.client_contacts (client_id, name, last_name, first_name) values (v_cl, 'x', 'durand', 'paul') returning id into c5;

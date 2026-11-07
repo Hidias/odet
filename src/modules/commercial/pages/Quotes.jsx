@@ -337,7 +337,7 @@ export default function Quotes() {
     setLoading(true)
     const [quotesRes, clientsRes, coursesRes] = await Promise.all([
       // fetchAll : pagination complète (PostgREST tronque à 1 000 lignes sans erreur)
-      fetchAll(() => supabase.from('quotes').select('*, clients!quotes_client_id_fkey(name, siret, address, postal_code, city, contact_name, contact_phone, contact_email)').order('quote_date', { ascending: false })),
+      fetchAll(() => supabase.from('quotes').select('*, clients!quotes_client_id_fkey(name, siret, address, postal_code, city, contact_name, contact_phone, contact_email), contact:contact_id(civilite, name, first_name, last_name)').order('quote_date', { ascending: false })),
       fetchAll(() => supabase.from('clients').select('id, name, siret, siren, address, postal_code, city, contact_name, contact_phone, contact_email, status, client_type, tva, effectif, taille_entreprise, opco_subrogation_end').order('name')),
       fetchAll(() => supabase.from('courses').select('id, title, code, price_ht, duration_hours, duration_days, description').order('title'))
     ])
@@ -1051,7 +1051,7 @@ export default function Quotes() {
     const { quote, items, contact } = sendWizard
     const programmes = sendAttachments.filter(a => a.type === 'program' && a.enabled).map(p => p.courseTitle)
     const formation = devisDeFormation(quote, items)
-    const contactName = contact ? nomContact(contact, { courte: false, nomDeFamille: true }) : ''
+    const contactName = contact ? nomContact(contact, { courte: false, nomDeFamille: true, appel: true }) : ''
     const m = modeleEnvoiDevis({ quote, contactName, org: orgName(), programmes, formation, enLigne: !!sendWizard.espace })
     setSendEmail(prev => ({ ...prev, subject: m.subject, body: m.body }))
   }

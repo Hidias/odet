@@ -29,9 +29,9 @@ export function nomAffiche(nom, prenom) {
   return [nomMajuscules(nom), prenomForme(prenom)].filter(Boolean).join(' ') || null
 }
 
-// Mêmes mots sans tenir compte de l'ordre, de la casse, des tirets ni des virgules (« Paul Durand » et « DURAND Paul ») : app.memes_mots en base
+// Mêmes mots sans tenir compte de l'ordre, de la casse, des accents, des tirets ni des virgules (« Paul Durand » et « DURAND Paul ») : app.memes_mots en base
 export function memesMots(a, b) {
-  const mots = (v) => espaces(v).toLocaleLowerCase('fr-FR').split(/[ ,-]+/).filter(Boolean).sort().join(' ')
+  const mots = (v) => espaces(v).toLocaleLowerCase('fr-FR').normalize('NFD').replace(/\p{M}/gu, '').split(/[ ,-]+/).filter(Boolean).sort().join(' ')
   return mots(a) !== '' && mots(a) === mots(b)
 }
 
