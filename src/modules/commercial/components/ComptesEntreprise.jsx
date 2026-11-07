@@ -12,7 +12,8 @@ import { StatusBadge } from '../../../ui/StatusBadge'
 // Le lien avec code (carte « Accès entreprise ») reste pour les contacts sans compte.
 
 const fr = (d) => (d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
-const nomContact = (c) => (c ? [c.first_name, c.last_name].filter(Boolean).join(' ') || c.name || c.email : '')
+// Nom affiché du contact « NOM Prénom » (0508)
+const nomContact = (c) => (c ? c.name || [c.last_name, c.first_name].filter(Boolean).join(' ') || c.email : '')
 
 export default function ComptesEntreprise({ client, contacts = [] }) {
   const [comptes, setComptes] = useState(null)
