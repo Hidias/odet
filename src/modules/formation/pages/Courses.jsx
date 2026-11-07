@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
-import { Plus, Search, Edit, Trash2, X, Save, Clock, Users, Euro, Copy, Upload, Package, ChevronDown, ChevronRight, ClipboardList, GraduationCap, FileText, Loader2, AlertTriangle } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, X, Save, Clock, Users, Euro, Copy, Upload, Package, ChevronDown, ChevronRight, ClipboardList, FileText, Loader2, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import TestsPositionnement from './TestsPositionnement'
 import CourseDocumentsList from '../components/CourseDocumentsList'
@@ -11,6 +11,8 @@ import { useDroits } from '../../../core/rights/useDroit'
 import { ModulesEnLigne } from '../components/ModulesEnLigne'
 
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 import { programmeModifie, versionSuivante, effectifTexte, DELAI_ACCES_DEFAUT, TARIF_DEFAUT } from '../pdf/programmePDF'
 import { downloadDocument, downloadCatalogue, setOrganization } from '../pdf/pdfGenerator'
 import { PICTOGRAMMES } from '../pdf/pictogrammes'
@@ -496,13 +498,9 @@ export default function Courses() {
   
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Formations</h1>
-          <p className="text-gray-500 mt-1">Catalogue et tests de positionnement</p>
-        </div>
-        {activeTab === 'formations' && (
-          <div className="flex flex-wrap gap-2">
+      <PageHeader title="Formations"
+        meta={<span>Catalogue et tests de positionnement</span>}
+        actions={activeTab === 'formations' ? <>
             <button onClick={telechargerCatalogue} className="btn btn-secondary flex items-center gap-2" title="Tous les programmes en un PDF, avec une page de garde">
               <FileText className="w-4 h-4" />Catalogue PDF
             </button>
@@ -512,55 +510,15 @@ export default function Courses() {
               Nouvelle formation
             </button>
             )}
-          </div>
-        )}
-      </div>
-      
-      {/* Onglets */}
-      <div className="border-b border-gray-200">
-        <nav className="flex overflow-x-auto whitespace-nowrap gap-4">
-          <button
-            onClick={() => setActiveTab('formations')}
-            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
-              activeTab === 'formations' 
-                ? 'border-primary-500 text-primary-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <GraduationCap className="w-4 h-4" />
-              Catalogue
-              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-ui-sm">{courses.length}</span>
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('tests')}
-            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
-              activeTab === 'tests' 
-                ? 'border-primary-500 text-primary-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <ClipboardList className="w-4 h-4" />
-              Tests de positionnement
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('documents')}
-            className={`pb-3 px-1 border-b-2 font-medium text-ui transition-colors ${
-              activeTab === 'documents' 
-                ? 'border-primary-500 text-primary-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Documents de formations
-            </div>
-          </button>
-        </nav>
-      </div>
+          </> : null} />
+
+      <Tabs
+        tabs={[
+          { id: 'formations', label: 'Catalogue', count: courses.length },
+          { id: 'tests', label: 'Tests de positionnement' },
+          { id: 'documents', label: 'Documents de formations' },
+        ]}
+        value={activeTab} onChange={setActiveTab} />
       
       {/* Contenu onglet Tests */}
       {activeTab === 'tests' && (

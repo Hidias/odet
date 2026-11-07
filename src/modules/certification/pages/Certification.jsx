@@ -5,10 +5,12 @@
 // certification (APSAD…) a les siens au même endroit : accueil, suivi et audits, exigences, préparer l'audit.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Routes, Route, NavLink, Navigate, Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Routes, Route, Navigate, Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Loader2, ShieldCheck } from 'lucide-react'
 import { useAuthStore, useDataStore } from '../../../core/store'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 import { loadSettings, loadDeadlines, loadReferential, loadDocuments, ndaPieceStates } from '../lib/certData'
 import { loadEvidence, evaluateIndicators } from '../lib/proofs'
 import { chargerCertifications } from '../lib/certSociete'
@@ -43,6 +45,8 @@ const TABS_AUTRE = [
 ]
 // Face interne (conseil de direction) : onglet visible seulement avec le droit du cockpit ; la base refuse sinon
 const TAB_INTERNE = { to: 'interne', label: 'Erreurs à éviter' }
+// Identifiant de l'onglet d'accueil (chemin vide)
+const ACCUEIL = 'accueil'
 
 // Certification suivie : « qualiopi » ou le code d'un référentiel commun (APSAD…). Mémorisée par navigateur.
 const CLE_SUIVIE = 'odet-certification-suivie'
@@ -64,6 +68,7 @@ export default function Certification() {
   const canWrite = WRITE_ROLES.includes(userRole)
   const voitInterne = can?.('manager.cockpit.voir') === true
   const navigate = useNavigate()
+  const location = useLocation()
   const [params, setParams] = useSearchParams()
   const [suivie, setSuivie] = useState(() => params.get('ref') || lireSuivie() || 'qualiopi')
   const [certifs, setCertifs] = useState(null) // { refs, certifs } de « Toutes les certifications »
@@ -82,6 +87,9 @@ export default function Certification() {
   const enQualiopi = !refeSuivie
   const onglets = [...(enQualiopi ? TABS : TABS_AUTRE), ...(voitInterne ? [TAB_INTERNE] : [])]
   const changerSuivie = (v) => { setSuivie(v); garderSuivie(v); navigate('/certification') }
+  // Onglet actif : premier segment du chemin après /certification (même règle que les liens d'onglet d'avant)
+  const segment = location.pathname.replace(/^\/certification\/?/, '').split('/')[0]
+  const ongletActif = onglets.some((t) => t.to && t.to === segment) ? segment : ACCUEIL
 
   // Exigences importées de la certification suivie : même calcul que Qualiopi, sans règle automatique
   const rechargerAutre = useCallback(async () => {
@@ -145,12 +153,8 @@ export default function Certification() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between gap-3 flex-wrap">
-        <div>
-          <div className="muted text-ui-sm">Qualité</div>
-          <h1 className="page-title">Certification</h1>
-        </div>
-        {choisirs.length > 0 && (
+      <PageHeader eyebrow="Qualité" title="Certification"
+        actions={choisirs.length > 0 ? (
           <label className="block min-w-[16rem] max-w-full">
             <span className="label">Certification suivie</span>
             <select className="select" value={refeSuivie ? refeSuivie.code : 'qualiopi'} onChange={(e) => changerSuivie(e.target.value)}>
@@ -158,13 +162,9 @@ export default function Certification() {
               {choisirs.map((r) => <option key={r.code} value={r.code}>{r.label}</option>)}
             </select>
           </label>
-        )}
-      </div>
-      <nav className="tabs" aria-label="Rubriques de la certification">
-        {onglets.map((t) => (
-          <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tab ${isActive ? 'tab-active' : ''}`}>{t.label}</NavLink>
-        ))}
-      </nav>
+        ) : null} />
+      <Tabs tabs={onglets.map((t) => ({ id: t.to || ACCUEIL, label: t.label }))}
+        value={ongletActif} onChange={(id) => navigate(id === ACCUEIL ? '/certification' : `/certification/${id}`)} />
       <Routes>
         <Route index element={enQualiopi ? <CertHome {...ctx} />
           : <CertRefAccueil refe={refeSuivie} copie={copieSuivie} certif={certifSuivie} evaluated={autre?.evaluated} />} />

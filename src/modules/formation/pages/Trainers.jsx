@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { CHOIX_CIVILITE_GENRE } from '../../../core/genre'
+import { CHOIX_CIVILITE_GENRE, pluriel } from '../../../core/genre'
+import { PageHeader } from '../../../ui/PageHeader'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
 import FraisFormateur from '../components/FraisFormateur'
@@ -366,12 +367,9 @@ export default function Trainers() {
   
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Formateurs</h1>
-          <p className="text-gray-500 mt-1">{trainers.length} formateur(s)</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader title="Formateurs"
+        meta={<span>{pluriel(trainers.length, 'formateur')}</span>}
+        actions={<>
           <button onClick={() => setShowQualificationsManager(true)} className="btn btn-secondary flex items-center gap-2">
             <Settings className="w-4 h-4" /> Qualifications
           </button>
@@ -380,8 +378,7 @@ export default function Trainers() {
             <Plus className="w-4 h-4" /> Nouveau
           </button>
           )}
-        </div>
-      </div>
+        </>} />
       
       <div className="flex flex-wrap gap-4">
         <div className="relative flex-1 min-w-[200px]">

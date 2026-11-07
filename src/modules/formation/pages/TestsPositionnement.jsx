@@ -10,6 +10,7 @@ import QuizEngine, { parseOptions } from '../quiz/QuizEngine'
 import { useDroits } from '../../../core/rights/useDroit'
 
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
 // Banque de questions par thème de formation.
 // Une question sert au positionnement et/ou à l'évaluation (entraînement + évaluation des acquis).
 // Le niveau de difficulté compose les quiz mais n'est jamais montré aux stagiaires.
@@ -285,13 +286,9 @@ export default function TestsPositionnement() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Tests et quiz</h1>
-          <p className="muted mt-0.5">Banque de questions par thème : positionnement, entraînement et évaluation des acquis</p>
-        </div>
-        {saving && <div className="flex items-center gap-2 text-ui-sm text-gray-500"><RefreshCw className="w-4 h-4 animate-spin" /> Enregistrement</div>}
-      </div>
+      <PageHeader title="Tests et quiz"
+        meta={<span>Banque de questions par thème : positionnement, entraînement et évaluation des acquis</span>}
+        status={saving ? <div className="flex items-center gap-2 text-ui-sm text-gray-500"><RefreshCw className="w-4 h-4 animate-spin" /> Enregistrement</div> : null} />
 
       {/* Thèmes */}
       <div className="flex flex-wrap gap-2">

@@ -2,10 +2,10 @@
 // l'expert (retour par fichier relu tant que son espace n'existe pas), validation. /relectures : mes relectures et les
 // circuits en cours ; /relectures/:id : un circuit.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  ChevronLeft, CheckCircle, Pencil, MessageSquare, Loader2, Download, Upload, Send, RotateCcw, X, HelpCircle, Users, Check, FileText, Plus,
+  CheckCircle, Pencil, MessageSquare, Loader2, Download, Upload, Send, RotateCcw, X, HelpCircle, Users, Check, FileText, Plus,
 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { useAuthStore } from '../../../core/store'
@@ -15,6 +15,7 @@ import { callApi } from '../../../core/api'
 import { loadTemplateContext, fillDeep } from '../../../core/org/templateContext'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
 import { loadTemplates, isRich, fromTemplate, frDate, todayIso, plusOneYear, bracketGaps, encadresAValider } from '../richdocs/model'
 import { BlockView, BlockEdit, StatusChip } from '../richdocs/RichDocEditor'
 import { buildRichDocPDF } from '../richdocs/richDocPDF'
@@ -208,10 +209,7 @@ function ListeRelectures() {
   }
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="page-title">Relectures de documents</h1>
-        <p className="text-ui-sm text-gray-500">Documents à relire, à arbitrer ou chez l'expert. Un document se met en relecture depuis Processus qualité, Documents.</p>
-      </div>
+      <PageHeader title="Relectures de documents" meta={<span>Documents à relire, à arbitrer ou chez l'expert. Un document se met en relecture depuis Processus qualité, Documents.</span>} />
       <section><h2 className="text-ui-sm font-semibold text-gray-500 uppercase mb-2">En cours</h2>
         {ouverts.length ? <ul className="space-y-2">{ouverts.map((r) => <Ligne key={r.id} r={r} />)}</ul> : <p className="text-ui-sm text-gray-500">Aucune relecture en cours.</p>}
       </section>
@@ -221,7 +219,6 @@ function ListeRelectures() {
 }
 
 function Circuit({ id }) {
-  const navigate = useNavigate()
   const { profile, userRole } = useAuthStore()
   const [reglages, setReglages] = useState(null)
   useEffect(() => { chargerReglages().then(setReglages).catch(() => setReglages(null)) }, [])
@@ -346,13 +343,12 @@ function Circuit({ id }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-2">
-        <button type="button" onClick={() => navigate('/relectures')} className="h-11 w-11 flex items-center justify-center rounded-ui-sm hover:bg-gray-100" aria-label="Retour aux relectures"><ChevronLeft className="w-5 h-5" /></button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex flex-wrap items-center gap-2">{r.doc_name}<StatusChip status={ETATS[r.status]} /></h1>
-          <p className="text-ui-sm text-gray-500">Lancé par {r.created_by_name || 'l\'équipe'} le {frDate(r.created_at)}{r.due_on ? ` · réponse souhaitée avant le ${frDate(r.due_on)}` : ''} · tour {r.round}</p>
-        </div>
-      </div>
+      <PageHeader
+        crumbs={[{ label: 'Relectures de documents', to: '/relectures' }, { label: r.doc_name }]}
+        title={r.doc_name}
+        status={<StatusChip status={ETATS[r.status]} />}
+        meta={<span>Lancé par {r.created_by_name || 'l\'équipe'} le {frDate(r.created_at)}{r.due_on ? ` · réponse souhaitée avant le ${frDate(r.due_on)}` : ''} · tour {r.round}</span>}
+      />
 
       {/* Étapes */}
       <ol className="flex flex-wrap gap-1.5" aria-label="Étapes du circuit">

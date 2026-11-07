@@ -1,4 +1,5 @@
 import { Tabs } from '../../../ui/Tabs'
+import { PageHeader } from '../../../ui/PageHeader'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { orgName, orgEmail } from '../../../core/org/currentOrg'
@@ -3168,25 +3169,19 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {/* ═══ VUE SIMPLIFIÉE SOUS-TRAITANCE ═══ */}
       {session.session_type === 'subcontract' ? (
         <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div>
-              <Link to="/sessions" className="text-ui text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-2"><ArrowLeft className="w-4 h-4" />Retour</Link>
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="page-title">{session.reference}</h1>
-                <BadgeTest tbl="sessions" id={session.id} />
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]"><Briefcase className="w-3 h-3" />Sous-traitance</span>
-                <span className={`badge ${statusLabels[session.status]?.class}`}>{statusLabels[session.status]?.label}</span>
-                {session.subcontract_invoiced && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]"><Check className="w-3 h-3" />Facturée</span>}
-              </div>
-              <p className="text-gray-500 text-ui mt-1">{session.clients?.name}</p>
-            </div>
-            <div className="flex gap-2 flex-wrap">
+          <PageHeader crumbs={[{ label: 'Sessions', to: '/sessions' }, { label: session.reference }]} title={session.reference}
+            status={<>
+              <BadgeTest tbl="sessions" id={session.id} />
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]"><Briefcase className="w-3 h-3" />Sous-traitance</span>
+              <span className={`badge ${statusLabels[session.status]?.class}`}>{statusLabels[session.status]?.label}</span>
+              {session.subcontract_invoiced && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ui-sm font-medium bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]"><Check className="w-3 h-3" />Facturée</span>}
+            </>}
+            meta={<span>{session.clients?.name}</span>}
+            actions={<>
               <button onClick={handleDownloadSatisfactionDO} className="btn btn-secondary flex items-center gap-2"><FileText className="w-4 h-4" />Éval. DO</button>
               {d.modifier && <button onClick={() => setShowEdit(true)} className="btn btn-ghost"><Edit className="w-4 h-4" />Modifier</button>}
               {d.supprimer && <button onClick={handleDelete} className="btn btn-ghost btn-icon text-[rgb(var(--c-danger))]" aria-label="Supprimer la session"><Trash2 className="w-4 h-4" /></button>}
-            </div>
-          </div>
+            </>} />
 
           {/* Carte info principale */}
           <div className="bg-white border rounded-ui p-6">

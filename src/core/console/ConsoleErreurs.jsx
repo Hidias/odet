@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { AlertTriangle, ArrowLeft, Bug, CheckCircle, Copy, EyeOff, Loader2, Lock, RefreshCw, RotateCcw, X } from 'lucide-react'
+import { AlertTriangle, Bug, CheckCircle, Copy, EyeOff, Loader2, Lock, RefreshCw, RotateCcw, X } from 'lucide-react'
 import { useAuthStore } from '../store'
+import { PageHeader } from '../../ui/PageHeader'
 import { supabase } from '../supabase'
 
 // Console > Erreurs : erreurs de l'application regroupées par empreinte (table error_logs),
@@ -190,14 +190,9 @@ export default function ConsoleErreurs() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <Link to="/console" className="text-ui-sm muted inline-flex items-center gap-1 hover:underline"><ArrowLeft className="w-3.5 h-3.5" /> Console</Link>
-          <h1 className="page-title mt-1">Erreurs de l'application</h1>
-          <p className="muted mt-1">Remontées automatiquement depuis l'application, les portails publics et le serveur. Conservées 90 jours.</p>
-        </div>
-        <button type="button" onClick={load} className="btn btn-secondary"><RefreshCw className="w-4 h-4" /> Actualiser</button>
-      </div>
+      <PageHeader crumbs={[{ label: 'Console', to: '/console' }, { label: "Erreurs de l'application" }]} title="Erreurs de l'application"
+        meta={<span>Remontées automatiquement depuis l'application, les portails publics et le serveur. Conservées 90 jours.</span>}
+        actions={<button type="button" onClick={load} className="btn btn-secondary"><RefreshCw className="w-4 h-4" /> Actualiser</button>} />
 
       {error && (
         <div className="card flex gap-2 items-start text-ui" style={{ background: 'rgb(var(--c-warning-bg))', color: 'rgb(var(--c-warning))' }}>

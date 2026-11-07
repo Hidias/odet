@@ -6,11 +6,12 @@ import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import {
-  Save, ArrowLeft, Calendar, Clock, MapPin, User, Phone, Mail,
+  Save, Calendar, Clock, MapPin, User, Phone, Mail,
   Building2, FileText, Trash2, Plus, X, Send, CheckCircle,
   MessageSquare, Zap, ExternalLink, ChevronDown, ChevronUp
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { PageHeader } from '../../../ui/PageHeader'
 import SpeechToTextButton from '../../../ui/SpeechToTextButton'
 import ProspectNeedsAnalysis from '../components/ProspectNeedsAnalysis'
 import CompteRenduModal from '../../formation/components/CompteRenduModal'
@@ -413,17 +414,11 @@ export default function ProspectRDVDetail() {
       )}
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/prospection')}
-            className="p-2 hover:bg-gray-100 rounded-ui-sm">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold text-gray-900">
-                {isNew ? 'Nouveau RDV' : (selectedClient?.name || 'RDV')}
-              </h1>
+      <PageHeader
+        crumbs={[{ label: 'Suivi commercial', to: '/prospection' }, { label: isNew ? 'Nouveau RDV' : (selectedClient?.name || 'RDV') }]}
+        title={isNew ? 'Nouveau RDV' : (selectedClient?.name || 'RDV')}
+        meta={selectedClient?.city ? <span>{selectedClient.city}</span> : null}
+        status={<>
               {isTransfer && (
                 <span className="px-2 py-0.5 rounded-full text-ui-sm font-medium bg-gray-100 text-gray-800 border border-gray-200">
                   Transfert
@@ -439,13 +434,8 @@ export default function ProspectRDVDetail() {
                    {f}
                 </span>
               ))}
-            </div>
-            {selectedClient?.city && (
-              <p className="text-ui text-gray-500 mt-0.5">{selectedClient.city}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+        </>}
+        actions={<>
           {!isNew && (
             <button onClick={handleDelete}
               className="flex items-center gap-1.5 px-3 py-2 text-ui bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))] rounded-ui-sm hover:bg-[rgb(var(--c-danger-bg))] border border-[rgb(var(--c-danger)/0.3)]">
@@ -457,8 +447,7 @@ export default function ProspectRDVDetail() {
             <Save className="w-4 h-4" />
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
-        </div>
-      </div>
+        </>} />
 
       {/* ── Quick actions (si RDV existant) ─────────────────────────────── */}
       {!isNew && (

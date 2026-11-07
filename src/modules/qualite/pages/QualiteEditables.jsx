@@ -7,7 +7,7 @@ import { fetchAll } from '../../../core/fetchAll'
 import { 
   FileText, Download, ChevronDown, ChevronRight, Save, X, Edit,
   Building2, ClipboardList, Table, Users2, BarChart3, CheckSquare,
-  Loader2, RefreshCw, Plus, Trash2, CheckCircle
+  Loader2, RefreshCw, Plus, Trash2
 } from 'lucide-react'
 import { buildQualityDocPDF } from '../pdf/qualityDocsPDF'
 import { loadTemplates, isRich, fromTemplate, docStatus } from '../richdocs/model'
@@ -21,6 +21,8 @@ import { APP_VERSION } from '../../../core/version'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 
 // ===== CONFIG ENTREPRISE =====
 // Identité de l'organisme : lue dans les paramètres au chargement de la page, jamais écrite ici
@@ -867,27 +869,18 @@ export default function QualiteEditables() {
   // ===== RENDU =====
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="page-title">Documents Qualité</h1>
-        <p className="text-gray-500">Procédures, documents remis aux stagiaires et aux clients, gouvernance et pilotage : modèles à adapter, versions validées</p>
-      </div>
+      <PageHeader title="Documents Qualité" meta={<span>Procédures, documents remis aux stagiaires et aux clients, gouvernance et pilotage : modèles à adapter, versions validées</span>} />
       
-      <div className="flex gap-2 border-b overflow-x-auto whitespace-nowrap">
-        {[
-          { id: 'documents', icon: FileText, label: 'Documents' }, 
-          { id: 'registres', icon: Table, label: 'Registres' }, 
-          { id: 'rdd', icon: BarChart3, label: 'Revue Direction' },
-          { id: 'completude', icon: CheckCircle, label: 'Complétude', link: '/qualite/completude' }
-        ].map(tab => (
-          <button 
-            key={tab.id} 
-            onClick={() => tab.link ? window.location.href = `#${tab.link}` : setActiveTab(tab.id)}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === tab.id ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            <tab.icon className="w-4 h-4" />{tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'documents', label: 'Documents' },
+          { id: 'registres', label: 'Registres' },
+          { id: 'rdd', label: 'Revue Direction' },
+          { id: 'completude', label: 'Complétude' }
+        ]}
+        value={activeTab}
+        onChange={(id) => id === 'completude' ? window.location.href = '#/qualite/completude' : setActiveTab(id)}
+      />
       
       {activeTab === 'documents' && (() => {
         const CATS = [

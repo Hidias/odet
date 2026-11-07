@@ -10,6 +10,8 @@ import {
   ExternalLink, Loader2, TrendingUp
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { PageHeader } from '../../../ui/PageHeader'
+import { pluriel } from '../../../core/genre'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
@@ -669,29 +671,27 @@ export default function Completude() {
 
   return (
     <div>
-      {/* HEADER */}
-      <div className="mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div>
-            <h1 className="page-title">Complétude</h1>
-            <p className="text-ui text-gray-600">Suivi des éléments manquants</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={loadData} disabled={loading} className="btn btn-secondary">
-              <TrendingUp className="w-4 h-4 mr-2" />
-              Actualiser
-            </button>
-            <button onClick={exportCSV} className="btn btn-secondary">
-              <Download className="w-4 h-4 mr-2" />
-              CSV
-            </button>
-            <button onClick={exportPDF} className="btn btn-primary">
-              <Download className="w-4 h-4 mr-2" />
-              PDF
-            </button>
-          </div>
-        </div>
+      <PageHeader
+        className="mb-4"
+        title="Complétude"
+        meta={<span>Suivi des éléments manquants</span>}
+        actions={<>
+          <button onClick={loadData} disabled={loading} className="btn btn-secondary">
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Actualiser
+          </button>
+          <button onClick={exportCSV} className="btn btn-secondary">
+            <Download className="w-4 h-4 mr-2" />
+            CSV
+          </button>
+          <button onClick={exportPDF} className="btn btn-primary">
+            <Download className="w-4 h-4 mr-2" />
+            PDF
+          </button>
+        </>}
+      />
 
+      <div className="mb-6">
         {/* BARRE DE PROGRESSION */}
         <div className="bg-white rounded-ui-sm shadow-sm border p-6">
           <div className="flex items-center justify-between mb-3">
@@ -768,7 +768,7 @@ export default function Completude() {
           )}
           
           <div className="ml-auto text-ui text-gray-600">
-            {filteredIssues.length} résultat(s)
+            {pluriel(filteredIssues.length, 'résultat')}
           </div>
         </div>
       </div>
@@ -795,7 +795,7 @@ export default function Completude() {
                   <div className="text-left">
                     <h3 className="font-semibold text-gray-900">{category.label}</h3>
                     <p className="text-ui text-gray-600">
-                      {catIssues.length} élément(s) manquant(s)
+                      {pluriel(catIssues.length, 'élément manquant', 'éléments manquants')}
                     </p>
                   </div>
                 </div>

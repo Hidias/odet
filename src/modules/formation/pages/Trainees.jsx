@@ -6,6 +6,8 @@ import AccesExterne from '../components/AccesExterne'
 import { PP_ROLES } from '../../passeport/lib/ppData'
 import { supabase } from '../../../core/supabase'
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
+import { pluriel } from '../../../core/genre'
 import { bilanStagiaire, alerteSuppressionStagiaire } from '../lib/alertesAction'
 import { fetchAll } from '../../../core/fetchAll'
 import { Plus, Search, Edit, Trash2, X, Save, FileText, Upload, Eye, Building2, Download, CheckSquare } from 'lucide-react'
@@ -568,12 +570,9 @@ export default function Trainees() {
   
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Stagiaires</h1>
-          <p className="text-gray-500">{trainees.length} stagiaire(s)</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <PageHeader title="Stagiaires"
+        meta={<span>{pluriel(trainees.length, 'stagiaire')}</span>}
+        actions={<>
           {d.creer && (
           <button onClick={() => setShowBulkAdd(true)} className="btn btn-secondary flex items-center gap-2">
             <Plus className="w-4 h-4" />Ajouter plusieurs
@@ -584,8 +583,7 @@ export default function Trainees() {
             <Plus className="w-4 h-4" />Nouveau
           </button>
           )}
-        </div>
-      </div>
+        </>} />
       
       <div className="flex gap-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">

@@ -14,6 +14,8 @@ import toast from 'react-hot-toast'
 import SearchSelect from '../../../ui/SearchSelect'
 
 import { confirmer } from '../../../ui/Confirm'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 const getUserName = (email) => teamFirstNameByEmail(email) || 'Utilisateur'
 
 // ===== CONFIG NC =====
@@ -278,32 +280,16 @@ export default function NonConformites() {
   
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-[rgb(var(--c-danger))]" />
-            Qualité & Réclamations
-          </h1>
-          <p className="text-ui text-gray-500 mt-1">Gestion des NC et réclamations - Indicateurs Qualiopi 31-32</p>
-        </div>
-      </div>
+      <PageHeader title="Qualité & Réclamations" meta={<span>Gestion des NC et réclamations - Indicateurs Qualiopi 31-32</span>} />
       
-      {/* Onglets */}
-      <div className="flex gap-2 border-b">
-        <button onClick={() => setActiveTab('nc')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'nc' ? 'border-[rgb(var(--c-danger)/0.3)] text-[rgb(var(--c-danger))]' : 'border-transparent text-gray-500'}`}>
-          <AlertTriangle className="w-4 h-4" />
-          Non-conformités
-          {statsNC.open > 0 && <span className="badge badge-red">{statsNC.open}</span>}
-        </button>
-        <button onClick={() => setActiveTab('reclamations')}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'reclamations' ? 'border-[rgb(var(--c-warning)/0.3)] text-[rgb(var(--c-warning))]' : 'border-transparent text-gray-500'}`}>
-          <MessageSquare className="w-4 h-4" />
-          Réclamations
-          {statsRecl.enRetardAR > 0 && <span className="badge badge-red">{statsRecl.enRetardAR}</span>}
-        </button>
-      </div>
+      <Tabs
+        tabs={[
+          { id: 'nc', label: 'Non-conformités', count: statsNC.open > 0 ? statsNC.open : null },
+          { id: 'reclamations', label: 'Réclamations', count: statsRecl.enRetardAR > 0 ? statsRecl.enRetardAR : null }
+        ]}
+        value={activeTab}
+        onChange={setActiveTab}
+      />
       
       {/* ===== ONGLET NC ===== */}
       {activeTab === 'nc' && (

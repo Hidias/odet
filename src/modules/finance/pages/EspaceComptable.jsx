@@ -6,10 +6,12 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx-js-style'
 import {
-  Calculator, AlertTriangle, CheckCircle, Clock, Lock, Unlock,
+  AlertTriangle, CheckCircle, Clock, Lock, Unlock,
   Download, RefreshCw, Plus, X, ChevronDown, Search, Eye, EyeOff, LogOut, FileText
 } from 'lucide-react'
 import SearchSelect from '../../../ui/SearchSelect'
+import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 
 // ════════════════════════════════════════════════════════════
 //  ESPACE COMPTABLE
@@ -311,15 +313,9 @@ export default function EspaceComptable() {
     <FiscalContext.Provider value={fiscal}>
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Calculator className="w-7 h-7 text-gray-800" />
-            Espace Comptable
-          </h1>
-          <p className="text-ui text-gray-500 mt-1">{orgDisplayName ? `${orgDisplayName} - ` : ''}{new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader title="Espace Comptable"
+        meta={<span>{orgDisplayName ? `${orgDisplayName} - ` : ''}{new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>}
+        actions={<>
           <span className="text-ui text-gray-400 hidden sm:block">{user?.email}</span>
           <button onClick={loadAll} className="flex items-center gap-2 px-3 py-2 border rounded-ui-sm text-ui hover:bg-gray-50 transition-colors">
             <RefreshCw className="w-4 h-4" />
@@ -329,26 +325,13 @@ export default function EspaceComptable() {
             <LogOut className="w-4 h-4" />
             Déconnexion
           </button>
-        </div>
-      </div>
+        </>} />
 
       {/* KPIs rapides */}
       <KPISummary invoices={invoices} />
 
       {/* Tabs */}
-      <nav className="flex gap-1 overflow-x-auto pb-1 max-w-full min-w-0">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 rounded-ui-sm text-ui font-medium whitespace-nowrap shrink-0 transition ${
-              tab === t.key ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <Tabs tabs={TABS.map(t => ({ id: t.key, label: t.label }))} value={tab} onChange={setTab} />
 
       {/* Contenu */}
       {tab === 'balance' && <BalanceAgeeTab invoices={invoices} />}

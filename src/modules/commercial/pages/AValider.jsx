@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { Copy, Mail, Check, X, Loader2, Inbox } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { PageHeader } from '../../../ui/PageHeader'
+import { Tabs } from '../../../ui/Tabs'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
@@ -93,12 +94,7 @@ export default function AValider() {
         actions={peutRegler ? <button type="button" className="btn btn-secondary" onClick={() => setReglages(true)}>Pilote des sessions</button> : null} />
       {reglages && <PiloteReglages onClose={() => { setReglages(false); load() }} />}
       {indispo && <Banner tone="warning">Les relances ne sont pas encore disponibles. Prévenez le support.</Banner>}
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Relances">
-        {ONGLETS.map(([k, l]) => (
-          <button key={k} type="button" role="tab" aria-selected={onglet === k} onClick={() => setOnglet(k)}
-            className={`btn btn-sm ${onglet === k ? 'btn-primary' : 'btn-secondary'}`}>{l} ({compte[k] || 0})</button>
-        ))}
-      </div>
+      <Tabs tabs={ONGLETS.map(([k, l]) => ({ id: k, label: l, count: compte[k] || 0 }))} value={onglet} onChange={setOnglet} />
       {types.length > 1 && (
         <div className="flex flex-wrap items-center gap-2">
           <select className="select w-auto" value={type} onChange={(e) => setType(e.target.value)} aria-label="Type de relance">

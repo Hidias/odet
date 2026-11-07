@@ -23,10 +23,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
 import { 
   Search, SkipForward, Save, ExternalLink, Phone, Mail, Globe,
-  Zap, CheckCircle, XCircle, RefreshCw, Loader, User, Briefcase,
+  CheckCircle, XCircle, RefreshCw, Loader, User, Briefcase,
   TrendingUp, Building2, MapPin, ChevronDown, ChevronUp, Copy, Check, Edit3
 } from 'lucide-react'
 import SearchSelect from '../../../ui/SearchSelect'
+import { PageHeader } from '../../../ui/PageHeader'
 
 // ─── Constantes & helpers ───────────────────────────────────────────────────
 
@@ -848,23 +849,17 @@ export default function EnrichissementRapide() {
     <div>
       {/* ─── Header + Stats ─────────────────────────────────────────── */}
       <div className="mb-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <div>
-            <h1 className="page-title flex items-center gap-2">
-              <Zap className="w-6 h-6 text-[rgb(var(--c-warning))]" />
-              Mini-Lusha
-              <span className="text-ui font-normal text-gray-400 ml-2">Enrichissement intelligent</span>
-            </h1>
-            <p className="text-gray-500 text-ui mt-0.5">
-              {totalRemaining.toLocaleString()} prospects restants
-              {radiusFilter > 0 && ` • ≤ ${radiusFilter}km de ${orgBases()[proximityBase]?.name || 'votre siège'}`}
-            </p>
-          </div>
-          <button onClick={loadProspects}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-ui bg-gray-100 hover:bg-gray-200 rounded-ui-sm transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" /> Recharger
-          </button>
-        </div>
+        <PageHeader className="mb-3" eyebrow="Enrichissement intelligent" title="Mini-Lusha"
+          meta={<span>
+            {totalRemaining.toLocaleString()} prospects restants
+            {radiusFilter > 0 && ` • ≤ ${radiusFilter}km de ${orgBases()[proximityBase]?.name || 'votre siège'}`}
+          </span>}
+          actions={<>
+            <button onClick={loadProspects}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-ui bg-gray-100 hover:bg-gray-200 rounded-ui-sm transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" /> Recharger
+            </button>
+          </>} />
 
         {/* Stats compactes */}
         <div className="grid grid-cols-4 gap-2 mb-3">

@@ -4,6 +4,7 @@ import { isQuoteSleeping, todayStr } from '../prospection/components/suivi/suivi
 import { exerciceBpfSuivi } from '../formation/lib/bpf'
 import { conventionEnvoyee, groupesParSession } from '../formation/lib/etatConvention'
 import { confirmer } from '../../ui/Confirm'
+import { PageHeader } from '../../ui/PageHeader'
 import { CONFIRMATION_REINITIALISER_ACCUEIL } from '../../core/portail/alertesPublication'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -1038,17 +1039,13 @@ export default function Dashboard() {
   // ═══════════════════════════════════════════════════════════
   // En-tête et « Ma journée » affichés tout de suite, à la même place pendant et après le chargement (pas de second
   // montage de « Ma journée ») : ses lectures partent avec celles du tableau de bord (performance, 19/10).
+  const jour = format(today, "EEEE d MMMM yyyy", { locale: fr })
   const entete = (
-    <div className="flex items-end justify-between flex-wrap gap-4">
-      <div className="grid gap-1 min-w-0">
-        <span className="eyebrow first-letter:uppercase">{format(today, "EEEE d MMMM yyyy", { locale: fr })}</span>
-        <h1 className="page-title leading-tight">Tableau de bord</h1>
-      </div>
-      <div className="flex items-center gap-2">
+    <PageHeader eyebrow={jour.charAt(0).toUpperCase() + jour.slice(1)} title="Tableau de bord"
+      actions={<>
         <button onClick={() => { setLoading(true); loadData() }} className="btn btn-ghost btn-icon" title="Rafraîchir" aria-label="Rafraîchir"><RefreshCw className="w-5 h-5" /></button>
         {d.preferences && <button onClick={() => setShowSettings(true)} className="btn btn-secondary"><Settings className="w-4 h-4" />Personnaliser</button>}
-      </div>
-    </div>
+      </>} />
   )
   if (loading || !configLoaded) return (
     <div className="space-y-6">

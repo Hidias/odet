@@ -1,5 +1,6 @@
 import { money } from '../../../core/utils'
 import { StatusBadge } from '../../../ui/StatusBadge'
+import { PageHeader } from '../../../ui/PageHeader'
 import { apiFetch } from '../../../core/api'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -519,13 +520,9 @@ export default function Sessions() {
   
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Sessions</h1>
-          <p className="text-gray-500 mt-1">{sessionsLoading && !sessions.length ? 'Chargement…' : pluriel(sessions.length, 'session')}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+      <PageHeader title="Sessions"
+        meta={<span>{sessionsLoading && !sessions.length ? 'Chargement…' : pluriel(sessions.length, 'session')}</span>}
+        actions={<>
           {/* Toggle Liste / Planning */}
           <div className="flex items-center bg-gray-100 rounded-ui-sm p-0.5 mr-2">
             <button
@@ -561,8 +558,7 @@ export default function Sessions() {
             Nouvelle session
           </button>
           )}
-        </div>
-      </div>
+        </>} />
       
       {/* Vue Planning */}
       {viewMode === 'planning' && (

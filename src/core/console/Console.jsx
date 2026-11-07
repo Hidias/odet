@@ -17,6 +17,7 @@ import RetoursConsole from '../feedback/RetoursConsole'
 import { BandeauConsole, NouveautesConsole } from '../notices/AvisConsole'
 
 import { confirmer } from '../../ui/Confirm'
+import { PageHeader } from '../../ui/PageHeader'
 import { TachesPlanifiees, EnvoisAutomatiquesSociete } from './TachesEtEnvois'
 // Console technique de l'instance, réservée au super administrateur :
 // état, migrations à appliquer, modules, mode démo, accès, exports, notes de version.
@@ -160,13 +161,8 @@ export default function Console() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="page-title">Console</h1>
-          <p className="muted mt-1">État technique de l'instance, mises à jour et opérations réservées au super administrateur.</p>
-        </div>
-        <button type="button" onClick={load} className="btn btn-secondary"><RefreshCw className="w-4 h-4" /> Actualiser</button>
-      </div>
+      <PageHeader title="Console" meta={<span>État technique de l'instance, mises à jour et opérations réservées au super administrateur.</span>}
+        actions={<button type="button" onClick={load} className="btn btn-secondary"><RefreshCw className="w-4 h-4" /> Actualiser</button>} />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {[['Version', APP_VERSION], ['Sessions', counts.sessions], ['Stagiaires', counts.trainees], ['Clients', counts.clients], ['Quiz joués', counts.quiz_attempts]].map(([k, v]) => (
