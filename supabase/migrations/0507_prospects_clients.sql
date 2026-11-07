@@ -1,5 +1,5 @@
 -- 0507 : prospects et clients séparés (décisions de H du 07/11 au soir, V34).
--- Constat : clients.type (« prospect » par défaut) n'était écrit que par inscription_confirmer (« client ») et jamais lu par les
+-- Constat : clients.type (« prospect » par défaut) n'était écrit que par inscription_confirmer (« client ») et lu par aucun écran ; la fiche portait en
 -- plus un statut « prospect » (pastille de la liste), deux notions pour la même chose.
 -- Règle :
 --   1. Une fiche passe « client » d'elle-même, et ne revient jamais « prospect » :
