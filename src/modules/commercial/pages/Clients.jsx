@@ -1,9 +1,10 @@
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import { CHOIX_CIVILITE_CONTACT } from '../../../core/genre'
 import { Link } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
 import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical, Smartphone, Loader2 } from 'lucide-react'
+import MenuFlottant from '../../../ui/MenuFlottant'
 import toast from 'react-hot-toast'
 import SirenConflictModal from '../components/SirenConflictModal'
 import RechercheRepertoire from '../components/RechercheRepertoire'
@@ -256,6 +257,9 @@ export default function Clients() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [confirmArchive, setConfirmArchive] = useState(null)
   const [actionMenuId, setActionMenuId] = useState(null)
+  // Bouton « ⋯ » : rectangle pris au clic, le menu s'affiche par-dessus la page (MenuFlottant)
+  const [actionAncre, setActionAncre] = useState(null)
+  const fermerMenu = useCallback(() => { setActionMenuId(null); setActionAncre(null) }, [])
   const actionMenuRef = useRef(null)
   const [contacts, setContacts] = useState([])
   const [importing, setImporting] = useState(false)
@@ -315,10 +319,16 @@ export default function Clients() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
+      // Le bouton « ⋯ » d'origine gère lui-même l'ouverture et la fermeture
+      if (e.target.closest?.('[aria-label="Actions du client"]')) return
       if (actionMenuRef.current && !actionMenuRef.current.contains(e.target)) setActionMenuId(null)
     }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
   }, [])
   
   const userRole = useAuthStore(state => state.userRole)
@@ -870,13 +880,13 @@ export default function Clients() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="relative">
-                      <button onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === client.id ? null : client.id) }}
-                        aria-label="Actions du client" title="Actions du client" aria-haspopup="menu" aria-expanded={actionMenuId === client.id}
-                        className="p-2.5 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <button onClick={(e) => { e.stopPropagation(); if (actionMenuId === client.id) return fermerMenu(); setActionAncre(e.currentTarget.getBoundingClientRect()); setActionMenuId(client.id) }}
+                        aria-label="Actions du client" title="Actions du client" aria-expanded={actionMenuId === client.id}
+                        className="p-2.5 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 aria-expanded:opacity-100 transition-opacity">
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       {actionMenuId === client.id && (
-                        <div ref={actionMenuRef} className="absolute right-0 top-8 bg-white border border-gray-200 rounded-ui-sm shadow-md py-1 z-50 min-w-[180px]">
+                        <MenuFlottant ancre={actionAncre} onFermer={fermerMenu} menuRef={actionMenuRef} label="Menu des actions du client">
                           <Link to={`/clients/${client.id}`}
                             className="flex items-center gap-2 px-4 py-2 text-ui text-gray-700 hover:bg-gray-50 w-full">
                             <Eye className="w-4 h-4 text-gray-400" /> Voir la fiche
@@ -900,7 +910,7 @@ export default function Clients() {
                               <Trash2 className="w-4 h-4" /> Supprimer
                             </button>
                           )}
-                        </div>
+                        </MenuFlottant>
                       )}
                     </div>
                   </td>
