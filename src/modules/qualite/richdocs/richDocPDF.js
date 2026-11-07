@@ -126,7 +126,7 @@ function construireBuildRichDocPDF(ORG, { tpl, code, content, ctx, history = [] 
   const cell = (k) => ({ content: k, styles: { fontStyle: 'bold', fillColor: ORG.theme.surface, textColor: ORG.theme.muted } })
   f.table(null, [
     [cell('Code'), code, cell('Version'), validated ? `${version}` : `${version} (projet)`],
-    [cell("Date d'application"), validated ? frDate(content.validated_at) : 'Non validée', cell('Prochaine revue'), validated ? frDate(content.next_review) : '-'],
+    [cell("Date d'application"), validated ? frDate(content.validated_at) : 'Non validée', cell('Prochaine revue'), validated ? (frDate(content.next_review) || '-') : '-'],
     [cell('Pilote'), pilote.charAt(0).toUpperCase() + pilote.slice(1), cell('Validé par'), validated && last ? `${last.validated_by_name || ''}, le ${frDate(last.validated_at)}` : '-'],
     [cell('Modification'), { content: validated && last ? (last.motif || '-') : (content.motif || 'Projet en cours'), colSpan: 3 }],
   ], { styles: { fontSize: 8, valign: 'top' }, columnStyles: { 0: { cellWidth: 32 }, 2: { cellWidth: 30 } }, alternateRowStyles: {} })

@@ -15,7 +15,9 @@ export async function loadPublishedDoc(docId, { force = false } = {}) {
   let value = null
   try {
     const { data } = await supabase.rpc('published_quality_doc', { p_doc_id: docId })
-    if (data?.content?.sections) value = { content: { model: 'rich', ...data.content }, version: data.version, validated_at: data.validated_at, source: 'valide' }
+    // La copie figée d'une version validée ne porte ni le statut ni le numéro : on les reprend de la version, sinon le PDF
+    // se croit un projet (« Projet, version 1 non validée », fichier « -V1 » pour une V3, constat du 06/11)
+    if (data?.content?.sections) value = { content: { model: 'rich', ...data.content, status: 'valide', version: data.version, validated_at: data.validated_at }, version: data.version, validated_at: data.validated_at, source: 'valide' }
   } catch { /* portail sans droits : on continue */ }
   if (!value) {
     try {
@@ -76,7 +78,9 @@ export async function publishedDocPDF(docId, { audience } = {}) {
     ])
     const tpl = tpls[docId]
     if (!pub || !tpl) return null
-    const content = audience ? pourDestinataire(pub.content, audience) : pub.content
+    // Prochaine revue : la ligne de la version validée la porte, pas sa copie figée
+    const base = pub.source === 'valide' && hist[0]?.version === pub.version && hist[0]?.next_review ? { ...pub.content, next_review: hist[0].next_review } : pub.content
+    const content = audience ? pourDestinataire(base, audience) : base
     const r = buildRichDocPDF(ORG, { tpl, code: docCode(tpl.code), content, ctx, history: hist })
     const dataUri = r.doc.output('datauristring')
     return { base64: dataUri.split(',')[1], filename: r.filename, version: pub.version, source: pub.source, validated_at: pub.validated_at, docId, audience: audience || null }
