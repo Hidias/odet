@@ -4824,8 +4824,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </button>}
           </div>
 
-          {/* Barre de couverture */}
-          {(() => {
+          {/* Barre de couverture. Entreprise qui paie seule (financement « aucun ») et aucun financeur saisi : rien
+              « à financer », pas de barre orange à 0 % qui inquiète pour rien (A11, 07/11) */}
+          {sessionFundings.length === 0 && (!session.funding_type || session.funding_type === 'none') ? (
+            <p className="mb-5 p-4 rounded-ui-sm border bg-gray-50 text-ui text-gray-700">
+              L'entreprise cliente paie la formation, sans financeur. Ajoutez un financeur seulement si un OPCO, le CPF ou un autre organisme prend en charge tout ou partie du prix.
+            </p>
+          ) : (() => {
             const totalHT = getSessionTotalHT()
             const fundingTotal = getFundingTotal()
             const coverage = getFundingCoverage()
@@ -4862,7 +4867,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
           {/* Liste des financeurs */}
           {sessionFundings.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Aucun financement renseigné. Cliquez sur « Ajouter un financeur » pour commencer.</p>
+            (session.funding_type && session.funding_type !== 'none') && <p className="text-gray-500 text-center py-8">Aucun financement renseigné. Cliquez sur « Ajouter un financeur » pour commencer.</p>
           ) : (
             <div className="space-y-3">
               <table className="w-full text-ui">

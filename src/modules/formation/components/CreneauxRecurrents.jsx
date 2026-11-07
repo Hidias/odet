@@ -4,6 +4,7 @@ import { Repeat, Plus, Loader2, Pause, Play, Trash2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { Sheet } from '../../../ui/Sheet'
 import { confirmer } from '../../../ui/Confirm'
+import { finConseillee } from '../lib/horaires'
 
 // Créneaux récurrents des sessions inter (0422, série du 21/10 n° 31) : « MAC SST le premier mardi du mois à
 // Quimper ». Le créneau est décrit une fois ; la base crée les sessions des douze mois à venir, publiées au calendrier
@@ -161,7 +162,9 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
               <label className="label" htmlFor="cr-course">Formation *</label>
               <select id="cr-course" className="select" value={form.course_id} onChange={(e) => {
                 const co = courses.find((x) => x.id === e.target.value)
-                setForm({ ...form, course_id: e.target.value, nb_jours: co?.duration_days || form.nb_jours })
+                const nbJours = co?.duration_days || form.nb_jours
+                // Fin selon la durée (4 h : 9 h–13 h), comme une session préparée depuis un devis
+                setForm({ ...form, course_id: e.target.value, nb_jours: nbJours, end_time: co ? finConseillee(form.start_time, co.duration_hours, nbJours) : form.end_time })
               }} required>
                 <option value="">Choisir…</option>
                 {courses.map((co) => <option key={co.id} value={co.id}>{co.title}</option>)}

@@ -22,6 +22,7 @@ import { confirmer } from '../../../ui/Confirm'
 import { bilanSession, blocageSuppressionSession, alerteSuppressionSession, erreurSuppressionSession } from '../lib/alertesAction'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 import { pluriel } from '../../../core/genre'
+import { finConseillee } from '../lib/horaires'
 // Type de journée déduit des horaires : ≤ 4h30 = demi-journée (même règle que Quotes / MultiSiretWizard)
 const dayTypeFromTimes = (startTime, endTime) => {
   const [sh, sm] = (startTime || '09:00').split(':').map(Number)
@@ -1094,7 +1095,12 @@ export default function Sessions() {
                   <label className="label">Formation *</label>
                   <SearchSelect
                     value={formData.course_id}
-                    onChange={(v) => setFormData({ ...formData, course_id: v })}
+                    onChange={(v) => {
+                      // Fin selon la durée de la formation (4 h : 9 h–13 h), modifiable ensuite (A11, 07/11)
+                      const co = courses.find((x) => x.id === v)
+                      const fin = co ? finConseillee(formData.start_time, co.duration_hours, co.duration_days) : formData.end_time
+                      setFormData({ ...formData, course_id: v, end_time: fin, day_type: dayTypeFromTimes(formData.start_time, fin) })
+                    }}
                     required
                     options={courseOptions(courses)}
                     emptyLabel="Sélectionner..." searchPlaceholder="Rechercher une formation..." aria-label="Formation" />
