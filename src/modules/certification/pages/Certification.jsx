@@ -89,7 +89,8 @@ export default function Certification() {
   const changerSuivie = (v) => { setSuivie(v); garderSuivie(v); navigate('/certification') }
   // Onglet actif : premier segment du chemin après /certification (même règle que les liens d'onglet d'avant)
   const segment = location.pathname.replace(/^\/certification\/?/, '').split('/')[0]
-  const ongletActif = onglets.some((t) => t.to && t.to === segment) ? segment : ACCUEIL
+  // Page sans onglet (ex. /certification/nda quand une autre certification est suivie) : aucun onglet allumé
+  const ongletActif = segment === '' ? ACCUEIL : (onglets.some((t) => t.to && t.to === segment) ? segment : null)
 
   // Exigences importées de la certification suivie : même calcul que Qualiopi, sans règle automatique
   const rechargerAutre = useCallback(async () => {
