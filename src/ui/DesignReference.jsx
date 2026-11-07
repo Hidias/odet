@@ -128,7 +128,7 @@ export default function DesignReference() {
 <StatusBadge tone="warning">Convocations à envoyer</StatusBadge>`}</Code>
       </Section>
 
-      <Section id="onglets" title="Onglets" note="Au-delà du nombre visible, les onglets passent dans « Plus ». Aucun onglet n'est supprimé.">
+      <Section id="onglets" title="Onglets" note="Tous les onglets s'affichent quand ils tiennent sur la ligne ; quand la place manque, les premiers restent (au plus le nombre visible) et les autres passent dans « Plus ». Aucun onglet n'est supprimé.">
         <Tabs value={tab} onChange={setTab} visible={5} tabs={[
           { id: 'stagiaires', label: 'Stagiaires', count: 9 }, { id: 'presence', label: 'Présence' }, { id: 'evaluations', label: 'Évaluations' },
           { id: 'documents', label: 'Documents', count: 6 }, { id: 'financement', label: 'Financement' }, { id: 'materiel', label: 'Matériel' },
