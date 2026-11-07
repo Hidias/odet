@@ -1,5 +1,6 @@
 -- Essai de 0505 : refus d'une demande d'inscription en ligne pris sous le verrou de la session, dans le même ordre que
--- la confirmation (session puis demande). Rouge sans 0505 (verrou de session absent du refus). Le refus garde son
+-- la confirmation (session puis demande) ; liste d'attente comptée sous ce verrou. Rouge sans 0505 (verrous absents).
+-- La simultanéité elle-même se rejoue à deux connexions (description de la PR). Le refus garde son
 -- effet : la liste d'attente avance, une demande déjà traitée est refusée. Données d'essai créées ici (une société et
 -- un compte de gestion existants seulement), tout est annulé.
 begin;
@@ -13,11 +14,16 @@ begin
   select cm.profile_id into v_adm from public.company_members cm
    where cm.company_id = v_cie and cm.is_active and cm.role in ('admin', 'gestionnaire') order by cm.role limit 1;
   if v_adm is null then raise exception '0. aucun compte de gestion pour l''essai'; end if;
-  -- 1. Verrous : session puis demande, comme inscription_confirmer
-  v_def := pg_get_functiondef('public.inscription_refuser(uuid, text)'::regprocedure);
+  -- 1. Verrous : session puis demande dans le refus ; session avant tout comptage dans la liste d'attente
+  v_def := regexp_replace(pg_get_functiondef('public.inscription_refuser(uuid, text)'::regprocedure), '\s+', ' ', 'g');
   if position('from public.sessions where id = v_sess for update' in v_def) = 0
      or position('from public.sessions where id = v_sess for update' in v_def) > position('from public.online_registrations where id = p_id for update' in v_def) then
     raise exception '1. refus sans verrou de session pris avant la demande';
+  end if;
+  v_def := regexp_replace(pg_get_functiondef('app.liste_attente_avancer(uuid)'::regprocedure), '\s+', ' ', 'g');
+  if position('from public.sessions where id = p_session for update' in v_def) = 0
+     or position('from public.sessions where id = p_session for update' in v_def) > position('app.places_libres_inter' in v_def) then
+    raise exception '1b. liste d''attente comptée sans verrou de session';
   end if;
   insert into public.courses (title, code, company_id, duration_hours) values ('Formation essai 0505', 'E505', v_cie, 7) returning id into v_co;
   insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token,

@@ -9,10 +9,15 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- (liste_attente_refus) fait avancer la liste d'attente, qui comptait les places sans verrou de session. Pendant une
 -- confirmation simultanée de la même session (qui tient la session sous verrou et ajoute des inscrits), le refus
 -- lisait les places d'avant cette confirmation et pouvait proposer une place qui n'existait plus.
---   Correctif : mêmes verrous et même ordre que public.inscription_confirmer (0500) : session puis demande, statut et
---   session relus après le verrou. Le reste du corps est celui de 0421.
+--   Même défaut, relevé par la relecture, quand un inscrit est retiré ou passe absent (déclencheur
+--   liste_attente_retrait) : surréservation possible, et interblocage possible avec un refus (chacun tenait une
+--   demande et voulait l'autre).
+--   Correctifs : 1. app.liste_attente_avancer prend le verrou de la session avant de compter (corps de 0500, une ligne
+--   ajoutée) : tous les chemins qui font avancer la liste d'attente passent l'un après l'autre. 2. inscription_refuser
+--   prend les verrous comme inscription_confirmer (0500) : session puis demande, demande relue après le verrou (corps
+--   de 0421 pour le reste).
 -- Aucune donnée modifiée. Production le 07/11 : 0 demande en ligne. Retour arrière :
--- supabase/rollback/0505_refus_inscription_verrou_retour.sql (corps de 0421).
+-- supabase/rollback/0505_refus_inscription_verrou_retour.sql (corps de 0421 et de 0500).
 
 create or replace function public.inscription_refuser(p_id uuid, p_motif text default null)
 returns jsonb
@@ -42,6 +47,46 @@ begin
 end
 $$;
 
+CREATE OR REPLACE FUNCTION app.liste_attente_avancer(p_session uuid)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  s record;
+  v_libres int;
+  r record;
+  v_faits int := 0;
+begin
+  -- Verrou de la session (0505) : la liste d'attente avance après toute confirmation, refus, retrait ou passage en
+  -- absent en cours sur la même session, jamais sur des places périmées ; ordre session puis demandes partout
+  perform 1 from public.sessions where id = p_session for update;
+  select se.id, se.company_id, se.max_participants, se.start_date, co.title into s
+    from public.sessions se left join public.courses co on co.id = se.course_id where se.id = p_session;
+  if s.id is null or s.max_participants is null or s.start_date < (now() at time zone 'Europe/Paris')::date then return 0; end if;
+  v_libres := app.places_libres_inter(s.id);
+  for r in select o.id, o.kind, o.company_name, o.contact_first_name, o.contact_last_name, jsonb_array_length(o.participants) as n
+             from public.online_registrations o where o.session_id = s.id and o.status = 'liste_attente' order by o.created_at loop
+    exit when v_libres <= 0;
+    continue when r.n > v_libres;
+    -- Demande traitée entre-temps (confirmée, refusée) : jamais écrasée (0500)
+    update public.online_registrations set status = 'place_proposee', proposed_at = now() where id = r.id and status = 'liste_attente';
+    if not found then continue; end if;
+    v_libres := v_libres - r.n;
+    v_faits := v_faits + 1;
+    insert into public.notifications (company_id, type, title, message, link, metadata)
+    values (s.company_id, 'liste_attente',
+            left('Place libérée : ' || coalesce(s.title, 'session inter') || ' du ' || to_char(s.start_date, 'DD/MM'), 255),
+            'Place proposée à ' || case when r.kind = 'entreprise' then coalesce(r.company_name, 'une entreprise')
+                                        else r.contact_first_name || ' ' || upper(r.contact_last_name) end
+              || ' (liste d''attente, ' || r.n || ' participant' || case when r.n > 1 then 's' else '' end || ') : à confirmer dans la session.',
+            '/sessions/' || s.id, jsonb_build_object('session_id', s.id, 'registration_id', r.id));
+  end loop;
+  return v_faits;
+end
+$function$;
+
 insert into public.schema_migrations (version) values ('0505_refus_inscription_verrou') on conflict (version) do nothing;
 
 -- ===== essai propre supabase/tests/refus_inscription_0505.sql (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====
@@ -57,11 +102,16 @@ begin
   select cm.profile_id into v_adm from public.company_members cm
    where cm.company_id = v_cie and cm.is_active and cm.role in ('admin', 'gestionnaire') order by cm.role limit 1;
   if v_adm is null then raise exception '0. aucun compte de gestion pour l''essai'; end if;
-  -- 1. Verrous : session puis demande, comme inscription_confirmer
-  v_def := pg_get_functiondef('public.inscription_refuser(uuid, text)'::regprocedure);
+  -- 1. Verrous : session puis demande dans le refus ; session avant tout comptage dans la liste d'attente
+  v_def := regexp_replace(pg_get_functiondef('public.inscription_refuser(uuid, text)'::regprocedure), '\s+', ' ', 'g');
   if position('from public.sessions where id = v_sess for update' in v_def) = 0
      or position('from public.sessions where id = v_sess for update' in v_def) > position('from public.online_registrations where id = p_id for update' in v_def) then
     raise exception '1. refus sans verrou de session pris avant la demande';
+  end if;
+  v_def := regexp_replace(pg_get_functiondef('app.liste_attente_avancer(uuid)'::regprocedure), '\s+', ' ', 'g');
+  if position('from public.sessions where id = p_session for update' in v_def) = 0
+     or position('from public.sessions where id = p_session for update' in v_def) > position('app.places_libres_inter' in v_def) then
+    raise exception '1b. liste d''attente comptée sans verrou de session';
   end if;
   insert into public.courses (title, code, company_id, duration_hours) values ('Formation essai 0505', 'E505', v_cie, 7) returning id into v_co;
   insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token,
