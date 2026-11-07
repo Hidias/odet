@@ -11,8 +11,8 @@ const fichiers = (dir) => readdirSync(dir).flatMap((n) => {
 })
 
 describe('S19 : accords', () => {
-  it('aucun « soussigné(e) », « inscrit(e) », « désigné(e) », « informé(e) » dans le code', () => {
-    const motif = /(soussign|inscrit|désign|inform|convoqu)é?\(e\)/
+  it('aucun « soussigné(e) », « inscrit(e) », « désigné(e) », « informé(e) », « né(e) », « désabonné(e) » dans le code', () => {
+    const motif = /(soussign|inscrit|désign|inform|convoqu|désabonn|charg|\bn)é?\(e\)/i
     const fautes = [...fichiers('src'), ...fichiers('api')].filter((f) => motif.test(readFileSync(f, 'utf8')))
     expect(fautes).toEqual([])
   })

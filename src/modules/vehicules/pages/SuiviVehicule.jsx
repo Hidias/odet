@@ -33,7 +33,7 @@ function Designation({ f, onDesigne }) {
   useEffect(() => { let vivant = true; ficheDesignation(f.profile_id).then((x) => { if (vivant) setFiche(x) }).catch(() => { if (vivant) setFiche(null) }); return () => { vivant = false } }, [f.profile_id])
   const lignes = [
     ['Avis n°', f.notice_number], ['Conducteur', fiche ? [fiche.last_name, fiche.first_name].join(' ') : f.driver_name],
-    ['Né(e) le', fiche?.birth_date && dateFr(fiche.birth_date)],
+    ['Date de naissance', fiche?.birth_date && dateFr(fiche.birth_date)],
     ['Adresse', fiche && [fiche.personal_address, [fiche.personal_postal_code, fiche.personal_city].filter(Boolean).join(' ')].filter(Boolean).join(', ')],
     ['Permis', fiche?.permis && [fiche.permis.label, fiche.permis.obtained_on && `obtenu le ${dateFr(fiche.permis.obtained_on)}`, fiche.permis.issuer].filter(Boolean).join(', ')],
   ].filter(([, x]) => x)

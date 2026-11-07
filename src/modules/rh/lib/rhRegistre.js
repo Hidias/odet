@@ -70,7 +70,7 @@ export async function telechargerRegistrePDF(rows, { enregistrer = true } = {}) 
       docLabel: 'Registre unique du personnel', code: 'RUP',
       title: 'Registre unique du personnel', subtitle: `Articles L1221-13 et D1221-23 du Code du travail, édité le ${new Date().toLocaleDateString('fr-FR')}`,
     })
-    const tete = ['N°', 'Nom et prénoms', 'Nationalité', 'Né(e) le', 'Sexe', 'Emploi et qualification', 'Entrée', 'Sortie', 'Contrat', 'Autorisation']
+    const tete = ['N°', 'Nom et prénoms', 'Nationalité', 'Date de naissance', 'Sexe', 'Emploi et qualification', 'Entrée', 'Sortie', 'Contrat', 'Autorisation']
     const ligne = (r) => [String(r.numero), r.nom, r.nationalite, r.naissance, r.sexe, r.emploi, r.entree, r.sortie, r.contrat, r.autorisation]
     const salaries = rows.filter((r) => !r.stagiaire)
     const stagiaires = rows.filter((r) => r.stagiaire)

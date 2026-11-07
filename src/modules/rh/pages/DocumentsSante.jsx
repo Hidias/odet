@@ -351,7 +351,8 @@ export function HabilitationsFiche({ companyId, personId, peutGerer = false }) {
                   h.expires_on ? `échéance le ${fr(h.expires_on)}` : 'sans échéance', h.issuer].filter(Boolean).join(' · ')}
               </div>
             </div>
-            <Echeance iso={h.expires_on} />
+            {/* Titre suspendu : seul le badge « Suspendue » compte, pas d'« À jour » vert à côté (A11, 07/11) */}
+            {!h.suspended_at && <Echeance iso={h.expires_on} />}
             {peutGerer && (h.kind === 'habilitation_electrique' || h.kind === 'autorisation_conduite') && !h.suspended_at && (
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTitre(h)}>{h.delivered_at ? 'Rééditer le titre' : 'Éditer le titre'}</button>
             )}
@@ -453,13 +454,15 @@ export function SanteFiche({ companyId, personId, peutGerer = false }) {
   if (liste === null) return null
   if (!liste.length && !peutGerer) return null
   const prochaine = liste.map((s) => s.next_due_on).filter(Boolean).sort().pop()
+  // Inaptitude dont la suite n'est pas décidée : pas d'« À jour » vert en tête de bloc (A11, 07/11)
+  const inapteOuvert = liste.some((s) => s.conclusion === 'inapte' && !s.inaptitude_closed_on)
   return (
     <section className="card space-y-2">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="section-title flex items-center gap-2"><HeartPulse className="w-4 h-4 text-gray-400" aria-hidden="true" />Santé au travail</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {prochaine && <span className="text-ui-sm text-gray-600">Prochaine visite : {fr(prochaine)}</span>}
-          {prochaine && <Echeance iso={prochaine} />}
+          {inapteOuvert ? <span className="badge badge-danger">Inapte : suite à décider</span> : prochaine && <Echeance iso={prochaine} />}
           {peutGerer && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEdite({})}><Plus className="w-4 h-4" aria-hidden="true" />Ajouter une visite</button>}
         </div>
       </div>
@@ -524,7 +527,7 @@ export function ConsignesFiche({ companyId, personId, peutGerer = false }) {
           return (
             <li key={c.id} className="py-2 flex items-start gap-2">
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-ui">{TYPES_CONSIGNE[c.kind]}{c.label ? ` : ${c.label}` : ''}</div>
+                <div className="font-semibold text-ui">{TYPES_CONSIGNE[c.kind]}{c.label && c.label.trim() !== TYPES_CONSIGNE[c.kind] ? ` : ${c.label}` : ''}</div>
                 <div className="text-ui-sm text-gray-600">Depuis le {fr(c.starts_on)}{c.ends_on ? `, jusqu'au ${fr(c.ends_on)}` : ', sans date de fin'}</div>
               </div>
               <span className={`badge flex-none ${active ? 'badge-warning' : 'badge-neutral'}`}>{active ? 'En cours' : 'Terminée'}</span>

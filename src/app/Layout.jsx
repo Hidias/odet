@@ -131,8 +131,9 @@ export default function Layout() {
     const m = new Set(modules || [])
     return [
       { to: '/interventions', icon: MapPin, label: 'Ma tournée', court: 'Tournée' },
-      ...(m.has('stock') ? [{ to: '/stock/mon-stock', icon: Package, label: 'Mon stock', court: 'Stock' }] : []),
-      ...(m.has('vehicules') ? [{ to: '/vehicules/mon-vehicule', icon: Car, label: 'Mon véhicule', court: 'Véhicule' }] : []),
+      // routes : l'entrée reste allumée sur les autres onglets du module (ex. Inventaires du stock, A11 D2 du 07/11)
+      ...(m.has('stock') ? [{ to: '/stock/mon-stock', icon: Package, label: 'Mon stock', court: 'Stock', routes: ['/stock'] }] : []),
+      ...(m.has('vehicules') ? [{ to: '/vehicules/mon-vehicule', icon: Car, label: 'Mon véhicule', court: 'Véhicule', routes: ['/vehicules'] }] : []),
       ...(m.has('rh') ? [{ to: '/collaborateurs/mon-espace', icon: UserRound, label: 'Mon espace', court: 'Moi' }] : []),
     ]
   }, [fieldOnly, modules])
@@ -563,7 +564,7 @@ export default function Layout() {
         <nav aria-label="Navigation principale" className="bottom-nav lg:hidden">
           {bottomItems.map((item, idx) => (
             <span key={item.to} className="contents">
-              <NavLink to={item.to} end={item.to === '/'} className={({ isActive }) => `bottom-nav-item ${isActive ? 'is-active' : ''}`}>
+              <NavLink to={item.to} end={item.to === '/'} className={({ isActive }) => `bottom-nav-item ${isActive || (item.routes || []).some((r) => surRoute(location.pathname, r)) ? 'is-active' : ''}`}>
                 <item.icon className="w-[22px] h-[22px]" aria-hidden="true" />
                 <span>{item.label}</span>
               </NavLink>

@@ -430,7 +430,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
       <section className="card space-y-1">
         <h2 className="section-title mb-1">Identité et coordonnées</h2>
         {ligne('Nom d\'usage', p.usage_name)}
-        {ligne('Né(e) le', fr(p.birth_date))}
+        {ligne('Date de naissance', fr(p.birth_date))}
         {estMineur(p.birth_date) && ligne('Jeune de moins de 18 ans', p.minor_derogation_until && p.minor_derogation_until >= new Date().toISOString().slice(0, 10)
           ? `Dérogation jusqu'au ${fr(p.minor_derogation_until)}`
           : <span className="text-[rgb(var(--c-danger))] font-medium">Sans dérogation en cours : pas de travaux électriques ni de conduite</span>)}

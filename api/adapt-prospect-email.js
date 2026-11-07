@@ -22,7 +22,7 @@ async function handler(req, res) {
 
     const org = await loadOrgProfile(getAdminClient())
     const sender = senderFromProfile(req.profile)
-    const prompt = `Tu es ${sender ? `${sender}, ` : ''}chargé(e) de relation commerciale chez ${org.name || "l'organisme de formation"}.
+    const prompt = `Tu es ${sender ? `${sender}, ` : ''}chargé de relation commerciale chez ${org.name || "l'organisme de formation"}.
 
 ${orgIdentityBlock(org)}
 
