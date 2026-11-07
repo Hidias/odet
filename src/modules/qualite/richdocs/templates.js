@@ -775,8 +775,13 @@ const TEMPLATES = {
        ],
        [
         "Stagiaire, à froid",
-        "90 jours après la fin",
-        "Questionnaire en ligne envoyé par courriel"
+        "Délai réglé (par défaut 60 jours après la fin)",
+        "Questionnaire en ligne envoyé par courriel après validation"
+       ],
+       [
+        "Employeur, à froid",
+        "Même délai que les stagiaires",
+        "Questionnaire de l'espace entreprise, demandé par courriel après validation"
        ],
        [
         "Entreprise ou donneur d'ordre",
@@ -859,7 +864,7 @@ const TEMPLATES = {
        ],
        [
         "Gestion administrative",
-        "Vérifie l'envoi du questionnaire entreprise et des questionnaires à froid ; relance une fois."
+        "Vérifie l'envoi du questionnaire entreprise ; valide et envoie les questionnaires à froid et les relances que l'outil prépare."
        ],
        [
         "Responsable qualité",
@@ -954,7 +959,7 @@ const TEMPLATES = {
      },
      {
       "t": "p",
-      "text": "**Étape 5. À froid.** Chaque nuit, l'outil prépare le questionnaire à froid des stagiaires, et celui de l'employeur, au délai réglé (par défaut 60 jours après la fin ; réglable par société et par formation dans Évaluations à froid, Réglages). Rien ne part sans validation : la gestion vérifie la liste préparée et l'envoie. Sans réponse, une relance est préparée 30 jours après l'envoi, une seule par défaut (réglable), et validée de la même façon."
+      "text": "**Étape 5. À froid.** Chaque nuit, l'outil prépare le questionnaire à froid des stagiaires, et celui de l'employeur, au délai réglé (par défaut 60 jours après la fin ; réglable par société et par formation dans Évaluations à froid, Réglages). Rien ne part sans validation : la personne qui a le droit d'envoyer aux stagiaires et aux clients vérifie la liste préparée et l'envoie. L'envoi n'est possible que si l'interrupteur « Questionnaires à froid » est ouvert par le super administrateur (Console, Tâches et envois). Sans réponse, une relance est préparée 30 jours après l'envoi, une seule par défaut (réglable), et validée de la même façon."
      },
      {
       "t": "p",
@@ -6260,7 +6265,7 @@ const TEMPLATES = {
        "Questionnaire entreprise envoyé, retour déposé",
        "Facture émise avec émargements",
        "Avis négatifs lus et traités",
-       "Questionnaire à froid préparé par l'outil au délai réglé (par défaut 60 jours), puis validé",
+       "Questionnaire à froid préparé par l'outil au délai réglé (par défaut 60 jours), puis envoyé après validation",
        "Dossier complet contrôlé par le responsable qualité",
        "Passeport de prévention renseigné (formations santé et sécurité au travail)"
       ]

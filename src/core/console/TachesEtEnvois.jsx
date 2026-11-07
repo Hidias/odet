@@ -46,7 +46,7 @@ export const TYPES_ENVOI = [
   { kind: 'relance_facture', label: "Relances d'impayés", aide: 'Factures échues non réglées' },
   { kind: 'convocation', label: 'Convocations à J-7', aide: 'Aux stagiaires inscrits, une semaine avant la session' },
   { kind: 'attestation', label: 'Attestations à la clôture', aide: 'Aux stagiaires et au client, à la clôture de la session' },
-  { kind: 'evaluation_froid', label: 'Questionnaires à froid', aide: 'Aux stagiaires, quelques semaines après la formation' },
+  { kind: 'evaluation_froid', label: 'Questionnaires à froid', aide: 'Aux stagiaires et aux employeurs, au délai réglé (60 jours par défaut) après la formation' },
   { kind: 'renouvellement_contrat', label: 'Renouvellement des contrats', aide: 'Contrats de maintenance qui se terminent' },
   { kind: 'visite_hors_contrat', label: 'Vérifications à prévoir', aide: 'Clients sans contrat dont le matériel arrive à échéance' },
   { kind: 'justificatif_prestataire', label: 'Justificatifs des prestataires', aide: 'Documents manquants ou périmés' },
