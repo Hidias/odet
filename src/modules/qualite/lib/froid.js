@@ -141,7 +141,9 @@ export function finCycleFroid(fin, reglage, delaiFormation, dernierEnvoi = null,
   }
   const prevu = ajouter(fin, premier + resteDepuis(0))
   if (!dernierEnvoi) return prevu
-  const reel = ajouter(dernierEnvoi, resteDepuis(Math.max(0, Number(rangDernierEnvoi) || 0)))
+  // Date de Paris de l'envoi (la base compte en heure de Paris) : un envoi à 0 h 30 à Paris est du jour même
+  const jourParis = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(dernierEnvoi))
+  const reel = ajouter(jourParis, resteDepuis(Math.max(0, Number(rangDernierEnvoi) || 0)))
   return reel > prevu ? reel : prevu
 }
 

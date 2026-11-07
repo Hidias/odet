@@ -19,6 +19,10 @@ describe('fin du cycle d\'une évaluation à froid (Complétude)', () => {
     // relance partie le 15 mai (rang 1, la dernière) : 30 jours pour répondre
     expect(finCycleFroid('2026-01-01', null, null, '2026-05-15', 1)).toBe('2026-06-14')
     expect(finCycleFroid('2026-01-01', null, null, '2026-03-02', 0)).toBe('2026-05-01')
+    // envoi à 0 h 30 à Paris le 2 avril (22 h 30 UTC le 1er) : compté le 2 avril
+    expect(finCycleFroid('2026-01-01', null, null, '2026-04-01T22:30:00+00:00', 0)).toBe('2026-06-01')
+    // trois relances : relance 2 partie le 1er juin, reste une relance (45) puis 15 jours pour répondre
+    expect(finCycleFroid('2026-01-01', { premier_envoi_jours: 20, relance_apres_jours: 15, entre_relances_jours: 45, relances_max: 3 }, null, '2026-06-01', 2)).toBe('2026-07-31')
   })
   it('sans date de fin : rien', () => {
     expect(finCycleFroid(null, null, null)).toBeNull()
