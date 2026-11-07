@@ -47,7 +47,7 @@ import FinancementDevis from '../components/FinancementDevis'
 import { champsFinancement } from '../lib/financementDevis'
 
 import { confirmer, demander } from '../../../ui/Confirm'
-import { confirmationModificationDevisPublie, confirmationPassageEnvoye, confirmationSuppressionDevis } from '../../../core/portail/alertesPublication'
+import { confirmationModificationDevisPublie, confirmationPassageEnvoye, confirmationSuppressionDevis, PUBLICATION_DEVIS_ACCEPTE } from '../../../core/portail/alertesPublication'
 import { BadgeTest, BandeauTest } from '../../../core/demo/BadgeTest'
 import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
@@ -585,7 +585,7 @@ export default function Quotes() {
   function confirmerAcceptation(statut) {
     return confirmer({
       title: `Passer le devis en « ${STATUS_CONFIG[statut]?.label || statut} »`,
-      message: 'Selon son contenu, un contrat de maintenance « à valider » et une livraison du matériel à planifier seront préparés, pour les lignes acceptées et celles pas encore tranchées. Cela ne se fait qu\'une fois par devis : refuser une ligne ou revenir en arrière ensuite ne les retire pas.\n\nLes sessions de formation ne sont préparées que si le client a signé en ligne ; sinon, créez-les depuis le devis.',
+      message: 'Selon son contenu, un contrat de maintenance « à valider » et une livraison du matériel à planifier seront préparés, pour les lignes acceptées et celles pas encore tranchées. Cela ne se fait qu\'une fois par devis : refuser une ligne ou revenir en arrière ensuite ne les retire pas.\n\nLes sessions de formation ne sont préparées que si le client a signé en ligne ; sinon, créez-les depuis le devis.\n\n' + PUBLICATION_DEVIS_ACCEPTE,
       confirmLabel: 'Confirmer',
     })
   }
@@ -843,7 +843,8 @@ export default function Quotes() {
       setCurrentQuote(prev => ({ ...prev, status: newStatus }))
       setQuotes(prev => prev.map(q => q.id === currentQuote.id ? { ...q, status: newStatus } : q))
       toast.success(`Statut → ${STATUS_CONFIG[newStatus]?.label || newStatus}`)
-      if (['accepted', 'partial'].includes(newStatus)) regenererEtPublier(currentQuote.id)
+      // Publié à l'entrée en acceptation seulement : une bascule entre « partiel » et « accepté » ne refait pas de version
+      if (['accepted', 'partial'].includes(newStatus) && !['accepted', 'partial'].includes(currentQuote.status)) regenererEtPublier(currentQuote.id)
     }
   }
 
