@@ -454,7 +454,7 @@ function Formations() {
             <p className="text-sm text-gray-700 flex-1 min-w-[12rem]">
               {avis[s.id] ? `Merci pour votre avis (${avis[s.id]} sur 5).` : 'Votre avis sur cette formation nous aide à progresser.'}
             </p>
-            <button type="button" onClick={() => setANoter(s)} className={`btn btn-sm ${avis[s.id] ? 'btn-secondary' : 'btn-primary'}`}>{avis[s.id] ? 'Modifier' : 'Donner mon avis'}</button>
+            <button type="button" onClick={() => setANoter(s)} className={`btn btn-sm ${avis[s.id] ? 'btn-secondary' : 'btn-primary'}`}>{avis[s.id] ? 'Modifier mon avis' : 'Donner mon avis'}</button>
           </div>
         )}
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
