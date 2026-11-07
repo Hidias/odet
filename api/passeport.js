@@ -107,10 +107,11 @@ async function etatStagiaire(admin, traineeId) {
 // effacés. Automatique depuis le 22/10 (décision de H) : toutes les 15 minutes, à l'ouverture du Passeport et avant
 // chaque fichier. Aucun numéro dans la réponse ni dans les journaux.
 async function reprendreAnciens(admin, by, { dry = false } = {}) {
-  const { data: rows, error: e1 } = await admin.from('trainee_ssn').select('trainee_id, ssn')
+  // Numéros chiffrés en base depuis 0502 : déchiffrés par la base pour la seule clé de service
+  const { data: rows, error: e1 } = await admin.rpc('trainee_ssn_a_reprendre')
   if (e1) {
-    // Table absente (chantier 2 non appliqué) : rien à reprendre
-    if (e1.code === '42P01' || e1.code === 'PGRST205') return { en_attente: 0, repris: 0, invalides: 0, deja_dans_le_passeport: 0 }
+    // Table ou fonction absente (chantier 2 ou 0502 non appliqués) : rien à reprendre
+    if (['42P01', '42883', 'PGRST202', 'PGRST205'].includes(e1.code)) return { en_attente: 0, repris: 0, invalides: 0, deja_dans_le_passeport: 0 }
     throw Object.assign(new Error('Lecture impossible'), { code: e1.code })
   }
   const ids = (rows || []).map((r) => r.trainee_id)

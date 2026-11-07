@@ -6200,7 +6200,8 @@ begin
       select t.id into r_t from public.trainees t where t.client_id = r_c and t.first_name = 'Lea';
       if (select nom_naissance = 'DURAND' and email = 'lea@test.invalid' and birth_date = date '1985-05-02' and birth_place = 'Quimper'
                  and job_title = 'Cariste' and ssn_present and social_security_number is null from public.trainees where id = r_t)
-         and (select length(ssn) = 15 from public.trainee_ssn where trainee_id = r_t)
+         and (select ssn is null and ssn_chiffre is not null and fin = '441' from public.trainee_ssn where trainee_id = r_t)
+         and (select length(x.ssn) = 15 from public.trainee_ssn_a_reprendre() x where x.trainee_id = r_t)
          and (select nom_naissance = 'PETIT' and job_title = 'Magasinier' from public.trainees where client_id = r_c and first_name = 'Tom')
          and (select count(*) from public.notifications where type = 'participants_saisis' and metadata ->> 'session_id' = r_s::text) = 1 then
         v_lines := v_lines || 'OK      base  0435 : participants avec nom de naissance, n° rangé à part, rien d''effacé, une seule notification'::text;
@@ -6476,7 +6477,8 @@ begin
       perform set_config('request.jwt.claims', '', true);
       if jsonb_array_length(m_l) = 1 and not (m_l -> 0 ->> 'renseigne')::boolean and m_ok and m_ok2 and m_e ->> 'fin' = right(m_cle, 3)
          and (m_r ->> 'renseigne')::boolean
-         and (select ssn = m_cle from public.trainee_ssn where trainee_id = m_t)
+         and (select ssn is null and fin = right(m_cle, 3) from public.trainee_ssn where trainee_id = m_t)
+         and (select x.ssn = m_cle from public.trainee_ssn_a_reprendre() x where x.trainee_id = m_t)
          and (select social_security_number is null and ssn_present from public.trainees where id = m_t)
          and exists (select 1 from public.notifications where type = 'nir_transmis' and metadata ->> 'trainee_id' = m_t::text) then
         v_lines := v_lines || 'OK      anon  0440 : l''entreprise voit la demande et transmet le n° (vérifié, rangé à part), seulement pour un salarié qui l''a demandé'::text;
