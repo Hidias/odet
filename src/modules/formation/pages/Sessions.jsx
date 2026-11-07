@@ -22,7 +22,7 @@ import { confirmer } from '../../../ui/Confirm'
 import { bilanSession, blocageSuppressionSession, alerteSuppressionSession, erreurSuppressionSession } from '../lib/alertesAction'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 import { pluriel } from '../../../core/genre'
-import { finConseillee } from '../lib/horaires'
+import { finConseillee, finApresDebut } from '../lib/horaires'
 // Type de journée déduit des horaires : ≤ 4h30 = demi-journée (même règle que Quotes / MultiSiretWizard)
 const dayTypeFromTimes = (startTime, endTime) => {
   const [sh, sm] = (startTime || '09:00').split(':').map(Number)
@@ -1206,7 +1206,11 @@ export default function Sessions() {
                   <input
                     type="time"
                     value={formData.start_time}
-                    onChange={(e) => setFormData({ ...formData, start_time: e.target.value, day_type: dayTypeFromTimes(e.target.value, formData.end_time) })}
+                    onChange={(e) => {
+                      const co = courses.find((x) => x.id === formData.course_id)
+                      const fin = co ? finApresDebut(formData.start_time, e.target.value, formData.end_time, co.duration_hours, co.duration_days) : formData.end_time
+                      setFormData({ ...formData, start_time: e.target.value, end_time: fin, day_type: dayTypeFromTimes(e.target.value, fin) })
+                    }}
                     className="input"
                   />
                 </div>

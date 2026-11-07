@@ -4,7 +4,7 @@ import { Repeat, Plus, Loader2, Pause, Play, Trash2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { Sheet } from '../../../ui/Sheet'
 import { confirmer } from '../../../ui/Confirm'
-import { finConseillee } from '../lib/horaires'
+import { finConseillee, finApresDebut } from '../lib/horaires'
 
 // Créneaux récurrents des sessions inter (0422, série du 21/10 n° 31) : « MAC SST le premier mardi du mois à
 // Quimper ». Le créneau est décrit une fois ; la base crée les sessions des douze mois à venir, publiées au calendrier
@@ -199,7 +199,7 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div><label className="label" htmlFor="cr-nbj">Jours ouvrés</label><input id="cr-nbj" type="number" min="1" max="10" className="input" value={form.nb_jours} onChange={(e) => f('nb_jours', e.target.value)} /></div>
-              <div><label className="label" htmlFor="cr-hd">Début</label><input id="cr-hd" type="time" className="input" value={form.start_time} onChange={(e) => f('start_time', e.target.value)} /></div>
+              <div><label className="label" htmlFor="cr-hd">Début</label><input id="cr-hd" type="time" className="input" value={form.start_time} onChange={(e) => { const co = courses.find((x) => x.id === form.course_id); setForm({ ...form, start_time: e.target.value, end_time: co ? finApresDebut(form.start_time, e.target.value, form.end_time, co.duration_hours, form.nb_jours) : form.end_time }) }} /></div>
               <div><label className="label" htmlFor="cr-hf">Fin</label><input id="cr-hf" type="time" className="input" value={form.end_time} onChange={(e) => f('end_time', e.target.value)} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

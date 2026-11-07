@@ -10,3 +10,11 @@ export function finConseillee(debut = '09:00', heures, jours = 1) {
   if (fin >= 24 * 60) return '17:00'
   return `${String(Math.floor(fin / 60)).padStart(2, '0')}:${String(fin % 60).padStart(2, '0')}`
 }
+
+/** Début changé après le choix de la formation : la fin proposée le suit (4 h commencées à 13 h : fin à 17 h) ;
+ *  une fin saisie à la main, différente de la proposition, n'est jamais touchée */
+export function finApresDebut(ancienDebut, nouveauDebut, fin, heures, jours = 1) {
+  const h = Number(heures)
+  if (!h || h >= 6 || (Number(jours) || 1) > 1) return fin
+  return fin === finConseillee(ancienDebut, h, jours) ? finConseillee(nouveauDebut, h, jours) : fin
+}
