@@ -46,7 +46,8 @@ export async function loadEvidence() {
     count('trainee_objectives', (q) => q.eq('validated', true)),
     count('session_trainees', (q) => q.not('result', 'is', null)),
     count('session_trainees', (q) => q.not('convocation_sent_at', 'is', null)),
-    count('trainee_info_sheets'),
+    // Fiche remplie seulement : une fiche vide est créée à chaque inscription (trg_auto_create_info_sheet)
+    count('trainee_info_sheets', (q) => q.not('filled_at', 'is', null)),
     // Données de handicap réservées (direction, référent) : comptages sans identité par fonction
     supabase.rpc('psh_request_count').then(({ data, error }) => (error ? 0 : Number(data) || 0)),
     supabase.rpc('disability_count').then(({ data, error }) => (error ? 0 : Number(data) || 0)),
@@ -193,7 +194,11 @@ export const RULES = {
     missing: ['Publier le taux d\'obtention, les blocs de compétences, passerelles, suites de parcours et débouchés'],
   }),
   4: (e) => ({
-    items: [e.n.needs ? ok(`Analyses du besoin : ${e.n.needs} pour ${plural(e.n.sessionsTotal, 'session')}`, L.sessions) : ko('Aucune analyse du besoin enregistrée', L.sessions)],
+    items: [
+      e.n.needs ? ok(`Analyses du besoin : ${e.n.needs} pour ${plural(e.n.sessionsTotal, 'session')}`, L.sessions) : ko('Aucune analyse du besoin enregistrée', L.sessions),
+      // Fiche de renseignements : attentes, poste, diplôme du stagiaire (rattachée au 4, décision de H du 07/11)
+      e.n.infoSheets ? ok(`Fiches de renseignements (attentes des stagiaires) : ${e.n.infoSheets}`, L.sessions) : ko('Aucune fiche de renseignements', L.sessions),
+    ],
     missing: e.n.needs && e.n.needs < e.n.sessionsTotal ? [`${plural(e.n.sessionsTotal - e.n.needs, 'session')} sans analyse du besoin`] : [],
   }),
   5: (e) => ({
@@ -224,11 +229,10 @@ export const RULES = {
     missing: [],
   }),
   10: (e) => ({
-    items: [
-      e.n.infoSheets ? ok(`Fiches de renseignement (besoins particuliers) : ${e.n.infoSheets}`, L.sessions) : ko('Aucune fiche de renseignement', L.sessions),
-      ok(`Demandes d'adaptation (registre PSH) : ${e.n.psh}`, L.psh),
-    ],
-    missing: [],
+    // Sans demande d'adaptation : aucun élément, seulement le manque ; une preuve ajoutée à la main le lève
+    items: e.n.psh ? [ok(`Demandes d'adaptation (registre PSH) : ${e.n.psh}`, L.psh)] : [],
+    // Le registre ne suffit pas à lui seul : l'auditeur cherche la trace des adaptations faites au public
+    missing: e.n.psh ? [] : ['Garder la trace des adaptations de la prestation au public (entretiens, aménagements, suivi), puis l\'ajouter en preuve'],
   }),
   11: (e) => ({
     items: [

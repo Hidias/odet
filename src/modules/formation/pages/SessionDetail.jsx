@@ -87,10 +87,10 @@ const statusLabels = {
 }
 
 const docTypes = [
-  { id: 'convention', name: 'Convention', icon: FileSignature, forAll: true, qualiopi: 5 },
-  { id: 'programme', name: 'Programme', icon: FileText, forAll: true, qualiopi: 5 },
+  { id: 'convention', name: 'Convention', icon: FileSignature, forAll: true, qualiopi: Number(Q.convention) },
+  { id: 'programme', name: 'Programme', icon: FileText, forAll: true, qualiopi: Number(Q.programme) },
   { id: 'convocation', name: 'Convocation', icon: Send, forEach: true },
-  { id: 'ficheRenseignements', name: 'Fiche renseignements', icon: FileText, forEach: true, qualiopi: 8 },
+  { id: 'ficheRenseignements', name: 'Fiche renseignements', icon: FileText, forEach: true, qualiopi: Number(Q.ficheRenseignements) },
   { id: 'emargement', name: 'Émargement', icon: FileText, forAll: true, qualiopi: Number(Q.emargement) },
   { id: 'attestation', name: 'Attestation', icon: FileText, forEach: true },
   { id: 'certificat', name: 'Certificat', icon: CheckCircle, forEach: true, qualiopi: 11 },
@@ -5558,7 +5558,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             <h3 className="font-semibold mb-4 flex items-center gap-2">
               <QrCode className="w-5 h-5 text-primary-600" />
                QR Code Stagiaires
-              <span className="text-ui-sm bg-primary-100 text-primary-700 px-2 py-1 rounded ml-2">Ind. 8, 11, 30</span>
+              <span className="text-ui-sm bg-primary-100 text-primary-700 px-2 py-1 rounded ml-2">Ind. {[Q.ficheRenseignements, Q.positionnement, Q.grilles, Q.emargement, Q.evaluation].join(', ')}</span>
             </h3>
             
             <div className="grid md:grid-cols-2 gap-6">
