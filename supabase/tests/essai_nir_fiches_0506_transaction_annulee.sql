@@ -123,7 +123,7 @@ set local client_min_messages = warning;
 
 do $$
 declare
-  v_cie uuid; v_c uuid; v_s uuid; v_s2 uuid; v_t uuid; v_t2 uuid; v_t3 uuid; v_t4 uuid;
+  v_cie uuid; v_c uuid; v_s uuid; v_s2 uuid; v_t uuid; v_t2 uuid; v_t3 uuid; v_t4 uuid; v_t5 uuid; v_ctid tid;
 begin
   select id into v_cie from public.companies limit 1;
   insert into public.courses (title, company_id) values ('Formation essai 0506', v_cie) returning id into v_c;
@@ -135,9 +135,10 @@ begin
   insert into public.trainees (first_name, last_name, company_id) values ('Essai', 'DEUX', v_cie) returning id into v_t2;
   insert into public.trainees (first_name, last_name, company_id) values ('Essai', 'TROIS', v_cie) returning id into v_t3;
   insert into public.trainees (first_name, last_name, company_id) values ('Essai', 'QUATRE', v_cie) returning id into v_t4;
+  insert into public.trainees (first_name, last_name, company_id) values ('Essai', 'CINQ', v_cie) returning id into v_t5;
   insert into public.session_trainees (session_id, trainee_id)
-    values (v_s, v_t), (v_s2, v_t), (v_s, v_t2), (v_s2, v_t2), (v_s, v_t3), (v_s, v_t4);
-  if (select count(*) from public.trainee_info_sheets where trainee_id in (v_t, v_t2, v_t3, v_t4)) <> 6 then
+    values (v_s, v_t), (v_s2, v_t), (v_s, v_t2), (v_s2, v_t2), (v_s, v_t3), (v_s, v_t4), (v_s, v_t5), (v_s2, v_t5);
+  if (select count(*) from public.trainee_info_sheets where trainee_id in (v_t, v_t2, v_t3, v_t4, v_t5)) <> 8 then
     raise exception '0. fiches non créées'; end if;
 
   -- 1. Saisie directe sur le stagiaire (fiche du stagiaire, liste des participants)
@@ -187,9 +188,20 @@ begin
 
   -- 7. Fiche « refus » jamais touchée par une saisie dans le Passeport
   update public.trainee_info_sheets set ssn_refused = true where trainee_id = v_t4;
+  select ctid into v_ctid from public.trainee_info_sheets where trainee_id = v_t4;
   insert into public.pp_nir (trainee_id, nir_chiffre, fin) values (v_t4, 'chiffre-essai', '436');
+  if (select ctid from public.trainee_info_sheets where trainee_id = v_t4) <> v_ctid then
+    raise exception '7. fiche « refus » réécrite (la branche refus efface le numéro)'; end if;
   if exists (select 1 from public.trainee_info_sheets where trainee_id = v_t4 and (ssn_present or not ssn_refused)) then
     raise exception '7. fiche « refus » modifiée'; end if;
+
+  -- 9. Chemin du portail (save_trainee_info : insert ... on conflict do update) pour un stagiaire à deux fiches
+  insert into public.trainee_info_sheets (session_id, trainee_id, ssn, ssn_refused, filled_online)
+    values (v_s, v_t5, '185057800608436', false, true)
+    on conflict (session_id, trainee_id) do update set ssn = excluded.ssn, ssn_refused = excluded.ssn_refused, filled_online = excluded.filled_online;
+  if exists (select 1 from public.trainee_info_sheets where trainee_id = v_t5 and not ssn_present) then
+    raise exception '9. fiches non alignées après une saisie au portail'; end if;
+  if not (select ssn_present from public.trainees where id = v_t5) then raise exception '9. stagiaire sans numéro'; end if;
 
   -- 8. Recopie vers les fiches une seule fois (déclencheur en double retiré)
   if (select count(*) from pg_trigger where tgrelid = 'public.trainees'::regclass and not tgisinternal
