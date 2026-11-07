@@ -193,7 +193,11 @@ export const RULES = {
     missing: ['Publier le taux d\'obtention, les blocs de compétences, passerelles, suites de parcours et débouchés'],
   }),
   4: (e) => ({
-    items: [e.n.needs ? ok(`Analyses du besoin : ${e.n.needs} pour ${plural(e.n.sessionsTotal, 'session')}`, L.sessions) : ko('Aucune analyse du besoin enregistrée', L.sessions)],
+    items: [
+      e.n.needs ? ok(`Analyses du besoin : ${e.n.needs} pour ${plural(e.n.sessionsTotal, 'session')}`, L.sessions) : ko('Aucune analyse du besoin enregistrée', L.sessions),
+      // Fiche de renseignements : attentes, poste, diplôme du stagiaire (rattachée au 4, décision de H du 07/11)
+      e.n.infoSheets ? ok(`Fiches de renseignements (attentes des stagiaires) : ${e.n.infoSheets}`, L.sessions) : ko('Aucune fiche de renseignements', L.sessions),
+    ],
     missing: e.n.needs && e.n.needs < e.n.sessionsTotal ? [`${plural(e.n.sessionsTotal - e.n.needs, 'session')} sans analyse du besoin`] : [],
   }),
   5: (e) => ({
@@ -225,7 +229,6 @@ export const RULES = {
   }),
   10: (e) => ({
     items: [
-      e.n.infoSheets ? ok(`Fiches de renseignement (besoins particuliers) : ${e.n.infoSheets}`, L.sessions) : ko('Aucune fiche de renseignement', L.sessions),
       ok(`Demandes d'adaptation (registre PSH) : ${e.n.psh}`, L.psh),
     ],
     missing: [],

@@ -87,10 +87,10 @@ const statusLabels = {
 }
 
 const docTypes = [
-  { id: 'convention', name: 'Convention', icon: FileSignature, forAll: true, qualiopi: 5 },
-  { id: 'programme', name: 'Programme', icon: FileText, forAll: true, qualiopi: 5 },
+  { id: 'convention', name: 'Convention', icon: FileSignature, forAll: true, qualiopi: Number(Q.convention) },
+  { id: 'programme', name: 'Programme', icon: FileText, forAll: true, qualiopi: Number(Q.programme) },
   { id: 'convocation', name: 'Convocation', icon: Send, forEach: true },
-  { id: 'ficheRenseignements', name: 'Fiche renseignements', icon: FileText, forEach: true, qualiopi: 8 },
+  { id: 'ficheRenseignements', name: 'Fiche renseignements', icon: FileText, forEach: true, qualiopi: Number(Q.ficheRenseignements) },
   { id: 'emargement', name: 'Émargement', icon: FileText, forAll: true, qualiopi: Number(Q.emargement) },
   { id: 'attestation', name: 'Attestation', icon: FileText, forEach: true },
   { id: 'certificat', name: 'Certificat', icon: CheckCircle, forEach: true, qualiopi: 11 },
