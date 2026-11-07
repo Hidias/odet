@@ -6,6 +6,8 @@ import { defineConfig } from 'vitest/config'
 process.env.TZ = 'Europe/Paris'
 
 export default defineConfig({
+  // JSX compilé comme dans l'application (rendu des composants communs dans les tests)
+  esbuild: { jsx: 'automatic' },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.js'],

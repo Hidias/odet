@@ -12,6 +12,8 @@ import { ModulesEnLigne } from '../components/ModulesEnLigne'
 
 import { confirmer } from '../../../ui/Confirm'
 import { PageHeader } from '../../../ui/PageHeader'
+import { DataTable } from '../../../ui/DataTable'
+import { EmptyState } from '../../../ui/EmptyState'
 import { Tabs } from '../../../ui/Tabs'
 import { programmeModifie, versionSuivante, effectifTexte, DELAI_ACCES_DEFAUT, TARIF_DEFAUT } from '../pdf/programmePDF'
 import { downloadDocument, downloadCatalogue, setOrganization } from '../pdf/pdfGenerator'
@@ -496,6 +498,115 @@ export default function Courses() {
     }
   }
   
+  // ─── Liste des formations (onglet « Formations ») ───
+  const formationsAffichees = seulementIncompletes ? filtered.filter((c) => manquesDe(c).length > 0) : filtered
+  const colonnesFormations = [
+    { key: 'title', label: 'Formation', mobile: 'title', render: (course) => course.title },
+    { key: 'theme', label: 'Thème et code', mobile: 'subtitle', render: (course) => {
+      const theme = getTheme(course.theme_id)
+      if (!theme && !course.code) return null
+      return (
+        <span className="flex items-center gap-2 flex-wrap">
+          {theme && (
+            <span className="inline-block px-2 py-0.5 rounded text-ui-sm text-white font-medium" style={{ backgroundColor: getThemeColor(theme.name) }}>
+              {theme.name}
+            </span>
+          )}
+          {course.code && (
+            <span className="inline-block px-2 py-0.5 rounded text-ui-sm font-mono font-bold bg-gray-100 text-gray-700 border">
+              {course.code}
+            </span>
+          )}
+        </span>
+      )
+    } },
+    { key: 'duree', label: 'Durée', mobile: 'aside', render: (course) => (
+      <span className="flex items-center gap-1 whitespace-nowrap text-ui text-gray-500">
+        <Clock className="w-4 h-4" aria-hidden="true" />
+        {course.duration_hours || course.duration || '?'}h
+      </span>
+    ) },
+    { key: 'manques', label: 'À compléter', render: (course) => {
+      const manques = manquesDe(course)
+      const fiche = champsManquants(course).length > 0
+      if (!manques.length && !fiche) return null
+      return (
+        <span className="grid gap-1">
+          {manques.length > 0 && (
+            <span className="text-ui-sm font-medium text-[rgb(var(--c-warning))] flex items-start gap-1.5"
+              title={manques.map((m) => PIECES.find((p) => p.cle === m)?.aide).filter(Boolean).join('\n')}>
+              <AlertTriangle className="w-4 h-4 flex-none mt-0.5" aria-hidden="true" />
+              <span>Il manque : {libellesManquants(manques).join(', ')}</span>
+            </span>
+          )}
+          {fiche && (
+            <span className="text-ui-sm text-[rgb(var(--c-warning))] flex items-start gap-1.5">
+              <AlertTriangle className="w-4 h-4 flex-none mt-0.5" aria-hidden="true" />
+              <span>Fiche à compléter pour la convention{course.propositions ? ' (propositions prêtes)' : ''}</span>
+            </span>
+          )}
+        </span>
+      )
+    } },
+    ...(suiviFormatifOn ? [{ key: 'sequences', label: 'Séquences', render: (course) => (sequenceCounts[course.id] > 0 ? (
+      <button type="button" onClick={() => setSequencesCourse(course)} className="flex items-center gap-1 text-ui text-primary-600 hover:text-primary-700">
+        <ClipboardList className="w-4 h-4" />
+        {sequenceCounts[course.id]} séquence{sequenceCounts[course.id] > 1 ? 's' : ''}{course.formative_enabled ? '' : ' (suivi désactivé)'}
+      </button>
+    ) : null) }] : []),
+    { key: 'programme', label: 'Programme', render: (course) => (
+      <span className="flex flex-wrap items-center gap-3 text-ui">
+        <button
+          type="button"
+          onClick={() => telechargerProgramme(course)}
+          className="flex items-center gap-1 text-primary-600 hover:text-primary-700 whitespace-nowrap"
+          title="Télécharger le programme généré"
+        >
+          <FileText className="w-4 h-4" />
+          Programme{course.program_version ? ` v${course.program_version}` : ''}
+        </button>
+        {fichierDeLInstance(course.program_url) && (
+          <a
+            href={fichierDeLInstance(course.program_url)} onClick={(e) => { e.preventDefault(); ouvrirFichier(fichierDeLInstance(course.program_url)).catch((err) => toast.error(err.message)) }}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-gray-500 hover:text-gray-700 whitespace-nowrap"
+            title="Programme PDF déposé"
+          >
+            PDF déposé
+          </a>
+        )}
+      </span>
+    ) },
+    { key: 'description', label: 'Description', hideBelow: 'xl', render: (course) => (course.description
+      ? <span className="block truncate max-w-[20rem] text-ui text-gray-600" title={course.description}>{course.description}</span>
+      : null) },
+    ...(d.gerer || suiviFormatifOn ? [{ key: 'actions', label: '', srLabel: 'Actions', actions: true, render: (course) => (
+      <span className="flex justify-end gap-1">
+        {d.gerer && (
+        <button type="button" onClick={() => handleDuplicate(course.id)} className="p-1.5 hover:bg-gray-100 rounded" title="Dupliquer" aria-label="Dupliquer">
+          <Copy className="w-4 h-4 text-gray-500" />
+        </button>
+        )}
+        {suiviFormatifOn && (
+          <button type="button" onClick={() => setSequencesCourse(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Séquences et évaluation formative" aria-label="Séquences et évaluation formative">
+            <ClipboardList className="w-4 h-4 text-gray-500" />
+          </button>
+        )}
+        {d.gerer && (
+        <button type="button" onClick={() => openForm(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier" aria-label="Modifier">
+          <Edit className="w-4 h-4 text-gray-500" />
+        </button>
+        )}
+        {d.gerer && (
+        <button type="button" onClick={() => handleDelete(course.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded" title="Supprimer" aria-label="Supprimer">
+          <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
+        </button>
+        )}
+      </span>
+    ) }] : []),
+  ]
+
   return (
     <div className="space-y-6">
       <PageHeader title="Formations"
@@ -577,115 +688,10 @@ export default function Courses() {
           })()}
 
           {/* Liste */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(seulementIncompletes ? filtered.filter((c) => manquesDe(c).length > 0) : filtered).length === 0 ? (
-              <div className="col-span-full card p-8 text-center text-gray-500">
-                {search || themeFilter ? 'Aucun résultat' : 'Aucune formation - Créez-en une !'}
-              </div>
-            ) : (
-              (seulementIncompletes ? filtered.filter((c) => manquesDe(c).length > 0) : filtered).map(course => {
-                const theme = getTheme(course.theme_id)
-                const manques = manquesDe(course)
-            return (
-              <div key={course.id} className="card hover:shadow-md transition-shadow group">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      {theme && (
-                        <span 
-                          className="inline-block px-2 py-0.5 rounded text-ui-sm text-white font-medium"
-                          style={{ backgroundColor: getThemeColor(theme.name) }}
-                        >
-                          {theme.name}
-                        </span>
-                      )}
-                      {course.code && (
-                        <span className="inline-block px-2 py-0.5 rounded text-ui-sm font-mono font-bold bg-gray-100 text-gray-700 border">
-                          {course.code}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="font-semibold text-gray-900">{course.title}</h3>
-                  </div>
-                  <div className="flex gap-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                    {d.gerer && (
-                    <button onClick={() => handleDuplicate(course.id)} className="p-1.5 hover:bg-gray-100 rounded" title="Dupliquer">
-                      <Copy className="w-4 h-4 text-gray-500" />
-                    </button>
-                    )}
-                    {suiviFormatifOn && (
-                      <button onClick={() => setSequencesCourse(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Séquences et évaluation formative" aria-label="Séquences et évaluation formative">
-                        <ClipboardList className="w-4 h-4 text-gray-500" />
-                      </button>
-                    )}
-                    {d.gerer && (
-                    <button onClick={() => openForm(course)} className="p-1.5 hover:bg-gray-100 rounded" title="Modifier">
-                      <Edit className="w-4 h-4 text-gray-500" />
-                    </button>
-                    )}
-                    {d.gerer && (
-                    <button onClick={() => handleDelete(course.id)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded" title="Supprimer">
-                      <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
-                    </button>
-                    )}
-                  </div>
-                </div>
-                
-                {course.description && (
-                  <p className="text-ui text-gray-600 mb-3 line-clamp-2">{course.description}</p>
-                )}
-                {manques.length > 0 && (
-                  <p className="text-ui-sm font-medium text-[rgb(var(--c-warning))] mb-3 flex items-start gap-1.5"
-                    title={manques.map((m) => PIECES.find((p) => p.cle === m)?.aide).filter(Boolean).join('\n')}>
-                    <AlertTriangle className="w-4 h-4 flex-none mt-0.5" aria-hidden="true" />
-                    <span>Il manque : {libellesManquants(manques).join(', ')}</span>
-                  </p>
-                )}
-                {champsManquants(course).length > 0 && (
-                  <p className="text-ui-sm text-[rgb(var(--c-warning))] mb-3 flex items-start gap-1.5">
-                    <AlertTriangle className="w-4 h-4 flex-none mt-0.5" aria-hidden="true" />
-                    <span>Fiche à compléter pour la convention{course.propositions ? ' (propositions prêtes)' : ''}</span>
-                  </p>
-                )}
-                
-                <div className="flex flex-wrap gap-3 text-ui text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-4 h-4" />
-                    {course.duration_hours || course.duration || '?'}h
-                  </span>
-                  {suiviFormatifOn && sequenceCounts[course.id] > 0 && (
-                    <button type="button" onClick={() => setSequencesCourse(course)} className="flex items-center gap-1 text-primary-600 hover:text-primary-700">
-                      <ClipboardList className="w-4 h-4" />
-                      {sequenceCounts[course.id]} séquence{sequenceCounts[course.id] > 1 ? 's' : ''}{course.formative_enabled ? '' : ' (suivi désactivé)'}
-                    </button>
-                  )}
-                  {/* Prix masqué - conservé en base de données */}
-                  <button
-                    type="button"
-                    onClick={() => telechargerProgramme(course)}
-                    className="flex items-center gap-1 text-primary-600 hover:text-primary-700"
-                    title="Télécharger le programme généré"
-                  >
-                    <FileText className="w-4 h-4" />
-                    Programme{course.program_version ? ` v${course.program_version}` : ''}
-                  </button>
-                  {fichierDeLInstance(course.program_url) && (
-                    <a
-                      href={fichierDeLInstance(course.program_url)} onClick={(e) => { e.preventDefault(); ouvrirFichier(fichierDeLInstance(course.program_url)).catch((err) => toast.error(err.message)) }}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
-                      title="Programme PDF déposé"
-                    >
-                      PDF déposé
-                    </a>
-                  )}
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
+          <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
+            <DataTable columns={colonnesFormations} rows={formationsAffichees} caption="Formations"
+              empty={<EmptyState title={search || themeFilter ? 'Aucun résultat' : 'Aucune formation. Créez-en une !'} compact />} />
+          </div>
         </>
       )}
       

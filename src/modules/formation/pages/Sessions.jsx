@@ -1,15 +1,17 @@
 import { money } from '../../../core/utils'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { PageHeader } from '../../../ui/PageHeader'
+import { DataTable } from '../../../ui/DataTable'
+import { EmptyState } from '../../../ui/EmptyState'
 import { apiFetch } from '../../../core/api'
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useDataStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
 import { supabase } from '../../../core/supabase'
 import CreneauxRecurrents from '../components/CreneauxRecurrents'
 import { 
-  Calendar, Plus, Search, MapPin, Users, Clock, ChevronRight, ChevronDown, X, Trash2, Copy, Building2, List, LayoutGrid, Briefcase, Euro, ClipboardPaste, Loader2, Check, Repeat
+  Calendar, Plus, Search, Clock, ChevronDown, X, Trash2, Copy, Building2, List, LayoutGrid, Briefcase, Euro, ClipboardPaste, Loader2, Check, Repeat
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -518,6 +520,131 @@ export default function Sessions() {
     }))
   }
   
+  // ─── Liste : une ligne par groupe inter-entreprises (puis ses sessions s'il est déplié) ou par session seule ───
+  const lignesSessions = groupedSessions.flatMap((item) => {
+    if (item.type !== 'group') return [{ cle: item.session.id, sorte: 'solo', session: item.session }]
+    const { group } = item
+    const ligne = { cle: `groupe-${group.id}`, sorte: 'groupe', group, deplie: !!expandedGroups[group.id] }
+    return [ligne, ...(ligne.deplie ? group.sessions.map((s) => ({ cle: s.id, sorte: 'membre', session: s, group })) : [])]
+  })
+  const estSousTraitance = (l) => l.sorte === 'solo' && l.session.session_type === 'subcontract'
+  // Session : vrai lien (nouvel onglet possible) ; ligne de groupe : se déplie
+  const ouvrirLigne = (l) => { if (l.sorte === 'groupe') toggleGroup(l.group.id) }
+  const lienLigne = (l) => (l.sorte === 'groupe' ? null : `/sessions/${l.session.id}`)
+  const classeLigne = (l) => (l.sorte === 'membre' ? 'bg-gray-50 ml-6 [&>td:first-child]:pl-8'
+    : l.sorte === 'groupe' ? 'bg-gray-50' : estSousTraitance(l) ? 'bg-[rgb(var(--c-warning-bg))]' : '')
+  const dateFr = (v) => format(new Date(v), 'd MMM yyyy', { locale: fr })
+  const periode = (debut, fin) => (debut
+    ? <span className="whitespace-nowrap">{dateFr(debut)}{fin && fin !== debut && <> - {dateFr(fin)}</>}</span>
+    : 'Date à définir')
+  const refsCourtes = (s) => (s.subcontract_client_ref || '').split(',').map(r => r.trim()).filter(Boolean).map(r => r.replace(/^2026-\d{2}-0?/, ''))
+  const nbStagiaires = (l) => (l.sorte === 'groupe'
+    ? l.group.sessions.reduce((sum, s) => sum + (s.session_trainees?.length || 0), 0)
+    : estSousTraitance(l) ? (l.session.subcontract_nb_trainees || 0) : (l.session.session_trainees?.length || 0))
+  const refEtTest = (s) => (
+    <span className="flex items-center gap-2 flex-wrap text-ui-sm font-normal">
+      <span className="font-mono text-gray-500">{s.reference}</span>
+      <BadgeTest tbl="sessions" id={s.id} />
+    </span>
+  )
+  const colonnesSessions = [
+    { key: 'date', label: 'Date', render: (l) => (l.sorte === 'groupe' ? periode(l.group.start_date, l.group.end_date) : periode(l.session.start_date, l.session.end_date)) },
+    { key: 'formation', label: 'Formation', mobile: 'title', render: (l) => {
+      if (l.sorte === 'groupe') {
+        const n = l.group.sessions.length
+        return (
+          <span className="block">
+            <span className="block font-semibold text-gray-900">{l.group.course?.title || 'Formation'}</span>
+            <span className="flex items-center gap-1 text-ui-sm font-normal text-gray-500">
+              <Building2 className="w-3 h-3" aria-hidden="true" />Inter-entreprises, {pluriel(n, 'entreprise')}
+            </span>
+            <span className="flex items-center gap-1 text-ui-sm font-medium text-primary-600">
+              <ChevronDown className={`w-4 h-4 transition-transform ${l.deplie ? 'rotate-180' : ''}`} aria-hidden="true" />
+              {l.deplie ? (n > 1 ? 'Masquer les entreprises' : 'Masquer l\'entreprise') : (n > 1 ? `Voir les ${n} entreprises` : 'Voir l\'entreprise')}
+            </span>
+          </span>
+        )
+      }
+      const s = l.session
+      if (estSousTraitance(l)) {
+        const refs = refsCourtes(s)
+        return (
+          <span className="block">
+            <span className="flex items-center gap-1 flex-wrap">
+              {refs.slice(0, 4).map((r, i) => (
+                <span key={i} className="px-1.5 py-0.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm rounded font-mono">{r}</span>
+              ))}
+              {refs.length > 4 && <span className="text-ui-sm text-[rgb(var(--c-warning))]">+{refs.length - 4}</span>}
+              {refs.length === 0 && (s.subcontract_course_title || 'Sous-traitance')}
+            </span>
+            <span className="block text-ui-sm font-medium text-[rgb(var(--c-warning))]">
+              Sous-traitance, {parseFloat(s.subcontract_daily_rate || 0).toFixed(0)}€/j
+            </span>
+          </span>
+        )
+      }
+      return (
+        <span className="block">
+          <span className="block font-medium text-gray-900">{(l.sorte === 'membre' ? l.group.course?.title : s.courses?.title) || 'Formation'}</span>
+          {refEtTest(s)}
+        </span>
+      )
+    } },
+    { key: 'client', label: 'Client', mobile: 'subtitle', render: (l) => (l.sorte === 'groupe' ? (
+      <span className="flex flex-wrap gap-1.5">
+        {l.group.sessions.map(s => (
+          <span key={s.id} className="inline-flex items-center gap-1 text-ui-sm bg-white border border-gray-200 text-gray-800 px-2 py-0.5 rounded-full">
+            {s.clients?.name || '?'}
+            <span className="text-gray-500">({s.session_trainees?.length || 0})</span>
+          </span>
+        ))}
+      </span>
+    ) : (l.session.clients?.name || '')) },
+    { key: 'lieu', label: 'Lieu', hideBelow: 'lg', render: (l) => (l.sorte === 'groupe' ? (l.group.location || '')
+      : estSousTraitance(l) ? <span className="block truncate max-w-[180px]">{(l.session.location_name || l.session.location || '').split(',')[0]}</span>
+      : (l.session.location_name || l.session.location || '')) },
+    { key: 'stagiaires', label: 'Stagiaires', mobile: 'aside', render: (l) => <span className="whitespace-nowrap text-ui-sm text-gray-600">{pluriel(nbStagiaires(l), 'stagiaire')}</span> },
+    { key: 'statut', label: 'Statut', mobile: 'aside', render: (l) => {
+      if (l.sorte === 'groupe') {
+        const statuses = [...new Set(l.group.sessions.map(s => s.status))]
+        return statuses.length === 1 ? <StatusBadge kind="session" status={statuses[0]} /> : null
+      }
+      const s = l.session
+      if (estSousTraitance(l)) {
+        return (
+          <span className={`text-ui-sm px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+            s.subcontract_invoiced ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
+            s.status === 'completed' ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' :
+            s.status === 'cancelled' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' :
+            'bg-gray-100 text-gray-600'
+          }`}>
+            {s.subcontract_invoiced ? 'Fact.' : statusLabels[s.status]?.label || s.status}
+          </span>
+        )
+      }
+      return <StatusBadge kind="session" status={s.status} />
+    } },
+    { key: 'type', label: 'Type', hideBelow: 'xl', render: (l) => (l.sorte === 'groupe' || l.session.session_type === 'inter' ? 'Inter' : l.session.is_intra ? 'Intra' : '') },
+    ...(d.creer || d.supprimer ? [{ key: 'actions', label: '', srLabel: 'Actions', actions: true, render: (l) => {
+      if (l.sorte === 'groupe') return null
+      const s = l.session
+      return (
+        <span className="flex items-center justify-end gap-1">
+          {d.creer && !estSousTraitance(l) && (
+            <button type="button" onClick={(e) => handleDuplicate(s.id, e)} className="p-1.5 hover:bg-gray-100 rounded-ui-sm" title="Dupliquer" aria-label="Dupliquer">
+              <Copy className="w-4 h-4 text-gray-500" />
+            </button>
+          )}
+          {d.supprimer && (
+            <button type="button" onClick={(e) => handleDelete(s.id, e)} className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm" title="Supprimer" aria-label="Supprimer">
+              <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
+            </button>
+          )}
+        </span>
+      )
+    } }] : []),
+  ]
+
   return (
     <div className="space-y-6">
       <PageHeader title="Sessions"
@@ -592,276 +719,10 @@ export default function Sessions() {
       </div>
       
       {/* Liste */}
-      <div className="space-y-4">
-        {sessionsLoading ? (
-          <div className="card p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-          </div>
-        ) : groupedSessions.length === 0 ? (
-          <div className="card p-8 text-center text-gray-500">
-            {search || statusFilter ? 'Aucun résultat' : 'Aucune session - Créez-en une !'}
-          </div>
-        ) : (
-          groupedSessions.map((item) => {
-            // ─── Session inter-entreprises groupée ───────────────
-            if (item.type === 'group') {
-              const { group } = item
-              const isExpanded = expandedGroups[group.id]
-              const totalTrainees = group.sessions.reduce((sum, s) => sum + (s.session_trainees?.length || 0), 0)
-              // Prix retiré de l'affichage liste
-              
-              return (
-                <div key={group.id} className="rounded-ui border-2 border-gray-200 bg-gray-50 overflow-hidden">
-                  {/* En-tête du groupe */}
-                  <div
-                    className="px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                    onClick={() => toggleGroup(group.id)}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                          <span className="badge bg-gray-100 text-gray-800 flex items-center gap-1">
-                            <Building2 className="w-3 h-3" />
-                            Inter-entreprises • {group.sessions.length} entreprises
-                          </span>
-                          {(() => {
-                            const statuses = [...new Set(group.sessions.map(s => s.status))]
-                            if (statuses.length === 1) {
-                              return <StatusBadge kind="session" status={statuses[0]} />
-                            }
-                            return null
-                          })()}
-                        </div>
-                        
-                        <h3 className="font-semibold text-gray-900 text-lg">
-                          {group.course?.title || 'Formation'}
-                        </h3>
-                        
-                        {/* Badges entreprises */}
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {group.sessions.map(s => (
-                            <span key={s.id} className="inline-flex items-center gap-1 text-ui-sm bg-white border border-gray-200 text-gray-800 px-2 py-0.5 rounded-full">
-                              {s.clients?.name || '?'}
-                              <span className="text-gray-500">({s.session_trainees?.length || 0})</span>
-                            </span>
-                          ))}
-                        </div>
-                        
-                        <div className="flex flex-wrap items-center gap-4 mt-2.5 text-ui text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {group.start_date ? format(new Date(group.start_date), 'd MMM yyyy', { locale: fr }) : 'Date à définir'}
-                            {group.end_date && group.end_date !== group.start_date && (
-                              <> - {format(new Date(group.end_date), 'd MMM yyyy', { locale: fr })}</>
-                            )}
-                          </span>
-                          {group.location && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-4 h-4" />
-                              {group.location}
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            {pluriel(totalTrainees, 'stagiaire')}
-                          </span>
-
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-1 mt-1">
-                        <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Sessions du groupe (dépliées) */}
-                  {isExpanded && (
-                    <div className="border-t border-gray-200 divide-y divide-gray-200">
-                      {group.sessions.map(session => (
-                        <Link
-                          key={session.id}
-                          to={`/sessions/${session.id}`}
-                          className="block px-5 py-3 hover:bg-white/80 transition-colors group"
-                        >
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-ui font-mono text-gray-400">{session.reference}</span>
-                                <BadgeTest tbl="sessions" id={session.id} />
-                                <StatusBadge kind="session" status={session.status} />
-                              </div>
-                              <p className="font-medium text-gray-900 mt-0.5">{session.clients?.name}</p>
-                              <div className="flex items-center gap-3 mt-1 text-ui text-gray-500">
-                                <span>{pluriel(session.session_trainees?.length || 0, 'stagiaire')}</span>
-
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {d.creer && (
-                              <button
-                                onClick={(e) => handleDuplicate(session.id, e)}
-                                className="p-1.5 hover:bg-gray-100 rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
-                                title="Dupliquer"
-                              >
-                                <Copy className="w-4 h-4 text-gray-500" />
-                              </button>
-                              )}
-                              {d.supprimer && (
-                              <button
-                                onClick={(e) => handleDelete(session.id, e)}
-                                className="p-1.5 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
-                                title="Supprimer"
-                              >
-                                <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
-                              </button>
-                              )}
-                              <ChevronRight className="w-4 h-4 text-gray-400" />
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            }
-            
-            // ─── Session solo (classique) ────────────────────────
-            const session = item.session
-            
-            // ─── Carte COMPACTE sous-traitance ────────────────────
-            if (session.session_type === 'subcontract') {
-              const refs = (session.subcontract_client_ref || '').split(',').map(r => r.trim()).filter(Boolean)
-              const shortRefs = refs.map(r => r.replace(/^2026-\d{2}-0?/, ''))
-              return (
-                <Link
-                  key={session.id}
-                  to={`/sessions/${session.id}`}
-                  className="block bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui-sm px-4 py-2.5 hover:bg-[rgb(var(--c-warning-bg))] transition-colors group"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap">
-                      {/* Date */}
-                      <span className="text-ui font-medium text-gray-700 whitespace-nowrap w-[75px] shrink-0">
-                        {session.start_date ? format(new Date(session.start_date), 'dd/MM/yyyy', { locale: fr }) : '-'}
-                      </span>
-                      {/* Réfs courtes */}
-                      <div className="flex items-center gap-1 shrink-0">
-                        {shortRefs.slice(0, 4).map((r, i) => (
-                          <span key={i} className="px-1.5 py-0.5 bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] text-ui-sm rounded font-mono">{r}</span>
-                        ))}
-                        {shortRefs.length > 4 && <span className="text-ui-sm text-[rgb(var(--c-warning))]">+{shortRefs.length - 4}</span>}
-                      </div>
-                      {/* Lieu (tronqué) */}
-                      <span className="text-ui-sm text-gray-500 truncate max-w-[180px] hidden sm:inline">
-                        {(session.location_name || session.location || '').split(',')[0]}
-                      </span>
-                      {/* Stagiaires */}
-                      <span className="text-ui-sm text-gray-500 whitespace-nowrap">
-                        <Users className="w-3 h-3 inline mr-0.5" />{session.subcontract_nb_trainees || 0}
-                      </span>
-                      {/* Tarif */}
-                      <span className="text-ui-sm font-medium text-[rgb(var(--c-warning))] whitespace-nowrap">
-                        {parseFloat(session.subcontract_daily_rate || 0).toFixed(0)}€/j
-                      </span>
-                      {/* Statut */}
-                      <span className={`text-ui-sm px-1.5 py-0.5 rounded-full ${
-                        session.subcontract_invoiced ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' :
-                        session.status === 'completed' ? 'bg-[rgb(var(--c-info-bg))] text-[rgb(var(--c-info))]' :
-                        session.status === 'cancelled' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' :
-                        'bg-gray-100 text-gray-600'
-                      }`}>
-                        {session.subcontract_invoiced ? 'Fact.' : statusLabels[session.status]?.label || session.status}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      {d.supprimer && (
-                      <button onClick={(e) => handleDelete(session.id, e)} className="p-1 hover:bg-[rgb(var(--c-danger-bg))] rounded [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity" title="Supprimer">
-                        <Trash2 className="w-3.5 h-3.5 text-[rgb(var(--c-danger))]" />
-                      </button>
-                      )}
-                      <ChevronRight className="w-4 h-4 text-[rgb(var(--c-warning))]" />
-                    </div>
-                  </div>
-                </Link>
-              )
-            }
-
-            // ─── Carte STANDARD (intra / inter / public) ─────────
-            return (
-              <Link
-                key={session.id}
-                to={`/sessions/${session.id}`}
-                className="card block hover:shadow-md transition-shadow group"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <span className="text-ui font-mono text-gray-500">{session.reference}</span>
-                      <BadgeTest tbl="sessions" id={session.id} />
-                      <StatusBadge kind="session" status={session.status} />
-                      {session.session_type === 'inter' ? (
-                        <span className="text-ui-sm text-gray-500">Inter</span>
-                      ) : session.is_intra && (
-                        <span className="text-ui-sm text-gray-500">Intra</span>
-                      )}
-                    </div>
-                    
-                    <h3 className="font-semibold text-gray-900 text-lg">
-                      {session.courses?.title || 'Formation'}
-                    </h3>
-                    <p className="text-gray-600">{session.clients?.name}</p>
-                    
-                    <div className="flex flex-wrap items-center gap-4 mt-3 text-ui text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {session.start_date ? format(new Date(session.start_date), 'd MMM yyyy', { locale: fr }) : 'Date à définir'}
-                        {session.end_date && session.end_date !== session.start_date && (
-                          <> - {format(new Date(session.end_date), 'd MMM yyyy', { locale: fr })}</>
-                        )}
-                      </span>
-                      
-                      {(session.location_name || session.location) && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {session.location_name || session.location}
-                        </span>
-                      )}
-                      
-                      <span className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        {pluriel(session.session_trainees?.length || 0, 'stagiaire')}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {d.creer && (
-                    <button
-                      onClick={(e) => handleDuplicate(session.id, e)}
-                      className="p-2 hover:bg-gray-100 rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
-                      title="Dupliquer"
-                    >
-                      <Copy className="w-4 h-4 text-gray-500" />
-                    </button>
-                    )}
-                    {d.supprimer && (
-                    <button
-                      onClick={(e) => handleDelete(session.id, e)}
-                      className="p-2 hover:bg-[rgb(var(--c-danger-bg))] rounded-ui-sm [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="w-4 h-4 text-[rgb(var(--c-danger))]" />
-                    </button>
-                    )}
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
-                  </div>
-                </div>
-              </Link>
-            )
-          })
-        )}
+      <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
+        <DataTable columns={colonnesSessions} rows={lignesSessions} rowKey="cle" loading={sessionsLoading} caption="Sessions"
+          onRowClick={ouvrirLigne} rowHref={lienLigne} rowClassName={classeLigne}
+          empty={<EmptyState title={search || statusFilter ? 'Aucun résultat' : 'Aucune session. Créez-en une !'} compact />} />
       </div>
       </>}
       
