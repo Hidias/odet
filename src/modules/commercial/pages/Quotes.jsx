@@ -612,11 +612,6 @@ export default function Quotes() {
     const pub = await preparerDevisPublie(quote, items, client, base64)
     return mettreADisposition({ objectType: 'quote', objectId: quote.id, kind: 'devis', label: pub.label, base64: pub.base64 })
   }
-  function publierDevis(quote, doc, items) {
-    if (!quote?.id || !doc || !['sent', 'accepted', 'partial'].includes(quote.status)) return
-    const client = clients.find(c => c.id === quote.client_id) || quote.clients || {}
-    publierDevisPdf(quote, items || [], client, versBase64(doc.output('arraybuffer'))).catch((e) => console.warn('Mise à disposition du devis :', e.message))
-  }
 
   // Devis passé en « envoyé » ou modifié après envoi : son PDF est refait et mis à disposition, pour que le client le
   // trouve dans son espace et signe la bonne version (sans téléchargement ni message)
@@ -647,8 +642,9 @@ export default function Quotes() {
         const { data } = await supabase.from('client_contacts').select('*').eq('id', quote.contact_id).single()
         contactData = data
       }
-      const doc = await generateQuotePDF(quote, loadedItems, clientData, contactData, { orgSettings: organization })
-      publierDevis(quote, doc, loadedItems)
+      // Téléchargement seul : rien n'est republié dans l'espace client (constat du 06/11). La mise à disposition se fait
+      // à l'envoi, au passage en « envoyé » et à l'enregistrement d'un devis remis (regenererEtPublier, lu en base)
+      await generateQuotePDF(quote, loadedItems, clientData, contactData, { orgSettings: organization })
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
     setGeneratingPdf(false)
@@ -661,8 +657,8 @@ export default function Quotes() {
       const clientData = clients.find(c => c.id === currentQuote.client_id) || {}
       const contactData = currentQuote.contact_id ? contacts.find(c => c.id === currentQuote.contact_id) || null : null
       const itemsForPdf = items.filter(it => it.description_title).map(it => ({ ...it, total_ht: calcItemTotal(it) }))
-      const doc = await generateQuotePDF(currentQuote, itemsForPdf, clientData, contactData, { orgSettings: organization })
-      publierDevis(currentQuote, doc, itemsForPdf)
+      // Aperçu du formulaire, peut-être non enregistré : jamais publié (la version enregistrée l'est à l'enregistrement)
+      await generateQuotePDF(currentQuote, itemsForPdf, clientData, contactData, { orgSettings: organization })
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
     setGeneratingPdf(false)
