@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
 import { X, FileText, Send, Loader, CheckCircle, AlertCircle, Upload, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { nomPourAppel } from '../../../core/nomPersonne'
 import { downloadNeedsAnalysisPDF, getNeedsAnalysisPDFBytes } from '../pdf/needsAnalysisPDF'
 
 
@@ -121,7 +122,7 @@ export default function CompteRenduModal({ rdv, client, analysisData: analysisDa
       // Construire le contexte
       const context = {
         client: client?.name,
-        contact: rdv?.contact_name,
+        contact: nomPourAppel(rdv?.contact_name) || null,
         date: rdv?.rdv_date ? new Date(rdv.rdv_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : null,
         notes: notesCRM,
         analysis: analysisData ? {

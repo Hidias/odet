@@ -2,6 +2,7 @@ import { toneStyle } from '../../../ui/StatusBadge'
 import { currentUserFirstName, teamFirstNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { texteEnHtml, htmlEnTexte } from '../../../core/html'
+import { champsNomContact, nomPourAppel } from '../../../core/nomPersonne'
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -36,7 +37,7 @@ import { PageHeader } from '../../../ui/PageHeader'
 
 import { confirmer } from '../../../ui/Confirm'
 import { useCapacites } from '../../../core/capacites'
-import { CHOIX_CIVILITE_CONTACT, civilite as civiliteDe } from '../../../core/genre'
+import { CHOIX_CIVILITE_CONTACT, civilite as civiliteDe, nomContact } from '../../../core/genre'
 import { telephoneLisible, lienTelephone } from '../../../core/telephone.js'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
@@ -118,7 +119,7 @@ export default function ClientDetail() {
   const [contacts, setContacts] = useState([])
   const [showContactForm, setShowContactForm] = useState(false)
   const [editingContact, setEditingContact] = useState(null)
-  const [contactForm, setContactForm] = useState({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false })
+  const [contactForm, setContactForm] = useState({ civilite: '', last_name: '', first_name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false })
 
   // Timeline
   const [interactions, setInteractions] = useState([])
@@ -530,7 +531,8 @@ export default function ClientDetail() {
   // CRUD CONTACTS
   // ═══════════════════════════════════════════════════════════
   async function saveContact() {
-    if (!contactForm.name) return toast.error('Nom requis')
+    const noms = champsNomContact(contactForm, editingContact?.name)
+    if (noms.erreur) return toast.error(noms.erreur)
 
     // Si ce contact est marqué "documents", retirer le flag des autres
     if (contactForm.is_document_contact) {
@@ -548,7 +550,7 @@ export default function ClientDetail() {
       }
     }
 
-    const fiche = { ...contactForm, civilite: contactForm.civilite || null }
+    const fiche = { ...contactForm, ...noms, civilite: contactForm.civilite || null }
     if (editingContact) {
       const { error } = await supabase.from('client_contacts').update(fiche).eq('id', editingContact.id)
       if (error) return toast.error('Erreur: ' + error.message)
@@ -575,7 +577,7 @@ export default function ClientDetail() {
   }
 
   function openEditContact(c) {
-    setContactForm({ civilite: c.civilite || '', name: c.name, role: c.role || '', email: c.email || '', phone: c.phone || '', is_primary: c.is_primary || false, is_document_contact: c.is_document_contact || false, is_billing: c.is_billing || false })
+    setContactForm({ civilite: c.civilite || '', last_name: c.last_name || '', first_name: c.first_name || '', role: c.role || '', email: c.email || '', phone: c.phone || '', is_primary: c.is_primary || false, is_document_contact: c.is_document_contact || false, is_billing: c.is_billing || false })
     setEditingContact(c)
     setShowContactForm(true)
   }
@@ -583,7 +585,7 @@ export default function ClientDetail() {
   function closeContactForm() {
     setShowContactForm(false)
     setEditingContact(null)
-    setContactForm({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false })
+    setContactForm({ civilite: '', last_name: '', first_name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false })
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -655,7 +657,7 @@ export default function ClientDetail() {
         body: JSON.stringify({
           brief: emailForm.brief,
           clientName: client?.name,
-          contactName: selectedContact?.name || client?.contact_name,
+          contactName: (selectedContact ? nomContact(selectedContact, { appel: true }) : '') || nomPourAppel(client?.contact_name),
           contactFunction: selectedContact?.fonction || selectedContact?.role || client?.contact_function,
           senderName: emailForm.sender,
           clientInfo: {
@@ -1568,7 +1570,7 @@ export default function ClientDetail() {
                 )}
 
                 {d.modifier && (
-                  <button onClick={() => { setEditingContact(null); setContactForm({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false }); setShowContactForm(true) }}
+                  <button onClick={() => { setEditingContact(null); setContactForm({ civilite: '', last_name: '', first_name: '', role: '', email: '', phone: '', is_primary: false, is_document_contact: false, is_billing: false }); setShowContactForm(true) }}
                     className="w-full flex items-center justify-center gap-1.5 py-2.5 text-ui text-primary-600 hover:bg-primary-50 rounded-ui-sm border border-dashed border-primary-300 transition-colors">
                     <Plus className="w-4 h-4" /> Ajouter un contact
                   </button>
@@ -2020,10 +2022,18 @@ export default function ClientDetail() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-ui-sm font-medium text-gray-500 mb-1 block">Nom complet *</label>
-                  <input value={contactForm.name} onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Prénom Nom" autoFocus />
+                  <label htmlFor="contact-nom" className="text-ui-sm font-medium text-gray-500 mb-1 block">Nom</label>
+                  <input id="contact-nom" value={contactForm.last_name} onChange={e => setContactForm(f => ({ ...f, last_name: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-ui-sm text-ui uppercase" placeholder="DURAND" autoComplete="off" autoFocus />
                 </div>
+              </div>
+              <div>
+                <label htmlFor="contact-prenom" className="text-ui-sm font-medium text-gray-500 mb-1 block">Prénom</label>
+                <input id="contact-prenom" value={contactForm.first_name} onChange={e => setContactForm(f => ({ ...f, first_name: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-ui-sm text-ui" placeholder="Paul" autoComplete="off" />
+                {editingContact && !editingContact.last_name && !editingContact.first_name && editingContact.name && (
+                  <p className="text-ui-sm text-gray-500 mt-1">Nom actuel : {editingContact.name}. Laissez vides pour le garder.</p>
+                )}
               </div>
               <div>
                 <label className="text-ui-sm font-medium text-gray-500 mb-1 block">Fonction / Rôle</label>

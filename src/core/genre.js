@@ -9,6 +9,8 @@
 //   - signataire      organization_settings.dirigeant_gender, companies.dirigeant_gender (0459)
 // Genre non renseigné ou non binaire : masculin générique (voir FORMES), jamais « (e) ».
 
+import { prenomForme, nomCasseNormale, nomPourAppel } from './nomPersonne.js'
+
 const FEMININ = new Set(['female', 'f', 'femme', 'mme', 'madame', 'mlle', 'mademoiselle'])
 const MASCULIN = new Set(['male', 'm', 'h', 'homme', 'monsieur', 'mr', 'm.'])
 const NEUTRE = new Set(['non_binary', 'x', 'nb', 'non binaire', 'non-binaire'])
@@ -89,13 +91,22 @@ export function formuleAppel({ genre, nom, prenom } = {}) {
   return 'Madame, Monsieur,'
 }
 
-// « M. Le Meur » (courte) ou « Monsieur Le Meur » pour un contact client ; nom seul si civilité absente
-export function nomContact(contact, { courte = true, nomDeFamille = false } = {}) {
+// « M. Le Meur » (courte) ou « Monsieur Le Meur » pour un contact client ; nom seul si civilité absente.
+// Affichage (fiches, listes, PDF) : nom enregistré « LE MEUR Ronan » (0508). Formule d'appel d'un e-mail ou d'un courrier
+// (`appel`) : casse normale, prénom puis nom (« Bonjour Ronan Le Meur, », « Monsieur Le Meur, »), choix du 07/11 (V36).
+export function nomAppel(contact) {
+  const prenom = prenomForme(contact?.first_name)
+  const nom = nomCasseNormale(contact?.last_name)
+  return { complet: [prenom, nom].filter(Boolean).join(' ') || nomPourAppel(contact?.name), nom }
+}
+
+export function nomContact(contact, { courte = true, nomDeFamille = false, appel = false } = {}) {
   if (!contact) return ''
-  const complet = contact.name || [contact.first_name, contact.last_name].filter(Boolean).join(' ')
+  const a = appel ? nomAppel(contact) : null
+  const complet = a ? a.complet : (contact.name || [contact.first_name, contact.last_name].filter(Boolean).join(' '))
   const civ = civilite(contact.civilite, { courte })
   // « Bonjour Monsieur Le Meur » ; sans civilité, jamais le nom de famille seul : « Bonjour Ronan Le Meur »
-  const nom = nomDeFamille && civ ? (contact.last_name || complet) : complet
+  const nom = nomDeFamille && civ ? ((a ? a.nom : contact.last_name) || complet) : complet
   return [civ, nom].filter(Boolean).join(' ').trim()
 }
 

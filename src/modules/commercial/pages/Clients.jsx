@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useRef } from 'react'
 import { CHOIX_CIVILITE_CONTACT, pluriel } from '../../../core/genre'
+import { champsNomContact } from '../../../core/nomPersonne'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
 import { Link } from 'react-router-dom'
@@ -1428,33 +1429,35 @@ export default function Clients() {
 // Composant pour ajouter un contact
 function ContactForm({ onAdd, onEdit, contact = null, buttonLabel = '+ Ajouter' }) {
   const [show, setShow] = useState(false)
-  const [form, setForm] = useState({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false })
+  const [form, setForm] = useState({ civilite: '', last_name: '', first_name: '', role: '', email: '', phone: '', is_primary: false })
   
   const openForm = () => {
     if (contact) {
       setForm({
         civilite: contact.civilite || '',
-        name: contact.name || '',
+        last_name: contact.last_name || '',
+        first_name: contact.first_name || '',
         role: contact.role || '',
         email: contact.email || '',
         phone: contact.phone || '',
         is_primary: contact.is_primary || false
       })
     } else {
-      setForm({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false })
+      setForm({ civilite: '', last_name: '', first_name: '', role: '', email: '', phone: '', is_primary: false })
     }
     setShow(true)
   }
   
   const handleSubmit = () => {
-    if (!form.name) return toast.error('Nom requis')
-    const fiche = { ...form, civilite: form.civilite || null }
+    const noms = champsNomContact(form, contact?.name)
+    if (noms.erreur) return toast.error(noms.erreur)
+    const fiche = { ...form, ...noms, civilite: form.civilite || null }
     if (contact && onEdit) {
       onEdit(contact.id, fiche)
     } else {
       onAdd(fiche)
     }
-    setForm({ civilite: '', name: '', role: '', email: '', phone: '', is_primary: false })
+    setForm({ civilite: '', last_name: '', first_name: '', role: '', email: '', phone: '', is_primary: false })
     setShow(false)
   }
   
@@ -1470,8 +1473,10 @@ function ContactForm({ onAdd, onEdit, contact = null, buttonLabel = '+ Ajouter' 
             <select aria-label="Civilité" className="input text-ui" value={form.civilite} onChange={e => setForm({...form, civilite: e.target.value})}>
               {CHOIX_CIVILITE_CONTACT.map(([v, l]) => <option key={v} value={v}>{v ? l : 'Civilité'}</option>)}
             </select>
-            <input type="text" aria-label="Prénom et nom" placeholder="Prénom Nom *" className="input text-ui" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+            <input type="text" aria-label="Nom" placeholder="NOM" className="input text-ui uppercase" value={form.last_name} onChange={e => setForm({...form, last_name: e.target.value})} />
           </div>
+          <input type="text" aria-label="Prénom" placeholder="Prénom" className="input text-ui" value={form.first_name} onChange={e => setForm({...form, first_name: e.target.value})} />
+          {contact && !contact.last_name && !contact.first_name && contact.name && <p className="text-ui-sm text-gray-500">Nom actuel : {contact.name}. Laissez vides pour le garder.</p>}
           <input type="text" aria-label="Fonction" placeholder="Fonction" className="input text-ui" value={form.role} onChange={e => setForm({...form, role: e.target.value})} />
           <input type="email" aria-label="Email" placeholder="Email" className="input text-ui" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
           <input type="tel" aria-label="Téléphone" placeholder="Téléphone" className="input text-ui" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />

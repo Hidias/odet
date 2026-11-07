@@ -1051,7 +1051,7 @@ export default function Quotes() {
     const { quote, items, contact } = sendWizard
     const programmes = sendAttachments.filter(a => a.type === 'program' && a.enabled).map(p => p.courseTitle)
     const formation = devisDeFormation(quote, items)
-    const contactName = contact ? nomContact(contact, { courte: false, nomDeFamille: true }) : ''
+    const contactName = contact ? nomContact(contact, { courte: false, nomDeFamille: true, appel: true }) : ''
     const m = modeleEnvoiDevis({ quote, contactName, org: orgName(), programmes, formation, enLigne: !!sendWizard.espace })
     setSendEmail(prev => ({ ...prev, subject: m.subject, body: m.body }))
   }

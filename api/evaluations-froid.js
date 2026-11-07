@@ -20,6 +20,7 @@ import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSig
 import { requireRight, clientDeLAppelant, OFFICE_WRITE } from './_lib/auth.js'
 import { appUrl } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
+import { nomPourAppel } from '../src/core/nomPersonne.js'
 
 export const config = { maxDuration: 60 }
 
@@ -71,7 +72,7 @@ export function texteContact(groupe, orgName, base) {
   const sansAdresse = groupe.filter((x) => x.cible === 'contact')
   const relance = groupe.every((x) => Number(x.rang) > 0)
   const lignes = [
-    `Bonjour${e.destinataire_nom ? ` ${e.destinataire_nom}` : ''},`,
+    `Bonjour${e.destinataire_nom ? ` ${nomPourAppel(e.destinataire_nom)}` : ''},`,
     '',
     `Votre entreprise a suivi la formation « ${formation} » ${periode(e.debut, e.fin)}${orgName ? ` avec ${orgName}` : ''}, et nous vous en remercions.`,
     '',

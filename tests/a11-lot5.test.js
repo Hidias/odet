@@ -7,7 +7,7 @@ import { adressesProposees } from '../src/modules/commercial/lib/adressesEnvoi'
 describe("adresses proposées à l'envoi d'un devis", () => {
   it('le contact principal identique à un contact ne sort qu une fois, sous le nom du contact', () => {
     const l = adressesProposees([{ first_name: 'Alice', last_name: 'MARTIN', email: 'alice@ex.fr' }], { contact_email: ' Alice@Ex.fr ' })
-    expect(l).toEqual([{ email: 'alice@ex.fr', libelle: 'Alice MARTIN - alice@ex.fr' }])
+    expect(l).toEqual([{ email: 'alice@ex.fr', libelle: 'MARTIN Alice - alice@ex.fr' }])
   })
   it('contact principal différent ajouté à la fin ; contacts sans adresse et doublons ignorés', () => {
     const l = adressesProposees([

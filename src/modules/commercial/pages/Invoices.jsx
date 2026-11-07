@@ -1,6 +1,7 @@
 import { toneStyle } from '../../../ui/StatusBadge'
 import { PageHeader } from '../../../ui/PageHeader'
-import { formuleAppel } from '../../../core/genre'
+import { formuleAppel, nomAppel } from '../../../core/genre'
+import { nomPourAppel } from '../../../core/nomPersonne'
 import { orgName, currentUserName, teamNames } from '../../../core/org/currentOrg'
 import { apiFetch, callApi } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -95,7 +96,7 @@ function getEmailTemplate(inv, relanceNumber, org = {}) {
   const ref = inv.reference || ''
   // Formule d'appel : « Madame Le Meur, » quand la civilité du contact est connue (S19)
   const ct = inv.client_contacts
-  const appel = formuleAppel({ genre: ct?.civilite, nom: ct?.last_name || ct?.name })
+  const appel = formuleAppel({ genre: ct?.civilite, nom: nomAppel(ct).nom || nomPourAppel(ct?.name) })
   const ttc = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2 }).format(parseFloat(inv.total_ttc) || 0) + ' €'
 
   // Avoir : un seul modèle (pas de relance)

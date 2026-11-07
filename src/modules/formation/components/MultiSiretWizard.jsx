@@ -5,6 +5,7 @@ import { supabase } from '../../../core/supabase'
 import { useDataStore as useStore, useAuthStore } from '../../../core/store'
 import toast from 'react-hot-toast'
 import SearchSelect, { courseOptions } from '../../../ui/SearchSelect'
+import { memesMots } from '../../../core/nomPersonne'
 
 const FUNDING_TYPES = [
   { value: 'none', label: 'Aucun (pas de mention)' },
@@ -357,11 +358,12 @@ export default function MultiSiretWizard({ onClose, onCreated }) {
           log(` Contact existant: ${contact.name} → ${group.company_name}`)
         } else if (contact.name) {
           // Vérifier si ce contact existe déjà pour ce client
-          const { data: existingContacts } = await supabase
+          // même personne quel que soit l'ordre ou la casse (« Paul Durand » et « DURAND Paul », 0508)
+          const { data: contactsDuClient } = await supabase
             .from('client_contacts')
             .select('*')
             .eq('client_id', clientId)
-            .ilike('name', contact.name)
+          const existingContacts = (contactsDuClient || []).filter((c) => memesMots(c.name, contact.name))
 
           if (existingContacts && existingContacts.length > 0) {
             contactId = existingContacts[0].id

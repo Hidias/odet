@@ -34,7 +34,7 @@ async function handler(req, res) {
     ).join('\n')
 
     const contactName = contact
-      ? nomContact(contact, { courte: false })
+      ? nomContact(contact, { courte: false, appel: true })
       : ''
 
     const org = await loadOrgProfile(req.admin)
