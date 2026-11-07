@@ -30,6 +30,7 @@ import { portailPasseport } from '../../passeport/lib/ppData'
 import { normaliserNir } from '../../passeport/lib/rules'
 import ChampNir from '../../../core/nir/ChampNir'
 import { verifierNir } from '../../../core/nir/verifierNir'
+import { messagePortail } from '../lib/accesExpire'
 
 // Portail stagiaire : identification, fiche de renseignement, positionnement (quiz),
 // émargement par signature, entraînement, évaluation des acquis, satisfaction.
@@ -328,8 +329,8 @@ export default function TraineePortal() {
     }
   }
 
-  const loadQuizSummary = useCallback(async (traineeId) => {
-    const { data } = await supabase.rpc('portal_quiz_summary', { p_token: token, p_trainee_id: traineeId })
+  const loadQuizSummary = useCallback(async (traineeId, ticket) => {
+    const { data } = await supabase.rpc('portal_quiz_summary', { p_token: token, p_trainee_id: traineeId, p_ticket: ticket || null })
     if (data) setQuizSummary(data)
   }, [token])
 
@@ -460,12 +461,12 @@ export default function TraineePortal() {
         })
       }
 
-      loadQuizSummary(trainee.id)
+      loadQuizSummary(trainee.id, ticket)
 
       if (infoData && infoData.filled_at) {
         if (questions.length > 0 && !testCompleted) {
           setCurrentStep('hub')
-          startQuiz('positioning', trainee)
+          startQuiz('positioning', trainee, ticket)
         } else {
           routeAfterLoad(session, attendanceMap, evalData)
         }
@@ -573,7 +574,7 @@ export default function TraineePortal() {
       })
       if (infoError) throw infoError
 
-      await supabase.rpc('portal_set_email_refused', { p_token: token, p_trainee_id: selectedTrainee.id, p_refused: !!infoForm.email_refused })
+      await supabase.rpc('portal_set_email_refused', { p_token: token, p_trainee_id: selectedTrainee.id, p_refused: !!infoForm.email_refused, p_ticket: portalTicket })
 
       const typedSsn = pp.enabled ? '' : infoForm.ssn.replace(/\s/g, '')
       if (!pp.enabled && infoForm.ssn_refused) setSsnOnFile({ known: false, last3: '' })
@@ -605,7 +606,7 @@ export default function TraineePortal() {
       }
     } catch (err) {
       console.error('Erreur :', err)
-      setPortalError("Erreur lors de l'enregistrement. Veuillez réessayer.")
+      setPortalError(messagePortail(err, "Erreur lors de l'enregistrement. Veuillez réessayer."))
     } finally {
       setSubmitting(false)
     }
@@ -670,10 +671,10 @@ export default function TraineePortal() {
 
   // ---------------- Quiz ----------------
   // Les questions viennent toujours de portal_quiz_questions (sans les bonnes réponses)
-  const startQuiz = async (mode, trainee = selectedTrainee) => {
+  const startQuiz = async (mode, trainee = selectedTrainee, ticket = portalTicket) => {
     setSubmitting(true)
     try {
-      const { data, error } = await supabase.rpc('portal_quiz_questions', { p_token: token, p_trainee_id: trainee.id, p_purpose: mode })
+      const { data, error } = await supabase.rpc('portal_quiz_questions', { p_token: token, p_trainee_id: trainee.id, p_purpose: mode, p_ticket: ticket || null })
       if (error) throw error
       if (!data || data.length === 0) {
         setPortalError("Aucune question n'est disponible pour cette formation.")
@@ -682,7 +683,7 @@ export default function TraineePortal() {
       setQuiz({ mode, questions: data })
     } catch (err) {
       console.error('Quiz :', err)
-      setPortalError('Impossible de charger le quiz.')
+      setPortalError(messagePortail(err, 'Impossible de charger le quiz.'))
     } finally {
       setSubmitting(false)
     }
@@ -706,20 +707,20 @@ export default function TraineePortal() {
           text_answer: typeof a.text === 'string' ? a.text : null,
         }
       })
-      const { error } = await supabase.rpc('save_positioning_test_answers', { p_token: token, p_trainee_id: selectedTrainee.id, p_answers: formatted })
-      if (error) throw error
+      const { error } = await supabase.rpc('save_positioning_test_answers', { p_token: token, p_trainee_id: selectedTrainee.id, p_answers: formatted, p_ticket: portalTicket })
+      if (error) throw Object.assign(error, { messageVisible: messagePortail(error, undefined) })
       setPositioningTestCompleted(true)
       return { ok: true }
     }
-    const { data, error } = await supabase.rpc('portal_quiz_finish', { p_token: token, p_trainee_id: selectedTrainee.id, p_purpose: quiz.mode, p_answers: answers })
-    if (error) throw error
+    const { data, error } = await supabase.rpc('portal_quiz_finish', { p_token: token, p_trainee_id: selectedTrainee.id, p_purpose: quiz.mode, p_answers: answers, p_ticket: portalTicket })
+    if (error) throw Object.assign(error, { messageVisible: messagePortail(error, undefined) })
     return data
   }
 
   const closeQuiz = () => {
     const wasPositioning = quiz?.mode === 'positioning'
     setQuiz(null)
-    loadQuizSummary(selectedTrainee.id)
+    loadQuizSummary(selectedTrainee.id, portalTicket)
     if (wasPositioning && positioningTestCompleted) routeAfterLoad(session, attendanceData, evaluationData)
     else if (wasPositioning) setCurrentStep('hub')
   }
@@ -763,11 +764,11 @@ export default function TraineePortal() {
     try {
       let reponse
       try {
-        reponse = await supabase.rpc('portal_sign_halfday', { p_token: token, p_trainee_id: selectedTrainee.id, p_period: period, p_signature: image })
+        reponse = await supabase.rpc('portal_sign_halfday', { p_token: token, p_trainee_id: selectedTrainee.id, p_period: period, p_signature: image, p_ticket: portalTicket })
       } catch (e) { reponse = { error: e } }
       // Coupure de réseau : la signature est gardée sur ce téléphone avec son heure, envoyée au retour du réseau
       if (reponse.error && estPanneReseau(reponse.error)) {
-        if (!garder({ token, traineeId: selectedTrainee.id, period, image, date: today })) throw reponse.error
+        if (!garder({ token, traineeId: selectedTrainee.id, period, image, date: today, ticket: portalTicket })) throw reponse.error
         setSignaturesEnAttente(enAttente(token).length)
         reponse = { data: { ok: true } }
       }
@@ -789,7 +790,7 @@ export default function TraineePortal() {
       }
     } catch (err) {
       console.error('Erreur émargement :', err)
-      setPortalError("Erreur lors de l'enregistrement de votre signature. Prévenez votre formateur.")
+      setPortalError(messagePortail(err, "Erreur lors de l'enregistrement de votre signature. Prévenez votre formateur."))
     } finally {
       setSigningBusy(false)
     }
@@ -811,7 +812,7 @@ export default function TraineePortal() {
         submitted_at: new Date().toISOString(),
         submitted_online: true,
       }
-      const { error: evalError } = await supabase.rpc('save_evaluation', { p_token: token, p_trainee_id: selectedTrainee.id, p_eval_data: evalData })
+      const { error: evalError } = await supabase.rpc('save_evaluation', { p_token: token, p_trainee_id: selectedTrainee.id, p_eval_data: evalData, p_ticket: portalTicket })
       if (evalError) throw evalError
       // Bilan des attentes (0413) : réponse du stagiaire sur les attentes de sa fiche de renseignements
       if (evalForm.attentes_satisfaites) {
@@ -830,7 +831,7 @@ export default function TraineePortal() {
       else setCurrentStep('thank_you_website')
     } catch (err) {
       console.error('Erreur :', err)
-      setPortalError("Erreur lors de l'enregistrement. Veuillez réessayer.")
+      setPortalError(messagePortail(err, "Erreur lors de l'enregistrement. Veuillez réessayer."))
     } finally {
       setSubmitting(false)
     }
