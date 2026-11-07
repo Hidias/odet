@@ -578,7 +578,7 @@ export default function Courses() {
         )}
       </span>
     ) },
-    { key: 'description', label: 'Description', hideBelow: 'xl', mobile: false, render: (course) => (course.description
+    { key: 'description', label: 'Description', hideBelow: 'xl', render: (course) => (course.description
       ? <span className="block truncate max-w-[20rem] text-ui text-gray-600" title={course.description}>{course.description}</span>
       : null) },
     ...(d.gerer || suiviFormatifOn ? [{ key: 'actions', label: '', srLabel: 'Actions', actions: true, render: (course) => (

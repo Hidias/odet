@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react'
 import { CHOIX_CIVILITE_CONTACT, pluriel } from '../../../core/genre'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
 import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical, Smartphone, Loader2 } from 'lucide-react'
@@ -249,7 +249,6 @@ const ConfirmModal = ({ show, onConfirm, onCancel, message, description, confirm
 }
 
 export default function Clients() {
-  const navigate = useNavigate()
   const { estTest } = useMarquesDemo()
   const { clients, fetchClients, createClient, updateClient, deleteClient } = useDataStore()
   // Gardes des boutons d'écriture (la base refuse de toute façon ce qui n'est pas permis)
@@ -825,7 +824,7 @@ export default function Clients() {
       <p className="text-ui-sm text-gray-400 mb-2">{filtered.length} résultat{filtered.length > 1 ? 's' : ''}</p>
 
       <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
-        <DataTable caption="Clients" rows={filtered} onRowClick={(client) => navigate(`/clients/${client.id}`)} rowClassName={() => 'group'}
+        <DataTable caption="Clients" rows={filtered} rowHref={(client) => `/clients/${client.id}`} rowClassName={() => 'group'}
           sort={{ key: sortField, dir: sortDir }}
           onSort={(key) => (sortField === key ? setSortDir(d => d === 'asc' ? 'desc' : 'asc') : (setSortField(key), setSortDir('asc')))}
           empty={(

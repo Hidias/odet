@@ -1393,7 +1393,7 @@ export default function Quotes() {
       { key: 'validity_date', label: 'Validité', hideBelow: 'xl', className: 'whitespace-nowrap', render: (q) => (q.validity_date ? format(new Date(q.validity_date), 'dd/MM/yyyy') : '-') },
       { key: 'total_ttc', label: 'TTC', align: 'right', mobile: 'aside', className: 'whitespace-nowrap', render: (q) => <span className="font-bold text-gray-900">{money(q.total_ttc)}</span> },
       { key: 'total_ht', label: 'HT', align: 'right', mobile: 'aside', className: 'whitespace-nowrap', render: (q) => <span className="text-ui-sm text-gray-500">{money(q.total_ht)} HT</span> },
-      { key: 'created_by', label: 'Créé par', hideBelow: 'xl', mobile: false, render: (q) => q.created_by },
+      { key: 'created_by', label: 'Créé par', hideBelow: 'xl', render: (q) => q.created_by },
       { key: 'actions', label: '', srLabel: 'Actions', actions: true, render: (q) => (
         <button onClick={(e) => { e.stopPropagation(); if (actionMenuId === q.id) return fermerMenu(); setActionAncre(e.currentTarget.getBoundingClientRect()); setActionMenuId(q.id) }}
           aria-label="Actions du devis" title="Actions du devis" aria-haspopup="menu" aria-expanded={actionMenuId === q.id}

@@ -5,7 +5,7 @@ import { DataTable } from '../../../ui/DataTable'
 import { EmptyState } from '../../../ui/EmptyState'
 import { apiFetch } from '../../../core/api'
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useDataStore } from '../../../core/store'
 import { useDroits } from '../../../core/rights/useDroit'
 import { supabase } from '../../../core/supabase'
@@ -47,7 +47,6 @@ const statusLabels = {
 
 export default function Sessions() {
   const location = useLocation()
-  const navigate = useNavigate()
   const d = useDroits({
     creer: 'formation.sessions.creer',
     supprimer: 'formation.sessions.supprimer',
@@ -529,7 +528,9 @@ export default function Sessions() {
     return [ligne, ...(ligne.deplie ? group.sessions.map((s) => ({ cle: s.id, sorte: 'membre', session: s, group })) : [])]
   })
   const estSousTraitance = (l) => l.sorte === 'solo' && l.session.session_type === 'subcontract'
-  const ouvrirLigne = (l) => (l.sorte === 'groupe' ? toggleGroup(l.group.id) : navigate(`/sessions/${l.session.id}`))
+  // Session : vrai lien (nouvel onglet possible) ; ligne de groupe : se déplie
+  const ouvrirLigne = (l) => { if (l.sorte === 'groupe') toggleGroup(l.group.id) }
+  const lienLigne = (l) => (l.sorte === 'groupe' ? null : `/sessions/${l.session.id}`)
   const classeLigne = (l) => (l.sorte === 'membre' ? 'bg-gray-50 ml-6 [&>td:first-child]:pl-8'
     : l.sorte === 'groupe' ? 'bg-gray-50' : estSousTraitance(l) ? 'bg-[rgb(var(--c-warning-bg))]' : '')
   const dateFr = (v) => format(new Date(v), 'd MMM yyyy', { locale: fr })
@@ -720,7 +721,7 @@ export default function Sessions() {
       {/* Liste */}
       <div className="bg-white rounded-ui border border-gray-200 overflow-hidden">
         <DataTable columns={colonnesSessions} rows={lignesSessions} rowKey="cle" loading={sessionsLoading} caption="Sessions"
-          onRowClick={ouvrirLigne} rowClassName={classeLigne}
+          onRowClick={ouvrirLigne} rowHref={lienLigne} rowClassName={classeLigne}
           empty={<EmptyState title={search || statusFilter ? 'Aucun résultat' : 'Aucune session. Créez-en une !'} compact />} />
       </div>
       </>}
