@@ -78,7 +78,9 @@ export async function publishedDocPDF(docId, { audience } = {}) {
     ])
     const tpl = tpls[docId]
     if (!pub || !tpl) return null
-    const content = audience ? pourDestinataire(pub.content, audience) : pub.content
+    // Prochaine revue : la ligne de la version validée la porte, pas sa copie figée
+    const base = pub.source === 'valide' && hist[0]?.version === pub.version && hist[0]?.next_review ? { ...pub.content, next_review: hist[0].next_review } : pub.content
+    const content = audience ? pourDestinataire(base, audience) : base
     const r = buildRichDocPDF(ORG, { tpl, code: docCode(tpl.code), content, ctx, history: hist })
     const dataUri = r.doc.output('datauristring')
     return { base64: dataUri.split(',')[1], filename: r.filename, version: pub.version, source: pub.source, validated_at: pub.validated_at, docId, audience: audience || null }
