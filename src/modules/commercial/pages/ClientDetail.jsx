@@ -1,6 +1,7 @@
 import { toneStyle } from '../../../ui/StatusBadge'
 import { currentUserFirstName, teamFirstNames } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
+import { texteEnHtml, htmlEnTexte } from '../../../core/html'
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
@@ -694,17 +695,7 @@ export default function ClientDetail() {
       const data = await res.json()
       if (data.error) throw new Error(data.error)
       // Convertir HTML → texte lisible pour le textarea
-      let bodyText = (data.body || '')
-        .replace(/<\/p>/gi, '\n\n')
-        .replace(/<p[^>]*>/gi, '')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<[^>]*>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
+      const bodyText = htmlEnTexte(data.body)
       setEmailForm(f => ({ ...f, subject: data.subject || f.subject, body: bodyText || f.body }))
       toast.success('Email généré !')
     } catch (err) {
@@ -717,11 +708,8 @@ export default function ClientDetail() {
     if (!emailForm.to || !emailForm.subject || !emailForm.body) return toast.error('Destinataire, objet et corps requis')
     setEmailSending(true)
     try {
-      // Convertir le texte brut en HTML si pas déjà du HTML
-      let htmlBody = emailForm.body
-      if (!htmlBody.includes('<p>') && !htmlBody.includes('<br')) {
-        htmlBody = htmlBody.split(/\n\n+/).map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('')
-      }
+      // Le corps est toujours du texte saisi : mis en HTML et échappé
+      const htmlBody = texteEnHtml(emailForm.body)
 
       const res = await apiFetch('/api/send-prospect-email', {
         method: 'POST',
