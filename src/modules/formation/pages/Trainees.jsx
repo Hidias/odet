@@ -527,7 +527,7 @@ export default function Trainees() {
   }
   
   const toggleSelectAll = () => {
-    if (selectedIds.size === filtered.length) {
+    if (filtered.length > 0 && filtered.every(t => selectedIds.has(t.id))) {
       setSelectedIds(new Set())
     } else {
       setSelectedIds(new Set(filtered.map(t => t.id)))

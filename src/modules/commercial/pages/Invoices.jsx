@@ -1382,7 +1382,7 @@ export default function Invoices() {
                 )
               } },
               { key: 'client', label: 'Client', sortKey: 'client', mobile: 'subtitle', className: 'text-gray-600', render: (inv) => inv.clients?.name || '-' },
-              { key: 'object', label: 'Objet', hideBelow: 'xl', className: 'text-gray-500 max-w-[200px] truncate', render: (inv) => inv.object || '-' },
+              { key: 'object', label: 'Objet', hideBelow: 'lg', className: 'text-gray-500 max-w-[200px] truncate', render: (inv) => inv.object || '-' },
               { key: 'total_ht', label: 'HT', sortKey: 'total_ht', align: 'right', render: (inv) => money(inv.total_net_ht) },
               { key: 'total_ttc', label: 'TTC', sortKey: 'total_ttc', align: 'right', className: 'font-medium', render: (inv) => money(inv.total_ttc) },
               { key: 'amount_due', label: 'Dû', align: 'right', className: 'font-medium', render: (inv) => (parseFloat(inv.amount_due) > 0 ? <span className="text-[rgb(var(--c-danger))]">{money(inv.amount_due)}</span> : '-') },

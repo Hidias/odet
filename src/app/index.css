@@ -343,6 +343,8 @@ button, a, nav { -webkit-tap-highlight-color: transparent; }
 .dt-cards { display: none; margin: 0; padding: 0; list-style: none; }
 .dt-card { padding: var(--row-py) var(--space-3); border-top: 1px solid rgb(var(--c-line)); }
 .dt-card:first-child { border-top: 0; }
+/* Carte cliquable : le titre porte une zone étirée sur toute la carte ; boutons, liens et champs restent au-dessus */
+.dt-card :is(a, button, input, select, textarea, summary, label, [tabindex]):not(.dt-etire) { position: relative; z-index: 1; }
 @media (max-width: 767px) {
   .dt-table { display: none; }
   .dt-cards { display: block; }

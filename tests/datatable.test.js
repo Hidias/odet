@@ -2,7 +2,11 @@
 import { describe, it, expect } from 'vitest'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { DataTable } from '../src/ui/DataTable.jsx'
+import { MemoryRouter } from 'react-router-dom'
+import { DataTable as DataTableNu } from '../src/ui/DataTable.jsx'
+
+// Le tableau lit le routeur (lignes en liens) : rendu dans un routeur de test
+const DataTable = (props) => h(MemoryRouter, null, h(DataTableNu, props))
 
 const lignes = [{ id: 'a', nom: 'Alpha', ville: 'Brest' }, { id: 'b', nom: 'Bravo', ville: 'Quimper' }]
 const colonnes = [
@@ -61,5 +65,19 @@ describe('DataTable, cartes', () => {
     const html = renderToStaticMarkup(h(DataTable, { rows: [{ id: 'x', nom: 'X', ville: '' }, { id: 'y', nom: 'Y', ville: null }, { id: 'z', nom: 'Z', ville: '-' }],
       columns: [{ key: 'nom', label: 'Nom', mobile: 'title' }, { key: 'ville', label: 'Ville' }] }))
     expect(html).not.toContain('<dt class="text-gray-500">Ville</dt>')
+  })
+})
+
+describe('DataTable, liens et boutons des cartes', () => {
+  it('rowHref : vrai lien dans le tableau et dans la carte', () => {
+    const html = renderToStaticMarkup(h(DataTable, { rows: lignes, columns: colonnes, rowHref: (r) => `/clients/${r.id}` }))
+    expect(html.match(/href="\/clients\/a"/g)).toHaveLength(2)
+    expect(html).toContain('dt-etire')
+  })
+
+  it('bloc d\'actions vide non affiché dans la carte', () => {
+    const html = renderToStaticMarkup(h(DataTable, { rows: lignes, onRowClick: () => {},
+      columns: [{ key: 'nom', label: 'Nom', mobile: 'title' }, { key: 'act', label: '', actions: true, render: () => null }] }))
+    expect(html.slice(html.indexOf('dt-cards'))).not.toContain('justify-end gap-1 mt-1.5')
   })
 })

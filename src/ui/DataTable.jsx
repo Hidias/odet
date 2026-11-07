@@ -1,4 +1,5 @@
 import { ChevronRight, ArrowUp, ArrowDown } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { EmptyState, Spinner } from './EmptyState'
 
 // Tableau commun. Sur PC : un vrai tableau. Sur téléphone (ou si l'utilisateur choisit « Listes en cartes »
@@ -13,13 +14,17 @@ import { EmptyState, Spinner } from './EmptyState'
 // sort : { key, dir: 'asc' | 'desc' } et onSort(key) : tri fait par la page, l'en-tête l'affiche.
 // selection : { selected: Set, onToggle(row), onToggleAll(), label?(row) } : une case par ligne et une case « tout ».
 // rowClassName(row) : classe en plus sur la ligne et la carte.
+// rowHref(row) : adresse de la ligne ; un vrai lien, qui s'ouvre aussi dans un nouvel onglet. Sans adresse pour une ligne
+//   (null), le clic de la ligne passe par onRowClick (ex. ligne de groupe qui se déplie).
+// Dans une carte cliquable, tout bouton, lien ou champ passe au-dessus de la zone cliquable (index.css, .dt-card).
 
 const CACHE = { lg: 'hidden lg:table-cell', xl: 'hidden xl:table-cell' }
 const ALIGN = { right: 'text-right', center: 'text-center' }
-const vide = (v) => v === null || v === undefined || v === false || v === '' || v === '-' || (Array.isArray(v) && v.every(vide))
+const vide = (v) => v === null || v === undefined || v === false || v === '' || v === '-' || v === '\u2014' || (Array.isArray(v) && v.every(vide))
 
 export function DataTable({ columns, rows, rowKey = 'id', onRowClick = null, loading = false, empty = null, caption = null, className = '',
-  sort = null, onSort = null, selection = null, rowClassName = null }) {
+  sort = null, onSort = null, selection = null, rowClassName = null, rowHref = null }) {
+  const navigate = useNavigate()
   if (loading) return <Spinner />
   if (!rows || rows.length === 0) return empty || <EmptyState title="Aucun élément" compact />
 
@@ -30,7 +35,11 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick = null, loa
   const actions = columns.filter((c) => c.actions && c.mobile !== false)
   const meta = columns.filter((c) => c !== title && !c.actions && (c.mobile === undefined || c.mobile === 'meta'))
   const key = (row, i) => (typeof rowKey === 'function' ? rowKey(row) : row[rowKey]) ?? i
-  const clickable = typeof onRowClick === 'function'
+  const lien = (row) => (typeof rowHref === 'function' ? rowHref(row) || null : null)
+  const ouvrir = (row) => { const href = lien(row); if (href) navigate(href); else if (typeof onRowClick === 'function') onRowClick(row) }
+  const clickable = typeof rowHref === 'function' || typeof onRowClick === 'function'
+  // Un clic qui termine une sélection de texte (copier un e-mail) n'ouvre pas la ligne
+  const ouvrirLigne = (row) => { if (typeof window !== 'undefined' && window.getSelection?.().toString()) return; ouvrir(row) }
   const extra = (row) => (typeof rowClassName === 'function' ? rowClassName(row) || '' : '')
   const idDe = (row) => (typeof rowKey === 'function' ? rowKey(row) : row[rowKey])
   const coche = (row) => !!selection?.selected?.has(idDe(row))
@@ -72,10 +81,10 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick = null, loa
           </thead>
           <tbody>
             {rows.map((row, i) => (
-              <tr key={key(row, i)} onClick={clickable ? () => onRowClick(row) : undefined}
+              <tr key={key(row, i)} onClick={clickable ? () => ouvrirLigne(row) : undefined}
                 className={`${clickable ? 'cursor-pointer' : ''} ${extra(row)}`.trim() || undefined}
-                tabIndex={clickable ? 0 : undefined}
-                onKeyDown={clickable ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onRowClick(row) } : undefined}>
+                tabIndex={clickable && !lien(row) ? 0 : undefined}
+                onKeyDown={clickable && !lien(row) ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) ouvrir(row) } : undefined}>
                 {selection && (
                   <td className="w-10" onClick={arreter}>
                     <input type="checkbox" className="w-4 h-4 align-middle" checked={coche(row)} onChange={() => selection.onToggle(row)} aria-label={libelleCase(row)} />
@@ -83,7 +92,9 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick = null, loa
                 )}
                 {columns.map((c) => (
                   <td key={c.key} onClick={c.actions ? arreter : undefined} onKeyDown={c.actions ? arreter : undefined}
-                    className={`${c.align === 'right' ? 'text-right tabular-nums' : ALIGN[c.align] || ''} ${CACHE[c.hideBelow] || ''} ${c.className || ''}`.trim() || undefined}>{cell(c, row)}</td>
+                    className={`${c.align === 'right' ? 'text-right tabular-nums' : ALIGN[c.align] || ''} ${CACHE[c.hideBelow] || ''} ${c.className || ''}`.trim() || undefined}>
+                    {c === title && lien(row) ? <Link to={lien(row)} className="text-inherit hover:underline" onClick={arreter}>{cell(c, row)}</Link> : cell(c, row)}
+                  </td>
                 ))}
               </tr>
             ))}
@@ -100,9 +111,11 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick = null, loa
               )}
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-gray-900">
-                  {clickable
-                    ? <button type="button" className="text-left after:absolute after:inset-0 after:content-['']" onClick={() => onRowClick(row)}>{cell(title, row)}</button>
-                    : cell(title, row)}
+                  {lien(row)
+                    ? <Link to={lien(row)} className="dt-etire text-inherit after:absolute after:inset-0 after:content-['']">{cell(title, row)}</Link>
+                    : clickable
+                      ? <button type="button" className="dt-etire text-left after:absolute after:inset-0 after:content-['']" onClick={() => ouvrir(row)}>{cell(title, row)}</button>
+                      : cell(title, row)}
                 </div>
                 {subtitle.map((c) => <div key={c.key} className="text-ui-sm text-gray-500">{cell(c, row)}</div>)}
               </div>
@@ -120,11 +133,14 @@ export function DataTable({ columns, rows, rowKey = 'id', onRowClick = null, loa
                 </dl>
               )
             })()}
-            {actions.length > 0 && (
-              <div className="relative z-[1] flex flex-wrap justify-end gap-1 mt-1.5">
-                {actions.map((c) => <div key={c.key} className="contents">{cell(c, row)}</div>)}
-              </div>
-            )}
+            {(() => {
+              const boutons = actions.map((c) => [c, cell(c, row)]).filter(([, v]) => !vide(v))
+              return boutons.length > 0 && (
+                <div className="relative z-[1] flex flex-wrap justify-end gap-1 mt-1.5">
+                  {boutons.map(([c, v]) => <div key={c.key} className="contents">{v}</div>)}
+                </div>
+              )
+            })()}
           </li>
         ))}
       </ul>
