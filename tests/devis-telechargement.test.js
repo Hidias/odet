@@ -15,6 +15,10 @@ describe('téléchargement du PDF d\'un devis', () => {
   it.each(['downloadPDF', 'downloadCurrentPDF'])('%s ne publie pas', (nom) => {
     expect(corps(nom)).not.toMatch(/\b(publierDevisPdf|publierDevis|mettreADisposition|regenererEtPublier)\(/)
   })
+  it('un devis passé en accepté ou partiel, même sans envoi, est publié', () => {
+    expect(corps('updateStatus')).toMatch(/\['sent', 'accepted', 'partial'\]\.includes\(newStatus\)\) regenererEtPublier\(id\)/)
+    expect(corps('toggleItemAccepted')).toMatch(/\['accepted', 'partial'\]\.includes\(newStatus\)\) regenererEtPublier\(currentQuote\.id\)/)
+  })
   it('l\'enregistrement d\'un devis remis republie toujours', () => {
     expect(src).toMatch(/includes\(currentQuote\.status\)\) regenererEtPublier\(quoteId\)/)
   })

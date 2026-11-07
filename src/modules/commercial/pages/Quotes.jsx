@@ -600,7 +600,8 @@ export default function Quotes() {
     if (!ok) return
     await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
     toast.success(`Statut → ${STATUS_CONFIG[newStatus].label}`)
-    if (newStatus === 'sent') regenererEtPublier(id)
+    // Devis remis (envoyé, accepté même sur papier sans envoi, en partie) : mis à disposition, sauf s'il est signé
+    if (['sent', 'accepted', 'partial'].includes(newStatus)) regenererEtPublier(id)
     if (currentQuote && currentQuote.id === id) setCurrentQuote(prev => ({ ...prev, status: newStatus }))
     loadAll()
   }
@@ -643,7 +644,8 @@ export default function Quotes() {
         contactData = data
       }
       // Téléchargement seul : rien n'est republié dans l'espace client (constat du 06/11). La mise à disposition se fait
-      // à l'envoi, au passage en « envoyé » et à l'enregistrement d'un devis remis (regenererEtPublier, lu en base)
+      // à l'envoi, au passage en « envoyé », « accepté » ou « partiel » (aussi ligne par ligne) et à l'enregistrement
+      // d'un devis remis (regenererEtPublier, lu en base)
       await generateQuotePDF(quote, loadedItems, clientData, contactData, { orgSettings: organization })
       toast.success('PDF généré !')
     } catch (err) { console.error(err); toast.error('Erreur PDF: ' + err.message) }
@@ -841,6 +843,7 @@ export default function Quotes() {
       setCurrentQuote(prev => ({ ...prev, status: newStatus }))
       setQuotes(prev => prev.map(q => q.id === currentQuote.id ? { ...q, status: newStatus } : q))
       toast.success(`Statut → ${STATUS_CONFIG[newStatus]?.label || newStatus}`)
+      if (['accepted', 'partial'].includes(newStatus)) regenererEtPublier(currentQuote.id)
     }
   }
 
