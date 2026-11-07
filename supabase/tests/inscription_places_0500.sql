@@ -59,6 +59,10 @@ do $$ begin
   if exists (select 1 from public.online_registrations where contact_last_name = 'Wait' and (siret is not null or company_name is not null)) then
     raise exception '4e. SIRET ou entreprise gardés pour un particulier';
   end if;
+  -- Une seule transaction : heures de dépôt remises dans l'ordre d'arrivée (Alpha, Beta, Perso, Wil)
+  update public.online_registrations o set created_at = now() - make_interval(hours => x.h)
+    from (values ('Alpha', 4), ('Beta', 3), ('Perso', 2), ('Wait', 1)) x(nom, h)
+   where o.session_id = current_setting('essai.session')::uuid and o.contact_last_name = x.nom;
 end $$;
 
 -- Organisme
@@ -73,7 +77,7 @@ begin
     v_err := null;
   exception when others then v_err := sqlerrm;
   end;
-  if coalesce(v_err, '') not like '%en attente de confirmation%' then raise exception '5b. place réservée prise par la liste d''attente (%)', v_err; end if;
+  if coalesce(v_err, '') not like '%réservées à des demandes plus anciennes%' then raise exception '5b. place réservée prise par la liste d''attente (%)', v_err; end if;
   perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and company_name = 'Alpha essai 0500'));
   -- Beta forcée alors qu'il ne reste qu'une place : refusée, rien d'écrit
   begin
@@ -101,6 +105,36 @@ begin
   perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and company_name = 'Beta essai 0500'));
   select count(*) into v_n from public.session_trainees where session_id = v_s;
   if v_n <> 4 then raise exception '11. % inscrit(s) au lieu de 4 après relèvement', v_n; end if;
+end $$;
+reset role;
+
+-- Ordre d'arrivée : la demande la plus ancienne qui tient reste confirmable même si les demandes en cours dépassent
+-- l'effectif (stagiaire ajouté à la main entre-temps) ; la suivante est refusée
+do $$
+declare v_cie uuid; v_s uuid; v_co uuid; v_t uuid;
+begin
+  select id into v_cie from public.companies limit 1;
+  select course_id into v_co from public.sessions where id = current_setting('essai.session')::uuid;
+  insert into public.sessions (reference, course_id, session_type, is_public, start_date, end_date, attendance_token, max_participants, company_id)
+  values ('ESSAI-0500-B', v_co, 'inter', true, current_date + 25, current_date + 25, 'essai-0500-b', 3, v_cie) returning id into v_s;
+  perform set_config('essai.session2', v_s::text, true);
+  insert into public.online_registrations (session_id, kind, contact_first_name, contact_last_name, contact_email, company_name, participants, status, created_at) values
+    (v_s, 'entreprise', 'Oa', 'Ordre', 'oa@example.invalid', 'Ancienne essai 0500', '[{"first_name":"O","last_name":"Un"},{"first_name":"O","last_name":"Deux"}]', 'en_attente', now() - interval '2 hours'),
+    (v_s, 'entreprise', 'Ob', 'Ordre', 'ob@example.invalid', 'Récente essai 0500', '[{"first_name":"R","last_name":"Un"}]', 'en_attente', now() - interval '1 hour');
+  insert into public.trainees (first_name, last_name, company_id) values ('Main', 'AJOUT', v_cie) returning id into v_t;
+  insert into public.session_trainees (session_id, trainee_id, company_id) values (v_s, v_t, v_cie);
+end $$;
+set local role authenticated;
+do $$
+declare v_s uuid := current_setting('essai.session2')::uuid; v_err text;
+begin
+  perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and company_name = 'Ancienne essai 0500'));
+  begin
+    perform public.inscription_confirmer((select id from public.online_registrations where session_id = v_s and company_name = 'Récente essai 0500'));
+    v_err := null;
+  exception when others then v_err := sqlerrm;
+  end;
+  if coalesce(v_err, '') not like '%effectif maximum%' then raise exception '13. demande récente confirmée au-delà de l''effectif (%)', v_err; end if;
 end $$;
 reset role;
 do $$ begin
