@@ -10,6 +10,7 @@ import { documentAvecPreuve } from '../../../core/signature/preuve'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { missingOrgFields } from '../../../core/org/orgUtils'
 import { computePresenceHours, formatHours, jourDeFormation } from '../lib/presence'
+import { sansFinanceurPrevu } from '../lib/financement'
 import { 
   ArrowLeft, Calendar, MapPin, Users, Clock, FileText, QrCode, UserPlus, UserMinus,
   Download, CheckCircle, AlertCircle, Copy, ExternalLink, X, Edit, Trash2, Save,
@@ -29,7 +30,7 @@ import AvisFormationTab from '../components/AvisFormationTab'
 import RegularisationEmargements from '../components/RegularisationEmargements'
 import SignatureEnLigne from '../components/SignatureEnLigne'
 import { avecHeuresRealisees, signaturesFormateur } from '../lib/emargementControle'
-import { figerDocuments } from '../lib/documentsEmis'
+import { figerDocuments, formationAVenir } from '../lib/documentsEmis'
 import { avecObjectifs, blocageFinFormation, nonEvalues } from '../lib/finFormation'
 import BpfCategories from '../components/BpfCategories'
 import SuiviFormatifTab from '../../suivi/components/SuiviFormatifTab'
@@ -2594,8 +2595,11 @@ export default function SessionDetail() {
       const finsPdf = fins?.length ? await generateAllPDF('fin_formation', session, fins, { trainer }) : null
       if (finsPdf) zip.file(`Attestations_fin_formation_${ref}.pdf`, finsPdf.base64, { base64: true })
 
-      // 10. Attestations de présence (pas pour un stagiaire absent sur toute la session)
-      const presents = await figerDocuments(session, 'attestation', traineesWithResult.filter(t => !absentsIds.includes(t.id)).map(avecH))
+      // 10. Attestations de présence (pas pour un stagiaire absent sur toute la session). Jamais avant la fin de la
+      // formation : une attestation d'heures suivies pour une session à venir serait fausse (dossier OPCO, A11 07/11)
+      const sessionFinie = !formationAVenir(session)
+      if (!sessionFinie) toast('Attestations de présence hors du dossier : elles se génèrent après la formation', { icon: 'ℹ️', duration: 6000 })
+      const presents = sessionFinie ? await figerDocuments(session, 'attestation', traineesWithResult.filter(t => !absentsIds.includes(t.id)).map(avecH)) : []
       if (!presents) toast('Attestations non incluses : correction sans motif', { icon: '⚠️' })
       const attestations = presents?.length ? await generateAllPDF('attestation', session, presents, { trainer }) : null
       if (attestations) zip.file(`Attestations_${ref}.pdf`, attestations.base64, { base64: true })
@@ -3439,6 +3443,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       {/* Circuit devis signé → participants → convocations (0430) : en tête de fiche, avant les infos et le suivi de
           convention, pour que « Contrôler et confirmer » d'une session préparée se voie d'abord (A11, 07/11) */}
       <CircuitSession session={session} peutModifier={d.modifier} onChange={() => fetchSessions()} onEnvoyer={handleSendEmailBefore} />
+      {/* Seuil de maintien (inter, J-10) : décision urgente, en tête de fiche avec le circuit (A11, 07/11) */}
+      <SeuilMaintien session={session} peutModifier={d.modifier} />
       {/* Infos */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="card">
@@ -3619,8 +3625,6 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
       
       <DemandesNirSession session={session} peutEnvoyer={d.modifier} />
 
-      {/* Seuil de maintien (inter, J-10) */}
-      <SeuilMaintien session={session} peutModifier={d.modifier} />
       <EffectifPrerequis session={session} peutModifier={d.modifier} peutFacturer={!!d.factures} />
 
       {/* Tabs */}
@@ -4824,8 +4828,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
             </button>}
           </div>
 
-          {/* Barre de couverture */}
-          {(() => {
+          {/* Barre de couverture. Aucun financeur extérieur prévu (financement « aucun », non choisi ou « direct ») et aucun
+              financeur saisi : pas de barre orange à 0 % qui inquiète pour rien (A11, 07/11) */}
+          {sessionFundings.length === 0 && sansFinanceurPrevu(session.funding_type) ? (
+            <p className="mb-5 p-4 rounded-ui-sm border bg-gray-50 text-ui text-gray-700">
+              Aucun financeur extérieur prévu (OPCO, CPF...).{d.modifier ? ' Ajoutez-en un seulement si un organisme prend en charge tout ou partie du prix.' : ''}
+            </p>
+          ) : (() => {
             const totalHT = getSessionTotalHT()
             const fundingTotal = getFundingTotal()
             const coverage = getFundingCoverage()
@@ -4862,7 +4871,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
 
           {/* Liste des financeurs */}
           {sessionFundings.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">Aucun financement renseigné. Cliquez sur « Ajouter un financeur » pour commencer.</p>
+            !sansFinanceurPrevu(session.funding_type) && <p className="text-gray-500 text-center py-8">Aucun financement renseigné.{d.modifier ? ' Cliquez sur « Ajouter un financeur » pour commencer.' : ''}</p>
           ) : (
             <div className="space-y-3">
               <table className="w-full text-ui">

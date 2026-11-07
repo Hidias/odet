@@ -93,15 +93,18 @@ export default function SeuilMaintien({ session, peutModifier }) {
           ) : (
             <p className="font-medium text-gray-900">Seuil de maintien non atteint : {n} inscrit{n > 1 ? 's' : ''} pour un minimum de {session.min_participants}, à J-{j}</p>
           )}
-          <p className="text-gray-600">Les inscrits sont prévenus par l'organisme, avec le message ci-dessous. L'outil n'envoie rien.</p>
+          <p className="text-gray-600">{n > 0
+            ? "Les inscrits sont prévenus par l'organisme, avec le message ci-dessous. L'outil n'envoie rien."
+            : etat.decision ? 'Aucun inscrit à prévenir.'
+              : peutModifier ? 'Aucun inscrit pour le moment : décidez de maintenir, reporter ou annuler la session.' : 'Aucun inscrit pour le moment.'}</p>
         </div>
       </div>
 
       {!etat.decision && peutModifier && (
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => decider('maintenue')}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Maintenir</button>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => decider('reportee')}>Reporter</button>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => decider('annulee')}>Annuler</button>
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => decider('maintenue')}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Maintenir la session</button>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => decider('reportee')}>Reporter la session</button>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => decider('annulee')}>Annuler la session</button>
         </div>
       )}
 

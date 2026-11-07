@@ -4,6 +4,7 @@ import { Repeat, Plus, Loader2, Pause, Play, Trash2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { Sheet } from '../../../ui/Sheet'
 import { confirmer } from '../../../ui/Confirm'
+import { finConseillee, finApresDebut } from '../lib/horaires'
 
 // Créneaux récurrents des sessions inter (0422, série du 21/10 n° 31) : « MAC SST le premier mardi du mois à
 // Quimper ». Le créneau est décrit une fois ; la base crée les sessions des douze mois à venir, publiées au calendrier
@@ -161,7 +162,9 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
               <label className="label" htmlFor="cr-course">Formation *</label>
               <select id="cr-course" className="select" value={form.course_id} onChange={(e) => {
                 const co = courses.find((x) => x.id === e.target.value)
-                setForm({ ...form, course_id: e.target.value, nb_jours: co?.duration_days || form.nb_jours })
+                const nbJours = co?.duration_days || form.nb_jours
+                // Fin selon la durée (4 h : 9 h–13 h), comme une session préparée depuis un devis
+                setForm({ ...form, course_id: e.target.value, nb_jours: nbJours, end_time: co ? finConseillee(form.start_time, co.duration_hours, nbJours) : form.end_time })
               }} required>
                 <option value="">Choisir…</option>
                 {courses.map((co) => <option key={co.id} value={co.id}>{co.title}</option>)}
@@ -195,8 +198,8 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div><label className="label" htmlFor="cr-nbj">Jours ouvrés</label><input id="cr-nbj" type="number" min="1" max="10" className="input" value={form.nb_jours} onChange={(e) => f('nb_jours', e.target.value)} /></div>
-              <div><label className="label" htmlFor="cr-hd">Début</label><input id="cr-hd" type="time" className="input" value={form.start_time} onChange={(e) => f('start_time', e.target.value)} /></div>
+              <div><label className="label" htmlFor="cr-nbj">Jours ouvrés</label><input id="cr-nbj" type="number" min="1" max="10" className="input" value={form.nb_jours} onChange={(e) => { const co = courses.find((x) => x.id === form.course_id); setForm({ ...form, nb_jours: e.target.value, end_time: co && form.end_time === finConseillee(form.start_time, co.duration_hours, form.nb_jours) ? finConseillee(form.start_time, co.duration_hours, e.target.value) : form.end_time }) }} /></div>
+              <div><label className="label" htmlFor="cr-hd">Début</label><input id="cr-hd" type="time" className="input" value={form.start_time} onChange={(e) => { const co = courses.find((x) => x.id === form.course_id); setForm({ ...form, start_time: e.target.value, end_time: co ? finApresDebut(form.start_time, e.target.value, form.end_time, co.duration_hours, form.nb_jours) : form.end_time }) }} /></div>
               <div><label className="label" htmlFor="cr-hf">Fin</label><input id="cr-hf" type="time" className="input" value={form.end_time} onChange={(e) => f('end_time', e.target.value)} /></div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
