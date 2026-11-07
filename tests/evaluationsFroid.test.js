@@ -34,6 +34,15 @@ describe('évaluations à froid : textes et regroupement (0482)', () => {
     expect(t.corps).toContain('/#/mon-entreprise')
     expect(t.corps).toContain('/#/portail/abc')
     expect(t.corps).not.toMatch(/—|–/)
+    // Accès par lien actif (0509) : l'espace par lien remplace l'espace par compte, sans code dans le mail
+    const tl = texteContact(g[1], 'Organisme Test', 'https://app.exemple.fr/', 'jeton123')
+    expect(tl.corps).toContain('https://app.exemple.fr/#/entreprise/jeton123')
+    expect(tl.corps).not.toContain('/#/mon-entreprise')
+    expect(tl.corps).toContain('avec votre code d\'accès habituel')
+    // Stagiaires sans adresse seulement : le lien de l'espace de l'entreprise est donné aussi
+    const tc = texteContact([g[1][0]], 'Organisme Test', 'https://app.exemple.fr', 'jeton123')
+    expect(tc.corps).toContain('/#/entreprise/jeton123')
+    expect(tc.corps).not.toContain('code d\'accès habituel')
   })
   it('HTML échappé, liens cliquables', () => {
     expect(htmlDe('a <b>\nhttps://x.fr/#/portail/1')).toBe('a &lt;b&gt;<br><a href="https://x.fr/#/portail/1">https://x.fr/#/portail/1</a>')
