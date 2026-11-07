@@ -921,8 +921,8 @@ const TEMPLATES = {
        ],
        [
         "5. Recueillir à froid",
-        "Outil, contrôle par la gestion",
-        "90 jours après la fin, relance à J+104"
+        "Outil, validation par la gestion",
+        "Délai réglé (par défaut 60 jours après la fin), relance 30 jours après l'envoi"
        ],
        [
         "6. Traiter les avis négatifs",
@@ -950,11 +950,11 @@ const TEMPLATES = {
      },
      {
       "t": "p",
-      "text": "**Étape 4. Avis de l'entreprise.** Le formulaire prérempli (session, dates, stagiaires) est envoyé au contact. Il peut être rempli à l'écran et signé à la souris, ou imprimé, signé et numérisé. Le document retourné est déposé dans la session."
+      "text": "**Étape 4. Avis de l'entreprise.** Le formulaire prérempli (session, dates, stagiaires) est envoyé au contact. Il peut être rempli à l'écran et signé à la souris, ou imprimé, signé et numérisé. Le document retourné est déposé dans la session. Quand l'entreprise a un accès actif à son espace client, le questionnaire joint à l'envoi « Après formation » porte l'adresse et le QR code de cet espace : elle peut aussi donner son avis en ligne, dès le dernier jour de formation ; l'avis s'affiche alors sur la fiche session."
      },
      {
       "t": "p",
-      "text": "**Étape 5. À froid.** L'envoi part automatiquement à 90 jours. Sans réponse, une relance unique 14 jours plus tard. On ne relance pas davantage."
+      "text": "**Étape 5. À froid.** Chaque nuit, l'outil prépare le questionnaire à froid des stagiaires, et celui de l'employeur, au délai réglé (par défaut 60 jours après la fin ; réglable par société et par formation dans Évaluations à froid, Réglages). Rien ne part sans validation : la gestion vérifie la liste préparée et l'envoie. Sans réponse, une relance est préparée 30 jours après l'envoi, une seule par défaut (réglable), et validée de la même façon."
      },
      {
       "t": "p",
@@ -6260,7 +6260,7 @@ const TEMPLATES = {
        "Questionnaire entreprise envoyé, retour déposé",
        "Facture émise avec émargements",
        "Avis négatifs lus et traités",
-       "Questionnaire à froid programmé à 90 jours",
+       "Questionnaire à froid préparé par l'outil au délai réglé (par défaut 60 jours), puis validé",
        "Dossier complet contrôlé par le responsable qualité",
        "Passeport de prévention renseigné (formations santé et sécurité au travail)"
       ]

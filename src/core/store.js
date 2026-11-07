@@ -1583,7 +1583,7 @@ export const useDataStore = create((set, get) => ({
     return result
   },
 
-  // ========== ÉVALUATIONS À FROID (90 jours) ==========
+  // ========== ÉVALUATIONS À FROID (délai réglé, 60 jours par défaut : froid_reglages, 0482) ==========
   fetchColdEvaluations: async (sessionId) => {
     const { data, error } = await supabase
       .from('evaluations_cold')

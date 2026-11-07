@@ -164,7 +164,7 @@ const DEFAULT_DATA = {
       { acteur: 'Formateur', etape: 'Termine la formation', delai: '-', output: 'Formation terminée' },
       { acteur: 'Formateur', etape: 'Distribue évaluation à chaud', delai: 'Immédiat', output: 'QR code/lien' },
       { acteur: 'Stagiaire', etape: 'Complète l\'évaluation', delai: '-', output: 'Réponses enregistrées' },
-      { acteur: 'Application', etape: 'Envoie évaluation J+90', delai: '90 jours', output: 'Email automatique' },
+      { acteur: 'Application', etape: 'Prépare l\'évaluation à froid', delai: 'Délai réglé (60 jours par défaut)', output: 'Envoi après validation' },
       { acteur: 'Application', etape: 'Génère alertes si score <4', delai: 'Automatique', output: 'Alerte qualité' },
       { acteur: 'Réf. Qualité', etape: 'Analyse les résultats', delai: 'Mensuel', output: 'Synthèse' },
       { acteur: 'Réf. Qualité', etape: 'Déclenche action si nécessaire', delai: '-', output: 'Fiche action' },
