@@ -29,7 +29,7 @@ let supabase = null
 function getSupabase() {
   if (supabase) return supabase
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) {
     const present = Object.keys(process.env).filter(k => /SUPABASE|ENCRYPTION|CRON/i.test(k)).sort()
     throw new Error(`Variables manquantes (url: ${!!url}, clé serveur: ${!!key}). Variables visibles : ${present.join(', ') || 'aucune'}`)
