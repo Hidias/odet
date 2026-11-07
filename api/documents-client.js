@@ -186,7 +186,8 @@ async function deposerSigne(req, res) {
     const { data: row } = await a.admin.from('client_shared_documents').select('object_type, object_id, label').eq('id', docId).maybeSingle()
     if (!row || row.object_type !== 'quote') return res.status(403).json({ error: 'Document non signable' })
     const { data: q } = await a.admin.from('quotes').select('id, status, reference').eq('id', row.object_id).maybeSingle()
-    if (!q || ['accepted', 'refused', 'expired', 'invoiced'].includes(q.status)) return res.status(400).json({ error: 'Ce devis ne se signe plus' })
+    // Même règle que la base (0498, app.document_signable) : brouillon, envoyé ou accepté en partie seulement
+    if (!q || !['draft', 'sent', 'partial'].includes(q.status)) return res.status(400).json({ error: 'Ce devis ne se signe plus' })
     cible = { type: 'quote', id: q.id, kind: 'devis', label: `${row.label} (signé, déposé par le client)`, bucket: BUCKET, lien: `/devis?open=${q.id}`, ref: q.reference }
   } else if (sessionId) {
     if (!UUID.test(String(sessionId))) return res.status(400).json({ error: 'Session invalide' })
