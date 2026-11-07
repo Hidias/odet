@@ -959,7 +959,7 @@ const TEMPLATES = {
      },
      {
       "t": "p",
-      "text": "**Étape 5. À froid.** Chaque nuit, l'outil prépare le questionnaire à froid des stagiaires, et celui de l'employeur, au délai réglé (par défaut 60 jours après la fin ; réglable par société et par formation dans Évaluations à froid, Réglages). Rien ne part sans validation : la personne qui a le droit d'envoyer aux stagiaires et aux clients vérifie la liste préparée et l'envoie. L'envoi n'est possible que si l'interrupteur « Questionnaires à froid » est ouvert par le super administrateur (Console, Tâches et envois). Sans réponse, une relance est préparée 30 jours après l'envoi, une seule par défaut (réglable), et validée de la même façon."
+      "text": "**Étape 5. À froid.** Chaque nuit, l'outil prépare le questionnaire à froid des stagiaires, et celui de l'employeur, au délai réglé (par défaut 60 jours après la fin ; réglable par société et par formation dans Évaluations à froid, Réglages). Rien ne part sans validation : la personne qui a le droit d'envoyer aux stagiaires et aux clients vérifie la liste préparée et l'envoie. L'envoi n'est possible que si l'interrupteur « Questionnaires à froid » est ouvert par le super administrateur (Console, Envois automatiques). Sans réponse, une relance est préparée 30 jours après l'envoi, une seule par défaut (réglable), et validée de la même façon."
      },
      {
       "t": "p",
