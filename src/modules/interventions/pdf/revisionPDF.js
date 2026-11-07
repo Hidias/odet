@@ -4,7 +4,7 @@ import 'jspdf-autotable'
 import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
-import { dateFr } from '../lib/contrat'
+import { dateFr, FORMULE_REVISION } from '../lib/contrat'
 
 const euros = (n) => `${Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € HT`
 const nombre = (n) => Number(n || 0).toLocaleString('fr-FR', { maximumFractionDigits: 4 })
@@ -17,14 +17,17 @@ export async function buildRevisionPDF({ contract, client, revision, org = null 
     const doc = new jsPDF({ compress: true })
     const f = startDocument(doc, ORG, { ref: contract.reference || null, docLabel: 'Révision du prix', code: 'REV', title: 'Révision annuelle du prix', subtitle: contract.label || 'Contrat de maintenance' })
     f.cards([{ label: 'Client', lines: [client?.name || '', client?.address || '', [client?.postal_code, client?.city].filter(Boolean).join(' ')].filter(Boolean) }])
-    f.para(`Conformément à la clause de révision de votre contrat, le prix annuel est révisé à la date anniversaire du ${dateFr(revision.anniversary)}, selon la formule P = P0 × I / I0.`, { after: 3 })
+    // Mêmes mots que la fiche du contrat et le contrat signé (FORMULE_REVISION), sans sigles (07/11)
+    f.para(`Conformément à la clause de révision de votre contrat, le prix annuel est révisé à la date anniversaire du ${dateFr(revision.anniversary)}, selon la formule : ${FORMULE_REVISION}.`, { after: 3 })
     f.kv([
-      ['Indice', [contract.index_label, contract.index_series ? `série ${contract.index_series}` : null].filter(Boolean).join(', ') || 'Indice du contrat'],
-      ['Valeur de référence (I0)', `${nombre(contract.index_base_value)}${contract.index_base_month ? `, ${mois(contract.index_base_month)}` : ''}`],
-      ['Nouvelle valeur (I)', `${nombre(revision.new_value)}${revision.new_value_month ? `, ${mois(revision.new_value_month)}` : ''}`],
-      ['Prix de référence (P0)', euros(contract.base_price_ht)],
-      ['Prix annuel révisé (P)', euros(revision.price_after)],
-    ], { labelW: 50 })
+      // Valeurs figées dans la révision quand elles y sont (0462), sinon celles du contrat
+      ['Indice', [revision.index_label || contract.index_label, contract.index_series ? `identifiant INSEE ${contract.index_series}` : null].filter(Boolean).join(', ') || 'Indice du contrat'],
+      ['Valeur de référence de l\'indice', `${nombre(revision.base_value ?? contract.index_base_value)}${contract.index_base_month ? `, ${mois(contract.index_base_month)}` : ''}`],
+      ['Dernière valeur de l\'indice', `${nombre(revision.new_value)}${revision.new_value_month ? `, ${mois(revision.new_value_month)}` : ''}`],
+      ['Prix de départ', euros(contract.base_price_ht ?? revision.price_before)],
+      ...(revision.price_before != null ? [['Prix annuel en cours', euros(revision.price_before)]] : []),
+      ['Nouveau prix annuel', euros(revision.price_after)],
+    ], { labelW: 55 })
     f.para(`Le nouveau prix s'applique aux échéances à compter du ${dateFr(revision.anniversary)}. Nous restons à votre disposition pour toute question.`, { after: 6 })
     f.signOff()
     f.finish()

@@ -1,5 +1,6 @@
 // Contrat de maintenance en PDF (0460, lot 1 des contrats) : conditions particulières (parties, sites, matériel couvert,
-// visites, prix, durée, reconduction, préavis, facturation), cadre de signature des deux parties, puis les conditions
+// visites, prix, durée, reconduction, préavis, facturation, moment des factures et ce que le prix comprend, révision du
+// prix selon l'indice), cadre de signature des deux parties, puis les conditions
 // générales de maintenance dans leur version validée. Sans version validée, le contrat ne part pas à la signature
 // (aperçu seulement) : message clair, rien d'autre n'est bloqué.
 
@@ -10,7 +11,7 @@ import { startDocument, numberPages, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
 import { monthLabel } from '../lib/schedule'
-import { phraseConditions, dateFr, limiteRefus, libellePeriodicite } from '../lib/contrat'
+import { phraseConditions, dateFr, limiteRefus, libellePeriodicite, termeFacture, comprisDuContrat, parEcheancier, FORMULE_REVISION } from '../lib/contrat'
 
 const euros = (n) => `${Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € HT`
 const enOctets = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
@@ -60,11 +61,20 @@ export async function buildContratPDF({ contract, client, sites = [], types = []
       f.table(['Matériel', 'Nombre'], [...parType.entries()].map(([k, n]) => [k, String(n)]), { columnStyles: { 1: { halign: 'right', cellWidth: 30 } }, reportable: true })
     }
 
+    // Points de coupe (compacter) : la page suivante peut commencer à une rubrique, pas au milieu
+    f.coupure()
     f.section('Prix, durée et facturation')
     const echeance = contract.term_on || null
     f.kv([
       ['Prix annuel', euros(contract.annual_price_ht)],
       ['Facturation', libellePeriodicite(conds.periodicite)],
+      // Échéancier (0461) : moment des factures et ce que le prix comprend ; à la visite, chaque visite est facturée
+      ...(parEcheancier(contract) ? [
+        ['Date des factures', termeFacture(contract, client?.client_type) === 'echu' ? 'après chaque période, une fois le service fait' : 'au début de chaque période, pour la période à venir'],
+        ['Compris dans le prix', comprisDuContrat(contract).join(', ') || 'les visites seulement ; pièces, recharges, déplacement et dépannage facturés en plus'],
+      ] : [
+        ['Factures', 'une facture après chaque visite ; pièces, recharges, déplacement et dépannage facturés en plus'],
+      ]),
       ['Prise d\'effet', dateFr(contract.start_on)],
       ['Durée', `${conds.duree_ans} an${conds.duree_ans > 1 ? 's' : ''}${echeance ? `, échéance le ${dateFr(echeance)}` : ''}`],
       ['À l\'échéance', conds.reconduction
@@ -72,6 +82,19 @@ export async function buildContratPDF({ contract, client, sites = [], types = []
         : 'fin du contrat, sans reconduction'],
     ], { labelW: 40 })
     f.para(phraseConditions(conds), { size: 8.5, after: 2 })
+
+    // Clause de révision (0462) : seulement si une valeur de référence de l'indice est prévue au contrat
+    if (Number(contract.index_base_value) > 0) {
+      const moisRef = contract.index_base_month ? new Date(`${String(contract.index_base_month).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : null
+      f.coupure()
+      f.section('Révision du prix')
+      f.kv([
+        ['Indice', [contract.index_label, contract.index_series ? `identifiant INSEE ${contract.index_series}` : null].filter(Boolean).join(', ') || 'indice prévu au contrat'],
+        ['Valeur de référence', `${Number(contract.index_base_value).toLocaleString('fr-FR', { maximumFractionDigits: 4 })}${moisRef ? `, ${moisRef}` : ''}`],
+        ['Prix de départ', euros(contract.base_price_ht ?? contract.annual_price_ht)],
+      ], { labelW: 40 })
+      f.para(`Chaque année, à la date anniversaire de la prise d'effet, le prix annuel peut être révisé selon la formule : ${FORMULE_REVISION}. Le nouveau prix est communiqué au client par courrier.`, { size: 8.5, after: 2 })
+    }
     f.para('Le présent contrat est régi par les conditions particulières ci-dessus et par les conditions générales de maintenance et de vérification jointes, dont le client reconnaît avoir pris connaissance. En cas de contradiction, les conditions particulières prévalent.', { size: 8.5, after: 4 })
 
     f.signatures([

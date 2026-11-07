@@ -8,6 +8,7 @@ import { profileName } from '../../../core/org/currentOrg'
 import { DEFAULT_OPERATION_LABELS, todayIso } from './schedule'
 import { computeDocumentTotals, lineTotal } from '../../../core/billing/totals'
 import { NATURES } from './natures'
+import { comprisApplicable } from './contrat'
 import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -371,7 +372,8 @@ export function invoiceLinesForVisit(visit, parts, settings, nbVisitesAn = 1, ta
   const contrat = visit.itv_contracts
   // Contrat facturé par échéancier (0461) : la visite ne refacture rien du forfait (pas de double facturation)
   const parEcheancier = contrat && ['mensuel', 'trimestriel', 'annuel'].includes(contrat.billing_period)
-  const compris = contrat?.includes || {}
+  // À la visite, rien n'est compris au prix (règle commune comprisApplicable)
+  const compris = comprisApplicable(contrat)
   // Inventaire initial (0463) : une ligne au prix réglé, déduite de la 1re échéance si le contrat suit dans le délai
   if (visit.kind === 'inventaire') {
     lines.push({ code: CODE_INVENTAIRE, description_title: 'Inventaire initial du parc', description_detail: `${visit.reference || ''} du ${day.split('-').reverse().join('/')} - ${visit.sites?.name || ''}\nDéduit de la première échéance si le contrat de maintenance est signé dans le délai prévu`, quantity: 1, unit: 'forfait', unit_price_ht: Number(settings?.prix_inventaire || 0), tva_rate: tva })

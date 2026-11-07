@@ -123,3 +123,48 @@ describe('Pied de page sur la dernière page (il manquait)', () => {
     expect((await PDFDocument.load(Buffer.from(base64, 'base64'))).getPageCount()).toBe(dernier.getNumberOfPages())
   })
 })
+
+describe('Contrat signé : moment des factures, compris et révision (07/11)', () => {
+  const textes = (doc) => doc.__textes.map(([, t]) => t).join(' ')
+  const base = { label: 'Contrat', reference: 'C1', visit_months: [3, 9], annual_price_ht: 1200, start_on: '2026-11-01', billing_period: 'trimestriel' }
+  it('échéancier : date des factures, compris, clause de révision en mots simples', async () => {
+    await buildContratPDF({ contract: { ...base, billing_term: 'echu', includes: { pieces: true, recharges: true }, index_label: 'Coût du travail', index_series: '001234', index_base_value: 132.5, index_base_month: '2026-06-01', base_price_ht: 1200 }, client: { name: 'Client Essai' }, org, avecCgv: false })
+    const t = textes(docs[docs.length - 1])
+    expect(t).toContain('après chaque période, une fois le service fait')
+    expect(t).toContain('Pièces, Recharges')
+    expect(t).toContain('Révision du prix')
+    expect(t).toContain('132,5')
+    expect(t).toMatch(/nouveau prix = prix de départ × dernière valeur/)
+    expect(t).not.toMatch(/\bP0\b|\bI0\b/)
+  })
+  it('client public sans choix : règle par défaut ; rien de compris : dit clairement ; sans valeur de référence : pas de clause', async () => {
+    await buildContratPDF({ contract: { ...base, includes: {} }, client: { name: 'Mairie Essai', client_type: 'public' }, org, avecCgv: false })
+    const t = textes(docs[docs.length - 1])
+    expect(t).toContain('après chaque période')
+    expect(t).toContain('les visites seulement')
+    expect(t).not.toContain('Révision du prix')
+  })
+  it('à la visite : ni date des factures ni compris, même si une valeur est restée', async () => {
+    await buildContratPDF({ contract: { ...base, billing_period: 'visite', includes: { pieces: true } }, client: { name: 'Client Essai' }, org, avecCgv: false })
+    const t = textes(docs[docs.length - 1])
+    expect(t).not.toContain('Date des factures')
+    expect(t).not.toContain('Compris dans le prix')
+    expect(t).toContain('une facture après chaque visite')
+  })
+  it('aucune dernière page presque vide, de 0 à 40 types d\'appareils, avec la clause de révision', async () => {
+    for (let n = 0; n <= 40; n++) {
+      const parc = Array.from({ length: n }, (_, i) => ({ type_name: `Type ${i}` }))
+      await buildContratPDF({ contract: { ...base, includes: { pieces: true }, index_label: 'Indice', index_base_value: 100, emergency_hours: 48 }, client: { name: 'Client Essai' }, parc, org, avecCgv: false })
+      expect(dernierePagePeuRemplie(docs[docs.length - 1]), `${n} types`).toBe(false)
+    }
+  }, 120000)
+  it('courrier de révision : mêmes mots, sans sigles', async () => {
+    await buildRevisionPDF({ contract: { reference: 'C1', base_price_ht: 1000, index_base_value: 100, index_label: 'Indice' }, client: { name: 'Client Essai' }, revision: { anniversary: '2026-11-01', new_value: 103, price_before: 1010, price_after: 1030 }, org })
+    const t = textes(docs[docs.length - 1])
+    expect(t).toMatch(/nouveau prix = prix de départ × dernière valeur/)
+    expect(t).toContain('VALEUR DE RÉFÉRENCE DE L\'INDICE')
+    expect(t).toMatch(/PRIX ANNUEL EN COURS 1.010,00/)
+    expect(t).not.toMatch(/\bP0\b|\bI0\b|\(I\)|\(P\)/)
+    expect(dernierePagePeuRemplie(docs[docs.length - 1])).toBe(false)
+  })
+})
