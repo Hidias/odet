@@ -5,6 +5,7 @@
 import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import crypto from 'crypto'
+import { htmlEnTexte } from '../../src/core/html.js'
 
 // ---- Supabase (clé serveur) -------------------------------------------------
 export function getSupabaseAdmin() {
@@ -302,8 +303,11 @@ export function boutonHTML(url, libelle, couleur = '#C8102E') {
 }
 
 // Corps du message : le texte saisi se termine souvent par « Bien cordialement, » : la formule n'est pas répétée
+// La dernière ligne doit être la formule elle-même (« Cordialement, », « Bien cordialement ! ») : « reçus si
+// cordialement » en fin de phrase n'en est pas une.
 export function finirParCordialement(texte) {
-  return /cordialement,?\s*$/i.test(String(texte || '').trim())
+  const derniere = String(texte || '').replace(/\u00a0/g, ' ').trim().split('\n').pop().trim()
+  return /^(?:(?:bien|tr[eè]s)\s+)?cordialement[\s,.!]*$/i.test(derniere)
 }
 
 // ---- HTML : signature et habillage -----------------------------------------
@@ -381,7 +385,7 @@ export function wrapEmailHTML(body, sender, org, variant = 'standard') {
   return `
     <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333; max-width: 650px;">
       ${normalizeBodyStyles(body || '')}
-      <p style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:16px 0 10px 0;">Bien cordialement,</p>
+      ${finirParCordialement(htmlEnTexte(body)) ? '' : '<p style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333;margin:16px 0 10px 0;">Bien cordialement,</p>'}
       ${buildSignatureHTML(sender, org, variant)}
     </div>
   `

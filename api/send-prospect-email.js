@@ -6,6 +6,7 @@ import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, wrapEmai
 import { saveToSentFolder } from './_lib/save-to-sent.js'
 import { requireRight, SALES } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { htmlEnTexte } from '../src/core/html.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -90,7 +91,7 @@ async function handler(req, res) {
         from_email: senderEmail,
         subject,
         template_type: templateType || 'custom',
-        body_preview: body.replace(/<[^>]*>/g, '').substring(0, 500),
+        body_preview: htmlEnTexte(body).substring(0, 500),
         sent_by: sentBy || sender.name,
         status: 'sent',
       })

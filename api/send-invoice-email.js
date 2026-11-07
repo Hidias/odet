@@ -6,6 +6,7 @@ import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, wrapEmai
 import { saveToSentFolder } from './_lib/save-to-sent.js'
 import { requireRight, BILLING } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
+import { texteEnHtml } from '../src/core/html.js'
 
 const supabase = getSupabaseAdmin()
 
@@ -43,7 +44,7 @@ async function handler(req, res) {
     const sender = await getSender(supabase, emailConfig.email)
     const senderEmail = emailConfig.email
 
-    const html = wrapEmailHTML(body.replace(/\n/g, '<br>'), sender, org)
+    const html = wrapEmailHTML(texteEnHtml(body), sender, org)
     const bccSet = new Set([senderEmail, org.email_bcc].filter(Boolean))
     bccSet.delete(to)
 

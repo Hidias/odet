@@ -5,6 +5,7 @@
 
 import { orgName, currentUserName, currentUserFirstName } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
+import { texteEnHtml } from '../../../core/html'
 import { useState } from 'react'
 import { supabase } from '../../../core/supabase'
 import { format } from 'date-fns'
@@ -126,8 +127,8 @@ export function useRelanceIA() {
     setSending(quote.id)
 
     try {
-      // Convertir le body texte en HTML
-      const htmlBody = body.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '').join('')
+      // Texte saisi mis en HTML, toujours échappé (« R&D », « < 10 »)
+      const htmlBody = texteEnHtml(body, { ligneParParagraphe: true })
 
       const res = await apiFetch('/api/send-prospect-email', {
         method: 'POST',
