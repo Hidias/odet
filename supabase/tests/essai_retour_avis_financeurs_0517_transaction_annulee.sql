@@ -63,8 +63,8 @@ create temp table etat_essai_avant as select * from etat_essai;
 --   1. funder_feedback : une demande d'avis par société, financeur et année (sessions financées gardées en photo), lien
 --      à usage unique (jeton de 48 caractères, illisible par les comptes), actif seulement une fois la relance validée ou
 --      envoyée, valable 90 jours à compter de la validation ou de l'envoi. Seules les sessions terminées sont annoncées.
---      Les financements couverts sont gardés (funding_ids) : une demande est retrouvée par eux même si la fiche du
---      financeur est renommée ou réunie à une autre ensuite.
+--      Les financements couverts sont gardés avec leur fiche et leur nom (fundings) : une demande est retrouvée par eux si
+--      la fiche est renommée ensuite, jamais si le financement a été corrigé vers un autre financeur.
 --      Aucune écriture par un compte : la base prépare, le financeur répond par les fonctions du lien.
 --   2. funder_exchanges : échanges avec un financeur saisis à la main (webinaire, réunion, échange sur une prestation,
 --      contrôle, consultation de son site d'avis), qui couvrent l'année comme une sollicitation (guide V10).
@@ -95,7 +95,7 @@ create table if not exists public.funder_feedback (
   funder_client_id uuid references public.clients(id) on delete set null,
   contact_email text check (contact_email is null or length(contact_email) <= 255),
   sessions jsonb not null default '[]'::jsonb,
-  funding_ids uuid[] not null default '{}',
+  fundings jsonb not null default '[]'::jsonb,
   token text not null unique default encode(extensions.gen_random_bytes(24), 'hex'),
   expires_at timestamptz not null default (now() + interval '90 days'),
   answered_at timestamptz,
@@ -166,7 +166,7 @@ $$;
 revoke all on function app.financeur_cle(uuid, text, uuid, text) from public, anon, authenticated;
 
 -- Même financeur qu'une demande ou un échange déjà enregistrés : même clé ou même fiche (les noms sont déjà réunis par
--- la clé ; une demande est aussi retrouvée par ses financements, funding_ids)
+-- la clé ; une demande est aussi retrouvée par ses financements, app.financements_communs)
 create or replace function app.financeur_meme(p_cle text, p_client uuid, p_nom text, q_cle text, q_client uuid, q_nom text)
 returns boolean
 language sql
@@ -176,6 +176,22 @@ as $$
   select p_cle = q_cle or (p_client is not null and p_client = q_client)
 $$;
 revoke all on function app.financeur_meme(text, uuid, text, text, uuid, text) from public, anon, authenticated;
+
+-- Un même financement, resté chez le même financeur : même fiche choisie (le nom de la fiche peut avoir changé), ou sans
+-- fiche des deux côtés et même nom. Un financement corrigé vers un autre financeur n'emporte pas la demande de l'ancien.
+create or replace function app.financements_communs(p_a jsonb, p_b jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select exists (
+    select 1 from jsonb_array_elements(coalesce(p_a, '[]'::jsonb)) a, jsonb_array_elements(coalesce(p_b, '[]'::jsonb)) b
+    where a->>'id' = b->>'id'
+      and (coalesce(a->>'fiche', '') <> '' and a->>'fiche' = b->>'fiche'
+           or (coalesce(a->>'fiche', '') = '' and coalesce(b->>'fiche', '') = '' and coalesce(a->>'nom', '') <> '' and a->>'nom' = b->>'nom')))
+$$;
+revoke all on function app.financements_communs(jsonb, jsonb) from public, anon, authenticated;
 
 -- Même contrôle d'adresse pour la nuit et pour l'écran
 create or replace function app.financeur_email_valide(p_email text)
@@ -227,14 +243,15 @@ create trigger funder_exchanges_regle before insert or update on public.funder_e
 -- annoncées au financeur)
 create or replace function app.financeurs_de_l_annee(p_company uuid, p_year int)
 returns table (funder_key text, funder_type text, funder_name text, funder_client_id uuid, contact_email text,
-               sessions jsonb, sessions_terminees int, sessions_finies jsonb, funding_ids uuid[])
+               sessions jsonb, sessions_terminees int, sessions_finies jsonb, fundings jsonb, clients_finances uuid[])
 language sql
 stable
 security definer
 set search_path = ''
 as $$
   with f as (
-    select k.cle, sf.id as funding_id, sf.funder_type, coalesce(nullif(btrim(c.name), ''), nullif(btrim(sf.funder_name), '')) as nom, c.id as client_id,
+    select k.cle, jsonb_build_object('id', sf.id, 'fiche', sf.funder_client_id,
+                                     'nom', app.financeur_nom_norme(coalesce(cg.name, sf.funder_name))) as funding, sf.funder_client_id as fiche_choisie, sf.funder_type, coalesce(nullif(btrim(c.name), ''), nullif(btrim(sf.funder_name), '')) as nom, c.id as client_id,
            -- Adresse : celle du financement, puis celle de la fiche choisie sur le financement, puis celle de la fiche retenue
            coalesce(nullif(btrim(sf.funder_contact_email), ''), nullif(btrim(cg.billing_email), ''), nullif(btrim(cg.email), ''),
                     nullif(btrim(cg.contact_email), ''), nullif(btrim(c.billing_email), ''), nullif(btrim(c.email), ''),
@@ -263,7 +280,8 @@ as $$
          jsonb_agg(distinct f.session),
          count(distinct f.session_id) filter (where f.finie)::int,
          coalesce(jsonb_agg(distinct f.session) filter (where f.finie), '[]'::jsonb),
-         array_agg(distinct f.funding_id)
+         jsonb_agg(distinct f.funding),
+         coalesce(array_agg(distinct f.fiche_choisie) filter (where f.fiche_choisie is not null), '{}')
   from f
   group by f.cle
 $$;
@@ -363,7 +381,7 @@ begin
         where x.funder_type in ('opco', 'region', 'autre') and x.sessions_terminees > 0
           and app.financeur_email_valide(x.contact_email)
           and not exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.year = v_annee
-                            and (d.funding_ids && x.funding_ids
+                            and (app.financements_communs(d.fundings, x.fundings)
                                  or app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, x.funder_key, x.funder_client_id, x.funder_name)))
           and not exists (select 1 from public.funder_exchanges e where e.company_id = v_cie.id
                             and extract(year from e.happened_on)::int = v_annee
@@ -373,12 +391,12 @@ begin
         v_d := null;
         -- Contrôle refait ici : la liste de la boucle ne voit pas les demandes insérées pendant la boucle
         if exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.year = v_annee
-                     and (d.funding_ids && v_f.funding_ids
+                     and (app.financements_communs(d.fundings, v_f.fundings)
                           or app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, v_f.funder_key, v_f.funder_client_id, v_f.funder_name))) then
           continue;
         end if;
-        insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions, funding_ids)
-        values (v_cie.id, v_annee, v_f.funder_key, v_f.funder_type, v_f.funder_name, v_f.funder_client_id, btrim(v_f.contact_email), v_f.sessions_finies, v_f.funding_ids)
+        insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions, fundings)
+        values (v_cie.id, v_annee, v_f.funder_key, v_f.funder_type, v_f.funder_name, v_f.funder_client_id, btrim(v_f.contact_email), v_f.sessions_finies, v_f.fundings)
         on conflict (company_id, funder_key, year) do nothing
         returning * into v_d;
         if v_d.id is null then continue; end if;
@@ -439,7 +457,9 @@ begin
   return jsonb_build_object('annee', v_annee, 'annee_ouverte', v_ouverte, 'financeurs', coalesce((
     select jsonb_agg(jsonb_build_object(
       'company_id', x.company_id, 'cle', x.funder_key, 'type', x.funder_type, 'nom', x.funder_name,
-      'client_id', x.funder_client_id, 'email', x.contact_email, 'email_valide', app.financeur_email_valide(x.contact_email),
+      'client_id', x.funder_client_id, -- Fiche à garder sur un échange noté depuis la liste : celle choisie sur un financement (la clé la retrouve même après
+      -- le renommage d'un doublon), sinon la fiche retenue
+      'fiche_echange', coalesce(x.clients_finances[1], x.funder_client_id), 'email', x.contact_email, 'email_valide', app.financeur_email_valide(x.contact_email),
       'sessions', x.sessions, 'sessions_terminees', x.sessions_terminees,
       'demande', d.etat, 'repondu_le', d.answered_at, 'note', d.note_globale,
       'echanges', coalesce(e.n, 0), 'dernier_echange', e.dernier,
@@ -461,7 +481,7 @@ begin
                   else 'ignoree' end as etat
       from public.funder_feedback dd
       where dd.company_id = x.company_id and dd.year = v_annee
-        and (dd.funding_ids && x.funding_ids
+        and (app.financements_communs(dd.fundings, x.fundings)
              or app.financeur_meme(dd.funder_key, dd.funder_client_id, dd.funder_name, x.funder_key, x.funder_client_id, x.funder_name))
       -- Par état (répondue, envoyée, validée, préparée, ignorée), puis la plus ancienne : une demande en double ignorée ne
       -- cache jamais celle qui est partie
@@ -595,7 +615,7 @@ alter table public.funder_feedback enable row level security;
 revoke all on table public.funder_feedback from public, anon, authenticated;
 -- Le jeton n'est pas lisible par les comptes (sinon n'importe quel compte de la société pourrait répondre à la place du
 -- financeur) : il n'apparaît que dans le texte de la relance, pour qui la valide
-grant select (id, company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions, funding_ids, expires_at,
+grant select (id, company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions, fundings, expires_at,
   answered_at, note_globale, q_information, q_administratif, q_qualite, q_relation, commentaire, created_at, updated_at)
   on table public.funder_feedback to authenticated;
 grant all on table public.funder_feedback to service_role;
@@ -651,6 +671,7 @@ drop table if exists public.funder_feedback;
 drop function if exists app.financeur_cle(uuid, text, uuid, text);
 drop function if exists app.financeur_email_valide(text);
 drop function if exists app.financeur_meme(text, uuid, text, text, uuid, text);
+drop function if exists app.financements_communs(jsonb, jsonb);
 drop function if exists app.financeur_nom_norme(text);
 
 delete from public.schema_migrations where version = '0517_avis_financeurs';

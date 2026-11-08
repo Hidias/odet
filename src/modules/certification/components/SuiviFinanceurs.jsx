@@ -55,7 +55,7 @@ export default function SuiviFinanceurs({ canWrite }) {
     if (!form.date) return toast.error('Indiquez la date de l\'échange')
     if (form.date > jourParis()) return toast.error('La date de l\'échange ne peut pas être dans le futur')
     const ligne = choisi
-      ? { company_id: choisi.company_id, funder_type: choisi.type, funder_name: choisi.nom, funder_client_id: choisi.client_id || null }
+      ? { company_id: choisi.company_id, funder_type: choisi.type, funder_name: choisi.nom, funder_client_id: choisi.fiche_echange || choisi.client_id || null }
       : { company_id: societeEnCours() || undefined, funder_type: form.type, funder_name: form.nom.trim(), funder_client_id: null }
     if (!choisi && ligne.funder_name.length < 2) return toast.error('Indiquez le nom du financeur')
     if (!ligne.company_id) delete ligne.company_id
