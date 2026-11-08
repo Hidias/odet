@@ -82,7 +82,7 @@ begin
   -- de la même personne (mêmes mots) et que rien n'est encore séparé
   update public.client_contacts cc set first_name = r.contact_first_name, last_name = r.contact_last_name,
          fonction = coalesce(cc.fonction, r.contact_function),
-         is_document_contact = cc.is_document_contact or not exists (select 1 from public.client_contacts o
+         is_document_contact = coalesce(cc.is_document_contact, false) or not exists (select 1 from public.client_contacts o
                                  where o.client_id = v_client and o.id <> cc.id and coalesce(o.is_document_contact, false))
    where cc.client_id = v_client and lower(cc.email) = r.contact_email
      and cc.first_name is null and cc.last_name is null
