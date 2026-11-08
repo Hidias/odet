@@ -4,7 +4,7 @@ import { CHOIX_CIVILITE_GENRE } from '../genre'
 import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
-  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network, Pencil, X, Power, CalendarDays,
+  Building2, MapPin, Palette, FileText, Landmark, Layers, Users, Calculator, Save, Loader2, Upload, Trash2, Mail, KeyRound, Check, ShieldCheck, UserCog, ListChecks, Network, Pencil, X, Power, CalendarDays, ListTodo,
 } from 'lucide-react'
 import { useDataStore, useAuthStore } from '../store'
 import { supabase } from '../supabase'
@@ -23,6 +23,7 @@ import DroitsPersonnes from './droits/DroitsPersonnes'
 import ProfilsDroits from './droits/ProfilsDroits'
 import Societes from './societes/Societes'
 import Etablissements from './Etablissements'
+import TypesActions from './TypesActions'
 import { peut } from '../rights/useDroit'
 import { THEMES, FORMES, ROLES, Field, Toggle, uploadBrandingFile, ModulesSection, ColorPicker } from './shared'
 
@@ -39,6 +40,8 @@ const SECTIONS = [
   { id: 'modules', label: 'Modules', icon: Layers },
   { id: 'emails', label: 'Comptes email', icon: Mail },
   { id: 'utilisateurs', label: 'Utilisateurs', icon: Users },
+  // Types d'action de l'équipe (0514) : réglés par la direction
+  { id: 'actions', label: 'Types d\'action', icon: ListTodo, right: 'manager.cockpit.voir' },
   // Droits composés (C1b) : visibles seulement avec le droit, jamais tant que les droits sont inconnus
   { id: 'droits', label: 'Droits des personnes', icon: UserCog, right: 'parametres.droits.attribuer' },
   { id: 'profils', label: 'Profils de droits', icon: ListChecks, right: 'parametres.profils.gerer' },
@@ -429,6 +432,7 @@ export default function Settings() {
           {section === 'droits' && sections.some((s) => s.id === 'droits') && <DroitsPersonnes />}
           {section === 'profils' && sections.some((s) => s.id === 'profils') && <ProfilsDroits />}
           {section === 'societes' && sections.some((s) => s.id === 'societes') && <Societes />}
+          {section === 'actions' && sections.some((s) => s.id === 'actions') && <TypesActions />}
         </div>
       </div>
     </div>
