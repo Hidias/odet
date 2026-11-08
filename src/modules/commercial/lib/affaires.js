@@ -71,7 +71,20 @@ export function kEuros(n) {
   const v = Number(n || 0)
   if (v === 0) return '0 K€'
   if (Math.abs(v) < 500) return v > 0 ? '< 1 K€' : '> -1 K€'
-  return `${Math.round(v / 1000).toLocaleString('fr-FR')} K€`
+  return `${(Math.sign(v) * Math.round(Math.abs(v) / 1000)).toLocaleString('fr-FR')} K€`
+}
+
+// Une carte du Kanban peut-elle passer à cette étape ? Affaire seulement (un devis suit son statut), droit de
+// modifier, étape différente
+export function deplacementPossible(ligne, code, peutModifier = true) {
+  return !!(ligne && peutModifier && ligne.origine === 'affaire' && code && ligne.stage !== code)
+}
+
+// Ligne vue tout de suite à sa nouvelle étape (avant le rechargement) : probabilité et montant pondéré de l'étape
+export function ligneAEtape(ligne, code, etapes = ETAPES_DEPART) {
+  const e = (etapes || []).find((x) => x.code === code)
+  const probability = e?.probability ?? ligne.probability
+  return { ...ligne, stage: code, probability, montant_pondere: arrondi(Number(ligne.amount_ht || 0) * Number(probability || 0) / 100) }
 }
 
 // Étapes proposées par « Changer d'étape » : les autres étapes ouvertes dans l'ordre, puis Gagnée et Perdue

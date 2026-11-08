@@ -4,15 +4,15 @@
 // (ordinateur) ou par « Changer d'étape » dans le menu de la carte (partout, au clavier aussi).
 // Un devis pas encore suivi comme affaire suit le statut du devis : il ne se déplace pas, son menu ouvre le devis.
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MoreHorizontal } from 'lucide-react'
 import MenuFlottant from '../../../ui/MenuFlottant'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 import { money } from '../../../core/utils'
-import { kEuros, etapesProposees } from '../lib/affaires'
+import { kEuros, etapesProposees, deplacementPossible } from '../lib/affaires'
 
-const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—')
+const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : 'Relance à dater')
 const cle = (l) => `${l.origine}-${l.id}`
 
 export function KanbanAffaires({ colonnes, etapes, peutModifier, onOuvrir, onChanger }) {
@@ -20,19 +20,43 @@ export function KanbanAffaires({ colonnes, etapes, peutModifier, onOuvrir, onCha
   const [survol, setSurvol] = useState(null) // colonne survolée pendant un glisser
   const glisse = useRef(null)
   const menuRef = useRef(null)
+  const zone = useRef(null)
+  const aRefocaliser = useRef(null) // carte dont le bouton « ⋯ » reprend le focus après un changement d'étape au clavier
   const fermerMenu = useCallback(() => setMenu(null), [])
   const deplacable = (l) => peutModifier && l.origine === 'affaire'
+  const libelle = (l) => `Actions : ${l.client_name}, ${l.title}`
+
+  // Clic ou toucher ailleurs : le menu se ferme (MenuFlottant laisse ce soin à la page, comme Devis et Clients)
+  useEffect(() => {
+    if (!menu) return
+    const ailleurs = (e) => {
+      if (menuRef.current?.contains(e.target)) return
+      if (e.target.closest?.('[data-kanban-menu]')) return
+      setMenu(null)
+    }
+    document.addEventListener('mousedown', ailleurs)
+    document.addEventListener('touchstart', ailleurs)
+    return () => { document.removeEventListener('mousedown', ailleurs); document.removeEventListener('touchstart', ailleurs) }
+  }, [menu])
+
+  // La carte a changé de colonne (elle est recréée) : le focus revient sur son bouton « ⋯ »
+  useEffect(() => {
+    const cible = aRefocaliser.current
+    if (!cible) return
+    const b = [...(zone.current?.querySelectorAll('[data-kanban-menu]') || [])].find((x) => x.getAttribute('aria-label') === cible)
+    if (b) { b.focus({ preventScroll: false }); aRefocaliser.current = null }
+  }, [colonnes])
 
   const deposer = (code) => {
     const l = glisse.current
     glisse.current = null
     setSurvol(null)
-    if (l && l.stage !== code) onChanger(l, code)
+    if (deplacementPossible(l, code, peutModifier)) onChanger(l, code)
   }
 
   return (
     <>
-      <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1" aria-label="Affaires par étape">
+      <div ref={zone} className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1" aria-label="Affaires par étape">
         {colonnes.map((c) => (
           <section key={c.code} aria-label={`${c.label} : ${c.lignes.length}`}
             className={`card p-3 flex-none w-[85vw] sm:w-72 snap-start flex flex-col gap-2 ${survol === c.code ? 'ring-2 ring-accent-500' : ''}`}
@@ -59,9 +83,10 @@ export function KanbanAffaires({ colonnes, etapes, peutModifier, onOuvrir, onCha
                     </div>
                     {l.origine === 'devis' && <div className="text-ui-sm text-gray-400">Devis envoyé</div>}
                   </button>
-                  {(peutModifier || l.origine === 'devis') && (
-                    <button type="button" className="btn btn-ghost btn-sm flex-none m-1" aria-label={`Actions : ${l.client_name}, ${l.title}`}
-                      aria-haspopup="true" aria-expanded={menu?.ligne && cle(menu.ligne) === cle(l) ? 'true' : 'false'}
+                  {peutModifier && (
+                    <button type="button" data-kanban-menu="" aria-label={libelle(l)}
+                      className="btn btn-ghost flex-none m-1 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 sm:w-8 sm:h-8 p-0 justify-center"
+                      aria-expanded={menu?.ligne && cle(menu.ligne) === cle(l) ? 'true' : 'false'}
                       onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setMenu(menu?.ligne && cle(menu.ligne) === cle(l) ? null : { ligne: l, ancre: r }) }}>
                       <MoreHorizontal className="w-4 h-4" aria-hidden="true" />
                     </button>
@@ -83,8 +108,8 @@ export function KanbanAffaires({ colonnes, etapes, peutModifier, onOuvrir, onCha
               <div className="px-3 pt-1.5 pb-1 text-ui-sm text-gray-500">Changer d'étape</div>
               {etapesProposees(etapes, menu.ligne.stage).map((e) => (
                 <button key={e.code} type="button" className="w-full text-left px-3 py-2 text-ui text-gray-700 hover:bg-gray-50"
-                  onClick={() => { const l = menu.ligne; fermerMenu(); onChanger(l, e.code) }}>
-                  {e.code === 'perdue' ? 'Perdue…' : e.label}
+                  onClick={() => { const l = menu.ligne; fermerMenu(); aRefocaliser.current = libelle(l); onChanger(l, e.code) }}>
+                  {e.code === 'perdue' || e.code === 'gagnee' ? `${e.label}…` : e.label}
                 </button>
               ))}
             </>

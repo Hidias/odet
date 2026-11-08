@@ -1,5 +1,5 @@
 import { telephoneLisible, lienTelephone } from '../../../core/telephone'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Phone, MessageSquare, KanbanSquare, PhoneCall, Settings2, Check } from 'lucide-react'
@@ -17,7 +17,7 @@ import { confirmer } from '../../../ui/Confirm'
 import { KanbanAffaires } from '../components/KanbanAffaires'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 import {
-  urgence, URGENCES, trierAFaire, colonnesPipeline, totauxPipeline, cadence, CADENCE, euros, kEuros, METIERS,
+  urgence, URGENCES, trierAFaire, colonnesPipeline, totauxPipeline, cadence, CADENCE, euros, kEuros, ligneAEtape, METIERS,
 } from '../lib/affaires'
 
 // Suivi des affaires (chantier 10, 0380). Trois vues, rien de plus :
@@ -45,13 +45,16 @@ export default function Affaires() {
   const [echange, setEchange] = useState(null) // { clientId, clientName, affaire?, type? }
   const [reglages, setReglages] = useState(false)
 
+  const demande = useRef(0)
   const charger = useCallback(async () => {
+    const n = ++demande.current
     const [p, a, r, o] = await Promise.all([
       supabase.from('v_pipeline').select('*').order('next_action_on', { ascending: true, nullsFirst: false }).limit(1000),
       supabase.from('v_clients_a_appeler').select('*').order('premiere_echeance').limit(500),
       supabase.from('v_cadence_semaine').select('*'),
       supabase.from('activity_targets').select('*'),
     ])
+    if (n !== demande.current) return // une demande plus récente est partie (changements d'étape rapprochés)
     if (p.error) { setErreur('Le suivi des affaires n\'est pas encore disponible. Prévenez le support.'); setPipeline([]); setAppeler([]); return }
     setPipeline(p.data || [])
     setAppeler(a.error ? [] : a.data || [])
@@ -71,7 +74,7 @@ export default function Affaires() {
   const fermer = async (l, stage) => {
     if (l.origine === 'devis') return toast('Changez le statut du devis dans Devis : l\'affaire suit')
     if (stage === 'perdue') return setEdition({ affaire: { ...l, stage: 'perdue' } })
-    if (stage === 'gagnee' && !(await confirmer({ title: 'Affaire gagnée ?', message: `« ${l.title || l.client_name} » sort du suivi des affaires ouvertes.`, confirmLabel: 'Gagnée' }))) return
+    if (stage === 'gagnee' && !(await confirmer({ title: 'Affaire gagnée ?', message: `« ${l.title || l.client_name} » sort du suivi des affaires ouvertes. Elle reste visible sur la fiche du client.`, confirmLabel: 'Gagnée' }))) return
     const { error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id)
     if (error) return toast.error(error.message)
     toast.success('Affaire gagnée')
@@ -84,9 +87,10 @@ export default function Affaires() {
   const changerEtape = async (l, stage) => {
     if (l.origine === 'devis') return toast('Changez le statut du devis dans Devis : l\'affaire suit')
     if (stage === 'gagnee' || stage === 'perdue') return fermer(l, stage)
-    setPipeline((p) => (p || []).map((x) => (x.origine === 'affaire' && x.id === l.id ? { ...x, stage } : x)))
-    const { error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id)
+    setPipeline((p) => (p || []).map((x) => (x.origine === 'affaire' && x.id === l.id ? ligneAEtape(x, stage, listes.etape) : x)))
+    const { data, error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id).select('id')
     if (error) toast.error(error.message)
+    else if (!data?.length) toast.error('Étape non changée : vous n\'avez pas le droit de modifier cette affaire.')
     else toast.success(`Étape : ${nomEtape(stage)}`)
     charger()
   }
@@ -173,7 +177,11 @@ export default function Affaires() {
           </div>
           {totaux.nb === 0 ? <div className="card"><EmptyState icon={KanbanSquare} title="Aucune affaire ouverte" compact>Les affaires et les devis envoyés apparaissent ici.</EmptyState></div> : (
             <KanbanAffaires colonnes={colonnes} etapes={listes.etape} peutModifier={peutModifier} onChanger={changerEtape}
-              onOuvrir={(l) => (l.origine === 'affaire' && peutModifier ? setEdition({ affaire: l }) : setEchange({ clientId: l.client_id, clientName: l.client_name, affaire: l }))} />
+              onOuvrir={(l) => {
+                if (l.origine === 'affaire' && peutModifier) return setEdition({ affaire: l })
+                if (peutNoter) return setEchange({ clientId: l.client_id, clientName: l.client_name, affaire: l })
+                return toast('Vous pouvez consulter cette affaire, pas la modifier ni y noter un échange.')
+              }} />
           )}
         </div>
       )}
