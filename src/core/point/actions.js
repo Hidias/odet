@@ -26,6 +26,9 @@ export async function creerAction(a) {
     client_id: a.client_id || null,
     link: a.link && /^\/[A-Za-z0-9]/.test(a.link) ? a.link.slice(0, 300) : null,
   }
+  // Type et action précédente (0514) : envoyés seulement s'ils sont connus (base d'avant 0514 : colonnes absentes)
+  if (a.type_id) ligne.type_id = a.type_id
+  if (a.previous_id) ligne.previous_id = a.previous_id
   if (ligne.title.length < 2) throw new Error('Intitulé trop court')
   return must(await supabase.from('team_actions').insert(ligne).select('*').single())
 }

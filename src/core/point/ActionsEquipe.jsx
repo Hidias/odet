@@ -8,18 +8,22 @@ import { PageHeader } from '../../ui/PageHeader'
 import { EmptyState } from '../../ui/EmptyState'
 import { Banner } from '../../ui/Banner'
 import { confirmer } from '../../ui/Confirm'
+import { Sheet } from '../../ui/Sheet'
 import { Kanban, CLASSE_ITEM_MENU } from '../../ui/Kanban'
 import { ChoixVue, useVue } from '../../ui/ChoixVue'
 import {
   chargerEquipe, nomProfil, creerAction, modifierAction, dateReport, groupeEcheance, GROUPES, colonnesActions, changementColonne, choixAction,
 } from './actions'
 import { jjmm } from './pointSemaine'
+import { chargerTypes, choixType, typeActif, suiteProposee } from './typesActions'
 
 // Actions de l'équipe (0407) : ce que chacun a à faire, d'où que ça vienne (point de la semaine, bilan, réunion,
 // saisie libre). Une action se coche, se reporte d'une semaine (le report est compté), s'abandonne.
 // Deux affichages : liste par échéance, ou colonnes par échéance (Kanban : déplacer une carte change sa date).
+// Types d'action (0514, réglés dans les Paramètres) : à la création, le type remplit l'intitulé, le responsable et
+// l'échéance ; une action faite dont le type a une suite ouvre la suite PROPOSÉE (rien n'est créé sans clic).
 
-const VIDE = { title: '', owner_id: '', due_on: '', urgent: false }
+const VIDE = { title: '', owner_id: '', due_on: '', urgent: false, type_id: '' }
 
 export default function ActionsEquipe() {
   const moi = useAuthStore((s) => s.profile)
@@ -33,6 +37,9 @@ export default function ActionsEquipe() {
   const [erreur, setErreur] = useState(null)
   const [busy, setBusy] = useState(false)
   const [vue, setVue] = useVue('actions')
+  const [types, setTypes] = useState(null)
+  const [suite, setSuite] = useState(null)
+  const [busySuite, setBusySuite] = useState(false)
   const navigate = useNavigate()
 
   const demande = useRef(0)
@@ -44,9 +51,11 @@ export default function ActionsEquipe() {
     if (error) { setErreur('Les actions ne sont pas encore disponibles.'); setActions([]); return }
     setActions(data || [])
   }
-  useEffect(() => { charger(); chargerEquipe().then(setEquipe) }, [])
+  useEffect(() => { charger(); chargerEquipe().then(setEquipe); chargerTypes().then(setTypes) }, [])
   useEffect(() => { if (moi?.id && !form.owner_id) setForm((f) => ({ ...f, owner_id: moi.id })) }, [moi?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const typesActifs = useMemo(() => (types || []).filter((t) => t.active !== false), [types])
+  const nomsTypes = useMemo(() => Object.fromEntries((types || []).map((t) => [t.id, t.name])), [types])
   const noms = useMemo(() => Object.fromEntries(equipe.map((p) => [p.id, nomProfil(p)])), [equipe])
   const liste = useMemo(() => (actions || []).filter((a) => (qui === 'moi' ? a.owner_id === moi?.id || (!a.owner_id && a.created_by === moi?.id) : qui === 'tous' ? true : a.owner_id === qui)
     && (voirTerminees || a.status === 'a_faire')), [actions, qui, voirTerminees, moi?.id])
@@ -59,7 +68,7 @@ export default function ActionsEquipe() {
     e.preventDefault()
     setBusy(true)
     try {
-      await creerAction({ ...form, owner_id: form.owner_id || null, due_on: form.due_on || null })
+      await creerAction({ ...form, owner_id: form.owner_id || null, due_on: form.due_on || null, type_id: form.type_id || null })
       setForm({ ...VIDE, owner_id: moi?.id || '' })
       toast.success('Action ajoutée')
       charger()
@@ -68,8 +77,28 @@ export default function ActionsEquipe() {
   const maj = async (a, patch, msg) => {
     // Vue tout de suite à sa nouvelle place (la carte ne revient pas en arrière pendant l'enregistrement)
     setActions((l) => (l || []).map((x) => (x.id === a.id ? { ...x, ...patch } : x)))
-    try { await modifierAction(a.id, patch); if (msg) toast.success(msg) } catch (err) { toast.error(err.message) }
+    let ok = false
+    try { await modifierAction(a.id, patch); ok = true; if (msg) toast.success(msg) } catch (err) { toast.error(err.message) }
+    // Action faite : sa suite est proposée (relue sur la liste à jour : une suite déjà créée n'est pas reproposée)
+    if (ok && patch.status === 'fait' && a.status !== 'fait') {
+      const dejaSuivies = (actions || []).map((x) => x.previous_id).filter(Boolean)
+      const s = suiteProposee(a, types, { dejaSuivies })
+      if (s) setSuite(s)
+    }
     charger()
+  }
+  const creerSuite = async (e) => {
+    e.preventDefault()
+    setBusySuite(true)
+    try {
+      await creerAction({ ...suite, owner_id: suite.owner_id || null, due_on: suite.due_on || null })
+      toast.success('Suite ajoutée')
+      setSuite(null)
+      charger()
+    } catch (err) {
+      toast.error(err?.code === '23505' ? 'La suite de cette action existe déjà.' : err.message)
+      if (err?.code === '23505') { setSuite(null); charger() }
+    } finally { setBusySuite(false) }
   }
   const supprimer = async (a) => {
     if (!await confirmer(`Supprimer l'action « ${a.title} » ?`)) return
@@ -83,7 +112,16 @@ export default function ActionsEquipe() {
         actions={direction ? <Link to="/point-semaine" className="btn btn-secondary"><CalendarClock className="w-4 h-4" />Point de la semaine</Link> : null} />
       {erreur && <Banner tone="warning">{erreur}</Banner>}
 
-      <form onSubmit={ajouter} className="card p-3 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_200px_160px_auto_auto] gap-2 items-end">
+      <form onSubmit={ajouter} className={`card p-3 grid grid-cols-1 ${typesActifs.length ? 'md:grid-cols-[180px_minmax(0,1fr)_200px_160px_auto_auto]' : 'md:grid-cols-[minmax(0,1fr)_200px_160px_auto_auto]'} gap-2 items-end`}>
+        {typesActifs.length > 0 && (
+          <div>
+            <label className="label" htmlFor="ac-type">Type</label>
+            <select id="ac-type" className="select" value={form.type_id} onChange={(e) => setForm(choixType(form, typeActif(types, e.target.value), undefined, types))}>
+              <option value="">Sans type</option>
+              {typesActifs.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label className="label" htmlFor="ac-titre">Nouvelle action</label>
           <input id="ac-titre" className="input" placeholder="Ex. : rappeler le client pour la date de recyclage" value={form.title}
@@ -133,6 +171,7 @@ export default function ActionsEquipe() {
                 </div>
                 <div className="text-ui-sm text-gray-500">
                   {[a.owner_id ? noms[a.owner_id] || 'Membre de l\'équipe' : 'Personne en particulier', a.clients?.name || null,
+                    a.type_id && nomsTypes[a.type_id] ? nomsTypes[a.type_id] : null,
                     a.due_on ? `pour le ${jjmm(a.due_on)}` : null, a.postponed_count > 0 ? `reporté ${a.postponed_count} fois` : null].filter(Boolean).join(' · ')}
                 </div>
               </>
@@ -170,6 +209,7 @@ export default function ActionsEquipe() {
                     <div className="text-ui-sm text-gray-500">
                       {[a.owner_id ? noms[a.owner_id] || 'Membre de l\'équipe' : 'Personne en particulier',
                         a.clients?.name ? <Link key="c" to={`/clients/${a.clients.id}`} className="hover:underline">{a.clients.name}</Link> : null,
+                        a.type_id && nomsTypes[a.type_id] ? nomsTypes[a.type_id] : null,
                         a.postponed_count > 0 ? `reporté ${a.postponed_count} fois` : null,
                         a.source !== 'manuel' ? { point: 'point de la semaine', bilan: 'bilan', reunion: 'réunion', habilitation: 'titres exigés' }[a.source] : null,
                       ].filter(Boolean).reduce((acc, x, i) => (i ? [...acc, ' · ', x] : [x]), [])}
@@ -193,6 +233,35 @@ export default function ActionsEquipe() {
             </ul>
           </section>
         ))}
+
+      {suite && (
+        <Sheet title="Suite proposée" size="sm" onClose={() => setSuite(null)}
+          footer={(
+            <div className="flex flex-wrap justify-end gap-2">
+              <button type="button" className="btn btn-secondary" onClick={() => setSuite(null)}>Pas de suite</button>
+              <button type="submit" form="ac-suite" className="btn btn-primary" disabled={busySuite || String(suite.title || '').trim().length < 2}><Plus className="w-4 h-4" />Créer la suite</button>
+            </div>
+          )}>
+          <form id="ac-suite" onSubmit={creerSuite} className="space-y-3">
+            <p className="text-ui text-gray-700">Action faite. Voici la suite prévue pour ce type d'action : vérifiez-la, puis créez-la ou passez.</p>
+            <div>
+              <label className="label" htmlFor="ac-suite-titre">Action</label>
+              <input id="ac-suite-titre" className="input" value={suite.title} maxLength={300} onChange={(e) => setSuite({ ...suite, title: e.target.value })} />
+            </div>
+            <div>
+              <label className="label" htmlFor="ac-suite-qui">Qui</label>
+              <select id="ac-suite-qui" className="select" value={suite.owner_id || ''} onChange={(e) => setSuite({ ...suite, owner_id: e.target.value })}>
+                <option value="">Personne en particulier</option>
+                {equipe.map((p) => <option key={p.id} value={p.id}>{nomProfil(p)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="ac-suite-date">Pour le</label>
+              <input id="ac-suite-date" type="date" className="input" value={suite.due_on || ''} onChange={(e) => setSuite({ ...suite, due_on: e.target.value })} />
+            </div>
+          </form>
+        </Sheet>
+      )}
     </div>
   )
 }
