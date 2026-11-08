@@ -29,11 +29,11 @@ begin
     values (v_cie, v_a, 'quote', v_q2, 'devis', 'Devis ESSAI 0498 bis', 'essai/q2.pdf', h) returning id into v_dq2;
 
   -- 1. Signataire figé d'un devis : le contact du devis ; contact d'un autre client : rien
-  if app.signataire_prevu(v_a, v_dq) is distinct from jsonb_build_object('name', 'Alice Essai', 'role', 'Gérante') then
+  if app.signataire_prevu(v_a, v_dq) is distinct from jsonb_build_object('name', 'ESSAI Alice', 'role', 'Gérante') then
     raise exception '1. signataire du devis faux (%)', app.signataire_prevu(v_a, v_dq); end if;
   if app.signataire_prevu(v_a, v_dq2) <> '{}'::jsonb then raise exception '2. contact d''un autre client proposé'; end if;
   -- 3. Groupe : inchangé (0496)
-  if app.signataire_prevu(v_a, v_dg)->>'name' <> 'Alice Essai' then raise exception '3. signataire du groupe perdu'; end if;
+  if app.signataire_prevu(v_a, v_dg)->>'name' <> 'ESSAI Alice' then raise exception '3. signataire du groupe perdu'; end if;
 
   -- 4. Liste de l'espace : « signable » vrai pour le devis envoyé et la convention à signer
   v_r := app.portail_documents_client(v_a);
