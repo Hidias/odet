@@ -15,7 +15,7 @@ import {
   chargerEquipe, nomProfil, creerAction, modifierAction, dateReport, groupeEcheance, GROUPES, colonnesActions, changementColonne, choixAction,
 } from './actions'
 import { jjmm } from './pointSemaine'
-import { chargerTypes, choixType, typeActif, suiteProposee } from './typesActions'
+import { chargerTypes, choixType, typeActif, suiteProposee, libelleType } from './typesActions'
 
 // Actions de l'équipe (0407) : ce que chacun a à faire, d'où que ça vienne (point de la semaine, bilan, réunion,
 // saisie libre). Une action se coche, se reporte d'une semaine (le report est compté), s'abandonne.
@@ -27,6 +27,7 @@ const VIDE = { title: '', owner_id: '', due_on: '', urgent: false, type_id: '' }
 
 export default function ActionsEquipe() {
   const moi = useAuthStore((s) => s.profile)
+  const ctxSocietes = useAuthStore((s) => s.societes)
   const can = useAuthStore((s) => s.can)
   const direction = can?.('manager.cockpit.voir') === true
   const [actions, setActions] = useState(null)
@@ -118,7 +119,7 @@ export default function ActionsEquipe() {
             <label className="label" htmlFor="ac-type">Type</label>
             <select id="ac-type" className="select" value={form.type_id} onChange={(e) => setForm(choixType(form, typeActif(types, e.target.value), undefined, types))}>
               <option value="">Sans type</option>
-              {typesActifs.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {typesActifs.map((t) => <option key={t.id} value={t.id}>{libelleType(t, ctxSocietes)}</option>)}
             </select>
           </div>
         )}

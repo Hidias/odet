@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { erreurNomType, delaiValide, echeanceDuType, choixType, suiteProposee, libelleDelai } from '../src/core/point/typesActions.js'
+import { erreurNomType, delaiValide, echeanceDuType, choixType, suiteProposee, libelleDelai, libelleType } from '../src/core/point/typesActions.js'
 
 const auj = '2026-11-11'
 const types = [
@@ -33,6 +33,13 @@ describe('Types d\'action', () => {
     expect(echeanceDuType(types[2], auj)).toBe('2026-11-18')
     expect(echeanceDuType(types[0], auj)).toBe(auj)
     expect(echeanceDuType(null, auj)).toBeNull()
+  })
+  it('libellé d\'un type : nom de la société en vue groupe seulement', () => {
+    const ctx = { vue_groupe: true, societes: [{ id: 's1', short_name: 'GLD' }, { id: 's2', legal_name: 'Access Formation' }] }
+    expect(libelleType({ name: 'Appeler', company_id: 's1' }, ctx)).toBe('Appeler (GLD)')
+    expect(libelleType({ name: 'Appeler', company_id: 's2' }, ctx)).toBe('Appeler (Access Formation)')
+    expect(libelleType({ name: 'Appeler', company_id: 's1' }, { ...ctx, vue_groupe: false })).toBe('Appeler')
+    expect(libelleType({ name: 'Appeler', company_id: 's3' }, ctx)).toBe('Appeler')
   })
   it('libellé du délai', () => {
     expect(libelleDelai(0)).toBe('le jour même')

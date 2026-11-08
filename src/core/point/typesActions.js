@@ -10,8 +10,18 @@ const must = ({ data, error }) => { if (error) throw error; return data }
 
 export const DELAI_MAX = 365
 
-/** Société en cours, ou null en vue groupe (plusieurs sociétés) ou sans choix */
+/** Société choisie, ou null en vue groupe et sans choix (instance à une seule société : la base pose la sienne) */
 export const societeEnCours = () => { const c = getCurrentCompanyId(); return c && c !== VUE_GROUPE ? c : null }
+/** Vue groupe (plusieurs sociétés à la fois) */
+export const enVueGroupe = () => getCurrentCompanyId() === VUE_GROUPE
+
+/** Libellé d'un type ; en vue groupe, avec le nom de sa société (les types de départ portent les mêmes noms) */
+export function libelleType(t, ctx) {
+  if (!t || !ctx?.vue_groupe) return t?.name || ''
+  const s = (ctx.societes || []).find((x) => x.id === t.company_id)
+  const nom = s ? s.short_name || s.legal_name || '' : ''
+  return nom ? `${t.name} (${nom})` : t.name
+}
 
 /**
  * Types dans l'ordre ; null si la lecture a échoué (jamais une liste vide inventée). Société en cours seulement ;
@@ -109,8 +119,8 @@ export async function enregistrerType(t) {
   }
   try {
     if (t.id) return must(await supabase.from('team_action_types').update(ligne).eq('id', t.id).select('*').single())
+    if (enVueGroupe()) throw new Error('Choisissez d\'abord une société (pas la vue groupe) pour ajouter un type.')
     const societe = societeEnCours()
-    if (!societe) throw new Error('Choisissez d\'abord une société (pas la vue groupe) pour ajouter un type.')
     return must(await supabase.from('team_action_types').insert({ ...ligne, position: Number(t.position) || 0, ...(societe ? { company_id: societe } : {}) }).select('*').single())
   } catch (err) { throw new Error(err instanceof Error && !err.code ? err.message : messageType(err)) }
 }

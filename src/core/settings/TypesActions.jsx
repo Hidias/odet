@@ -4,14 +4,15 @@ import { Plus, Save, Trash2 } from 'lucide-react'
 import { confirmer } from '../../ui/Confirm'
 import { Banner } from '../../ui/Banner'
 import { chargerEquipe, nomProfil } from '../point/actions'
-import { chargerTypes, enregistrerType, supprimerType, erreurNomType, delaiValide, libelleDelai, DELAI_MAX, societeEnCours } from '../point/typesActions'
+import { chargerTypes, enregistrerType, supprimerType, erreurNomType, delaiValide, libelleDelai, DELAI_MAX, societeEnCours, enVueGroupe, libelleType } from '../point/typesActions'
+import { useAuthStore } from '../store'
 
 // Types d'action de l'équipe (0514) : délai, responsable par défaut et suite proposée quand l'action est faite.
 // Réglés par la direction ; la suite n'est jamais créée seule, elle est proposée au moment où l'on coche « Fait ».
 
 const NOUVEAU = { name: '', delay_days: '0', default_owner_id: '', next_type_id: '', active: true }
 
-function LigneType({ type, types, equipe, onChange }) {
+function LigneType({ type, types, equipe, onChange, ctx }) {
   const [f, setF] = useState(() => ({ ...type, delay_days: String(type.delay_days ?? 0), default_owner_id: type.default_owner_id || '', next_type_id: type.next_type_id || '' }))
   const [busy, setBusy] = useState(false)
   const modifie = f.name !== type.name || delaiValide(f.delay_days) !== Number(type.delay_days) || (f.default_owner_id || null) !== (type.default_owner_id || null)
@@ -34,7 +35,7 @@ function LigneType({ type, types, equipe, onChange }) {
   return (
     <li className="py-3 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_110px_minmax(0,1fr)_minmax(0,1fr)] gap-2 items-end">
       <div>
-        <label className="label" htmlFor={`${id}-nom`}>Nom</label>
+        <label className="label" htmlFor={`${id}-nom`}>{ctx?.vue_groupe ? libelleType(type, ctx).replace(type.name, 'Nom') : 'Nom'}</label>
         <input id={`${id}-nom`} className="input" value={f.name} maxLength={80} onChange={(e) => setF({ ...f, name: e.target.value })} />
       </div>
       <div>
@@ -52,7 +53,7 @@ function LigneType({ type, types, equipe, onChange }) {
         <label className="label" htmlFor={`${id}-suite`}>Suite proposée une fois fait</label>
         <select id={`${id}-suite`} className="select" value={f.next_type_id} onChange={(e) => setF({ ...f, next_type_id: e.target.value })}>
           <option value="">Aucune</option>
-          {types.filter((t) => !type.company_id || !t.company_id || t.company_id === type.company_id).map((t) => <option key={t.id} value={t.id}>{t.name}{t.active === false ? ' (inactif)' : ''}</option>)}
+          {types.filter((t) => !type.company_id || !t.company_id || t.company_id === type.company_id).map((t) => <option key={t.id} value={t.id}>{libelleType(t, ctx)}{t.active === false ? ' (inactif)' : ''}</option>)}
         </select>
       </div>
       <div className="md:col-span-4 flex flex-wrap items-center gap-3">
@@ -75,6 +76,7 @@ export default function TypesActions() {
   const [equipe, setEquipe] = useState([])
   const [form, setForm] = useState(NOUVEAU)
   const [busy, setBusy] = useState(false)
+  const ctx = useAuthStore((s) => s.societes)
   const charger = () => chargerTypes().then(setTypes)
   useEffect(() => { charger(); chargerEquipe().then(setEquipe) }, [])
   const societe = societeEnCours()
@@ -102,10 +104,10 @@ export default function TypesActions() {
       {types === undefined ? <div className="text-ui-sm text-gray-500">Chargement…</div>
         : types === null ? <Banner tone="warning">Les types d'action ne sont pas encore disponibles.</Banner>
           : types.length === 0 ? <p className="text-ui-sm text-gray-500">Aucun type pour l'instant.</p>
-            : <ul className="divide-y divide-gray-100">{types.map((t) => <LigneType key={`${t.id}-${t.updated_at}`} type={t} types={types} equipe={equipe} onChange={charger} />)}</ul>}
+            : <ul className="divide-y divide-gray-100">{types.map((t) => <LigneType key={`${t.id}-${t.updated_at}`} type={t} types={types} equipe={equipe} onChange={charger} ctx={ctx} />)}</ul>}
 
-      {types && !societe && <p className="text-ui-sm text-gray-500 border-t hairline pt-4">Pour ajouter un type, choisissez d'abord une société (pas la vue groupe).</p>}
-      {types && societe && (
+      {types && enVueGroupe() && <p className="text-ui-sm text-gray-500 border-t hairline pt-4">Pour ajouter un type, choisissez d'abord une société (pas la vue groupe).</p>}
+      {types && !enVueGroupe() && (
         <form onSubmit={ajouter} className="border-t hairline pt-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_110px_auto] gap-2 items-end">
           <div>
             <label className="label" htmlFor="ta-nouveau">Nouveau type</label>
