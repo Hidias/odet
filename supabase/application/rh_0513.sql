@@ -185,7 +185,7 @@ revoke all on function app.habilitation_couvre(public.hr_qualifications, text, t
 
 -- Manques (aucun titre valide ce jour-là) et fins à moins de 3 mois, pour les personnes sous contrat avec un poste
 create or replace function app.habilitations_ecarts(p_company uuid, p_jour date)
-returns table (person_id uuid, nom text, poste text, requirement_id uuid, exigence text, motif text,
+returns table (person_id uuid, nom text, poste text, requirement_id uuid, regle text, exigence text, motif text,
                qualification_id uuid, titre text, expires_on date, dernier_titre uuid, derniere_fin date)
 language sql
 stable
@@ -220,7 +220,10 @@ as $$
             limit 1) as dernier
     from besoins b
   )
-  select m.person_id, m.nom, m.poste, m.requirement_id, m.exigence,
+  -- Empreinte de la règle (type et symboles triés) : changer l'exigence donne de nouvelles actions, pas son libellé
+  select m.person_id, m.nom, m.poste, m.requirement_id,
+         left(md5(m.required_kind || ':' || coalesce((select string_agg(x, ',' order by x) from unnest(m.required_symbols) x), '')), 12),
+         m.exigence,
          case when m.qid is null then 'manque' else 'fin_proche' end,
          m.qid, q.label, q.expires_on, m.dernier[1]::uuid, m.dernier[2]::date
   from meilleur m
@@ -264,14 +267,14 @@ begin
            v_owner,
            case e.motif when 'manque' then v_jour else e.expires_on end,
            'habilitation', e.person_id, '/collaborateurs/' || e.person_id,
-           'hab:' || e.person_id || ':' || e.requirement_id || ':' ||
+           'hab:' || e.person_id || ':' || e.requirement_id || ':' || e.regle || ':' ||
              case e.motif when 'manque' then 'manque:' || coalesce(e.dernier_titre || ':' || e.derniere_fin, 'aucun')
                           else 'fin:' || e.expires_on::text end
     from app.habilitations_ecarts(c.id, v_jour) e
     -- Titre échu dont le renouvellement est encore à faire : pas de seconde action pour la même fin
     where not (e.motif = 'manque' and e.derniere_fin is not null and exists (
       select 1 from public.team_actions t where t.company_id = c.id and t.status = 'a_faire'
-        and t.dedup_key = 'hab:' || e.person_id || ':' || e.requirement_id || ':fin:' || e.derniere_fin::text))
+        and t.dedup_key = 'hab:' || e.person_id || ':' || e.requirement_id || ':' || e.regle || ':fin:' || e.derniere_fin::text))
     on conflict (company_id, dedup_key) where dedup_key is not null do nothing;
     get diagnostics v_n = row_count;
     v_total := v_total + v_n;

@@ -8,7 +8,7 @@ declare
   v_cie uuid; v_j uuid; v_he uuid; v_sst uuid; v_resp uuid := gen_random_uuid(); v_moi uuid := gen_random_uuid();
   v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid; v_f uuid;
   v_jour date := (now() at time zone 'Europe/Paris')::date;
-  v_r jsonb; v_n int; t record; v_id uuid; v_h uuid; v_i uuid; v_q uuid;
+  v_r jsonb; v_n int; t record; v_id uuid; v_h uuid; v_i uuid; v_q uuid; v_k uuid;
 begin
   select id into v_cie from public.companies order by created_at limit 1;
   insert into public.company_modules (company_id, key, enabled) values (v_cie, 'rh', true)
@@ -132,12 +132,28 @@ begin
   insert into public.hr_qualifications (company_id, person_id, kind, label, symbols, expires_on)
     values (v_cie, v_i, 'habilitation_electrique', 'Habilitation', array['BR'], v_jour - 1);
   insert into public.team_actions (company_id, title, source, source_id, due_on, dedup_key)
-    values (v_cie, 'Titre à renouveler : INDIA Inès', 'habilitation', v_i, v_jour - 1, 'hab:' || v_i || ':' || v_he || ':fin:' || (v_jour - 1)::text);
+    select v_cie, 'Titre à renouveler : INDIA Inès', 'habilitation', v_i, v_jour - 1, 'hab:' || v_i || ':' || v_he || ':' || e.regle || ':fin:' || (v_jour - 1)::text
+    from app.habilitations_ecarts(v_cie, v_jour) e where e.person_id = v_i and e.requirement_id = v_he;
   perform public.habilitations_actions_generer();
   if (select count(*) from public.team_actions where source_id = v_i) <> 1 then raise exception '4e. seconde action pour la même fin'; end if;
   update public.team_actions set status = 'fait' where source_id = v_i;
   perform public.habilitations_actions_generer();
   if (select count(*) from public.team_actions where source_id = v_i and status = 'a_faire' and title like 'Titre à obtenir%') <> 1 then raise exception '4f. manque après l''action faite'; end if;
+
+  -- 4h. Exigence modifiée sur place : libellé seul, rien de nouveau ; type ou symboles changés, nouvelle action
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Karim', 'Kilo') returning id into v_k;
+  insert into public.hr_employments (company_id, person_id, start_on, job_id) values (v_cie, v_k, v_jour - 5, v_j);
+  perform public.habilitations_actions_generer();
+  update public.team_actions set status = 'abandonne' where source = 'habilitation' and status = 'a_faire';
+  update public.hr_job_requirements set label = 'Habilitation électrique (BS ou BR)' where id = v_he;
+  perform public.habilitations_actions_generer();
+  if exists (select 1 from public.team_actions where source = 'habilitation' and status = 'a_faire') then raise exception '4h. libellé changé : actions recréées'; end if;
+  update public.hr_job_requirements set required_symbols = array['B2V'] where id = v_he;
+  perform public.habilitations_actions_generer();
+  if not exists (select 1 from public.team_actions where source_id = v_b and status = 'a_faire' and title like 'Titre à obtenir%') then raise exception '4i. symboles resserrés : manque non signalé'; end if;
+  -- Aucun titre, manque déjà traité : la règle changée le signale de nouveau
+  if (select count(*) from public.team_actions where source_id = v_k and status = 'a_faire') <> 1 then raise exception '4j. règle changée, manque déjà traité non signalé'; end if;
+  update public.hr_job_requirements set required_symbols = array['BR', 'BS'], label = 'Habilitation électrique BS ou BR' where id = v_he;
 
   -- 5. Module RH coupé : rien
   update public.company_modules set enabled = false where company_id = v_cie and key = 'rh';

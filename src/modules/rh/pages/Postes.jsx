@@ -82,7 +82,7 @@ function CartePoste({ poste, postes, peutConfigurer, onChange }) {
     try { await supprimerPoste(poste.id); onChange() } catch (er) { toast.error(er.message) }
   }
   const retirer = async (x) => {
-    if (!(await confirmer(`Ne plus exiger « ${x.label} » pour le poste « ${poste.name} » ? Pour changer les symboles acceptés, utilisez plutôt « Modifier » : retirer puis remettre un titre fait revenir les actions déjà traitées.`))) return
+    if (!(await confirmer(`Ne plus exiger « ${x.label} » pour le poste « ${poste.name} » ? Pour changer seulement le libellé, utilisez plutôt « Modifier » : retirer puis remettre un titre fait revenir les actions déjà traitées.`))) return
     try { await supprimerExigence(x.id); onChange() } catch (er) { toast.error(er.message) }
   }
   return (
