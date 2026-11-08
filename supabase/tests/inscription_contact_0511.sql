@@ -25,7 +25,7 @@ set local role anon;
 do $$
 declare v_s uuid := current_setting('essai.session')::uuid;
 begin
-  perform public.public_inscrire(v_s, '{"kind":"entreprise","consent":true,"contact_first_name":"jean-pierre","contact_last_name":"le Régent","contact_email":"jp@example.invalid","company_name":"Alpha essai 0511","participants":[{"first_name":"Al","last_name":"Un"}]}');
+  perform public.public_inscrire(v_s, '{"kind":"entreprise","consent":true,"contact_first_name":"jean-pierre","contact_last_name":"le Régent","contact_email":"jp@example.invalid","contact_function":"DRH","company_name":"Alpha essai 0511","participants":[{"first_name":"Al","last_name":"Un"}]}');
   perform public.public_inscrire(v_s, '{"kind":"particulier","consent":true,"contact_first_name":"Paul","contact_last_name":"Durand","contact_email":"paul@example.invalid","participants":[{"first_name":"Paul","last_name":"Durand"}]}');
   perform public.public_inscrire(v_s, '{"kind":"entreprise","consent":true,"contact_first_name":"Zoé","contact_last_name":"Zed","contact_email":"rh@example.invalid","company_name":"Beta essai 0511","participants":[{"first_name":"Be","last_name":"Un"}]}');
 end $$;
@@ -59,6 +59,8 @@ begin
     raise exception '1. contact de l''entreprise non séparé (%, %, %)', c.name, c.last_name, c.first_name;
   end if;
   if (select count(*) from public.client_contacts where client_id = v_a) <> 1 then raise exception '1b. contact en double'; end if;
+  if c.fonction is distinct from 'DRH' or not coalesce(c.is_document_contact, false) then raise exception '1c. fonction ou contact des documents perdus (%, %)', c.fonction, c.is_document_contact; end if;
+  if (select contact_name from public.clients where id = v_a) is distinct from 'LE RÉGENT Jean-Pierre' then raise exception '1d. nom non recopié sur la fiche'; end if;
   select id into v_p from public.clients where client_type = 'particulier' and email = 'paul@example.invalid'
      and company_id = current_setting('essai.societe')::uuid;
   select cc.* into c from public.client_contacts cc where cc.client_id = v_p and cc.email = 'paul@example.invalid';

@@ -57,7 +57,8 @@ create temp table etat_essai_avant as select * from etat_essai;
 -- sautée (même adresse e-mail). Le contact restait « Paul Durand », non séparé, au lieu de « DURAND Paul ».
 -- Correctif : corps de public.inscription_confirmer repris tel qu'en production (0500) à l'identique ; une mise à jour ajoutée pose le prénom et
 -- le nom de la demande sur ce contact (fiche entreprise ou particulier), seulement si son nom désigne la même personne
--- (app.memes_mots) et que rien n'est encore séparé. Le déclencheur client_contacts_nom calcule l'affichage.
+-- (app.memes_mots) et que rien n'est encore séparé ; la fonction de la demande et le rôle de contact des documents (si aucun
+-- autre contact de la fiche ne l'a), perdus depuis 0420 pour la même raison, sont posés aussi (relecture). Le déclencheur client_contacts_nom calcule l'affichage.
 -- Retour arrière : supabase/rollback/0511_inscription_contact_separe_retour.sql (corps de 0500).
 
 CREATE OR REPLACE FUNCTION public.inscription_confirmer(p_id uuid)
@@ -124,8 +125,12 @@ begin
   end if;
 
   -- Contact au nom libre créé par la fiche (client_to_primary_contact, 0508) : nom et prénom de la demande posés à part,
-  -- seulement s'il s'agit bien de la même personne (mêmes mots) et que rien n'est encore séparé
-  update public.client_contacts cc set first_name = r.contact_first_name, last_name = r.contact_last_name
+  -- avec sa fonction et comme contact des documents (ce que l'insertion sautée aurait écrit), seulement s'il s'agit bien
+  -- de la même personne (mêmes mots) et que rien n'est encore séparé
+  update public.client_contacts cc set first_name = r.contact_first_name, last_name = r.contact_last_name,
+         fonction = coalesce(cc.fonction, r.contact_function),
+         is_document_contact = cc.is_document_contact or not exists (select 1 from public.client_contacts o
+                                 where o.client_id = v_client and o.id <> cc.id and coalesce(o.is_document_contact, false))
    where cc.client_id = v_client and lower(cc.email) = r.contact_email
      and cc.first_name is null and cc.last_name is null
      and nullif(btrim(coalesce(r.contact_last_name, '')), '') is not null
