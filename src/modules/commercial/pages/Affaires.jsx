@@ -13,14 +13,16 @@ import { EmptyState } from '../../../ui/EmptyState'
 import { Sheet } from '../../../ui/Sheet'
 import { AffaireSheet, EchangeSheet, useListesCommerciales } from '../components/AffaireSheets'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
+import { confirmer } from '../../../ui/Confirm'
+import { KanbanAffaires } from '../components/KanbanAffaires'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 import {
-  urgence, URGENCES, trierAFaire, colonnesPipeline, totauxPipeline, cadence, CADENCE, euros, METIERS,
+  urgence, URGENCES, trierAFaire, colonnesPipeline, totauxPipeline, cadence, CADENCE, euros, kEuros, METIERS,
 } from '../lib/affaires'
 
 // Suivi des affaires (chantier 10, 0380). Trois vues, rien de plus :
 //  - À faire : les affaires et devis à relancer, la plus ancienne action d'abord, et la cadence de la semaine ;
-//  - Pipeline : les affaires ouvertes par étape, montant et montant pondéré ;
+//  - Par étape : Kanban des affaires ouvertes et des devis envoyés (KanbanAffaires), totaux en K€ ;
 //  - À appeler : les clients qui ont une échéance dans les 90 jours (formations, matériel, contrats, exercices).
 // Une affaire ouverte a toujours une prochaine action (la base le garantit).
 
@@ -69,6 +71,7 @@ export default function Affaires() {
   const fermer = async (l, stage) => {
     if (l.origine === 'devis') return toast('Changez le statut du devis dans Devis : l\'affaire suit')
     if (stage === 'perdue') return setEdition({ affaire: { ...l, stage: 'perdue' } })
+    if (stage === 'gagnee' && !(await confirmer({ title: 'Affaire gagnée ?', message: `« ${l.title || l.client_name} » sort du suivi des affaires ouvertes.`, confirmLabel: 'Gagnée' }))) return
     const { error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id)
     if (error) return toast.error(error.message)
     toast.success('Affaire gagnée')
@@ -76,6 +79,17 @@ export default function Affaires() {
   }
 
   const nomEtape = (code) => (listes.etape.find((e) => e.code === code)?.label || code)
+
+  // Kanban : changement d'étape par glisser ou par le menu de la carte ; Gagnée et Perdue passent par fermer()
+  const changerEtape = async (l, stage) => {
+    if (l.origine === 'devis') return toast('Changez le statut du devis dans Devis : l\'affaire suit')
+    if (stage === 'gagnee' || stage === 'perdue') return fermer(l, stage)
+    setPipeline((p) => (p || []).map((x) => (x.origine === 'affaire' && x.id === l.id ? { ...x, stage } : x)))
+    const { error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id)
+    if (error) toast.error(error.message)
+    else toast.success(`Étape : ${nomEtape(stage)}`)
+    charger()
+  }
 
   const ligneAFaire = (l) => {
     const u = urgence(l.next_action_on)
@@ -153,33 +167,13 @@ export default function Affaires() {
         <div className="space-y-3">
           <div className="flex flex-wrap gap-4 text-ui">
             <span><span className="text-gray-500">Ouvertes </span><b className="tabular-nums">{totaux.nb}</b></span>
-            <span><span className="text-gray-500">Montant </span><b className="tabular-nums">{euros(totaux.montant)}</b></span>
-            <span><span className="text-gray-500">Pondéré </span><b className="tabular-nums">{euros(totaux.pondere)}</b></span>
+            <span><span className="text-gray-500">Montant </span><b className="tabular-nums">{kEuros(totaux.montant)}</b></span>
+            <span><span className="text-gray-500">Pondéré </span><b className="tabular-nums">{kEuros(totaux.pondere)}</b></span>
+            {peutModifier && <span className="text-ui-sm text-gray-400 hidden md:inline">Faites glisser une carte pour changer d'étape.</span>}
           </div>
           {totaux.nb === 0 ? <div className="card"><EmptyState icon={KanbanSquare} title="Aucune affaire ouverte" compact>Les affaires et les devis envoyés apparaissent ici.</EmptyState></div> : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-              {colonnes.map((c) => (
-                <div key={c.code} className="card p-3 space-y-2">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="font-semibold">{c.label}</span>
-                    <span className="text-ui-sm text-gray-500 tabular-nums">{c.probability} %</span>
-                  </div>
-                  <div className="text-ui-sm text-gray-500 tabular-nums">{c.lignes.length} · {euros(c.montant)} · pondéré {euros(c.pondere)}</div>
-                  <ul className="space-y-1.5">
-                    {c.lignes.map((l) => (
-                      <li key={`${l.origine}-${l.id}`}>
-                        <button type="button" className="w-full text-left rounded-ui-sm border border-gray-200 px-2.5 py-2 hover:bg-gray-50"
-                          onClick={() => (l.origine === 'affaire' && peutModifier ? setEdition({ affaire: l }) : setEchange({ clientId: l.client_id, clientName: l.client_name, affaire: l }))}>
-                          <div className="text-ui font-medium truncate">{l.client_name} <BadgeTest tbl="clients" id={l.client_id} /></div>
-                          <div className="text-ui-sm text-gray-500 truncate">{l.title}</div>
-                          <div className="text-ui-sm text-gray-400 flex justify-between"><span>{euros(l.amount_ht)}</span><span>{fr(l.next_action_on)}</span></div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            <KanbanAffaires colonnes={colonnes} etapes={listes.etape} peutModifier={peutModifier} onChanger={changerEtape}
+              onOuvrir={(l) => (l.origine === 'affaire' && peutModifier ? setEdition({ affaire: l }) : setEchange({ clientId: l.client_id, clientName: l.client_name, affaire: l }))} />
           )}
         </div>
       )}

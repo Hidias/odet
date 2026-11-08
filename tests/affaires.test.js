@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { urgence, trierAFaire, colonnesPipeline, totauxPipeline, cadence, dansJours, ETAPES_DEPART } from '../src/modules/commercial/lib/affaires'
+import { urgence, trierAFaire, colonnesPipeline, totauxPipeline, cadence, dansJours, ETAPES_DEPART, kEuros, etapesProposees } from '../src/modules/commercial/lib/affaires'
 
 const base = new Date(2026, 9, 19, 15, 0)
 
@@ -45,4 +45,26 @@ describe('suivi des affaires (0380)', () => {
     expect(dansJours(2, base)).toBe('2026-10-21')
     expect(dansJours(13, base)).toBe('2026-11-01')
   })
+
+  it('totaux en K€ arrondis, jamais « 0 K€ » pour un petit montant', () => {
+    expect(kEuros(0)).toBe('0 K€')
+    expect(kEuros(null)).toBe('0 K€')
+    expect(kEuros(320)).toBe('< 1 K€')
+    expect(kEuros(499.99)).toBe('< 1 K€')
+    expect(kEuros(500)).toBe('1 K€')
+    expect(kEuros(12499)).toBe('12 K€')
+    expect(kEuros(12500)).toBe('13 K€')
+    expect(kEuros(1234567).replace(/\s/g, ' ')).toBe('1 235 K€')
+  })
+
+  it('changer d\'étape : autres étapes ouvertes dans l\'ordre, puis Gagnée et Perdue', () => {
+    expect(etapesProposees(ETAPES_DEPART, 'rdv').map((e) => e.code)).toEqual(['a_qualifier', 'devis_envoye', 'negociation', 'gagnee', 'perdue'])
+    const listes = [
+      { code: 'negociation', label: 'Négo', position: 40 }, { code: 'a_qualifier', label: 'À qualifier', position: 10 },
+      { code: 'rdv', label: 'RDV', position: 20, is_active: false }, { code: 'gagnee', label: 'Signée', position: 90, is_active: false },
+    ]
+    // Étape inactive écartée ; Gagnée toujours proposée (libellé de la société), Perdue reprise des étapes par défaut
+    expect(etapesProposees(listes, 'a_qualifier')).toEqual([{ code: 'negociation', label: 'Négo' }, { code: 'gagnee', label: 'Signée' }, { code: 'perdue', label: 'Perdue' }])
+  })
 })
+
