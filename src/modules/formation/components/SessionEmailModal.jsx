@@ -2,6 +2,7 @@ import { orgName, orgCity } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { PHRASE_FROID_EN_LIGNE, froidEnLigne } from '../lib/froidMail'
 import { X, FileText, Send, Loader, CheckCircle, AlertCircle, Upload, Trash2, Eye, Edit3, History, Mail, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { preparerDocuments, preparerFinFormationEnvoi } from '../lib/documentsEmis'
@@ -478,12 +479,13 @@ Suite à la formation "${courseTitle}", veuillez trouver ci-joints :
 - Les certificats de réalisation
 - Les attestations de présence
 - La feuille d'émargement signée
-- Les questionnaires d'évaluation à froid (à compléter d'ici 90 jours)
 - Le questionnaire de satisfaction entreprise
 
 Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le questionnaire de satisfaction entreprise afin de nous permettre d'améliorer continuellement la qualité de nos prestations.`
       const suite = 'Nous vous remercions pour votre confiance et restons à votre disposition.'
-      const base = `${debut}\n\n${suite}`
+      // Évaluation à froid (décision de H du 08/11) : plus de questionnaire papier joint, il part en ligne au délai réglé
+      const froid = await froidEnLigne(session?.company_id)
+      const base = `${debut}${froid ? `\n\n${PHRASE_FROID_EN_LIGNE}` : ''}\n\n${suite}`
       setEmailBody(base)
       // Invitation en ligne ajoutée quand l'accès est lu, comme le paragraphe du Passeport : insérée avant la formule
       // finale si elle y est encore, jamais en double, jamais sur un texte dont la personne a retiré la formule
@@ -728,13 +730,7 @@ Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le
           addLog('Erreur génération feuille d\'émargement')
         }
 
-        // ── EVALUATIONS À FROID ──
-        addLog(`Évaluations à froid (${traineesWithResult.length} stagiaires)...`)
-        const evaluationsFroid = await generateAllPDF('evaluationFroid', session, traineesWithResult, { trainer })
-        if (evaluationsFroid) {
-          files.push({ id: 'evaluationsFroid', name: evaluationsFroid.filename, base64: evaluationsFroid.base64, size: evaluationsFroid.size })
-          addLog('Évaluations à froid générées')
-        }
+        // Évaluations à froid : plus jointes en papier (décision de H du 08/11), questionnaire en ligne au délai réglé
 
         // ── QUESTIONNAIRE SATISFACTION ENTREPRISE ──
         addLog('Questionnaire satisfaction entreprise...')
