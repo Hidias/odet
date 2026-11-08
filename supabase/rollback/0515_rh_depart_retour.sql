@@ -56,7 +56,7 @@ $function$;
 revoke all on function app.team_actions_maj() from public, anon, authenticated;
 
 alter table public.team_actions disable trigger team_actions_maj;
-update public.team_actions set source = 'manuel' where source = 'depart';
+update public.team_actions set source = 'manuel', dedup_key = null where source = 'depart';
 alter table public.team_actions enable trigger team_actions_maj;
 alter table public.team_actions drop constraint if exists team_actions_source_check;
 alter table public.team_actions add constraint team_actions_source_check
@@ -65,6 +65,7 @@ alter table public.team_actions add constraint team_actions_source_check
 drop trigger if exists hr_people_depart_garde on public.hr_people;
 drop function if exists app.hr_people_depart_garde();
 drop index if exists public.hr_people_depart_idx;
+alter table public.hr_people drop column if exists departure_profile_id;
 alter table public.hr_people drop column if exists departure_applied_at;
 alter table public.hr_people drop column if exists departure_recorded_at;
 alter table public.hr_people drop column if exists departure_by;

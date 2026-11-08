@@ -21,8 +21,15 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      Bloquant : un contrat qui commence après la date de départ.
 --   3. public.rh_depart_bilan, public.rh_enregistrer_depart, public.rh_annuler_depart (droit rh.dossiers.gerer de la
 --      société de la personne).
---   4. Compte coupé par la nuit : jamais un super administrateur (une action le signale) ; si le compte est actif dans
---      une autre société, seule l'appartenance à cette société est coupée ; sinon le compte est désactivé.
+--   4. Compte coupé par la nuit : seulement le compte relié au moment de l'enregistrement (departure_profile_id), et
+--      seulement si l'auteur du départ peut gérer les utilisateurs (même règle que app.profiles_liens_garde) ; jamais un
+--      super administrateur ; sinon une action « compte à couper à la main ». Si le compte est actif dans une autre
+--      société, seule l'appartenance à cette société est coupée ; sinon le compte est désactivé.
+--      Actions confiées au responsable RH des paramètres, sinon à l'auteur, jamais à la personne qui part ni à un
+--      compte sans accès actif à la société (sinon sans responsable).
+--   Absences : celles qui commencent après le départ ET après aujourd'hui sont annulées ; celles déjà commencées
+--   (départ saisi en retard, ou à cheval sur le départ) sont seulement signalées. Un départ en attente se remplace
+--   seulement après « Annuler le départ ».
 --   5. team_actions : source « depart », posée seulement pendant l'enregistrement d'un départ (clé de dédoublonnage par
 --      personne, date et sujet) ; corps de app.team_actions_maj repris de la production (0513), plus cette source.
 --   6. public.rh_departs_appliquer() : tâche de nuit (api/maintenance-nuit.js).
@@ -35,9 +42,11 @@ alter table public.hr_people add column if not exists departure_auto boolean not
 alter table public.hr_people add column if not exists departure_by uuid;
 alter table public.hr_people add column if not exists departure_recorded_at timestamptz;
 alter table public.hr_people add column if not exists departure_applied_at timestamptz;
+alter table public.hr_people add column if not exists departure_profile_id uuid;
 create index if not exists hr_people_depart_idx on public.hr_people (departure_on) where departure_on is not null and departure_applied_at is null;
 comment on column public.hr_people.departure_on is 'Dernier jour du salarié (0515), posé par public.rh_enregistrer_depart seulement';
 comment on column public.hr_people.departure_auto is 'Départ (0515) : la nuit du lendemain archive la fiche et coupe le compte';
+comment on column public.hr_people.departure_profile_id is 'Départ (0515) : compte à couper par la nuit, vérifié à l''enregistrement ; null = aucun compte coupé';
 comment on column public.hr_people.departure_applied_at is 'Départ (0515) : archivage et compte traités par la nuit ; jamais refait ensuite';
 
 -- Colonnes du départ figées hors des fonctions de 0515 (et de la nuit, sans compte connecté)
@@ -52,11 +61,12 @@ begin
   end if;
   if tg_op = 'INSERT' then
     new.departure_on := null; new.departure_reason := null; new.departure_auto := true;
-    new.departure_by := null; new.departure_recorded_at := null; new.departure_applied_at := null;
+    new.departure_by := null; new.departure_recorded_at := null; new.departure_applied_at := null; new.departure_profile_id := null;
   elsif new.departure_on is distinct from old.departure_on or new.departure_reason is distinct from old.departure_reason
      or new.departure_auto is distinct from old.departure_auto or new.departure_by is distinct from old.departure_by
      or new.departure_recorded_at is distinct from old.departure_recorded_at
-     or new.departure_applied_at is distinct from old.departure_applied_at then
+     or new.departure_applied_at is distinct from old.departure_applied_at
+     or new.departure_profile_id is distinct from old.departure_profile_id then
     raise exception 'Le départ s''enregistre par « Enregistrer un départ » sur la fiche' using errcode = '42501';
   end if;
   return new;
@@ -139,6 +149,8 @@ declare
   v_trainers uuid[];
   v_autres int := 0;
   v_compte text := 'aucun';
+  v_jour_paris date := (now() at time zone 'Europe/Paris')::date;
+  v_owner uuid;
   v_r jsonb;
 begin
   select * into p from public.hr_people where id = p_person;
@@ -151,19 +163,33 @@ begin
     v_compte := case
       when not pr.is_active then 'deja_inactif'
       when pr.role = 'superadmin' then 'superadmin'
+      -- Couper un compte est réservé à qui gère les utilisateurs (app.profiles_liens_garde) : la nuit ne sert pas de passe-droit
+      when not (app.a_le_droit('parametres.utilisateurs.gerer') or app.a_le_droit('plateforme.administrer')) then 'non_autorise'
       when v_autres > 0 then 'societe'
       else 'desactive' end;
   end if;
+  -- Responsable des actions : responsable RH des paramètres, sinon l'auteur ; jamais la personne qui part, toujours un
+  -- compte actif avec un accès actif à la société
+  select x.id into v_owner from (
+    select s.titres_owner_id as id, 1 as rang from public.hr_settings s where s.company_id = p.company_id
+    union all select (select auth.uid()), 2) x
+  join public.profiles o on o.id = x.id and o.is_active
+  where x.id is distinct from p.profile_id
+    and exists (select 1 from public.company_members m where m.profile_id = x.id and m.company_id = p.company_id and m.is_active)
+  order by x.rang limit 1;
 
   select jsonb_build_object(
     'personne', jsonb_build_object('id', p.id, 'company_id', p.company_id,
       'nom', upper(btrim(coalesce(nullif(btrim(p.usage_name), ''), p.last_name))) || ' ' || btrim(p.first_name),
       'archivee', p.archived_at is not null),
     'jour', p_jour,
-    'archivage_le', p_jour + 1,
+    'archivage_le', greatest(p_jour + 1, v_jour_paris + 1),
+    'responsable', case when v_owner is not null then (select jsonb_build_object('id', o.id,
+      'nom', coalesce(nullif(btrim(o.display_name), ''), nullif(btrim(concat_ws(' ', o.first_name, o.last_name)), ''), o.email))
+      from public.profiles o where o.id = v_owner) end,
     'depart_en_attente', case when p.departure_on is not null and p.departure_applied_at is null
       then jsonb_build_object('le', p.departure_on, 'motif', p.departure_reason, 'auto', p.departure_auto) end,
-    'compte', jsonb_build_object('etat', v_compte, 'email', pr.email, 'autres_societes', v_autres),
+    'compte', jsonb_build_object('etat', v_compte, 'id', pr.id, 'email', pr.email, 'autres_societes', v_autres),
     'bloquant', (select 'Un contrat commence après la date de départ (' || to_char(min(e.start_on), 'DD/MM/YYYY')
                         || ') : modifiez-le ou supprimez-le d''abord.'
                  from public.hr_employments e where e.person_id = p.id and e.start_on > p_jour
@@ -185,11 +211,12 @@ begin
     'absences', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'type', t.label, 'debut', r.start_on, 'fin', r.end_on,
                    'statut', r.status) order by r.start_on)
                  from public.hr_absence_requests r join public.hr_absence_types t on t.id = r.type_id
-                 where r.person_id = p.id and r.status in ('demandee', 'validee') and r.start_on > p_jour), '[]'),
+                 where r.person_id = p.id and r.status in ('demandee', 'validee') and r.start_on > p_jour and r.start_on > v_jour_paris), '[]'),
     'absences_a_cheval', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'type', t.label, 'debut', r.start_on, 'fin', r.end_on,
                    'statut', r.status) order by r.start_on)
                  from public.hr_absence_requests r join public.hr_absence_types t on t.id = r.type_id
-                 where r.person_id = p.id and r.status in ('demandee', 'validee') and r.start_on <= p_jour and r.end_on > p_jour), '[]'),
+                 where r.person_id = p.id and r.status in ('demandee', 'validee')
+                   and ((r.start_on <= p_jour and r.end_on > p_jour) or (r.start_on > p_jour and r.start_on <= v_jour_paris))), '[]'),
     'epi', coalesce((select jsonb_agg(jsonb_build_object('id', h.id, 'article', i.label, 'taille', h.size, 'quantite', h.quantity,
                    'remis', h.handed_on) order by h.handed_on)
                  from public.hr_ppe_handovers h join public.stock_items i on i.id = h.item_id
@@ -205,7 +232,7 @@ begin
                    'statut', x.status) order by x.planned_on nulls last)
                  from public.itv_visits x
                  where pr.id is not null and x.technician_id = pr.id and x.company_id = p.company_id
-                   and x.status in ('a_planifier', 'planifiee', 'en_cours') and (x.planned_on is null or x.planned_on > p_jour)), '[]'),
+                   and x.status in ('a_planifier', 'planifiee', 'en_cours')), '[]'),
     'actions', coalesce((select jsonb_agg(jsonb_build_object('id', t.id, 'titre', t.title, 'echeance', t.due_on) order by t.due_on nulls last)
                  from public.team_actions t
                  where pr.id is not null and t.owner_id = pr.id and t.company_id = p.company_id and t.status = 'a_faire'), '[]')
@@ -287,6 +314,9 @@ begin
   if exists (select 1 from public.hr_people where id = p_person and archived_at is not null) then
     raise exception 'Fiche archivée : désarchivez-la d''abord' using errcode = '22023';
   end if;
+  if exists (select 1 from public.hr_people where id = p_person and departure_on is not null and departure_applied_at is null) then
+    raise exception 'Un départ est déjà enregistré : annulez-le d''abord' using errcode = '22023';
+  end if;
   b := app.depart_bilan(p_person, p_jour);
   if b ->> 'bloquant' is not null then raise exception '%', b ->> 'bloquant' using errcode = '22023'; end if;
   perform set_config('app.depart_en_cours', 'on', true);
@@ -325,10 +355,7 @@ begin
 
   -- Une action par sujet, pour le responsable RH des paramètres (sinon qui enregistre le départ)
   if v_act then
-    select s.titres_owner_id into v_owner from public.hr_settings s
-    join public.profiles pr on pr.id = s.titres_owner_id and pr.is_active
-    where s.company_id = v_co;
-    v_owner := coalesce(v_owner, (select auth.uid()));
+    v_owner := (b -> 'responsable' ->> 'id')::uuid;
     insert into public.team_actions (company_id, title, detail, owner_id, due_on, source, source_id, link, dedup_key)
     select v_co, left(a.titre || ' : ' || v_nom, 300), left(a.detail, 2000), v_owner, a.echeance, 'depart', p_person, v_lien, v_cle || a.sujet
     from (
@@ -344,7 +371,7 @@ begin
       from jsonb_array_elements(b -> 'sessions') e having count(*) > 0
       union all
       select 'visites', 'Visites à réaffecter', p_jour,
-             'Départ le ' || to_char(p_jour, 'DD/MM/YYYY') || '. Visites de maintenance confiées à la personne : '
+             'Départ le ' || to_char(p_jour, 'DD/MM/YYYY') || '. Visites de maintenance encore ouvertes confiées à la personne : '
              || string_agg(coalesce(e ->> 'reference', 'visite') || coalesce(' prévue le ' || to_char((e ->> 'prevue')::date, 'DD/MM/YYYY'), ' à planifier'), ' ; ') || '.'
       from jsonb_array_elements(b -> 'visites') e having count(*) > 0
       union all
@@ -354,7 +381,7 @@ begin
       from jsonb_array_elements(b -> 'actions') e having count(*) > 0
       union all
       select 'absences_a_cheval', 'Absence à revoir', p_jour,
-             'Départ le ' || to_char(p_jour, 'DD/MM/YYYY') || '. Absences qui continuent après le départ (non modifiées) : '
+             'Départ le ' || to_char(p_jour, 'DD/MM/YYYY') || '. Absences déjà commencées ou qui continuent après le départ (non modifiées) : '
              || string_agg((e ->> 'type') || ' du ' || to_char((e ->> 'debut')::date, 'DD/MM/YYYY') || ' au ' || to_char((e ->> 'fin')::date, 'DD/MM/YYYY'), ' ; ') || '.'
       from jsonb_array_elements(b -> 'absences_a_cheval') e having count(*) > 0
       union all
@@ -364,9 +391,11 @@ begin
       from jsonb_array_elements(b -> 'vehicules_futurs') e having count(*) > 0
       union all
       select 'compte', 'Compte à couper à la main', p_jour,
-             'Départ le ' || to_char(p_jour, 'DD/MM/YYYY') || '. Le compte de connexion est celui d''un super administrateur : '
-             || 'il n''est jamais coupé automatiquement. À revoir dans Paramètres, Utilisateurs.'
-      where v_arc and b -> 'compte' ->> 'etat' = 'superadmin'
+             'Départ le ' || to_char(p_jour, 'DD/MM/YYYY') || '. '
+             || case b -> 'compte' ->> 'etat' when 'superadmin' then 'Le compte de connexion est celui d''un super administrateur : il n''est jamais coupé automatiquement.'
+                else 'Le départ a été enregistré par un compte qui ne gère pas les utilisateurs : le compte de connexion n''est pas coupé automatiquement.' end
+             || ' À couper dans Paramètres, Utilisateurs.'
+      where v_arc and b -> 'compte' ->> 'etat' in ('superadmin', 'non_autorise')
     ) a
     on conflict (company_id, dedup_key) where dedup_key is not null do nothing;
     get diagnostics v_c = row_count;
@@ -374,10 +403,12 @@ begin
   end if;
 
   update public.hr_people set departure_on = p_jour, departure_reason = v_motif, departure_auto = v_arc,
-    departure_by = (select auth.uid()), departure_recorded_at = now(), departure_applied_at = null
+    departure_by = (select auth.uid()), departure_recorded_at = now(), departure_applied_at = null,
+    departure_profile_id = case when v_arc and b -> 'compte' ->> 'etat' in ('desactive', 'societe') then (b -> 'compte' ->> 'id')::uuid end
   where id = p_person;
   perform set_config('app.depart_en_cours', 'off', true);
-  return jsonb_build_object('fait', v_n, 'archivage_le', case when v_arc then p_jour + 1 end);
+  return jsonb_build_object('fait', v_n, 'archivage_le', case when v_arc then (b ->> 'archivage_le')::date end,
+    'compte', case when v_arc then b -> 'compte' ->> 'etat' end, 'responsable', b -> 'responsable' ->> 'nom');
 end
 $$;
 revoke all on function public.rh_enregistrer_depart(uuid, date, text, jsonb) from public, anon;
@@ -398,7 +429,7 @@ begin
   end if;
   perform set_config('app.depart_en_cours', 'on', true);
   update public.hr_people set departure_on = null, departure_reason = null, departure_auto = true,
-    departure_by = null, departure_recorded_at = null
+    departure_by = null, departure_recorded_at = null, departure_profile_id = null
   where id = p_person;
   perform set_config('app.depart_en_cours', 'off', true);
 end
@@ -416,20 +447,24 @@ as $$
 declare
   p record;
   v_jour date := (now() at time zone 'Europe/Paris')::date;
-  v_arch int := 0; v_comptes int := 0; v_appart int := 0;
+  v_arch int := 0; v_comptes int := 0; v_appart int := 0; v_echecs int := 0;
 begin
   if coalesce((select auth.role()), '') not in ('service_role', '') then
     raise exception 'Réservé à la tâche de nuit' using errcode = '42501';
   end if;
   for p in
-    select h.id, h.company_id, h.profile_id, h.departure_auto from public.hr_people h
+    select h.id, h.company_id, h.profile_id, h.departure_profile_id, h.departure_auto from public.hr_people h
     where h.departure_on is not null and h.departure_on < v_jour and h.departure_applied_at is null
-    for update
   loop
+    -- Une fiche en erreur n'empêche pas les autres ; elle sera reprise la nuit suivante
+    begin
+    perform 1 from public.hr_people where id = p.id for update;
     if p.departure_auto then
       update public.hr_people set archived_at = now() where id = p.id and archived_at is null;
       if found then v_arch := v_arch + 1; end if;
-      if p.profile_id is not null and exists (select 1 from public.profiles pr where pr.id = p.profile_id and pr.is_active and pr.role <> 'superadmin') then
+      -- Seulement le compte vérifié à l'enregistrement, et seulement s'il est toujours relié à la fiche
+      if p.departure_profile_id is not null and p.profile_id is not distinct from p.departure_profile_id
+         and exists (select 1 from public.profiles pr where pr.id = p.profile_id and pr.is_active and pr.role <> 'superadmin') then
         if exists (select 1 from public.company_members m where m.profile_id = p.profile_id and m.is_active and m.company_id <> p.company_id) then
           update public.company_members set is_active = false, updated_at = now()
           where profile_id = p.profile_id and company_id = p.company_id and is_active;
@@ -441,8 +476,11 @@ begin
       end if;
     end if;
     update public.hr_people set departure_applied_at = now() where id = p.id;
+    exception when others then
+      v_echecs := v_echecs + 1;
+    end;
   end loop;
-  return jsonb_build_object('fiches_archivees', v_arch, 'comptes_coupes', v_comptes, 'appartenances_coupees', v_appart);
+  return jsonb_build_object('fiches_archivees', v_arch, 'comptes_coupes', v_comptes, 'appartenances_coupees', v_appart, 'echecs', v_echecs);
 end
 $$;
 revoke all on function public.rh_departs_appliquer() from public, anon, authenticated;
@@ -463,6 +501,9 @@ declare
   v_sal uuid := 'd0515000-0000-4000-8000-000000000003';
   v_sal2 uuid := 'd0515000-0000-4000-8000-000000000004';
   v_sa uuid := 'd0515000-0000-4000-8000-000000000005';
+  v_rh2 uuid := 'd0515000-0000-4000-8000-000000000006';
+  v_sal3 uuid := 'd0515000-0000-4000-8000-000000000007';
+  c_rh2 text; v_p7 uuid; v_p8 uuid;
   c_rh text; c_lec text;
   v_j date := current_date + 3;
   v_p1 uuid; v_p2 uuid; v_p3 uuid; v_p4 uuid; v_p5 uuid; v_p6 uuid;
@@ -479,27 +520,44 @@ begin
     (v_lec, 'lec-0515@exemple.invalid', 'authenticated', 'authenticated'),
     (v_sal, 'sal-0515@exemple.invalid', 'authenticated', 'authenticated'),
     (v_sal2, 'sal2-0515@exemple.invalid', 'authenticated', 'authenticated'),
-    (v_sa, 'sa-0515@exemple.invalid', 'authenticated', 'authenticated');
+    (v_sa, 'sa-0515@exemple.invalid', 'authenticated', 'authenticated'),
+    (v_rh2, 'rh2-0515@exemple.invalid', 'authenticated', 'authenticated'),
+    (v_sal3, 'sal3-0515@exemple.invalid', 'authenticated', 'authenticated');
   insert into public.profiles (id, email) values (v_rh, 'rh-0515@exemple.invalid'), (v_lec, 'lec-0515@exemple.invalid'),
-    (v_sal, 'sal-0515@exemple.invalid'), (v_sal2, 'sal2-0515@exemple.invalid'), (v_sa, 'sa-0515@exemple.invalid')
+    (v_sal, 'sal-0515@exemple.invalid'), (v_sal2, 'sal2-0515@exemple.invalid'), (v_sa, 'sa-0515@exemple.invalid'),
+    (v_rh2, 'rh2-0515@exemple.invalid'), (v_sal3, 'sal3-0515@exemple.invalid')
   on conflict (id) do nothing;
   alter table public.profiles disable trigger profiles_protect_role;
   update public.profiles set role = 'superadmin' where id = v_sa;
   alter table public.profiles enable trigger profiles_protect_role;
   insert into public.company_members (company_id, profile_id, role, is_default, is_active) values
     (v_cie, v_rh, 'admin', true, true), (v_cie, v_lec, 'lecture', true, true), (v_cie, v_sal, 'gestionnaire', true, true),
-    (v_cie, v_sal2, 'gestionnaire', true, true), (v_co2, v_sal2, 'gestionnaire', false, true)
+    (v_cie, v_sal2, 'gestionnaire', true, true), (v_co2, v_sal2, 'gestionnaire', false, true),
+    (v_cie, v_rh2, 'admin', true, true), (v_cie, v_sal3, 'gestionnaire', true, true)
   on conflict (company_id, profile_id) do update set role = excluded.role, is_active = true;
   -- Droit posé explicitement (indépendant des profils de droits de la société) ; retiré au compte lecture
   alter table public.company_member_rights disable trigger company_member_rights_guard;
   insert into public.company_member_rights (company_id, member_id, right_code, effect)
-    select v_cie, m.id, 'rh.dossiers.gerer', case when m.profile_id = v_rh then 'grant' else 'revoke' end
-    from public.company_members m where m.company_id = v_cie and m.profile_id in (v_rh, v_lec);
+    select v_cie, m.id, 'rh.dossiers.gerer', case when m.profile_id in (v_rh, v_rh2) then 'grant' else 'revoke' end
+    from public.company_members m where m.company_id = v_cie and m.profile_id in (v_rh, v_lec, v_rh2);
+  -- Le premier compte RH gère aussi les utilisateurs ; le second non
+  -- (droit réservé aux sociétés à licence complète : licence posée ici, indépendante du réglage réel)
+  alter table public.companies disable trigger companies_guard;
+  update public.companies set full_license = true where id = v_cie;
+  alter table public.companies enable trigger companies_guard;
+  insert into public.company_member_rights (company_id, member_id, right_code, effect)
+    select v_cie, m.id, d.code, case when m.profile_id = v_rh then 'grant' else 'revoke' end
+    from public.company_members m, (values ('parametres.utilisateurs.gerer'), ('plateforme.administrer')) d(code)
+    where m.company_id = v_cie and m.profile_id in (v_rh, v_rh2)
+      and exists (select 1 from public.permissions pe where pe.code = d.code);
   alter table public.company_member_rights enable trigger company_member_rights_guard;
   if not ('rh.dossiers.gerer' = any (app.rights_for(v_rh, v_cie))) then raise exception '0. compte RH sans droit rh.dossiers.gerer'; end if;
   if 'rh.dossiers.gerer' = any (app.rights_for(v_lec, v_cie)) then raise exception '0. compte lecture avec droit'; end if;
   c_rh := json_build_object('sub', v_rh, 'role', 'authenticated')::text;
   c_lec := json_build_object('sub', v_lec, 'role', 'authenticated')::text;
+  c_rh2 := json_build_object('sub', v_rh2, 'role', 'authenticated')::text;
+  if not ('rh.dossiers.gerer' = any (app.rights_for(v_rh2, v_cie))) or 'parametres.utilisateurs.gerer' = any (app.rights_for(v_rh2, v_cie))
+     or not ('parametres.utilisateurs.gerer' = any (app.rights_for(v_rh, v_cie))) then raise exception '0. droits des comptes RH faux'; end if;
 
   -- Personne 1 : contrat, véhicule, absences, EPI, session comme formatrice, visite, action ouverte
   insert into public.trainers (first_name, last_name, company_id) values ('Alice', 'Formatrice0515', v_cie) returning id into v_tr;
@@ -538,6 +596,9 @@ begin
   insert into public.itv_visits (client_id, site_id, technician_id, planned_on, status, company_id)
     values (v_cli, v_site, v_sal, v_j - 1, 'planifiee', v_cie);
   insert into public.team_actions (company_id, title, owner_id) values (v_cie, 'Appeler le client essai 0515', v_sal) returning id into v_act;
+  -- La responsable RH des paramètres est la personne qui part : jamais destinataire des actions de son départ
+  insert into public.hr_settings (company_id, titres_owner_id) values (v_cie, v_sal)
+  on conflict (company_id) do update set titres_owner_id = excluded.titres_owner_id;
 
   -- 1. Compte sans droit : bilan et enregistrement refusés
   perform set_config('request.jwt.claims', c_lec, true);
@@ -559,7 +620,8 @@ begin
   if jsonb_array_length(b -> 'contrats') <> 1 or jsonb_array_length(b -> 'vehicules') <> 1
      or jsonb_array_length(b -> 'absences') <> 2 or jsonb_array_length(b -> 'absences_a_cheval') <> 1
      or jsonb_array_length(b -> 'epi') <> 1 or jsonb_array_length(b -> 'sessions') <> 1
-     or jsonb_array_length(b -> 'visites') <> 1 or jsonb_array_length(b -> 'actions') <> 1
+     or jsonb_array_length(b -> 'visites') <> 2 or jsonb_array_length(b -> 'actions') <> 1
+     or (b -> 'responsable' ->> 'id')::uuid is distinct from v_rh
      or b -> 'compte' ->> 'etat' <> 'desactive' or (b ->> 'archivage_le')::date <> v_j + 1 or b ->> 'bloquant' is not null then
     raise exception '2. bilan faux : %', b; end if;
 
@@ -601,11 +663,21 @@ begin
   if not exists (select 1 from public.hr_people where id = v_p1 and departure_on = v_j and departure_reason = 'Démission' and departure_auto
                  and departure_by = v_rh and departure_applied_at is null and archived_at is null) then raise exception '4k. fiche fausse'; end if;
 
-  -- 5. Second enregistrement le même jour : aucune action en double
+  -- 5. Second enregistrement : refusé tant que le premier est en attente ; la clé empêche tout doublon
   perform set_config('role', 'authenticated', true);
-  r := public.rh_enregistrer_depart(v_p1, v_j, 'Démission', '{}');
+  begin
+    perform public.rh_enregistrer_depart(v_p1, v_j, 'Démission', '{}');
+    raise exception '5. second départ accepté';
+  exception when invalid_parameter_value then null;
+  end;
   perform set_config('role', 'postgres', true);
-  if (select count(*) from public.team_actions where source = 'depart' and source_id = v_p1) <> 5 then raise exception '5. actions en double'; end if;
+  perform set_config('request.jwt.claims', '', true);
+  begin
+    insert into public.team_actions (company_id, title, source, dedup_key)
+      select company_id, 'Doublon', 'depart', dedup_key from public.team_actions where source = 'depart' and source_id = v_p1 limit 1;
+    raise exception '5b. doublon de clé accepté';
+  exception when unique_violation then null;
+  end;
 
   -- 6. Nuit avant le lendemain : rien
   perform set_config('request.jwt.claims', '', true);
@@ -697,7 +769,64 @@ begin
   exception when invalid_parameter_value then null;
   end;
 
+  -- 11 bis. Compte RH qui ne gère pas les utilisateurs : le compte n'est jamais coupé, une action le dit ; et un compte
+  -- relié à la fiche après l'enregistrement n'est pas coupé non plus
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+  update public.profiles set is_active = true where id = v_sal;
+  update public.hr_people set profile_id = null where id = v_p1;
+  insert into public.hr_people (company_id, first_name, last_name, profile_id) values (v_cie, 'Gilles', 'Nonautorise0515', v_sal) returning id into v_p7;
+  insert into public.hr_people (company_id, first_name, last_name, profile_id) values (v_cie, 'Hugo', 'Relie0515', v_sal3) returning id into v_p8;
+  perform set_config('request.jwt.claims', c_rh2, true);
+  perform set_config('role', 'authenticated', true);
+  b := public.rh_depart_bilan(v_p7, v_j);
+  if b -> 'compte' ->> 'etat' <> 'non_autorise' then raise exception '11c. compte coupable sans droit : %', b -> 'compte'; end if;
+  perform public.rh_enregistrer_depart(v_p7, v_j, 'Démission', '{}');
+  perform set_config('request.jwt.claims', c_rh, true);
+  perform public.rh_enregistrer_depart(v_p8, v_j, 'Démission', '{}');
+  perform set_config('role', 'postgres', true);
+  if not exists (select 1 from public.team_actions where source = 'depart' and source_id = v_p7 and title like 'Compte à couper à la main%') then
+    raise exception '11d. action « compte à couper » absente'; end if;
+  update public.hr_people set profile_id = v_lec where id = v_p8;
+  perform set_config('request.jwt.claims', '', true);
+  update public.hr_people set departure_on = current_date - 1 where id in (v_p7, v_p8);
+  perform public.rh_departs_appliquer();
+  if not (select is_active from public.profiles where id = v_sal) or not (select is_active from public.profiles where id = v_lec) then raise exception '11e. compte coupé sans droit ou relié après coup'; end if;
+  if exists (select 1 from public.hr_people where id in (v_p7, v_p8) and archived_at is null) then raise exception '11f. fiches non archivées'; end if;
+
+  -- 11 ter. Départ saisi en retard : archivage annoncé pour la nuit prochaine, absences déjà commencées seulement signalées
+  declare v_p9 uuid; v_abs4 uuid; begin
+    insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Ines', 'Retard0515') returning id into v_p9;
+    insert into public.hr_absence_requests (company_id, person_id, type_id, start_on, end_on, days, status)
+      values (v_cie, v_p9, v_cp, current_date - 3, current_date - 2, 2, 'demandee') returning id into v_abs4;
+    perform set_config('request.jwt.claims', c_rh, true);
+    perform set_config('role', 'authenticated', true);
+    b := public.rh_depart_bilan(v_p9, current_date - 10);
+    if (b ->> 'archivage_le')::date <> current_date + 1 or jsonb_array_length(b -> 'absences') <> 0 or jsonb_array_length(b -> 'absences_a_cheval') <> 1 then
+      raise exception '11g. départ en retard : %', b; end if;
+    perform set_config('role', 'postgres', true);
+  end;
+
+  -- 11 quater. Compte devenu super administrateur après l'enregistrement : la nuit ne le coupe pas
+  declare v_p10 uuid; begin
+    insert into public.hr_people (company_id, first_name, last_name, profile_id) values (v_cie, 'Jules', 'Promu0515', v_sal3) returning id into v_p10;
+    perform set_config('request.jwt.claims', c_rh, true);
+    perform set_config('role', 'authenticated', true);
+    perform public.rh_enregistrer_depart(v_p10, v_j, 'Démission', '{}');
+    perform set_config('role', 'postgres', true);
+    perform set_config('request.jwt.claims', '', true);
+    if (select departure_profile_id from public.hr_people where id = v_p10) is distinct from v_sal3 then raise exception '11h. compte à couper non noté'; end if;
+    alter table public.profiles disable trigger profiles_protect_role;
+    update public.profiles set role = 'superadmin' where id = v_sal3;
+    alter table public.profiles enable trigger profiles_protect_role;
+    update public.hr_people set departure_on = current_date - 1 where id = v_p10;
+    perform public.rh_departs_appliquer();
+    if not (select is_active from public.profiles where id = v_sal3) then raise exception '11i. super administrateur coupé par la nuit'; end if;
+  end;
+
   -- 12. La nuit est réservée à la tâche planifiée
+  perform set_config('request.jwt.claims', c_rh, true);
+  perform set_config('role', 'authenticated', true);
   begin
     perform public.rh_departs_appliquer();
     raise exception '12. nuit lancée par un compte';

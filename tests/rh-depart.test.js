@@ -2,7 +2,7 @@
 // (app.depart_bilan, public.rh_enregistrer_depart, essai supabase/tests/depart_0515.sql).
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { erreurDepart, texteCompte, blocsBilan, casesUtiles, resumeDepart, CHOIX_DEFAUT } from '../src/modules/rh/lib/rhDepart'
+import { erreurDepart, texteCompte, blocsBilan, casesUtiles, resumeDepart, jourArchivage, texteNuit, CHOIX_DEFAUT } from '../src/modules/rh/lib/rhDepart'
 
 const bilan = {
   jour: '2026-11-30', archivage_le: '2026-12-01', bloquant: null,
@@ -49,13 +49,19 @@ describe('texteCompte', () => {
     expect(texteCompte({ etat: 'desactive' })).toMatch(/désactivé/)
     expect(texteCompte({ etat: 'desactive' }, false)).toMatch(/reste actif/)
     expect(texteCompte(null)).toMatch(/Pas de compte/)
+    expect(texteCompte({ etat: 'non_autorise' })).toMatch(/reste actif, une action vous le rappelle/)
+    // Actions décochées : plus de promesse d'action
+    expect(texteCompte({ etat: 'superadmin' }, true, false)).toMatch(/pensez à le couper vous-même/)
+    expect(texteCompte({ etat: 'superadmin' }, true, false)).not.toMatch(/une action/)
   })
 })
 
 describe('resumeDepart', () => {
   it('compte ce qui a été fait et annonce la nuit', () => {
-    expect(resumeDepart({ fait: { contrats: 1, vehicules: 1, absences: 2, actions: 3 }, archivage_le: '2026-12-01' }))
-      .toBe('Départ enregistré : 1 contrat clos, 1 véhicule rendu, 2 absences annulées, 3 actions créées. Fiche archivée et compte coupé le 1 décembre 2026, au cours de la nuit.')
+    expect(resumeDepart({ fait: { contrats: 1, vehicules: 1, absences: 2, actions: 3 }, archivage_le: '2026-12-01', compte: 'desactive' }))
+      .toBe('Départ enregistré : 1 contrat clos, 1 véhicule rendu, 2 absences annulées, 3 actions créées. Fiche archivée et compte de connexion coupé le 1 décembre 2026, au cours de la nuit.')
+    // Compte non coupé (aucun, super administrateur, profil sans droit) : la phrase ne le promet pas
+    expect(resumeDepart({ fait: {}, archivage_le: '2026-12-01', compte: 'superadmin' })).toBe('Départ enregistré. Fiche archivée le 1 décembre 2026, au cours de la nuit.')
     expect(resumeDepart({ fait: { contrats: 0 }, archivage_le: null })).toBe('Départ enregistré.')
   })
   it('toutes les cases sont cochées par défaut (choix de H)', () => {
@@ -72,5 +78,14 @@ describe('liens avec la base et la nuit', () => {
   })
   it('la nuit applique les départs', () => {
     expect(readFileSync('api/maintenance-nuit.js', 'utf8')).toContain("admin.rpc('rh_departs_appliquer')")
+  })
+})
+
+describe('jourArchivage', () => {
+  it('le lendemain du dernier jour, ou la nuit prochaine si ce jour est passé', () => {
+    expect(jourArchivage('2026-11-30', '2026-11-08')).toBe('2026-12-01')
+    expect(jourArchivage('2026-11-01', '2026-11-08')).toBe('2026-11-09')
+    expect(jourArchivage('2026-11-08', '2026-11-08')).toBe('2026-11-09')
+    expect(texteNuit('2026-11-09', false)).toBe('Fiche archivée le 9 novembre 2026, au cours de la nuit.')
   })
 })

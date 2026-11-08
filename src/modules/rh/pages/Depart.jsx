@@ -1,13 +1,13 @@
 // Départ d'un salarié (0515) : date et motif, puis le bilan de tout ce qui sera fait, cases cochées par défaut ;
 // rien n'est écrit avant « Confirmer le départ » (décisions de H du 08/11). Bandeau du départ en attente sur la fiche.
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { AlertTriangle, CheckCircle2, ListTodo, LogOut } from 'lucide-react'
 import { Sheet } from '../../../ui/Sheet'
 import { confirmer } from '../../../ui/Confirm'
 import {
   MOTIFS_DEPART, CHOIX_DEFAUT, bilanDepart, enregistrerDepart, annulerDepart, erreurDepart, blocsBilan, casesUtiles,
-  texteCompte, resumeDepart, frJour,
+  texteCompte, resumeDepart, frJour, texteNuit, jourArchivage,
 } from '../lib/rhDepart'
 
 const aujourdhui = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' })
@@ -25,7 +25,10 @@ export function DepartSheet({ personne, nom, onClose, onSaved }) {
   const [bilan, setBilan] = useState(null)
   const [choix, setChoix] = useState(CHOIX_DEFAUT)
   const [busy, setBusy] = useState(false)
+  const titreBilan = useRef(null)
   const erreur = erreurDepart(jour, motif)
+  // Passage au bilan : le focus va sur son titre (le contenu de la fenêtre a changé)
+  useEffect(() => { if (bilan) titreBilan.current?.focus() }, [bilan])
 
   const voirBilan = async (e) => {
     e.preventDefault()
@@ -76,14 +79,12 @@ export function DepartSheet({ personne, nom, onClose, onSaved }) {
         </form>
       ) : (
         <div className="space-y-3">
+          <h3 ref={titreBilan} tabIndex={-1} className="text-ui font-medium outline-none">Ce que va faire le départ</h3>
           <p className="text-ui">Dernier jour : <strong>{frJour(bilan.jour)}</strong> · Motif : <strong>{motif.trim()}</strong></p>
           {bilan.bloquant && (
             <p role="alert" className="text-ui text-[rgb(var(--c-danger))] flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 flex-none mt-0.5" aria-hidden="true" />{bilan.bloquant}
             </p>
-          )}
-          {bilan.depart_en_attente && (
-            <p className="text-ui-sm text-[rgb(var(--c-warning))]">Un départ au {frJour(bilan.depart_en_attente.le)} est déjà enregistré : il sera remplacé.</p>
           )}
           {blocs.length === 0 && <p className="text-ui-sm muted">Aucun contrat en cours, véhicule, absence à venir, EPI ou affectation à venir sur cette fiche.</p>}
           {blocs.map((b) => (
@@ -93,12 +94,12 @@ export function DepartSheet({ personne, nom, onClose, onSaved }) {
                 {b.titre}
               </h3>
               <ul className="ml-6 list-disc text-ui-sm">{b.lignes.map((l, i) => <li key={i} className="[overflow-wrap:anywhere]">{l}</li>)}</ul>
-              {b.effet === 'action' && <p className="ml-6 text-ui-sm muted">{actif(b) ? 'Une action de l\'équipe est créée : rien n\'est réaffecté d\'office.' : 'Aucune action créée (case décochée).'}</p>}
+              {b.effet === 'action' && <p className="ml-6 text-ui-sm muted">{actif(b) ? `Une action de l'équipe est créée${bilan.responsable ? ` pour ${bilan.responsable.nom}` : ', sans responsable'} : rien n'est réaffecté d'office.` : 'Aucune action créée (case décochée).'}</p>}
             </section>
           ))}
           <section>
             <h3 className="text-ui font-medium">Compte de connexion</h3>
-            <p className="text-ui-sm">{texteCompte(bilan.compte, choix.archiver)}</p>
+            <p className="text-ui-sm">{texteCompte(bilan.compte, choix.archiver, choix.actions)}</p>
           </section>
           <fieldset className="space-y-1 border-t pt-2">
             <legend className="text-ui font-medium">Ce que fait le départ</legend>
@@ -118,20 +119,18 @@ export function DepartSheet({ personne, nom, onClose, onSaved }) {
 // Bandeau d'un départ enregistré que la nuit n'a pas encore traité
 export function BandeauDepart({ personne, peutGerer, onChange }) {
   if (!personne?.departure_on || personne.departure_applied_at) return null
-  const lendemain = new Date(`${personne.departure_on}T12:00:00`)
-  lendemain.setDate(lendemain.getDate() + 1)
   const annuler = async () => {
     if (!(await confirmer('Annuler ce départ ?\n\nLa fiche ne sera pas archivée et le compte ne sera pas coupé. Le contrat clos, le véhicule rendu, les absences annulées et les actions créées restent tels quels : corrigez-les à la main si besoin.'))) return
     try { await annulerDepart(personne.id); toast.success('Départ annulé'); onChange() } catch (e) { toast.error(e.message) }
   }
   return (
-    <div role="status" className="card flex items-start gap-2 flex-wrap">
+    <div className="card flex items-start gap-2 flex-wrap">
       <LogOut className="w-4 h-4 flex-none mt-1" aria-hidden="true" />
       <p className="text-ui flex-1 min-w-0">
         Départ enregistré : dernier jour le <strong>{frJour(personne.departure_on)}</strong>{personne.departure_reason ? ` (${personne.departure_reason})` : ''}.{' '}
         {personne.departure_auto
-          ? `La fiche sera archivée et le compte coupé le ${frJour(lendemain.toLocaleDateString('sv-SE'))}, au cours de la nuit.`
-          : 'La fiche ne sera pas archivée automatiquement.'}
+          ? texteNuit(jourArchivage(personne.departure_on, aujourdhui()), !!personne.departure_profile_id)
+          : 'La fiche ne sera pas archivée automatiquement et le compte de connexion reste actif.'}
       </p>
       {peutGerer && <button type="button" className="btn btn-ghost btn-sm" onClick={annuler}>Annuler le départ</button>}
     </div>

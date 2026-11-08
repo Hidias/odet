@@ -12,6 +12,9 @@ declare
   v_sal uuid := 'd0515000-0000-4000-8000-000000000003';
   v_sal2 uuid := 'd0515000-0000-4000-8000-000000000004';
   v_sa uuid := 'd0515000-0000-4000-8000-000000000005';
+  v_rh2 uuid := 'd0515000-0000-4000-8000-000000000006';
+  v_sal3 uuid := 'd0515000-0000-4000-8000-000000000007';
+  c_rh2 text; v_p7 uuid; v_p8 uuid;
   c_rh text; c_lec text;
   v_j date := current_date + 3;
   v_p1 uuid; v_p2 uuid; v_p3 uuid; v_p4 uuid; v_p5 uuid; v_p6 uuid;
@@ -28,27 +31,44 @@ begin
     (v_lec, 'lec-0515@exemple.invalid', 'authenticated', 'authenticated'),
     (v_sal, 'sal-0515@exemple.invalid', 'authenticated', 'authenticated'),
     (v_sal2, 'sal2-0515@exemple.invalid', 'authenticated', 'authenticated'),
-    (v_sa, 'sa-0515@exemple.invalid', 'authenticated', 'authenticated');
+    (v_sa, 'sa-0515@exemple.invalid', 'authenticated', 'authenticated'),
+    (v_rh2, 'rh2-0515@exemple.invalid', 'authenticated', 'authenticated'),
+    (v_sal3, 'sal3-0515@exemple.invalid', 'authenticated', 'authenticated');
   insert into public.profiles (id, email) values (v_rh, 'rh-0515@exemple.invalid'), (v_lec, 'lec-0515@exemple.invalid'),
-    (v_sal, 'sal-0515@exemple.invalid'), (v_sal2, 'sal2-0515@exemple.invalid'), (v_sa, 'sa-0515@exemple.invalid')
+    (v_sal, 'sal-0515@exemple.invalid'), (v_sal2, 'sal2-0515@exemple.invalid'), (v_sa, 'sa-0515@exemple.invalid'),
+    (v_rh2, 'rh2-0515@exemple.invalid'), (v_sal3, 'sal3-0515@exemple.invalid')
   on conflict (id) do nothing;
   alter table public.profiles disable trigger profiles_protect_role;
   update public.profiles set role = 'superadmin' where id = v_sa;
   alter table public.profiles enable trigger profiles_protect_role;
   insert into public.company_members (company_id, profile_id, role, is_default, is_active) values
     (v_cie, v_rh, 'admin', true, true), (v_cie, v_lec, 'lecture', true, true), (v_cie, v_sal, 'gestionnaire', true, true),
-    (v_cie, v_sal2, 'gestionnaire', true, true), (v_co2, v_sal2, 'gestionnaire', false, true)
+    (v_cie, v_sal2, 'gestionnaire', true, true), (v_co2, v_sal2, 'gestionnaire', false, true),
+    (v_cie, v_rh2, 'admin', true, true), (v_cie, v_sal3, 'gestionnaire', true, true)
   on conflict (company_id, profile_id) do update set role = excluded.role, is_active = true;
   -- Droit posé explicitement (indépendant des profils de droits de la société) ; retiré au compte lecture
   alter table public.company_member_rights disable trigger company_member_rights_guard;
   insert into public.company_member_rights (company_id, member_id, right_code, effect)
-    select v_cie, m.id, 'rh.dossiers.gerer', case when m.profile_id = v_rh then 'grant' else 'revoke' end
-    from public.company_members m where m.company_id = v_cie and m.profile_id in (v_rh, v_lec);
+    select v_cie, m.id, 'rh.dossiers.gerer', case when m.profile_id in (v_rh, v_rh2) then 'grant' else 'revoke' end
+    from public.company_members m where m.company_id = v_cie and m.profile_id in (v_rh, v_lec, v_rh2);
+  -- Le premier compte RH gère aussi les utilisateurs ; le second non
+  -- (droit réservé aux sociétés à licence complète : licence posée ici, indépendante du réglage réel)
+  alter table public.companies disable trigger companies_guard;
+  update public.companies set full_license = true where id = v_cie;
+  alter table public.companies enable trigger companies_guard;
+  insert into public.company_member_rights (company_id, member_id, right_code, effect)
+    select v_cie, m.id, d.code, case when m.profile_id = v_rh then 'grant' else 'revoke' end
+    from public.company_members m, (values ('parametres.utilisateurs.gerer'), ('plateforme.administrer')) d(code)
+    where m.company_id = v_cie and m.profile_id in (v_rh, v_rh2)
+      and exists (select 1 from public.permissions pe where pe.code = d.code);
   alter table public.company_member_rights enable trigger company_member_rights_guard;
   if not ('rh.dossiers.gerer' = any (app.rights_for(v_rh, v_cie))) then raise exception '0. compte RH sans droit rh.dossiers.gerer'; end if;
   if 'rh.dossiers.gerer' = any (app.rights_for(v_lec, v_cie)) then raise exception '0. compte lecture avec droit'; end if;
   c_rh := json_build_object('sub', v_rh, 'role', 'authenticated')::text;
   c_lec := json_build_object('sub', v_lec, 'role', 'authenticated')::text;
+  c_rh2 := json_build_object('sub', v_rh2, 'role', 'authenticated')::text;
+  if not ('rh.dossiers.gerer' = any (app.rights_for(v_rh2, v_cie))) or 'parametres.utilisateurs.gerer' = any (app.rights_for(v_rh2, v_cie))
+     or not ('parametres.utilisateurs.gerer' = any (app.rights_for(v_rh, v_cie))) then raise exception '0. droits des comptes RH faux'; end if;
 
   -- Personne 1 : contrat, véhicule, absences, EPI, session comme formatrice, visite, action ouverte
   insert into public.trainers (first_name, last_name, company_id) values ('Alice', 'Formatrice0515', v_cie) returning id into v_tr;
@@ -87,6 +107,9 @@ begin
   insert into public.itv_visits (client_id, site_id, technician_id, planned_on, status, company_id)
     values (v_cli, v_site, v_sal, v_j - 1, 'planifiee', v_cie);
   insert into public.team_actions (company_id, title, owner_id) values (v_cie, 'Appeler le client essai 0515', v_sal) returning id into v_act;
+  -- La responsable RH des paramètres est la personne qui part : jamais destinataire des actions de son départ
+  insert into public.hr_settings (company_id, titres_owner_id) values (v_cie, v_sal)
+  on conflict (company_id) do update set titres_owner_id = excluded.titres_owner_id;
 
   -- 1. Compte sans droit : bilan et enregistrement refusés
   perform set_config('request.jwt.claims', c_lec, true);
@@ -108,7 +131,8 @@ begin
   if jsonb_array_length(b -> 'contrats') <> 1 or jsonb_array_length(b -> 'vehicules') <> 1
      or jsonb_array_length(b -> 'absences') <> 2 or jsonb_array_length(b -> 'absences_a_cheval') <> 1
      or jsonb_array_length(b -> 'epi') <> 1 or jsonb_array_length(b -> 'sessions') <> 1
-     or jsonb_array_length(b -> 'visites') <> 1 or jsonb_array_length(b -> 'actions') <> 1
+     or jsonb_array_length(b -> 'visites') <> 2 or jsonb_array_length(b -> 'actions') <> 1
+     or (b -> 'responsable' ->> 'id')::uuid is distinct from v_rh
      or b -> 'compte' ->> 'etat' <> 'desactive' or (b ->> 'archivage_le')::date <> v_j + 1 or b ->> 'bloquant' is not null then
     raise exception '2. bilan faux : %', b; end if;
 
@@ -150,11 +174,21 @@ begin
   if not exists (select 1 from public.hr_people where id = v_p1 and departure_on = v_j and departure_reason = 'Démission' and departure_auto
                  and departure_by = v_rh and departure_applied_at is null and archived_at is null) then raise exception '4k. fiche fausse'; end if;
 
-  -- 5. Second enregistrement le même jour : aucune action en double
+  -- 5. Second enregistrement : refusé tant que le premier est en attente ; la clé empêche tout doublon
   perform set_config('role', 'authenticated', true);
-  r := public.rh_enregistrer_depart(v_p1, v_j, 'Démission', '{}');
+  begin
+    perform public.rh_enregistrer_depart(v_p1, v_j, 'Démission', '{}');
+    raise exception '5. second départ accepté';
+  exception when invalid_parameter_value then null;
+  end;
   perform set_config('role', 'postgres', true);
-  if (select count(*) from public.team_actions where source = 'depart' and source_id = v_p1) <> 5 then raise exception '5. actions en double'; end if;
+  perform set_config('request.jwt.claims', '', true);
+  begin
+    insert into public.team_actions (company_id, title, source, dedup_key)
+      select company_id, 'Doublon', 'depart', dedup_key from public.team_actions where source = 'depart' and source_id = v_p1 limit 1;
+    raise exception '5b. doublon de clé accepté';
+  exception when unique_violation then null;
+  end;
 
   -- 6. Nuit avant le lendemain : rien
   perform set_config('request.jwt.claims', '', true);
@@ -246,7 +280,64 @@ begin
   exception when invalid_parameter_value then null;
   end;
 
+  -- 11 bis. Compte RH qui ne gère pas les utilisateurs : le compte n'est jamais coupé, une action le dit ; et un compte
+  -- relié à la fiche après l'enregistrement n'est pas coupé non plus
+  perform set_config('role', 'postgres', true);
+  perform set_config('request.jwt.claims', '', true);
+  update public.profiles set is_active = true where id = v_sal;
+  update public.hr_people set profile_id = null where id = v_p1;
+  insert into public.hr_people (company_id, first_name, last_name, profile_id) values (v_cie, 'Gilles', 'Nonautorise0515', v_sal) returning id into v_p7;
+  insert into public.hr_people (company_id, first_name, last_name, profile_id) values (v_cie, 'Hugo', 'Relie0515', v_sal3) returning id into v_p8;
+  perform set_config('request.jwt.claims', c_rh2, true);
+  perform set_config('role', 'authenticated', true);
+  b := public.rh_depart_bilan(v_p7, v_j);
+  if b -> 'compte' ->> 'etat' <> 'non_autorise' then raise exception '11c. compte coupable sans droit : %', b -> 'compte'; end if;
+  perform public.rh_enregistrer_depart(v_p7, v_j, 'Démission', '{}');
+  perform set_config('request.jwt.claims', c_rh, true);
+  perform public.rh_enregistrer_depart(v_p8, v_j, 'Démission', '{}');
+  perform set_config('role', 'postgres', true);
+  if not exists (select 1 from public.team_actions where source = 'depart' and source_id = v_p7 and title like 'Compte à couper à la main%') then
+    raise exception '11d. action « compte à couper » absente'; end if;
+  update public.hr_people set profile_id = v_lec where id = v_p8;
+  perform set_config('request.jwt.claims', '', true);
+  update public.hr_people set departure_on = current_date - 1 where id in (v_p7, v_p8);
+  perform public.rh_departs_appliquer();
+  if not (select is_active from public.profiles where id = v_sal) or not (select is_active from public.profiles where id = v_lec) then raise exception '11e. compte coupé sans droit ou relié après coup'; end if;
+  if exists (select 1 from public.hr_people where id in (v_p7, v_p8) and archived_at is null) then raise exception '11f. fiches non archivées'; end if;
+
+  -- 11 ter. Départ saisi en retard : archivage annoncé pour la nuit prochaine, absences déjà commencées seulement signalées
+  declare v_p9 uuid; v_abs4 uuid; begin
+    insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Ines', 'Retard0515') returning id into v_p9;
+    insert into public.hr_absence_requests (company_id, person_id, type_id, start_on, end_on, days, status)
+      values (v_cie, v_p9, v_cp, current_date - 3, current_date - 2, 2, 'demandee') returning id into v_abs4;
+    perform set_config('request.jwt.claims', c_rh, true);
+    perform set_config('role', 'authenticated', true);
+    b := public.rh_depart_bilan(v_p9, current_date - 10);
+    if (b ->> 'archivage_le')::date <> current_date + 1 or jsonb_array_length(b -> 'absences') <> 0 or jsonb_array_length(b -> 'absences_a_cheval') <> 1 then
+      raise exception '11g. départ en retard : %', b; end if;
+    perform set_config('role', 'postgres', true);
+  end;
+
+  -- 11 quater. Compte devenu super administrateur après l'enregistrement : la nuit ne le coupe pas
+  declare v_p10 uuid; begin
+    insert into public.hr_people (company_id, first_name, last_name, profile_id) values (v_cie, 'Jules', 'Promu0515', v_sal3) returning id into v_p10;
+    perform set_config('request.jwt.claims', c_rh, true);
+    perform set_config('role', 'authenticated', true);
+    perform public.rh_enregistrer_depart(v_p10, v_j, 'Démission', '{}');
+    perform set_config('role', 'postgres', true);
+    perform set_config('request.jwt.claims', '', true);
+    if (select departure_profile_id from public.hr_people where id = v_p10) is distinct from v_sal3 then raise exception '11h. compte à couper non noté'; end if;
+    alter table public.profiles disable trigger profiles_protect_role;
+    update public.profiles set role = 'superadmin' where id = v_sal3;
+    alter table public.profiles enable trigger profiles_protect_role;
+    update public.hr_people set departure_on = current_date - 1 where id = v_p10;
+    perform public.rh_departs_appliquer();
+    if not (select is_active from public.profiles where id = v_sal3) then raise exception '11i. super administrateur coupé par la nuit'; end if;
+  end;
+
   -- 12. La nuit est réservée à la tâche planifiée
+  perform set_config('request.jwt.claims', c_rh, true);
+  perform set_config('role', 'authenticated', true);
   begin
     perform public.rh_departs_appliquer();
     raise exception '12. nuit lancée par un compte';
