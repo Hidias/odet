@@ -186,6 +186,11 @@ export const loadVisit = async (id) => must(await supabase.from('itv_visits').se
 export const loadVisitItems = async (visitId) => must(await supabase.from('itv_visit_items').select('*').eq('visit_id', visitId))
 export const loadVisitParts = async (visitId) => must(await supabase.from(prixMasques ? 'itv_visit_parts_terrain' : 'itv_visit_parts').select('*').eq('visit_id', visitId).order('created_at'))
 export const updateVisit = async (id, patch) => must(await supabase.from('itv_visits').update(patch).eq('id', id).select().single())
+/** Remet une visite planifiée « à planifier », seulement si elle l'est encore (Kanban des visites) ; nombre de lignes changées */
+export async function remettreAPlanifier(id, retour) {
+  const rows = must(await supabase.from('itv_visits').update(retour).eq('id', id).eq('status', 'planifiee').select('id'))
+  return (rows || []).length
+}
 export const createVisit = async (row) => must(await supabase.from('itv_visits').insert(row).select().single())
 
 /** Démarre une visite : statut en cours, heure d'arrivée, lignes créées pour tous les appareils du site (opération proposée) */

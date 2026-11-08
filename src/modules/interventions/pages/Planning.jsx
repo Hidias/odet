@@ -3,7 +3,7 @@
 // change l'ordre de passage. Sur tablette et téléphone, le bouton « Placer » remplace le glisser-déposer.
 
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { MapContainer, TileLayer, CircleMarker, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
@@ -78,7 +78,9 @@ function RefusAffectation({ refus, technicians, onClose, onDone }) {
 }
 
 export default function Planning({ technicians }) {
-  const [day, setDay] = useState(todayIso())
+  // ?jour=AAAA-MM-JJ : ouverture à ce jour (menu « Changer de jour » des visites par étape)
+  const [params] = useSearchParams()
+  const [day, setDay] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get('jour') || '') ? params.get('jour') : todayIso()))
   const [due, setDue] = useState(null)
   const [visits, setVisits] = useState([])
   const [sector, setSector] = useState('')
