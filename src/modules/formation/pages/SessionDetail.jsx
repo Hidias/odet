@@ -27,6 +27,7 @@ import { supabase } from '../../../core/supabase'
 import { buildStorageFileName, ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import SessionDocumentAccess from '../components/SessionDocumentAccess'
 import SSTCertificationTab from '../../prevention/components/SSTCertificationTab'
+import { estFormationSST } from '../lib/sst'
 import AvisFormationTab from '../components/AvisFormationTab'
 import RegularisationEmargements from '../components/RegularisationEmargements'
 import SignatureEnLigne from '../components/SignatureEnLigne'
@@ -3147,9 +3148,7 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
   const sessionTraineesForEvals = sessionTrainees.filter(t => t.presence_complete === true)
   
   // Détecter si c'est une formation SST
-  const isSST = session?.courses?.title?.toLowerCase().includes('sst') || 
-                session?.courses?.title?.toLowerCase().includes('secouriste') ||
-                session?.courses?.title?.toLowerCase().includes('sauveteur')
+  const isSST = estFormationSST(session?.courses)
   
   const enrolledTraineeIds = sessionTrainees.map(t => t.id)
   let availableTrainees = trainees.filter(t => !enrolledTraineeIds.includes(t.id))

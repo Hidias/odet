@@ -16,7 +16,8 @@ import {
 } from '../../../core/pdf/layout'
 
 import { APP_VERSION } from '../../../core/version'
-import { loadPublishedDoc, versionLabel, cgvCancellationText } from '../../qualite/richdocs/published'
+import { loadPublishedDoc, versionLabel, cgvAnnulationBlocs } from '../../qualite/richdocs/published'
+import { estFormationSST } from '../lib/sst'
 import { writeRichDoc } from '../../qualite/richdocs/richDocPDF'
 import { loadTemplateContext, buildTemplateContext, fillTemplate } from '../../../core/org/templateContext'
 import { formatHours, heuresDuDocument } from '../lib/presence'
@@ -80,6 +81,25 @@ async function ensureQualityTexts() {
     }
     QT = { reglement, livret, cgv, ctx }
   } catch (err) { console.warn('Documents qualité indisponibles :', err.message) }
+}
+
+/**
+ * Article « Annulation et report » d'une convention : articles 8 et 9 des CGV en blocs lisibles (intertitres,
+ * barème ligne par ligne, listes), règles SST seulement pour une formation SST. Sans CGV : renvoi simple.
+ */
+export function blocsAnnulation(qt, course) {
+  const repli = [{ p: "En cas d'annulation ou de report, les conditions générales de vente de l'Organisme de formation s'appliquent." }]
+  if (!qt?.cgv) return repli
+  const remplir = (x) => fillTemplate(x, qt.ctx)
+  const blocs = cgvAnnulationBlocs(qt.cgv.content, { sst: estFormationSST(course) })
+  if (!blocs.length) return repli
+  return [{ p: 'Conformément aux articles 8 et 9 des conditions générales de vente.' }, ...blocs.flatMap((b) => {
+    if (b.h) return [{ h: remplir(b.h) }]
+    if (b.p) return [{ p: remplir(b.p) }]
+    if (b.list) return [{ list: b.list.map(remplir) }]
+    if (b.bareme) return [...(b.titre ? [{ p: `${remplir(b.titre)} :` }] : []), { kv: b.bareme.map(([k, v]) => [remplir(k), remplir(v)]), plain: true }]
+    return []
+  })]
 }
 
 // ============================================================
@@ -386,7 +406,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     ] },
     { title: 'Documents délivrés', blocks: [{ p: "À l'issue de la formation, l'Organisme de formation délivre une attestation de présence, un certificat de réalisation (acquis / non acquis) et, le cas échéant, l'attestation ou le certificat propre au module suivi." }] },
     ...maintien,
-    { title: 'Annulation et report', blocks: [{ p: (QT?.cgv && cgvCancellationText(QT.cgv.content) ? `Conformément aux articles 8 et 9 des conditions générales de vente. ${fillTemplate(cgvCancellationText(QT.cgv.content), QT.ctx)}` : "En cas d'annulation ou de report, les conditions générales de vente de l'Organisme de formation s'appliquent.") }] },
+    { title: 'Annulation et report', blocks: blocsAnnulation(QT, course) },
     { title: 'Accessibilité', blocks: [{ p: `${ORG.name} s'engage à favoriser l'accès à ses formations aux personnes en situation de handicap. Toute demande d'adaptation est à signaler en amont${ORG.referent_handicap_email ? ` au référent handicap (${ORG.referent_handicap_email})` : ` à ${ORG.email}`} afin de mettre en place les mesures nécessaires.` }] },
     { title: 'Protection des données', blocks: [{ p: "Les données personnelles collectées sont utilisées exclusivement pour la gestion administrative et pédagogique des formations. Elles sont conservées 5 ans et accessibles sur demande, conformément au RGPD." }] },
     { title: 'Litiges', blocks: [{ p: `En cas de différend, les parties recherchent une solution amiable. À défaut, le litige est porté devant ${ORG.tribunal_competent ? `le ${ORG.tribunal_competent}` : 'le tribunal compétent'}.` }] },
@@ -398,6 +418,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   const BOTTOM = 275
   const sigBlockH = 44
   const measureBlock = (b) => {
+    if (b.h) return LINE + 1.5
     if (b.p) return doc.splitTextToSize(b.p, bodyW).length * LINE + 2
     if (b.list) return b.cols === 2 ? Math.ceil(b.list.length / 2) * LINE + 2 : b.list.reduce((a, it) => a + doc.splitTextToSize(it, bodyW - 6).length * LINE, 0) + 2
     if (b.kv) return b.kv.length * 5.5 + 3
@@ -413,19 +434,33 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   const body = () => { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text) }
   const bullet = (x) => { doc.setFillColor(...t.highlight); doc.circle(x, y - 1.1, 0.7, 'F') }
 
+  // Dernière page jamais réduite aux signatures et à quelques lignes (consigne de H du 06/11) : les derniers articles
+  // partent ensemble avec les signatures, assez pour remplir 40 % de la page s'ils doivent changer de page
+  body()
+  const hauteurArticle = (art) => 10 + art.blocks.reduce((a, b) => a + measureBlock(b), 0) + 2
+  const pageUtile = BOTTOM - 30
+  let debutQueue = articles.length - 1
+  let queue = articles.length ? hauteurArticle(articles[debutQueue]) : 0
+  while (debutQueue > 0 && queue + sigBlockH < pageUtile * 0.4) { debutQueue -= 1; queue += hauteurArticle(articles[debutQueue]) }
+
   articles.forEach((art, i) => {
     body()
-    // Titre + au moins deux lignes sur la même page ; le dernier article reste avec les signatures
+    // Titre + au moins deux lignes sur la même page ; les derniers articles restent avec les signatures
     const isLast = i === articles.length - 1
     const fullH = 10 + art.blocks.reduce((a, b) => a + measureBlock(b), 0)
-    ensure(isLast ? fullH + sigBlockH : 10 + LINE * 2 + 2)
+    ensure(i === debutQueue && queue + sigBlockH <= pageUtile ? queue + sigBlockH : isLast ? fullH + sigBlockH : 10 + LINE * 2 + 2)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
     doc.setTextColor(...t.accent); doc.text(`${i + 1}.`, M, y)
     doc.setTextColor(...t.primary); doc.text(art.title, M + 7, y)
     y += 6.5
     art.blocks.forEach(b => {
       body()
-      if (b.p) {
+      if (b.h) {
+        // Intertitre : jamais seul en bas de page (avec au moins deux lignes de ce qui suit)
+        ensure(LINE * 3 + 1.5)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...t.primary)
+        doc.text(b.h, M + 7, y); y += LINE + 1.5
+      } else if (b.p) {
         const lines = doc.splitTextToSize(b.p, bodyW)
         lines.forEach((l, li) => {
           if (li === 0) ensure(LINE * Math.min(2, lines.length)); else if (li === lines.length - 2) ensure(LINE * 2); else ensure(LINE)
@@ -455,7 +490,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
       } else if (b.kv) {
         ensure(b.kv.length * 5.5 + 3)
         b.kv.forEach(([k, v], idx) => {
-          const last = idx === b.kv.length - 1 && b.kv.length > 1
+          const last = !b.plain && idx === b.kv.length - 1 && b.kv.length > 1
           doc.setFont('helvetica', last ? 'bold' : 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
           doc.text(k, M + 7, y)
           if (v) doc.text(v, M + W, y, { align: 'right' })
