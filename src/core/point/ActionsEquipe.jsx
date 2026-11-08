@@ -12,10 +12,11 @@ import { Sheet } from '../../ui/Sheet'
 import { Kanban, CLASSE_ITEM_MENU } from '../../ui/Kanban'
 import { ChoixVue, useVue } from '../../ui/ChoixVue'
 import {
-  chargerEquipe, nomProfil, creerAction, modifierAction, dateReport, groupeEcheance, GROUPES, colonnesActions, changementColonne, choixAction,
+  chargerEquipe, nomProfil, creerAction, modifierAction, supprimerAction, dateReport, groupeEcheance, GROUPES, colonnesActions, changementColonne, choixAction,
 } from './actions'
 import { jjmm } from './pointSemaine'
-import { chargerTypes, choixType, typeActif, suiteProposee, libelleType } from './typesActions'
+import { chargerTypes, choixType, typeActif, suiteProposee, libelleType, enVueGroupe } from './typesActions'
+import { MESSAGE_VUE_GROUPE } from '../company/societes'
 
 // Actions de l'équipe (0407) : ce que chacun a à faire, d'où que ça vienne (point de la semaine, bilan, réunion,
 // saisie libre). Une action se coche, se reporte d'une semaine (le report est compté), s'abandonne.
@@ -30,6 +31,8 @@ export default function ActionsEquipe() {
   const ctxSocietes = useAuthStore((s) => s.societes)
   const can = useAuthStore((s) => s.can)
   const direction = can?.('manager.cockpit.voir') === true
+  // Vue groupe (0516) : la base refuse toute écriture ; l'écran se lit sans rien proposer de modifier
+  const lecture = enVueGroupe()
   const [actions, setActions] = useState(null)
   const [equipe, setEquipe] = useState([])
   const [qui, setQui] = useState('moi')
@@ -61,7 +64,7 @@ export default function ActionsEquipe() {
   const liste = useMemo(() => (actions || []).filter((a) => (qui === 'moi' ? a.owner_id === moi?.id || (!a.owner_id && a.created_by === moi?.id) : qui === 'tous' ? true : a.owner_id === qui)
     && (voirTerminees || a.status === 'a_faire')), [actions, qui, voirTerminees, moi?.id])
   const colonnes = useMemo(() => colonnesActions(liste, { avecTerminees: voirTerminees }), [liste, voirTerminees])
-  const peutModifier = (a) => direction || a.owner_id === moi?.id || a.created_by === moi?.id
+  const peutModifier = (a) => !lecture && (direction || a.owner_id === moi?.id || a.created_by === moi?.id)
   const lienDe = (a) => a.link || (a.clients?.id ? `/clients/${a.clients.id}` : null)
   const groupes = useMemo(() => GROUPES.map((g) => ({ ...g, lignes: liste.filter((a) => groupeEcheance(a) === g.id) })).filter((g) => g.lignes.length), [liste])
 
@@ -103,8 +106,7 @@ export default function ActionsEquipe() {
   }
   const supprimer = async (a) => {
     if (!await confirmer(`Supprimer l'action « ${a.title} » ?`)) return
-    const { error } = await supabase.from('team_actions').delete().eq('id', a.id)
-    if (error) toast.error(error.message); else { toast.success('Action supprimée'); charger() }
+    try { await supprimerAction(a.id); toast.success('Action supprimée'); charger() } catch (err) { toast.error(err.message) }
   }
 
   return (
@@ -112,8 +114,9 @@ export default function ActionsEquipe() {
       <PageHeader title="Actions de l'équipe" meta={<span>Ce que chacun a à faire, issu du point de la semaine, des réunions ou saisi ici.</span>}
         actions={direction ? <Link to="/point-semaine" className="btn btn-secondary"><CalendarClock className="w-4 h-4" />Point de la semaine</Link> : null} />
       {erreur && <Banner tone="warning">{erreur}</Banner>}
+      {lecture && <Banner tone="info">{MESSAGE_VUE_GROUPE}</Banner>}
 
-      <form onSubmit={ajouter} className={`card p-3 grid grid-cols-1 ${typesActifs.length ? 'md:grid-cols-[180px_minmax(0,1fr)_200px_160px_auto_auto]' : 'md:grid-cols-[minmax(0,1fr)_200px_160px_auto_auto]'} gap-2 items-end`}>
+      {!lecture && <form onSubmit={ajouter} className={`card p-3 grid grid-cols-1 ${typesActifs.length ? 'md:grid-cols-[180px_minmax(0,1fr)_200px_160px_auto_auto]' : 'md:grid-cols-[minmax(0,1fr)_200px_160px_auto_auto]'} gap-2 items-end`}>
         {typesActifs.length > 0 && (
           <div>
             <label className="label" htmlFor="ac-type">Type</label>
@@ -143,7 +146,7 @@ export default function ActionsEquipe() {
           <input type="checkbox" checked={form.urgent} onChange={(e) => setForm({ ...form, urgent: e.target.checked })} />Urgent
         </label>
         <button type="submit" className="btn btn-primary" disabled={busy || form.title.trim().length < 2}><Plus className="w-4 h-4" />Ajouter</button>
-      </form>
+      </form>}
 
       <div className="flex flex-wrap items-center gap-2">
         <select className="select w-auto" value={qui} onChange={(e) => setQui(e.target.value)} aria-label="Personne">
@@ -190,6 +193,7 @@ export default function ActionsEquipe() {
           <div className="card"><EmptyState icon={ListTodo} title="Aucune action" compact>Les actions du point de la semaine et des réunions apparaissent ici.</EmptyState></div>
         ) : groupes.map((g) => (
           <section key={g.id} className="surface overflow-hidden" aria-label={g.titre}>
+            <fieldset disabled={lecture} className="contents">
             <div className="px-4 py-2 border-b hairline flex items-center gap-2">
               <h2 className={`section-title ${g.id === 'retard' ? 'text-red-700' : ''}`}>{g.titre}</h2>
               <span className="text-ui-sm text-gray-500">{g.lignes.length}</span>
@@ -232,6 +236,7 @@ export default function ActionsEquipe() {
                 </li>
               ))}
             </ul>
+            </fieldset>
           </section>
         ))}
 

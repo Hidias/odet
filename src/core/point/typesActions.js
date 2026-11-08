@@ -2,18 +2,14 @@
 // Un type porte un délai (échéance proposée = jour de création + délai), un responsable par défaut et un type suivant.
 // Quand une action d'un type qui a une suite est faite, la suite est PROPOSÉE pré-remplie : rien n'est créé d'office.
 import { supabase } from '../supabase'
-import { getCurrentCompanyId } from '../company/companyContext'
-import { VUE_GROUPE } from '../company/societes'
+import { MESSAGE_VUE_GROUPE, estRefusVueGroupe, societeEnCours, enVueGroupe } from '../company/societes'
 import { decaler, iso } from './pointSemaine'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 
 export const DELAI_MAX = 365
 
-/** Société choisie, ou null en vue groupe et sans choix (instance à une seule société : la base pose la sienne) */
-export const societeEnCours = () => { const c = getCurrentCompanyId(); return c && c !== VUE_GROUPE ? c : null }
-/** Vue groupe (plusieurs sociétés à la fois) */
-export const enVueGroupe = () => getCurrentCompanyId() === VUE_GROUPE
+export { societeEnCours, enVueGroupe }
 
 /** Libellé d'un type ; en vue groupe, avec le nom de sa société (les types de départ portent les mêmes noms) */
 export function libelleType(t, ctx) {
@@ -34,8 +30,8 @@ export async function chargerTypes() {
   return error ? null : data || []
 }
 
-// Messages lisibles pour les refus de la base (nom pris entre-temps, droits)
-const messageType = (err) => (err?.code === '23505' ? 'Un type porte déjà ce nom.'
+// Messages lisibles pour les refus de la base (vue groupe, nom pris entre-temps, droits)
+export const messageType = (err) => (estRefusVueGroupe(err) ? MESSAGE_VUE_GROUPE : err?.code === '23505' ? 'Un type porte déjà ce nom.'
   : err?.code === 'PGRST116' || err?.code === '42501' ? 'Modification refusée : réservée à la direction.' : err?.message || 'Enregistrement impossible.')
 
 /** Nom d'un type : contrôle avant enregistrement (même règle qu'en base : 2 à 80 caractères, nom unique par société) */
@@ -118,15 +114,17 @@ export async function enregistrerType(t) {
     active: t.active !== false,
   }
   try {
+    if (enVueGroupe()) throw new Error(MESSAGE_VUE_GROUPE)
     if (t.id) return must(await supabase.from('team_action_types').update(ligne).eq('id', t.id).select('*').single())
-    if (enVueGroupe()) throw new Error('Choisissez d\'abord une société (pas la vue groupe) pour ajouter un type.')
     const societe = societeEnCours()
     return must(await supabase.from('team_action_types').insert({ ...ligne, position: Number(t.position) || 0, ...(societe ? { company_id: societe } : {}) }).select('*').single())
   } catch (err) { throw new Error(err instanceof Error && !err.code ? err.message : messageType(err)) }
 }
 
 export async function supprimerType(id) {
+  if (enVueGroupe()) throw new Error(MESSAGE_VUE_GROUPE)
   // Une suppression refusée par les droits ne renvoie aucune ligne, sans erreur
-  const lignes = must(await supabase.from('team_action_types').delete().eq('id', id).select('id'))
+  const { data: lignes, error } = await supabase.from('team_action_types').delete().eq('id', id).select('id')
+  if (error) throw new Error(messageType(error))
   if (!lignes?.length) throw new Error('Suppression refusée : réservée à la direction.')
 }

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { ChevronLeft, ChevronRight, RefreshCw, Send, Eye, Plus, X, Undo2, ListPlus, Loader2, Users, ExternalLink } from 'lucide-react'
 import { supabase } from '../supabase'
 import { callApi } from '../api'
-import { getCurrentCompanyId } from '../company/companyContext'
+import { societeEnCours, enVueGroupe } from '../company/societes'
 import { PageHeader } from '../../ui/PageHeader'
 import { Tabs } from '../../ui/Tabs'
 import { Banner } from '../../ui/Banner'
@@ -34,10 +34,13 @@ export default function PointSemaine() {
 
   const aller = (s, k = kind) => setParams({ semaine: s, type: k })
 
+  // Vue groupe : le point est propre à chaque société, rien n'est chargé (sinon celui d'une société au hasard)
+  const groupe = enVueGroupe()
   const charger = async () => {
+    if (groupe) { setBrief(null); return }
     setBrief(undefined)
     let q = supabase.from('weekly_briefs').select('*').eq('week_start', semaine).eq('kind', kind)
-    if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+    if (societeEnCours()) q = q.eq('company_id', societeEnCours())
     const { data, error } = await q.order('created_at').limit(1).maybeSingle()
     if (error) { setBrief(null); toast.error('Le point de la semaine n\'est pas encore disponible.'); return }
     setBrief(data || null)
@@ -46,8 +49,9 @@ export default function PointSemaine() {
   useEffect(() => { charger() }, [semaine, kind]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     chargerEquipe().then(setEquipe)
+    if (groupe) return
     let q = supabase.from('weekly_brief_recipients').select('profile_id, point, bilan')
-    if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+    if (societeEnCours()) q = q.eq('company_id', societeEnCours())
     q.then(({ data }) => setDestinataires(data || []))
   }, [])
 
@@ -126,6 +130,15 @@ export default function PointSemaine() {
   }
 
   const choixSections = SECTIONS.filter((s) => (kind === 'bilan' ? s.bi : s.pt))
+
+  if (groupe) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title={kind === 'bilan' ? 'Bilan de la semaine' : 'Point de la semaine'} />
+        <Banner tone="info">Le point de la semaine est propre à chaque société : pour le lire ou le préparer, choisissez une société dans l'en-tête.</Banner>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">

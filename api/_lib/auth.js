@@ -55,6 +55,21 @@ export function hasCronSecret(req) {
   return safeEqual(bearerToken(req), expected)
 }
 
+// ─── Vue groupe (C3, 0516) ─────────────────────────────────────────────────────
+/** Même phrase que la base, qui refuse toute écriture d'un compte faite en vue groupe */
+export const MESSAGE_VUE_GROUPE = 'Vue groupe : lecture seule. Pour créer ou modifier, choisissez une société dans l\'en-tête.'
+
+/**
+ * Vue groupe : lecture seule. Une route qui écrit avec la clé serveur (donc sans le contrôle de la base), ou qui
+ * prépare un résultat à enregistrer ensuite (rangement d'une réunion par l'assistant, appel payant), appelle ceci
+ * d'abord : répond 403 et retourne true si l'onglet est en vue groupe.
+ */
+export function refusVueGroupe(req, res) {
+  if (req.headers?.['x-company-id'] !== 'groupe') return false
+  res.status(403).json({ error: MESSAGE_VUE_GROUPE })
+  return true
+}
+
 /**
  * Vérifie le jeton de l'utilisateur connecté (en-tête Authorization: Bearer <jwt>)
  * et retourne { user, profile, admin } ou null.
@@ -142,10 +157,7 @@ export async function requireRight(req, res, codes, fallbackRoles, roles) {
     return null
   }
   // Vue groupe (C3) : lecture seule ; une action du serveur se fait toujours dans une société choisie
-  if (req.headers?.['x-company-id'] === 'groupe') {
-    res.status(403).json({ error: 'Vue groupe : lecture seule. Choisissez une société dans l\'en-tête.' })
-    return null
-  }
+  if (refusVueGroupe(req, res)) return null
   const liste = Array.isArray(codes) ? codes : [codes]
   const droits = await droitsDeLAppelant(req)
   if (droits) {

@@ -1,4 +1,4 @@
-import { getCurrentCompanyId } from '../company/companyContext'
+import { societeEnCours, enVueGroupe } from '../company/societes'
 import { useState, useEffect, useMemo } from 'react'
 import { CHOIX_CIVILITE_GENRE } from '../genre'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -627,15 +627,17 @@ function UsersSection({ isSuperadmin }) {
   // Destinataires du point du lundi et du bilan du vendredi (0407) ; colonne absente si la table n'est pas lisible
   const [dest, setDest] = useState(null)
   const chargerDest = async () => {
+    // Vue groupe : destinataires propres à chaque société, colonne masquée (sinon ceux d'une société au hasard)
+    if (enVueGroupe()) { setDest(null); return }
     let q = supabase.from('weekly_brief_recipients').select('profile_id, point, bilan')
-    if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+    if (societeEnCours()) q = q.eq('company_id', societeEnCours())
     const { data, error } = await q
     setDest(error ? null : Object.fromEntries((data || []).map((d) => [d.profile_id, d])))
   }
   const majDest = async (p, champ, v) => {
     const actuel = dest?.[p.id] || { point: false, bilan: false }
     const ligne = { profile_id: p.id, point: actuel.point, bilan: actuel.bilan, [champ]: v }
-    if (getCurrentCompanyId()) ligne.company_id = getCurrentCompanyId()
+    if (societeEnCours()) ligne.company_id = societeEnCours()
     const { error } = await supabase.from('weekly_brief_recipients').upsert(ligne, { onConflict: 'company_id,profile_id' })
     if (error) return toast.error(error.message)
     toast.success(v ? `${p.display_name || p.email} recevra le ${champ === 'point' ? 'point du lundi' : 'bilan du vendredi'}` : 'Mis à jour')

@@ -8,7 +8,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { appUrl } from '../_lib/internal.js'
-import { requireRole, ADMINS } from '../_lib/auth.js'
+import { requireRole, ADMINS, refusVueGroupe } from '../_lib/auth.js'
 import { createOAuthState, verifyOAuthState, socialRedirect } from '../_lib/oauthState.js'
 import { withErrorLog } from '../_lib/errors.js'
 
@@ -34,6 +34,8 @@ async function handler(req, res) {
     if (action === 'start' || action === 'connect') {
       const ctx = await requireRole(req, res, ADMINS)
       if (!ctx) return
+      // Vue groupe : lecture seule (le compte connecté au retour serait rangé dans la société par défaut)
+      if (refusVueGroupe(req, res)) return
       if (!LINKEDIN_CLIENT_ID) {
         return res.status(500).json({ error: 'LINKEDIN_CLIENT_ID non configuré' })
       }

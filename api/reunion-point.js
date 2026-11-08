@@ -4,7 +4,7 @@
 // La réunion est lue avec les droits de l'appelant. Rien n'est envoyé ni enregistré ici : la page montre le résultat,
 // la personne le corrige, choisit les actions à suivre et envoie l'email elle-même.
 
-import { requireUser, clientDeLAppelant, getAdminClient } from './_lib/auth.js'
+import { requireUser, clientDeLAppelant, getAdminClient, refusVueGroupe } from './_lib/auth.js'
 import { loadOrgProfile, orgIdentityBlock, addressRule } from './_lib/orgProfile.js'
 import { withErrorLog } from './_lib/errors.js'
 
@@ -31,6 +31,7 @@ async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
   const ctx = await requireUser(req)
   if (!ctx || ctx.profile.role === 'entreprise') return res.status(403).json({ error: 'Accès refusé' })
+  if (refusVueGroupe(req, res)) return null
   const { meeting_id: id } = req.body || {}
   if (!UUID.test(String(id || ''))) return res.status(400).json({ error: 'Réunion inconnue' })
   if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ error: 'L\'assistant de rédaction n\'est pas configuré.' })

@@ -3,7 +3,7 @@ import toast from 'react-hot-toast'
 import { Smartphone, BellRing, BellOff, Loader2, Send } from 'lucide-react'
 import { supabase } from '../supabase'
 import { callApi } from '../api'
-import { getCurrentCompanyId } from '../company/companyContext'
+import { societeEnCours } from '../company/societes'
 
 // Alertes sur le téléphone (0411) : active les notifications de l'application sur cet appareil (gratuit, sans
 // abonnement). Rien entre 21 h et 7 h 30 ; plusieurs alertes d'un coup arrivent regroupées.
@@ -47,7 +47,7 @@ export default function AlertesTelephone() {
       const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: enOctets(publicKey) })
       const j = sub.toJSON()
       const ligne = { endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, label: appareil() }
-      if (getCurrentCompanyId()) ligne.company_id = getCurrentCompanyId()
+      if (societeEnCours()) ligne.company_id = societeEnCours()
       const { error } = await supabase.from('push_subscriptions').upsert(ligne, { onConflict: 'endpoint' })
       if (error) throw error
       setEtat('actif')

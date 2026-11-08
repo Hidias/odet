@@ -2,8 +2,15 @@
 import { supabase } from '../supabase'
 import { decaler, iso, lundi } from './pointSemaine'
 import { FILTRE_EQUIPE } from '../org/currentOrg'
+import { MESSAGE_VUE_GROUPE, estRefusVueGroupe, enVueGroupe } from '../company/societes'
 
-const must = ({ data, error }) => { if (error) throw error; return data }
+// Vue groupe (0516) : lecture seule ; refus clair avant tout envoi, et même phrase si la base refuse
+const sansVueGroupe = () => { if (enVueGroupe()) throw new Error(MESSAGE_VUE_GROUPE) }
+const ecrire = async (requete) => {
+  const { data, error } = await requete
+  if (error) throw (estRefusVueGroupe(error) ? new Error(MESSAGE_VUE_GROUPE) : error)
+  return data
+}
 
 export const STATUTS_ACTION = { a_faire: 'À faire', fait: 'Fait', abandonne: 'Abandonné' }
 
@@ -32,11 +39,18 @@ export async function creerAction(a) {
   // Suite d'une action : dans la société de l'action faite (compte membre de plusieurs sociétés)
   if (a.company_id) ligne.company_id = a.company_id
   if (ligne.title.length < 2) throw new Error('Intitulé trop court')
-  return must(await supabase.from('team_actions').insert(ligne).select('*').single())
+  sansVueGroupe()
+  return ecrire(supabase.from('team_actions').insert(ligne).select('*').single())
 }
 
 export async function modifierAction(id, patch) {
-  return must(await supabase.from('team_actions').update(patch).eq('id', id).select('*').single())
+  sansVueGroupe()
+  return ecrire(supabase.from('team_actions').update(patch).eq('id', id).select('*').single())
+}
+
+export async function supprimerAction(id) {
+  sansVueGroupe()
+  return ecrire(supabase.from('team_actions').delete().eq('id', id))
 }
 
 /** Report d'une semaine (à partir de l'échéance, ou d'aujourd'hui si elle est passée ou absente) */
