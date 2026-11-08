@@ -14,6 +14,7 @@ import MaJournee from './MaJournee'
 import Visite from './Visite'
 import Appareil from './Appareil'
 import Planning from './Planning'
+import VisitesKanban from './VisitesKanban'
 import Parc from './Parc'
 import ParcClient from './ParcClient'
 import Contrats from './Contrats'
@@ -64,6 +65,7 @@ export default function Interventions() {
   const tabs = [
     { to: 'journee', label: 'Ma journée', show: isTechnician || isManager },
     { to: 'planning', label: 'Planning et tournées', show: isManager },
+    { to: 'visites', label: 'Visites par étape', show: isManager },
     { to: 'parc', label: 'Parc et visites', show: true },
     { to: 'contrats', label: 'Contrats', show: isManager },
     { to: 'reglages', label: 'Réglages', show: isManager },
@@ -91,6 +93,7 @@ export default function Interventions() {
         <Route path="visite/:id" element={<Visite {...ctx} />} />
         <Route path="appareil/:code" element={<Appareil {...ctx} />} />
         <Route path="planning" element={isManager ? <Planning {...ctx} /> : <Navigate to="../journee" replace />} />
+        <Route path="visites" element={isManager ? <VisitesKanban {...ctx} /> : <Navigate to="../journee" replace />} />
         <Route path="parc" element={<Parc {...ctx} />} />
         <Route path="parc/:clientId" element={<ParcClient {...ctx} />} />
         <Route path="contrats" element={isManager ? <Contrats {...ctx} /> : <Navigate to="../journee" replace />} />

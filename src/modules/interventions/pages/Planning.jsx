@@ -3,7 +3,7 @@
 // change l'ordre de passage. Sur tablette et téléphone, le bouton « Placer » remplace le glisser-déposer.
 
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { MapContainer, TileLayer, CircleMarker, Marker, Polyline, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
@@ -11,6 +11,7 @@ import 'leaflet/dist/leaflet.css'
 import { ChevronLeft, ChevronRight, GripVertical, Loader2, X, Plus } from 'lucide-react'
 import { loadDueSites, loadVisits, planSite, reorderVisits, updateVisit, affecterVisite, AffectationRefusee, verifierAffectation, leverAffectation } from '../lib/itvData'
 import { pluriel } from '../../../core/genre'
+import { jourValide } from '../lib/visitesKanban'
 import { todayIso, isoDay, parseDay, daysBetween, routeKm, frShort } from '../lib/schedule'
 import { Empty, Sheet } from '../components/ui'
 
@@ -78,7 +79,9 @@ function RefusAffectation({ refus, technicians, onClose, onDone }) {
 }
 
 export default function Planning({ technicians }) {
-  const [day, setDay] = useState(todayIso())
+  // ?jour=AAAA-MM-JJ : ouverture à ce jour (menu « Changer de jour » des visites par étape)
+  const [params] = useSearchParams()
+  const [day, setDay] = useState(() => jourValide(params.get('jour')) || todayIso())
   const [due, setDue] = useState(null)
   const [visits, setVisits] = useState([])
   const [sector, setSector] = useState('')
