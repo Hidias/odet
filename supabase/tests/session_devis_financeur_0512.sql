@@ -78,6 +78,23 @@ begin
   if v_ses.notes <> 'Préparée depuis le devis signé ESSAI-0512-5 : dates et formateur à confirmer.' or v_ses.funding_type <> 'none' then
     raise exception '10. session sans financement changée (% %)', v_ses.notes, v_ses.funding_type; end if;
 
+  -- 10 bis. CPF avec montant : type cpf ; montant connu mais total du devis à 0 : aucune ligne, note
+  insert into public.quotes (reference, client_id, company_id, status, object, funding_type, funding_amount_ht)
+    values ('ESSAI-0512-6', v_a, v_cie, 'sent', 'Formation', 'cpf', 30) returning id into v_q;
+  insert into public.quote_items (quote_id, position, course_id, quantity, unit_price_ht) values (v_q, 1, v_co1, 1, 100);
+  update public.quotes set status = 'accepted', total_ht = 100 where id = v_q;
+  perform app.devis_prepare_sessions(v_q);
+  select sf.* into f from public.session_fundings sf join public.sessions s on s.id = sf.session_id where s.quote_id = v_q;
+  if f.funder_type is distinct from 'cpf' or f.amount_ht <> 30 or f.percentage <> 30 then raise exception '10b. CPF faux (% % %)', f.funder_type, f.amount_ht, f.percentage; end if;
+  insert into public.quotes (reference, client_id, company_id, status, object, funding_type, funding_name, funding_amount_ht)
+    values ('ESSAI-0512-7', v_a, v_cie, 'sent', 'Formation', 'opco', 'OPCO zéro', 100) returning id into v_q;
+  insert into public.quote_items (quote_id, position, course_id, quantity, unit_price_ht) values (v_q, 1, v_co1, 1, 100);
+  update public.quotes set status = 'accepted', total_ht = 0 where id = v_q;
+  perform app.devis_prepare_sessions(v_q);
+  select * into v_ses from public.sessions where quote_id = v_q;
+  if exists (select 1 from public.session_fundings where session_id = v_ses.id) then raise exception '10c. ligne créée avec un devis à 0'; end if;
+  if v_ses.notes not like '%Financeur prévu au devis : OPCO zéro, montant pris en charge à compléter dans la session.' then raise exception '10d. note fausse (%)', v_ses.notes; end if;
+
   -- 11. Droits : fonction interne fermée
   if has_function_privilege('anon', 'app.devis_prepare_sessions(uuid)', 'execute')
      or has_function_privilege('authenticated', 'app.devis_prepare_sessions(uuid)', 'execute') then
