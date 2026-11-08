@@ -484,7 +484,7 @@ Suite à la formation "${courseTitle}", veuillez trouver ci-joints :
 Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le questionnaire de satisfaction entreprise afin de nous permettre d'améliorer continuellement la qualité de nos prestations.`
       const suite = 'Nous vous remercions pour votre confiance et restons à votre disposition.'
       // Évaluation à froid (décision de H du 08/11) : plus de questionnaire papier joint, il part en ligne au délai réglé
-      const froid = await froidEnLigne(session?.company_id)
+      const froid = await froidEnLigne(session?.company_id, session)
       const base = `${debut}${froid ? `\n\n${PHRASE_FROID_EN_LIGNE}` : ''}\n\n${suite}`
       setEmailBody(base)
       // Invitation en ligne ajoutée quand l'accès est lu, comme le paragraphe du Passeport : insérée avant la formule
