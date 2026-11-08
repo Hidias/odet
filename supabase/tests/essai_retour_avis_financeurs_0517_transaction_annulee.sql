@@ -140,8 +140,9 @@ as $$
 $$;
 revoke all on function app.financeur_nom_norme(text) from public, anon, authenticated;
 
--- Clé d'un financeur : CPF et France Travail (financeur national unique) ; sinon sa fiche, donnée ou retrouvée par son nom
--- dans la société (une saisie libre « Akto » rejoint la fiche AKTO) ; sinon son nom normalisé, quel que soit le type saisi
+-- Clé d'un financeur : CPF et France Travail (financeur national unique) ; sinon une fiche de la société : celle qui porte
+-- son nom normalisé (fiches en double « AKTO » et « Akto », saisie libre « Akto » : une seule, l'OPCO d'abord, puis la
+-- plus ancienne), à défaut la fiche donnée ; sinon son nom normalisé, quel que soit le type saisi
 create or replace function app.financeur_cle(p_company uuid, p_type text, p_client uuid, p_name text)
 returns text
 language sql
@@ -149,13 +150,15 @@ stable
 security definer
 set search_path = ''
 as $$
+  with n as (
+    select app.financeur_nom_norme(coalesce((select c.name from public.clients c where c.id = p_client), p_name)) as nom
+  )
   select case when p_type in ('cpf', 'pole_emploi') then p_type
-    else coalesce('c:' || coalesce(p_client, (
-           select c.id from public.clients c
-           where c.company_id = p_company and app.financeur_nom_norme(p_name) <> ''
-             and app.financeur_nom_norme(c.name) = app.financeur_nom_norme(p_name)
-           order by (c.client_type = 'opco') desc, c.created_at, c.id limit 1))::text,
-         'n:' || app.financeur_nom_norme(p_name)) end
+    else coalesce('c:' || coalesce((
+           select c.id from public.clients c, n
+           where c.company_id = p_company and n.nom <> '' and app.financeur_nom_norme(c.name) = n.nom
+           order by (c.client_type = 'opco') desc, c.created_at, c.id limit 1), p_client)::text,
+         'n:' || (select nom from n)) end
 $$;
 revoke all on function app.financeur_cle(uuid, text, uuid, text) from public, anon, authenticated;
 
@@ -363,6 +366,11 @@ begin
                                                    e.funder_client_id, e.funder_name, x.funder_key, x.funder_client_id, x.funder_name))
       loop
         v_d := null;
+        -- Contrôle refait ici : la liste de la boucle ne voit pas les demandes insérées pendant la boucle
+        if exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.year = v_annee
+                     and app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, v_f.funder_key, v_f.funder_client_id, v_f.funder_name)) then
+          continue;
+        end if;
         insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions)
         values (v_cie.id, v_annee, v_f.funder_key, v_f.funder_type, v_f.funder_name, v_f.funder_client_id, btrim(v_f.contact_email), v_f.sessions_finies)
         on conflict (company_id, funder_key, year) do nothing
@@ -448,7 +456,13 @@ begin
       from public.funder_feedback dd
       where dd.company_id = x.company_id and dd.year = v_annee
         and app.financeur_meme(dd.funder_key, dd.funder_client_id, dd.funder_name, x.funder_key, x.funder_client_id, x.funder_name)
-      order by dd.answered_at is null, dd.created_at
+      -- Par état (répondue, envoyée, validée, préparée, ignorée), puis la plus ancienne : une demande en double ignorée ne
+      -- cache jamais celle qui est partie
+      order by case when dd.answered_at is not null then 0
+                    when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'envoye') then 1
+                    when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'valide') then 2
+                    when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'a_valider') then 3
+                    else 4 end, dd.created_at
       limit 1
     ) d on true
     left join lateral (

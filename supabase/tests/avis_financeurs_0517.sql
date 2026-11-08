@@ -7,7 +7,7 @@ do $$
 declare
   v_cie uuid; v_autre uuid; v_u uuid := gen_random_uuid(); c_u text;
   v_course uuid; v_opco uuid; v_opco2 uuid; v_reg uuid; v_cli_autre uuid;
-  v_s1 uuid; v_s2 uuid; v_s3 uuid; v_s4 uuid; v_s5 uuid; v_s6 uuid; v_s7 uuid;
+  v_s1 uuid; v_s2 uuid; v_s3 uuid; v_s4 uuid; v_s5 uuid; v_s6 uuid; v_s7 uuid; v_dbl1 uuid; v_dbl2 uuid;
   v_an int := extract(year from (now() at time zone 'Europe/Paris'))::int;
   v_auj date := (now() at time zone 'Europe/Paris')::date;
   v_fin date;
@@ -199,6 +199,28 @@ begin
     raise exception '6i. tirets ou apostrophes';
   end if;
 
+  -- 6j. Deux fiches du même nom, chacune sur une session : un seul financeur, une seule demande la même nuit
+  insert into public.clients (name, client_type, email, company_id) values ('ESSAI 0517 DOUBLE', 'opco', 'double@exemple.invalid', v_cie) returning id into v_dbl1;
+  insert into public.clients (name, client_type, email, company_id) values ('Essai 0517 double', 'opco', 'double@exemple.invalid', v_cie) returning id into v_dbl2;
+  insert into public.session_fundings (session_id, funder_type, funder_client_id, amount_ht, status, company_id) values
+    (v_s1, 'opco', v_dbl1, 5, 'pending', v_cie), (v_s2, 'opco', v_dbl2, 5, 'pending', v_cie);
+  if (select count(*) from app.financeurs_de_l_annee(v_cie, v_an) f where app.financeur_nom_norme(f.funder_name) = 'essai 0517 double') <> 1 then
+    raise exception '6j. deux lignes pour deux fiches du même nom';
+  end if;
+  perform public.financeurs_avis_preparer();
+  if (select count(*) from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) = 'essai 0517 double') <> 1 then
+    raise exception '6j2. deux demandes la même nuit';
+  end if;
+  -- Doublon ancien ignoré, l'autre envoyée : le suivi retient celle qui est partie
+  insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, contact_email, sessions, created_at)
+    values (v_cie, v_an, 'n:essai 0517 double ancien', 'opco', 'Essai 0517 double', 'double@exemple.invalid', '[]', now() - interval '1 day')
+    returning id into v_d2;
+  insert into public.scheduled_actions (company_id, kind, target_table, target_id, due_on, title, payload, dedup_key, status)
+    values (v_cie, 'avis_financeur', 'funder_feedback', v_d2, v_auj, 'Essai', '{}', 'avis_financeur:' || v_d2, 'ignore');
+  update public.scheduled_actions set status = 'envoye' where company_id = v_cie and kind = 'avis_financeur'
+     and target_id = (select id from public.funder_feedback where company_id = v_cie and year = v_an and funder_key like 'c:%'
+                        and app.financeur_nom_norme(funder_name) = 'essai 0517 double');
+
   -- 7. Compte de la société : suivi lisible, demandes non modifiables, échanges avec le droit
   insert into auth.users (id, email, aud, role) values (v_u, 'u-0517@exemple.invalid', 'authenticated', 'authenticated');
   insert into public.profiles (id, email) values (v_u, 'u-0517@exemple.invalid') on conflict (id) do nothing;
@@ -227,6 +249,8 @@ begin
   if r is null or r->>'demande' <> 'repondue' or not (r->>'couvert')::boolean or (r->>'note')::int <> 4 then raise exception '7. suivi OPCO un : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ATLAS ESSAI 0517';
   if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a6. état perdu après la création de la fiche : %', r; end if;
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ESSAI 0517 DOUBLE';
+  if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a7. demande envoyée cachée par un doublon ignoré : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco2;
   if r is null or not (r->>'couvert')::boolean or (r->>'echanges')::int <> 1 then raise exception '7b. suivi OPCO deux : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'cpf';

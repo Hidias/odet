@@ -93,8 +93,9 @@ as $$
 $$;
 revoke all on function app.financeur_nom_norme(text) from public, anon, authenticated;
 
--- Clé d'un financeur : CPF et France Travail (financeur national unique) ; sinon sa fiche, donnée ou retrouvée par son nom
--- dans la société (une saisie libre « Akto » rejoint la fiche AKTO) ; sinon son nom normalisé, quel que soit le type saisi
+-- Clé d'un financeur : CPF et France Travail (financeur national unique) ; sinon une fiche de la société : celle qui porte
+-- son nom normalisé (fiches en double « AKTO » et « Akto », saisie libre « Akto » : une seule, l'OPCO d'abord, puis la
+-- plus ancienne), à défaut la fiche donnée ; sinon son nom normalisé, quel que soit le type saisi
 create or replace function app.financeur_cle(p_company uuid, p_type text, p_client uuid, p_name text)
 returns text
 language sql
@@ -102,13 +103,15 @@ stable
 security definer
 set search_path = ''
 as $$
+  with n as (
+    select app.financeur_nom_norme(coalesce((select c.name from public.clients c where c.id = p_client), p_name)) as nom
+  )
   select case when p_type in ('cpf', 'pole_emploi') then p_type
-    else coalesce('c:' || coalesce(p_client, (
-           select c.id from public.clients c
-           where c.company_id = p_company and app.financeur_nom_norme(p_name) <> ''
-             and app.financeur_nom_norme(c.name) = app.financeur_nom_norme(p_name)
-           order by (c.client_type = 'opco') desc, c.created_at, c.id limit 1))::text,
-         'n:' || app.financeur_nom_norme(p_name)) end
+    else coalesce('c:' || coalesce((
+           select c.id from public.clients c, n
+           where c.company_id = p_company and n.nom <> '' and app.financeur_nom_norme(c.name) = n.nom
+           order by (c.client_type = 'opco') desc, c.created_at, c.id limit 1), p_client)::text,
+         'n:' || (select nom from n)) end
 $$;
 revoke all on function app.financeur_cle(uuid, text, uuid, text) from public, anon, authenticated;
 
@@ -316,6 +319,11 @@ begin
                                                    e.funder_client_id, e.funder_name, x.funder_key, x.funder_client_id, x.funder_name))
       loop
         v_d := null;
+        -- Contrôle refait ici : la liste de la boucle ne voit pas les demandes insérées pendant la boucle
+        if exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.year = v_annee
+                     and app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, v_f.funder_key, v_f.funder_client_id, v_f.funder_name)) then
+          continue;
+        end if;
         insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions)
         values (v_cie.id, v_annee, v_f.funder_key, v_f.funder_type, v_f.funder_name, v_f.funder_client_id, btrim(v_f.contact_email), v_f.sessions_finies)
         on conflict (company_id, funder_key, year) do nothing
@@ -401,7 +409,13 @@ begin
       from public.funder_feedback dd
       where dd.company_id = x.company_id and dd.year = v_annee
         and app.financeur_meme(dd.funder_key, dd.funder_client_id, dd.funder_name, x.funder_key, x.funder_client_id, x.funder_name)
-      order by dd.answered_at is null, dd.created_at
+      -- Par état (répondue, envoyée, validée, préparée, ignorée), puis la plus ancienne : une demande en double ignorée ne
+      -- cache jamais celle qui est partie
+      order by case when dd.answered_at is not null then 0
+                    when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'envoye') then 1
+                    when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'valide') then 2
+                    when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'a_valider') then 3
+                    else 4 end, dd.created_at
       limit 1
     ) d on true
     left join lateral (
@@ -565,7 +579,7 @@ do $$
 declare
   v_cie uuid; v_autre uuid; v_u uuid := gen_random_uuid(); c_u text;
   v_course uuid; v_opco uuid; v_opco2 uuid; v_reg uuid; v_cli_autre uuid;
-  v_s1 uuid; v_s2 uuid; v_s3 uuid; v_s4 uuid; v_s5 uuid; v_s6 uuid; v_s7 uuid;
+  v_s1 uuid; v_s2 uuid; v_s3 uuid; v_s4 uuid; v_s5 uuid; v_s6 uuid; v_s7 uuid; v_dbl1 uuid; v_dbl2 uuid;
   v_an int := extract(year from (now() at time zone 'Europe/Paris'))::int;
   v_auj date := (now() at time zone 'Europe/Paris')::date;
   v_fin date;
@@ -757,6 +771,28 @@ begin
     raise exception '6i. tirets ou apostrophes';
   end if;
 
+  -- 6j. Deux fiches du même nom, chacune sur une session : un seul financeur, une seule demande la même nuit
+  insert into public.clients (name, client_type, email, company_id) values ('ESSAI 0517 DOUBLE', 'opco', 'double@exemple.invalid', v_cie) returning id into v_dbl1;
+  insert into public.clients (name, client_type, email, company_id) values ('Essai 0517 double', 'opco', 'double@exemple.invalid', v_cie) returning id into v_dbl2;
+  insert into public.session_fundings (session_id, funder_type, funder_client_id, amount_ht, status, company_id) values
+    (v_s1, 'opco', v_dbl1, 5, 'pending', v_cie), (v_s2, 'opco', v_dbl2, 5, 'pending', v_cie);
+  if (select count(*) from app.financeurs_de_l_annee(v_cie, v_an) f where app.financeur_nom_norme(f.funder_name) = 'essai 0517 double') <> 1 then
+    raise exception '6j. deux lignes pour deux fiches du même nom';
+  end if;
+  perform public.financeurs_avis_preparer();
+  if (select count(*) from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) = 'essai 0517 double') <> 1 then
+    raise exception '6j2. deux demandes la même nuit';
+  end if;
+  -- Doublon ancien ignoré, l'autre envoyée : le suivi retient celle qui est partie
+  insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, contact_email, sessions, created_at)
+    values (v_cie, v_an, 'n:essai 0517 double ancien', 'opco', 'Essai 0517 double', 'double@exemple.invalid', '[]', now() - interval '1 day')
+    returning id into v_d2;
+  insert into public.scheduled_actions (company_id, kind, target_table, target_id, due_on, title, payload, dedup_key, status)
+    values (v_cie, 'avis_financeur', 'funder_feedback', v_d2, v_auj, 'Essai', '{}', 'avis_financeur:' || v_d2, 'ignore');
+  update public.scheduled_actions set status = 'envoye' where company_id = v_cie and kind = 'avis_financeur'
+     and target_id = (select id from public.funder_feedback where company_id = v_cie and year = v_an and funder_key like 'c:%'
+                        and app.financeur_nom_norme(funder_name) = 'essai 0517 double');
+
   -- 7. Compte de la société : suivi lisible, demandes non modifiables, échanges avec le droit
   insert into auth.users (id, email, aud, role) values (v_u, 'u-0517@exemple.invalid', 'authenticated', 'authenticated');
   insert into public.profiles (id, email) values (v_u, 'u-0517@exemple.invalid') on conflict (id) do nothing;
@@ -785,6 +821,8 @@ begin
   if r is null or r->>'demande' <> 'repondue' or not (r->>'couvert')::boolean or (r->>'note')::int <> 4 then raise exception '7. suivi OPCO un : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ATLAS ESSAI 0517';
   if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a6. état perdu après la création de la fiche : %', r; end if;
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ESSAI 0517 DOUBLE';
+  if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a7. demande envoyée cachée par un doublon ignoré : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco2;
   if r is null or not (r->>'couvert')::boolean or (r->>'echanges')::int <> 1 then raise exception '7b. suivi OPCO deux : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'cpf';
