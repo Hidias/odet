@@ -2,7 +2,7 @@
 -- « envoyées » (auteur et date gardés) ; seules la trace de la boîte, l'identifiant du message et la retouche partent.
 
 drop function if exists public.relance_envoi_terminer(uuid, uuid, boolean, text, text, text);
-drop function if exists public.relance_envoi_reserver(uuid, text);
+drop function if exists public.relance_envoi_reserver(uuid, text, timestamptz);
 drop trigger if exists scheduled_actions_envoi_garde on public.scheduled_actions;
 drop function if exists app.scheduled_actions_envoi_garde();
 

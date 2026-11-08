@@ -25,18 +25,31 @@ import { texteEnHtml } from '../src/core/html.js'
 export const config = { maxDuration: 60 }
 
 // Envoi qui n'arriverait pas au destinataire : mode démonstration ou test, hors envoi réel du super administrateur
+// (en préversion ou en test, tout est redirigé, même l'envoi réel)
 export function envoiRedirige(mailer, org) {
-  return !mailer.envoiReel && (isTestEnvironment() || !!org.demo_mode)
+  return isTestEnvironment() || (!mailer.envoiReel && !!org.demo_mode)
 }
-export const MESSAGE_REDIRIGE = 'Mode démonstration : le mail irait à l\'adresse de test, pas au destinataire. Seul le super administrateur envoie pour de vrai ; utilisez « Test à moi ».'
+export const MESSAGE_REDIRIGE = 'Mode démonstration : le mail irait à l\'adresse de test, pas au destinataire. Seul le super administrateur envoie pour de vrai ; « Test à moi » part lui aussi vers l\'adresse de test.'
+
+// Échec de messagerie survenu avant l'envoi du contenu (nodemailer : connexion, identifiants, enveloppe)
+export function echecAvantEnvoi(err) {
+  if (['ECONNECTION', 'EAUTH', 'EDNS', 'EENVELOPE', 'ETLS', 'ENOAUTH'].includes(err?.code)) return true
+  return /^(CONN|EHLO|HELO|STARTTLS|AUTH|MAIL FROM|RCPT TO)/i.test(String(err?.command || ''))
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// Formule de clôture déjà écrite dans les dernières lignes (« Cordialement, / Organisme », « salutations distinguées »)
+export function aUneFormule(texte) {
+  const lignes = String(texte || '').replace(/\u00a0/g, ' ').split('\n').map((l) => l.trim()).filter(Boolean).slice(-3)
+  return finirParCordialement(lignes.join('\n')) || lignes.some((l) => /cordialement|salutations|sinc[eè]res|bonne (journée|fin de journée)/i.test(l))
+}
 
 // Mail d'une relance : objet (titre si vide), texte brut, HTML (texte échappé, formule de politesse si absente, signature)
 export function mailDeRelance({ objet, texte, titre }, sender, org) {
   const corps = String(texte || '')
   const sujet = String(objet || '').trim() || String(titre || '').trim()
-  const politesse = finirParCordialement(corps) ? '' : '<p style="margin: 0;">Bien cordialement,</p>'
+  const politesse = aUneFormule(corps) ? '' : '<p style="margin: 0;">Bien cordialement,</p>'
   return { sujet, texte: politesse ? `${corps.replace(/\s+$/, '')}\n\nBien cordialement,` : corps, html: `${texteEnHtml(corps)}${politesse}${sender ? buildSignatureHTML(sender, org) : ''}` }
 }
 
@@ -54,7 +67,7 @@ async function handler(req, res) {
 
   // Aperçu et test : la relance telle que l'appelant la voit (règles de la base), rien n'est réservé
   if (action !== 'envoi') {
-    const { data: a, error } = await appelant.from('scheduled_actions').select('id, company_id, title, status, payload').eq('id', id).maybeSingle()
+    const { data: a, error } = await appelant.from('scheduled_actions').select('id, company_id, title, status, payload, validated_at').eq('id', id).maybeSingle()
     if (error) return res.status(400).json({ error: error.message })
     if (!a) return res.status(404).json({ error: 'Relance introuvable' })
     const p = a.payload || {}
@@ -66,23 +79,26 @@ async function handler(req, res) {
     if (action === 'apercu') {
       try { mailer.transporter?.close() } catch {}
       return res.status(200).json({
-        id: a.id, destinataire: String(p.destinataire || '').trim(), expediteur: mailer.emailConfig?.email || null,
+        id: a.id, valideLe: a.validated_at || null, redirige: envoiRedirige(mailer.error ? {} : mailer, org), destinataire: String(p.destinataire || '').trim(), expediteur: mailer.emailConfig?.email || null,
         copieCachee: org.email_bcc || null, sujet: mail.sujet, html: mail.html, piecesJointes: [],
         avertissement: mailer.error || (envoiRedirige(mailer, org) ? MESSAGE_REDIRIGE : null),
       })
     }
     if (mailer.error) return res.status(400).json({ error: mailer.error })
+    // Mode démonstration ou test : l'exemple part, lui aussi, vers l'adresse de test (on le dit)
+    const redirige = envoiRedirige(mailer, await getOrgForCompany(admin, null))
     try {
       await sendWithRetry(mailer.transporter, {
         from: `"${sender.name}" <${mailer.emailConfig.email}>`, to: mailer.emailConfig.email,
         subject: `[Test] ${mail.sujet}`, text: mail.texte, html: mail.html,
       }, 1)
     } finally { try { mailer.transporter.close() } catch {} }
-    return res.status(200).json({ ok: true, test: mailer.emailConfig.email })
+    return res.status(200).json({ ok: true, test: redirige ? 'l\'adresse de test du mode démonstration' : mailer.emailConfig.email })
   }
 
   // Boîte d'envoi d'abord : sans elle, rien n'est réservé
   const destinataireVu = typeof req.body?.destinataire === 'string' ? req.body.destinataire : ''
+  const valideLe = typeof req.body?.valideLe === 'string' ? req.body.valideLe : null
   if (!destinataireVu.trim()) return res.status(400).json({ error: 'Ouvrez l\'aperçu du mail avant de l\'envoyer' })
   const mailer = await getMailer(admin, ctx.user.id, { envoiReel: true })
   if (mailer.error) return res.status(400).json({ error: mailer.error })
@@ -92,7 +108,7 @@ async function handler(req, res) {
     if (envoiRedirige(mailer, orgDefaut)) { fermer(); return res.status(409).json({ error: MESSAGE_REDIRIGE }) }
   }
   // Réservation par la base au nom de l'appelant (droit, état, adresse vue, texte, une seule personne à la fois)
-  const { data: r, error: rErr } = await appelant.rpc('relance_envoi_reserver', { p_id: id, p_destinataire: destinataireVu })
+  const { data: r, error: rErr } = await appelant.rpc('relance_envoi_reserver', { p_id: id, p_destinataire: destinataireVu, p_valide_le: valideLe })
   if (rErr) { fermer(); return res.status(rErr.code === '42501' ? 403 : 409).json({ error: rErr.message }) }
   // Trace de fin par la clé de service ; un second essai si la base ne répond pas
   const terminer = async (args) => {
@@ -125,6 +141,11 @@ async function handler(req, res) {
     return res.status(200).json({ ok: true, destinataire: r.destinataire })
   } catch (err) {
     const message = String(err?.message || 'Échec de l\'envoi').slice(0, 300)
+    // Refus avant le contenu du mail (connexion, identifiants, adresse) : rien n'est parti, on peut réessayer.
+    // Sinon le mail a pu partir : la relance reste « envoi sans suite », à vérifier dans la boîte avant tout renvoi.
+    if (!echecAvantEnvoi(err)) {
+      return res.status(502).json({ error: `Résultat incertain : ${message}. Vérifiez dans votre boîte d'envoi si le mail est parti avant de le renvoyer.` })
+    }
     await terminer({ p_ok: false, p_erreur: message })
     return res.status(502).json({ error: `Envoi impossible : ${message}` })
   } finally { fermer() }
