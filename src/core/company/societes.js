@@ -44,6 +44,8 @@ export const estRefusVueGroupe = (err) => String(err?.message || '').startsWith(
 
 /** Société choisie, ou null en vue groupe et sans choix (instance à une seule société : la base pose la sienne) */
 export const societeEnCours = () => { const c = getCurrentCompanyId(); return c && c !== VUE_GROUPE ? c : null }
+/** Vue groupe choisie dans cet onglet (plusieurs sociétés à la fois) */
+export const enVueGroupe = () => getCurrentCompanyId() === VUE_GROUPE
 
 export function societeChoisie() {
   return getCurrentCompanyId()

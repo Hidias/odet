@@ -67,8 +67,8 @@ describe('Vue groupe : routes serveur', () => {
     expect(refusVueGroupe({ headers: { 'x-company-id': '0b8f6d1e-0000-4000-8000-000000000000' } }, r2)).toBe(false)
     expect(r2.code).toBe(0)
   })
-  it('les routes qui écrivent avec la clé serveur appellent le refus', () => {
-    for (const f of ['api/documents-client.js', 'api/reunion-point.js', 'api/convention-en-ligne.js']) {
+  it('les routes qui écrivent avec la clé serveur (ou préparent un enregistrement) appellent le refus', () => {
+    for (const f of ['api/documents-client.js', 'api/reunion-point.js', 'api/convention-en-ligne.js', 'api/auth/google.js', 'api/auth/meta.js', 'api/auth/linkedin.js']) {
       expect(readFileSync(f, 'utf8')).toMatch(/refusVueGroupe\(req, res\)/)
     }
   })

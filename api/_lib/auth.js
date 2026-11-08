@@ -60,8 +60,9 @@ export function hasCronSecret(req) {
 export const MESSAGE_VUE_GROUPE = 'Vue groupe : lecture seule. Pour créer ou modifier, choisissez une société dans l\'en-tête.'
 
 /**
- * Vue groupe : lecture seule. Une route qui écrit avec la clé serveur (donc sans le contrôle de la base) appelle
- * ceci avant d'écrire : répond 403 et retourne true si l'onglet est en vue groupe.
+ * Vue groupe : lecture seule. Une route qui écrit avec la clé serveur (donc sans le contrôle de la base), ou qui
+ * prépare un résultat à enregistrer ensuite (rangement d'une réunion par l'assistant, appel payant), appelle ceci
+ * d'abord : répond 403 et retourne true si l'onglet est en vue groupe.
  */
 export function refusVueGroupe(req, res) {
   if (req.headers?.['x-company-id'] !== 'groupe') return false

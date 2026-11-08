@@ -2,11 +2,10 @@
 import { supabase } from '../supabase'
 import { decaler, iso, lundi } from './pointSemaine'
 import { FILTRE_EQUIPE } from '../org/currentOrg'
-import { getCurrentCompanyId } from '../company/companyContext'
-import { VUE_GROUPE, MESSAGE_VUE_GROUPE, estRefusVueGroupe } from '../company/societes'
+import { MESSAGE_VUE_GROUPE, estRefusVueGroupe, enVueGroupe } from '../company/societes'
 
 // Vue groupe (0516) : lecture seule ; refus clair avant tout envoi, et même phrase si la base refuse
-const sansVueGroupe = () => { if (getCurrentCompanyId() === VUE_GROUPE) throw new Error(MESSAGE_VUE_GROUPE) }
+const sansVueGroupe = () => { if (enVueGroupe()) throw new Error(MESSAGE_VUE_GROUPE) }
 const ecrire = async (requete) => {
   const { data, error } = await requete
   if (error) throw (estRefusVueGroupe(error) ? new Error(MESSAGE_VUE_GROUPE) : error)

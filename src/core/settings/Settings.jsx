@@ -1,4 +1,4 @@
-import { societeEnCours } from '../company/societes'
+import { societeEnCours, enVueGroupe } from '../company/societes'
 import { useState, useEffect, useMemo } from 'react'
 import { CHOIX_CIVILITE_GENRE } from '../genre'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -627,6 +627,8 @@ function UsersSection({ isSuperadmin }) {
   // Destinataires du point du lundi et du bilan du vendredi (0407) ; colonne absente si la table n'est pas lisible
   const [dest, setDest] = useState(null)
   const chargerDest = async () => {
+    // Vue groupe : destinataires propres à chaque société, colonne masquée (sinon ceux d'une société au hasard)
+    if (enVueGroupe()) { setDest(null); return }
     let q = supabase.from('weekly_brief_recipients').select('profile_id, point, bilan')
     if (societeEnCours()) q = q.eq('company_id', societeEnCours())
     const { data, error } = await q

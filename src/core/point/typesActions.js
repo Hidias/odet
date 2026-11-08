@@ -2,17 +2,14 @@
 // Un type porte un délai (échéance proposée = jour de création + délai), un responsable par défaut et un type suivant.
 // Quand une action d'un type qui a une suite est faite, la suite est PROPOSÉE pré-remplie : rien n'est créé d'office.
 import { supabase } from '../supabase'
-import { getCurrentCompanyId } from '../company/companyContext'
-import { VUE_GROUPE, MESSAGE_VUE_GROUPE, estRefusVueGroupe, societeEnCours } from '../company/societes'
+import { MESSAGE_VUE_GROUPE, estRefusVueGroupe, societeEnCours, enVueGroupe } from '../company/societes'
 import { decaler, iso } from './pointSemaine'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 
 export const DELAI_MAX = 365
 
-export { societeEnCours }
-/** Vue groupe (plusieurs sociétés à la fois) */
-export const enVueGroupe = () => getCurrentCompanyId() === VUE_GROUPE
+export { societeEnCours, enVueGroupe }
 
 /** Libellé d'un type ; en vue groupe, avec le nom de sa société (les types de départ portent les mêmes noms) */
 export function libelleType(t, ctx) {
