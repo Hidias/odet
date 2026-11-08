@@ -96,8 +96,8 @@ export function blocsAnnulation(qt, course) {
   return [{ p: 'Conformément aux articles 8 et 9 des conditions générales de vente.' }, ...blocs.flatMap((b) => {
     if (b.h) return [{ h: remplir(b.h) }]
     if (b.p) return [{ p: remplir(b.p) }]
-    if (b.list) return [{ list: b.list.map(remplir) }]
-    if (b.bareme) return [...(b.titre ? [{ p: `${remplir(b.titre)} :` }] : []), { kv: b.bareme.map(([k, v]) => [remplir(k), remplir(v)]), plain: true }]
+    if (b.list) return [{ list: b.list.map(remplir), ...(b.numerote ? { numerote: true } : {}) }]
+    if (b.bareme) return [{ kv: b.bareme.map(([k, v]) => [remplir(k), remplir(v)]), plain: true, titre: b.titre ? `${remplir(b.titre)} :` : '' }]
     return []
   })]
 }
@@ -418,9 +418,10 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   const BOTTOM = 275
   const sigBlockH = 44
   const measureBlock = (b) => {
-    if (b.h) return LINE + 1.5
+    if (b.h) return doc.splitTextToSize(b.h, bodyW).length * LINE + 1.5
     if (b.p) return doc.splitTextToSize(b.p, bodyW).length * LINE + 2
     if (b.list) return b.cols === 2 ? Math.ceil(b.list.length / 2) * LINE + 2 : b.list.reduce((a, it) => a + doc.splitTextToSize(it, bodyW - 6).length * LINE, 0) + 2
+    if (b.kv && b.plain) return (b.titre ? LINE + 2 : 0) + b.kv.reduce((a, r) => a + hauteurLigneKv(r), 0) + 3
     if (b.kv) return b.kv.length * 5.5 + 3
     return 0
   }
@@ -432,6 +433,10 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     }
   }
   const body = () => { doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text) }
+  // Barème (kv plain) : colonne de gauche sur 55 % de la largeur, valeur sur le reste, chacune coupée à la ligne
+  const colK = (bodyW - 7) * 0.55, colV = bodyW - 7 - colK - 4
+  const lignesKv = ([k, v]) => [doc.splitTextToSize(String(k || ''), colK), doc.splitTextToSize(String(v || ''), colV)]
+  const hauteurLigneKv = (r) => { const [a, c] = lignesKv(r); return Math.max(a.length, c.length) * LINE + 1.6 }
   const bullet = (x) => { doc.setFillColor(...t.highlight); doc.circle(x, y - 1.1, 0.7, 'F') }
 
   // Dernière page jamais réduite aux signatures et à quelques lignes (consigne de H du 06/11) : les derniers articles
@@ -457,9 +462,27 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
       body()
       if (b.h) {
         // Intertitre : jamais seul en bas de page (avec au moins deux lignes de ce qui suit)
-        ensure(LINE * 3 + 1.5)
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...t.primary)
-        doc.text(b.h, M + 7, y); y += LINE + 1.5
+        const ls = doc.splitTextToSize(b.h, bodyW)
+        ensure(LINE * (ls.length + 2) + 1.5)
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...t.primary)
+        ls.forEach((l) => { doc.text(l, M + 7, y); y += LINE })
+        y += 1.5
+      } else if (b.kv && b.plain) {
+        // Barème : intitulé et lignes ensemble sur la même page
+        ensure(measureBlock(b))
+        body()
+        if (b.titre) { doc.text(b.titre, M + 7, y); y += LINE + 2 }
+        b.kv.forEach((r) => {
+          const [a, c] = lignesKv(r)
+          body()
+          a.forEach((l, li) => doc.text(l, M + 7, y + li * LINE))
+          c.forEach((l, li) => doc.text(l, M + W, y + li * LINE, { align: 'right' }))
+          const h = Math.max(a.length, c.length) * LINE
+          doc.setDrawColor(...t.line); doc.setLineWidth(0.25); doc.line(M + 7, y + h - LINE + 1.6, M + W, y + h - LINE + 1.6)
+          y += h + 1.6
+        })
+        y += 1.5
       } else if (b.p) {
         const lines = doc.splitTextToSize(b.p, bodyW)
         lines.forEach((l, li) => {
@@ -483,7 +506,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
         b.list.forEach(it => {
           const ls = doc.splitTextToSize(it, bodyW - 6)
           ensure(LINE * ls.length)
-          body(); bullet(M + 8.5)
+          body(); if (!b.numerote) bullet(M + 8.5)
           ls.forEach(l => { doc.text(l, M + 11, y); y += LINE })
         })
         y += 2

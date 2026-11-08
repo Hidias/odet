@@ -32,12 +32,27 @@ describe('Convention : annulation et report', () => {
   it('formation SST : passage SST repris tel quel, en liste, sans astérisques ni « ; » ajoutés', () => {
     const b = cgvAnnulationBlocs(CGV, { sst: true })
     expect(b).toContainEqual({ h: 'Formations Sauveteur Secouriste du Travail (SST) : effectif et prérequis' })
-    expect(b).toContainEqual({ list: ['Effectif réglementaire. De 4 à 10 participants.', 'Prérequis du MAC. Certificat SST.'] })
+    expect(b).toContainEqual({ list: ['1. Effectif réglementaire. De 4 à 10 participants.', '2. Prérequis du MAC. Certificat SST.'], numerote: true })
     expect(textes(b)).not.toMatch(/\*\*|\.\.| ; /)
   })
   it('l\'article 9 suit le passage SST : il revient pour une formation non SST', () => {
     const b = cgvAnnulationBlocs(CGV, { sst: false })
     expect(b).toContainEqual({ p: "L'organisme peut reporter une session." })
+  })
+  it('un sous-titre ou un intertitre vide ne ferme pas le passage SST (fin de l\'article)', () => {
+    const cgv = { sections: [{ title: 'Article 8. Annulation', blocks: [
+      { t: 'p', text: 'Règle commune.' },
+      { t: 'h', text: 'Formations SST' }, { t: 'p', text: 'Règle SST 1.' },
+      { t: 'h', text: 'Maintien et actualisation des compétences' }, { t: 'p', text: 'Règle SST 2.' },
+      { t: 'h', text: '' }, { t: 'p', text: 'Règle SST 3.' },
+    ] }] }
+    expect(textes(cgvAnnulationBlocs(cgv, { sst: false }))).not.toMatch(/Règle SST|Maintien/)
+    expect(textes(cgvAnnulationBlocs(cgv, { sst: true }))).toMatch(/Règle SST 3/)
+  })
+  it('intertitre sans contenu derrière retiré ; seulement des intertitres : rien', () => {
+    const cgv = { sections: [{ title: 'Article 8. Annulation', blocks: [{ t: 'h', text: 'Formations SST' }, { t: 'p', text: 'Règle SST.' }] }] }
+    expect(cgvAnnulationBlocs(cgv, { sst: false })).toEqual([])
+    expect(cgvAnnulationBlocs(cgv, { sst: true })[0]).toEqual({ h: 'Annulation' })
   })
   it('CGV absentes ou sans articles 8 et 9 : rien', () => {
     expect(cgvAnnulationBlocs(null)).toEqual([])

@@ -6,6 +6,7 @@ import { supabase } from '../../../core/supabase'
 import { currentUserEmail } from '../../../core/org/currentOrg'
 import { confirmer as confirmerAlerte } from '../../../ui/Confirm'
 import { alerteConventionSignee } from '../lib/conventionSignee'
+import { estFormationSST } from '../lib/sst'
 
 // Circuit devis signé → session → participants → convention → convocations (0430, décisions de H du 21/10) :
 //  - session préparée depuis un devis signé : une fenêtre de contrôle (0437, 22/10) fait vérifier dates, horaires,
@@ -39,7 +40,6 @@ export function manquesFiche(t = {}) {
 }
 
 const hhmm = (t) => String(t || '').slice(0, 5)
-const SST = /sauveteur secouriste|\bsst\b|\bmac sst\b/i
 
 export default function CircuitSession({ session, peutModifier, onChange, onEnvoyer }) {
   const [confirmer, setConfirmer] = useState(false)
@@ -216,7 +216,7 @@ function FenetreConfirmation({ session, onFermer, onFait }) {
   const [autres, setAutres] = useState([])
   const [envoi, setEnvoi] = useState(false)
   const [erreur, setErreur] = useState('')
-  const sst = SST.test(`${session.courses?.title || ''} ${session.courses?.code || ''}`)
+  const sst = estFormationSST(session.courses)
 
   useEffect(() => {
     const k = (e) => { if (e.key === 'Escape') onFermer() }
