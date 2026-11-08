@@ -64,8 +64,9 @@ set search_path = ''
 as $$
 declare
   v_par_fonction boolean := coalesce(current_setting('app.relance_envoi', true), '') = 'on';
-  -- Personne qui écrit directement (pas une règle déclenchée par une autre écriture, comme le règlement d'une facture)
-  v_personne boolean := (select auth.uid()) is not null and pg_trigger_depth() = 1;
+  -- Personne qui écrit directement par l'API (rôle authenticated, premier niveau). Pas une fonction de la base (toutes
+  -- en security definer : préparation de la nuit ou lancée à la main, règlement d'une facture), même appelée par un compte.
+  v_personne boolean := (select auth.uid()) is not null and current_user = 'authenticated' and pg_trigger_depth() = 1;
   v_texte_change boolean := (new.payload->>'objet') is distinct from (old.payload->>'objet')
     or (new.payload->>'texte') is distinct from (old.payload->>'texte')
     or (new.payload->>'destinataire') is distinct from (old.payload->>'destinataire');
@@ -77,6 +78,9 @@ begin
   new.envoi_message_id := old.envoi_message_id;
   new.texte_retouche := old.texte_retouche;
   if v_personne then
+    -- Validation et envoi : posés par la règle d'état (scheduled_actions_maj, après celle-ci), jamais écrits à la main
+    new.validated_at := old.validated_at; new.validated_by := old.validated_by;
+    new.sent_at := old.sent_at; new.sent_by := old.sent_by;
     -- Envoi en cours (moins de 10 minutes) : l'état ne change que par la fin de l'envoi
     if old.envoi_reserve_at is not null and old.envoi_reserve_at > now() - interval '10 minutes'
        and new.status is distinct from old.status then
@@ -94,9 +98,12 @@ begin
   end if;
   -- Changement d'état par une personne (envoi suspendu vérifié) ou par la base (règlement d'une facture...) :
   -- la réservation tombe ; une fin d'envoi arrivée ensuite est refusée (la relance n'est plus « à envoyer »)
+  -- Par la base, l'auteur de l'envoi reste connu : un mail parti juste après est tracé sans changer l'état.
+  -- L'erreur d'un envoi précédent ne vaut plus pour la suite.
   if new.status is distinct from old.status then
     new.envoi_reserve_at := null;
-    new.envoi_reserve_par := null;
+    if v_personne then new.envoi_reserve_par := null; end if;
+    new.error := null;
   end if;
   return new;
 end
@@ -117,7 +124,8 @@ declare a public.scheduled_actions;
 begin
   if (select auth.uid()) is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
   select * into a from public.scheduled_actions where id = p_id for update;
-  if not found or a.company_id not in (select app.societes_avec_droit('formation.convocations.envoyer')) then
+  if not found or a.company_id not in (select app.societes_avec_droit('formation.convocations.envoyer'))
+     or a.company_id not in (select app.societes_ecriture()) then
     raise exception 'Relance introuvable, ou droit d''envoyer aux stagiaires et aux clients requis' using errcode = '42501';
   end if;
   if a.status <> 'valide' then
@@ -159,9 +167,10 @@ end
 $$;
 
 -- 3. Fin de l'envoi (clé de service seule : la route, après l'envoi réel du mail)
+drop function if exists public.relance_envoi_terminer(uuid, uuid, boolean, text, text, text);
 create or replace function public.relance_envoi_terminer(p_id uuid, p_auteur uuid, p_ok boolean, p_erreur text default null,
   p_message_id text default null, p_boite text default null)
-returns void
+returns text
 language plpgsql
 security definer
 set search_path = ''
@@ -172,7 +181,16 @@ begin
   -- Second appel après une réponse perdue : déjà noté
   if found and p_ok and a.status = 'envoye' and a.sent_by is not distinct from p_auteur and p_message_id is not null
      and a.envoi_message_id is not distinct from left(p_message_id, 500) then
-    return;
+    return 'envoyee';
+  end if;
+  -- Relance écartée par la base pendant l'envoi (facture réglée...) : le mail est parti, on le note sans changer l'état
+  if found and p_ok and a.status <> 'valide' and a.envoi_reserve_at is null and a.envoi_reserve_par is not distinct from p_auteur then
+    perform set_config('app.relance_envoi', 'on', true);
+    update public.scheduled_actions set envoi_reserve_par = null, envoi_boite = left(p_boite, 320), envoi_message_id = left(p_message_id, 500),
+      error = 'Mail parti alors que la relance venait d''être écartée par l''outil (par exemple facture réglée)'
+     where id = a.id;
+    perform set_config('app.relance_envoi', '', true);
+    return 'ecartee';
   end if;
   if not found or a.envoi_reserve_at is null or a.status <> 'valide' or a.envoi_reserve_par is distinct from p_auteur then
     raise exception 'Aucun envoi en cours pour cette relance' using errcode = '22023';
@@ -184,12 +202,15 @@ begin
      where id = a.id;
     -- Auteur : la personne qui a réservé (la règle d'état pose l'utilisateur connecté, absent ici)
     update public.scheduled_actions set sent_by = p_auteur where id = a.id;
+    perform set_config('app.relance_envoi', '', true);
+    return 'envoyee';
   else
     update public.scheduled_actions set envoi_reserve_at = null, envoi_reserve_par = null,
       error = left(coalesce(nullif(btrim(p_erreur), ''), 'Échec de l''envoi'), 300)
      where id = a.id;
   end if;
   perform set_config('app.relance_envoi', '', true);
+  return 'erreur';
 end
 $$;
 
@@ -210,7 +231,7 @@ set local client_min_messages = warning;
 do $$
 declare
   v_cie uuid; v_u uuid := gen_random_uuid(); v_l uuid := gen_random_uuid(); c_u text; c_l text;
-  v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid; v_f uuid; v_g uuid; v_h uuid; v_i uuid; v_j uuid; v_m uuid;
+  v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid; v_f uuid; v_g uuid; v_h uuid; v_i uuid; v_j uuid; v_m uuid; v_cie2 uuid; v_n uuid;
   r jsonb; v_row public.scheduled_actions;
   c_srv text := '{"role":"service_role"}';
 begin
@@ -262,6 +283,11 @@ begin
   update public.profiles set is_active = true where id in (v_u, v_l);
   insert into public.company_members (company_id, profile_id, role, is_default, is_active) values (v_cie, v_u, 'admin', true, true), (v_cie, v_l, 'lecture', true, true)
   on conflict (company_id, profile_id) do update set role = excluded.role, is_active = true, is_default = true;
+  -- Seconde société où le compte a le droit, mais qui n'est pas celle choisie (société par défaut : la première)
+  insert into public.companies (legal_name) values ('Société essai 0518') returning id into v_cie2;
+  insert into public.company_members (company_id, profile_id, role, is_default, is_active) values (v_cie2, v_u, 'admin', false, true);
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
+    (v_cie2, 'autre', 'Essai 0518 N', 'valide', 'essai-0518-n', '{"destinataire":"n@exemple.invalid","texte":"Bonjour N"}') returning id into v_n;
   c_u := json_build_object('sub', v_u, 'role', 'authenticated')::text;
   c_l := json_build_object('sub', v_l, 'role', 'authenticated')::text;
 
@@ -301,6 +327,12 @@ begin
   begin update public.scheduled_actions set title = 'Autre objet' where id = v_b; raise exception '4e. titre changé après validation';
   exception when invalid_parameter_value then null; end;
   update public.scheduled_actions set payload = payload || '{"note":"vu"}' where id = v_b;
+  -- Validation et envoi non écrits à la main
+  update public.scheduled_actions set validated_at = '2020-01-01', validated_by = v_l, sent_at = '2020-01-01', sent_by = v_l where id = v_b;
+  select * into v_row from public.scheduled_actions where id = v_b;
+  if v_row.validated_at = '2020-01-01' or v_row.validated_by is distinct from v_u or v_row.sent_at is not null or v_row.sent_by is not null then
+    raise exception '4g. validation ou envoi écrits à la main';
+  end if;
   -- Nature de la relance posée par la base seulement
   update public.scheduled_actions set payload = (payload - 'interne' - 'etape') || '{"a_valider_par_expert":false}' where id = v_j;
   select * into v_row from public.scheduled_actions where id = v_j;
@@ -322,6 +354,9 @@ begin
   exception when invalid_parameter_value then null; end;
   begin perform public.relance_envoi_reserver(v_g, 'g@exemple.invalid', (select validated_at from public.scheduled_actions where id = v_g)); raise exception '5f. note interne réservée';
   exception when invalid_parameter_value then null; end;
+  if v_cie2 not in (select app.societes_avec_droit('formation.convocations.envoyer')) then raise exception '5i. essai mal préparé : droit absent dans la seconde société'; end if;
+  begin perform public.relance_envoi_reserver(v_n, 'n@exemple.invalid', null); raise exception '5i. relance d''une société non choisie réservée';
+  exception when insufficient_privilege then null; end;
   begin perform public.relance_envoi_reserver(v_a, 'a@exemple.invalid', now()); raise exception '5h. validée autrement que lors de l''aperçu';
   exception when invalid_parameter_value then null; end;
   begin perform public.relance_envoi_reserver(v_a, 'autre@exemple.invalid', (select validated_at from public.scheduled_actions where id = v_a)); raise exception '5g. destinataire différent de l''aperçu';
@@ -362,6 +397,14 @@ begin
   begin perform public.relance_envoi_terminer(v_a, v_u, true); raise exception '8b. fin sans envoi en cours acceptée';
   exception when invalid_parameter_value then null; end;
   execute 'reset role';
+  -- L'erreur tombe quand la relance change d'état (remise à valider pour correction)
+  perform set_config('request.jwt.claims', c_u, true);
+  perform set_config('request.jwt.claim.sub', v_u::text, true);
+  execute 'set local role authenticated';
+  update public.scheduled_actions set status = 'a_valider' where id = v_a;
+  if (select error from public.scheduled_actions where id = v_a) is not null then raise exception '8c. erreur gardée après remise à valider'; end if;
+  update public.scheduled_actions set status = 'valide' where id = v_a;
+  execute 'reset role';
 
   -- 9. Réussite : envoyée, auteur, date, boîte, message ; erreur effacée ; plus rien ne bouge
   perform set_config('request.jwt.claims', c_u, true);
@@ -401,7 +444,13 @@ begin
   if v_row.status <> 'ignore' or v_row.envoi_reserve_at is not null then raise exception '10a. état de la base refusé pendant l''envoi'; end if;
   perform set_config('request.jwt.claims', c_srv, true);
   execute 'set local role service_role';
-  begin perform public.relance_envoi_terminer(v_i, v_u, true); raise exception '10b. fin acceptée sur une relance ignorée';
+  -- Mail parti quand même : noté sans changer l'état
+  if public.relance_envoi_terminer(v_i, v_u, true, null, '<i-0518@exemple.invalid>', 'u-0518@exemple.invalid') <> 'ecartee' then raise exception '10b. fin sur une relance écartée'; end if;
+  select * into v_row from public.scheduled_actions where id = v_i;
+  if v_row.status <> 'ignore' or v_row.envoi_boite <> 'u-0518@exemple.invalid' or v_row.envoi_message_id <> '<i-0518@exemple.invalid>' or v_row.error is null or v_row.envoi_reserve_par is not null then
+    raise exception '10b. trace du mail parti après écartement : %', row_to_json(v_row);
+  end if;
+  begin perform public.relance_envoi_terminer(v_i, v_u, true, null, '<j@exemple.invalid>'); raise exception '10b. seconde fin sur une relance écartée';
   exception when invalid_parameter_value then null; end;
   execute 'reset role';
   perform set_config('request.jwt.claims', '', true);

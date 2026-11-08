@@ -111,8 +111,9 @@ set search_path = ''
 as $$
 declare
   v_par_fonction boolean := coalesce(current_setting('app.relance_envoi', true), '') = 'on';
-  -- Personne qui écrit directement (pas une règle déclenchée par une autre écriture, comme le règlement d'une facture)
-  v_personne boolean := (select auth.uid()) is not null and pg_trigger_depth() = 1;
+  -- Personne qui écrit directement par l'API (rôle authenticated, premier niveau). Pas une fonction de la base (toutes
+  -- en security definer : préparation de la nuit ou lancée à la main, règlement d'une facture), même appelée par un compte.
+  v_personne boolean := (select auth.uid()) is not null and current_user = 'authenticated' and pg_trigger_depth() = 1;
   v_texte_change boolean := (new.payload->>'objet') is distinct from (old.payload->>'objet')
     or (new.payload->>'texte') is distinct from (old.payload->>'texte')
     or (new.payload->>'destinataire') is distinct from (old.payload->>'destinataire');
@@ -124,6 +125,9 @@ begin
   new.envoi_message_id := old.envoi_message_id;
   new.texte_retouche := old.texte_retouche;
   if v_personne then
+    -- Validation et envoi : posés par la règle d'état (scheduled_actions_maj, après celle-ci), jamais écrits à la main
+    new.validated_at := old.validated_at; new.validated_by := old.validated_by;
+    new.sent_at := old.sent_at; new.sent_by := old.sent_by;
     -- Envoi en cours (moins de 10 minutes) : l'état ne change que par la fin de l'envoi
     if old.envoi_reserve_at is not null and old.envoi_reserve_at > now() - interval '10 minutes'
        and new.status is distinct from old.status then
@@ -141,9 +145,12 @@ begin
   end if;
   -- Changement d'état par une personne (envoi suspendu vérifié) ou par la base (règlement d'une facture...) :
   -- la réservation tombe ; une fin d'envoi arrivée ensuite est refusée (la relance n'est plus « à envoyer »)
+  -- Par la base, l'auteur de l'envoi reste connu : un mail parti juste après est tracé sans changer l'état.
+  -- L'erreur d'un envoi précédent ne vaut plus pour la suite.
   if new.status is distinct from old.status then
     new.envoi_reserve_at := null;
-    new.envoi_reserve_par := null;
+    if v_personne then new.envoi_reserve_par := null; end if;
+    new.error := null;
   end if;
   return new;
 end
@@ -164,7 +171,8 @@ declare a public.scheduled_actions;
 begin
   if (select auth.uid()) is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
   select * into a from public.scheduled_actions where id = p_id for update;
-  if not found or a.company_id not in (select app.societes_avec_droit('formation.convocations.envoyer')) then
+  if not found or a.company_id not in (select app.societes_avec_droit('formation.convocations.envoyer'))
+     or a.company_id not in (select app.societes_ecriture()) then
     raise exception 'Relance introuvable, ou droit d''envoyer aux stagiaires et aux clients requis' using errcode = '42501';
   end if;
   if a.status <> 'valide' then
@@ -206,9 +214,10 @@ end
 $$;
 
 -- 3. Fin de l'envoi (clé de service seule : la route, après l'envoi réel du mail)
+drop function if exists public.relance_envoi_terminer(uuid, uuid, boolean, text, text, text);
 create or replace function public.relance_envoi_terminer(p_id uuid, p_auteur uuid, p_ok boolean, p_erreur text default null,
   p_message_id text default null, p_boite text default null)
-returns void
+returns text
 language plpgsql
 security definer
 set search_path = ''
@@ -219,7 +228,16 @@ begin
   -- Second appel après une réponse perdue : déjà noté
   if found and p_ok and a.status = 'envoye' and a.sent_by is not distinct from p_auteur and p_message_id is not null
      and a.envoi_message_id is not distinct from left(p_message_id, 500) then
-    return;
+    return 'envoyee';
+  end if;
+  -- Relance écartée par la base pendant l'envoi (facture réglée...) : le mail est parti, on le note sans changer l'état
+  if found and p_ok and a.status <> 'valide' and a.envoi_reserve_at is null and a.envoi_reserve_par is not distinct from p_auteur then
+    perform set_config('app.relance_envoi', 'on', true);
+    update public.scheduled_actions set envoi_reserve_par = null, envoi_boite = left(p_boite, 320), envoi_message_id = left(p_message_id, 500),
+      error = 'Mail parti alors que la relance venait d''être écartée par l''outil (par exemple facture réglée)'
+     where id = a.id;
+    perform set_config('app.relance_envoi', '', true);
+    return 'ecartee';
   end if;
   if not found or a.envoi_reserve_at is null or a.status <> 'valide' or a.envoi_reserve_par is distinct from p_auteur then
     raise exception 'Aucun envoi en cours pour cette relance' using errcode = '22023';
@@ -231,12 +249,15 @@ begin
      where id = a.id;
     -- Auteur : la personne qui a réservé (la règle d'état pose l'utilisateur connecté, absent ici)
     update public.scheduled_actions set sent_by = p_auteur where id = a.id;
+    perform set_config('app.relance_envoi', '', true);
+    return 'envoyee';
   else
     update public.scheduled_actions set envoi_reserve_at = null, envoi_reserve_par = null,
       error = left(coalesce(nullif(btrim(p_erreur), ''), 'Échec de l''envoi'), 300)
      where id = a.id;
   end if;
   perform set_config('app.relance_envoi', '', true);
+  return 'erreur';
 end
 $$;
 

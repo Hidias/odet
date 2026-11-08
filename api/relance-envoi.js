@@ -31,10 +31,15 @@ export function envoiRedirige(mailer, org) {
 }
 export const MESSAGE_REDIRIGE = 'Mode démonstration : le mail irait à l\'adresse de test, pas au destinataire. Seul le super administrateur envoie pour de vrai ; « Test à moi » part lui aussi vers l\'adresse de test.'
 
-// Échec de messagerie survenu avant l'envoi du contenu (nodemailer : connexion, identifiants, enveloppe)
+// Échec de messagerie survenu sûrement avant l'envoi du contenu (nodemailer 6) : identifiants refusés, adresse refusée,
+// serveur introuvable, connexion ou accueil jamais établis, chiffrement refusé au début. Une coupure ou un délai dépassé
+// plus tard porte aussi « CONN » chez nodemailer : le mail a pu partir, donc incertain.
 export function echecAvantEnvoi(err) {
-  if (['ECONNECTION', 'EAUTH', 'EDNS', 'EENVELOPE', 'ETLS', 'ENOAUTH'].includes(err?.code)) return true
-  return /^(CONN|EHLO|HELO|STARTTLS|AUTH|MAIL FROM|RCPT TO)/i.test(String(err?.command || ''))
+  if (['EAUTH', 'ENOAUTH', 'EENVELOPE', 'EDNS'].includes(err?.code)) return true
+  const message = String(err?.message || '')
+  if (err?.code === 'ETIMEDOUT') return /^(Connection timeout|Greeting never received)/.test(message)
+  if (err?.code === 'ETLS') return /^Error initiating TLS/.test(message)
+  return false
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -50,7 +55,8 @@ export function mailDeRelance({ objet, texte, titre }, sender, org) {
   const corps = String(texte || '')
   const sujet = String(objet || '').trim() || String(titre || '').trim()
   const politesse = aUneFormule(corps) ? '' : '<p style="margin: 0;">Bien cordialement,</p>'
-  return { sujet, texte: politesse ? `${corps.replace(/\s+$/, '')}\n\nBien cordialement,` : corps, html: `${texteEnHtml(corps)}${politesse}${sender ? buildSignatureHTML(sender, org) : ''}` }
+  const signatureTexte = sender ? `\n\n${[sender.name, sender.title, org?.name && org.name !== sender.name ? org.name : '', sender.phone, sender.email].filter(Boolean).join('\n')}` : ''
+  return { sujet, texte: `${politesse ? `${corps.replace(/\s+$/, '')}\n\nBien cordialement,` : corps}${signatureTexte}`, html: `${texteEnHtml(corps)}${politesse}${sender ? buildSignatureHTML(sender, org) : ''}` }
 }
 
 async function handler(req, res) {
@@ -80,7 +86,7 @@ async function handler(req, res) {
       try { mailer.transporter?.close() } catch {}
       return res.status(200).json({
         id: a.id, valideLe: a.validated_at || null, redirige: envoiRedirige(mailer.error ? {} : mailer, org), destinataire: String(p.destinataire || '').trim(), expediteur: mailer.emailConfig?.email || null,
-        copieCachee: org.email_bcc || null, sujet: mail.sujet, html: mail.html, piecesJointes: [],
+        copieCachee: [org.email_bcc, mailer.envoiReel ? mailer.emailConfig?.email : null].filter(Boolean).join(', ') || null, sujet: mail.sujet, html: mail.html, piecesJointes: [],
         avertissement: mailer.error || (envoiRedirige(mailer, org) ? MESSAGE_REDIRIGE : null),
       })
     }
@@ -113,9 +119,9 @@ async function handler(req, res) {
   // Trace de fin par la clé de service ; un second essai si la base ne répond pas
   const terminer = async (args) => {
     const appelFin = () => admin.rpc('relance_envoi_terminer', { p_id: id, p_auteur: ctx.user.id, ...args })
-    let { error } = await appelFin()
-    if (error) ({ error } = await appelFin())
-    return error
+    let r2 = await appelFin()
+    if (r2.error) r2 = await appelFin()
+    return { error: r2.error, data: r2.data }
   }
   let mail
   let sender
@@ -135,7 +141,14 @@ async function handler(req, res) {
       bcc: mail.bcc,
       subject: mail.sujet, text: mail.texte, html: mail.html,
     }, 1)
-    const fErr = await terminer({ p_ok: true, p_message_id: info?.messageId || null, p_boite: mailer.emailConfig.email })
+    // Adresse du destinataire refusée par le serveur (le mail n'est parti qu'aux copies cachées) : échec
+    const refuse = (info?.rejected || []).map((x) => String(x?.address || x).toLowerCase()).includes(r.destinataire.toLowerCase())
+    if (refuse) {
+      await terminer({ p_ok: false, p_erreur: `Adresse refusée par le serveur : ${r.destinataire}` })
+      return res.status(502).json({ error: `Envoi impossible : adresse refusée par le serveur (${r.destinataire})` })
+    }
+    const { error: fErr, data: fin } = await terminer({ p_ok: true, p_message_id: info?.messageId || null, p_boite: mailer.emailConfig.email })
+    if (!fErr && fin === 'ecartee') return res.status(200).json({ ok: true, destinataire: r.destinataire, avertissement: 'Mail envoyé alors que la relance venait d\'être écartée par l\'outil (par exemple facture réglée entre-temps). L\'envoi est noté sur la relance.' })
     // Mail parti mais trace refusée : la relance reste « envoi sans suite », jamais renvoyée seule
     if (fErr) return res.status(200).json({ ok: true, destinataire: r.destinataire, avertissement: 'Mail envoyé, mais la relance n\'a pas pu être marquée « envoyée ». Ne la renvoyez pas : dans 10 minutes, marquez-la envoyée.' })
     return res.status(200).json({ ok: true, destinataire: r.destinataire })

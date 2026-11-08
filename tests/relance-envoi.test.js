@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Envoi d'une relance depuis l'outil (0518) : texte du mail et route, sans base ni messagerie
-const etat = vi.hoisted(() => ({ rpc: [], envois: [], mailerErreur: null, envoiEchoue: false, ligne: null, reserve: null, reserveErreur: null, finErreurs: 0, demo: false, reel: false, orgErreur: false, testEnv: false, testEnv: false }))
+const etat = vi.hoisted(() => ({ rpc: [], envois: [], mailerErreur: null, envoiEchoue: false, ligne: null, reserve: null, reserveErreur: null, finErreurs: 0, rejete: false, finDonnee: null, demo: false, reel: false, orgErreur: false, testEnv: false, testEnv: false }))
 
 vi.mock('../api/_lib/auth.js', () => ({
   OFFICE_WRITE: ['admin'],
@@ -27,7 +27,7 @@ vi.mock('../api/_lib/mailer.js', async (orig) => {
       rpc: async (nom, args) => {
         etat.rpc.push([nom, args])
         if (etat.finErreurs > 0) { etat.finErreurs -= 1; return { error: { message: 'base injoignable' } } }
-        return { error: null }
+        return { error: null, data: etat.finDonnee }
       },
     }),
     getOrgForCompany: async (_c, societe) => {
@@ -39,7 +39,7 @@ vi.mock('../api/_lib/mailer.js', async (orig) => {
     sendWithRetry: async (_t, opts) => {
       if (etat.envoiEchoue) throw Object.assign(new Error('Boîte injoignable'), etat.envoiEchoue === 'EAUTH' ? { code: 'EAUTH' } : {})
       etat.envois.push(opts)
-      return { messageId: '<m1@exemple.invalid>' }
+      return { messageId: '<m1@exemple.invalid>', rejected: etat.rejete ? ['Client@exemple.invalid'] : [] }
     },
   }
 })
@@ -53,7 +53,7 @@ function appel(body) {
 }
 
 beforeEach(() => {
-  Object.assign(etat, { rpc: [], envois: [], mailerErreur: null, envoiEchoue: false, reserveErreur: null, finErreurs: 0, demo: false, reel: false, orgErreur: false, testEnv: false,
+  Object.assign(etat, { rpc: [], envois: [], mailerErreur: null, envoiEchoue: false, reserveErreur: null, finErreurs: 0, rejete: false, finDonnee: null, demo: false, reel: false, orgErreur: false, testEnv: false,
     ligne: { id: ID, company_id: 'c1', title: 'Titre', status: 'valide', validated_at: '2026-11-08T14:00:00.123456+00:00', payload: { destinataire: 'client@exemple.invalid', objet: 'Objet', texte: 'Bonjour,\n\nR&D < 10' } },
     reserve: { id: ID, company_id: 'c1', kind: 'autre', destinataire: 'client@exemple.invalid', objet: 'Objet', texte: 'Bonjour' } })
 })
@@ -64,7 +64,7 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
     expect(m.sujet).toBe('Recyclage SST')
     expect(m.html).toContain('R&amp;D &lt; 10')
     expect(m.html).toContain('Bien cordialement')
-    expect(m.texte.endsWith('Bien cordialement,')).toBe(true)
+    expect(m.texte.endsWith('Bien cordialement,\n\nA')).toBe(true)
     const m2 = mailDeRelance({ objet: 'O', texte: 'Bonjour\n\nCordialement,' }, null, {})
     expect(m2.html).not.toContain('Bien cordialement')
     expect(m2.texte).toBe('Bonjour\n\nCordialement,')
@@ -164,8 +164,12 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
   })
 
   it('échec de messagerie : avant le contenu (réessai possible) ou incertain', () => {
-    expect(echecAvantEnvoi({ code: 'EAUTH' })).toBe(true)
-    expect(echecAvantEnvoi({ command: 'RCPT TO' })).toBe(true)
+    expect(echecAvantEnvoi({ code: 'EAUTH', command: 'AUTH PLAIN' })).toBe(true)
+    expect(echecAvantEnvoi({ code: 'EENVELOPE', command: 'RCPT TO' })).toBe(true)
+    expect(echecAvantEnvoi({ code: 'ETIMEDOUT', command: 'CONN', message: 'Connection timeout' })).toBe(true)
+    expect(echecAvantEnvoi({ code: 'ETIMEDOUT', command: 'CONN', message: 'Timeout' })).toBe(false)
+    expect(echecAvantEnvoi({ code: 'ECONNECTION', command: 'CONN', message: 'Connection closed unexpectedly' })).toBe(false)
+    expect(echecAvantEnvoi({ code: 'ESOCKET', command: 'CONN' })).toBe(false)
     expect(echecAvantEnvoi({ command: 'DATA' })).toBe(false)
     expect(echecAvantEnvoi(new Error('socket hang up'))).toBe(false)
   })
@@ -185,6 +189,26 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
     expect(etat.envois).toEqual([])
     expect((await appel({ id: ID, action: 'test' })).json.test).toContain('adresse de test')
     expect((await appel({ id: ID, action: 'apercu' })).json.redirige).toBe(true)
+  })
+
+  const V = { id: ID, action: 'envoi', destinataire: 'client@exemple.invalid', valideLe: '2026-11-08T14:00:00.123456+00:00' }
+  it('adresse du destinataire refusée par le serveur : échec noté, pas « envoyée »', async () => {
+    etat.rejete = true
+    const r = await appel(V)
+    expect(r.code).toBe(502)
+    expect(etat.rpc[1][1]).toMatchObject({ p_ok: false, p_erreur: 'Adresse refusée par le serveur : client@exemple.invalid' })
+  })
+
+  it('relance écartée par l\'outil pendant l\'envoi : averti, envoi noté', async () => {
+    etat.finDonnee = 'ecartee'
+    const r = await appel(V)
+    expect(r.code).toBe(200)
+    expect(r.json.avertissement).toContain('écartée')
+  })
+
+  it('aperçu en envoi réel du super administrateur : sa propre copie cachée annoncée', async () => {
+    etat.reel = true
+    expect((await appel({ id: ID, action: 'apercu' })).json.copieCachee).toBe('copie@exemple.invalid, moi@exemple.invalid')
   })
 
   it('demande mal formée refusée', async () => {

@@ -221,7 +221,7 @@ export default function AValider() {
             {ouvert.status === 'a_valider' && !ouvert.blocked_reason && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'valide', ouvert.payload)} disabled={busy}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Valider</button>}
             {ouvert.status === 'valide' && (ouvert.envoi_possible && ouvert.payload.destinataire
-              ? <button type="button" className="btn btn-primary" onClick={() => envoyer(ouvert)} disabled={busy || apercu?.id !== ouvert.id || apercu?.redirige}>
+              ? <button type="button" className="btn btn-primary" onClick={() => envoyer(ouvert)} disabled={busy || apercu?.id !== ouvert.id || apercu?.redirige || !apercu?.expediteur}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer</button>
               : <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'envoye', null, true)} disabled={busy}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer envoyée</button>)}
@@ -252,7 +252,7 @@ export default function AValider() {
           </div>
           {ouvert.status === 'valide' && ouvert.error && <Banner tone="danger">Dernier envoi échoué : {ouvert.error}. Vous pouvez réessayer.</Banner>}
           {ouvert.status === 'valide' && ouvert.envoi_reserve_at && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? ', par une autre personne,' : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti : marquez la relance envoyée, ou remettez-la à valider pour la renvoyer (possible 10 minutes après le début de l'envoi).</Banner>}
-          {ouvert.status === 'valide' && !ouvert.envoi_possible && <p className="text-ui-sm text-gray-500">Cette relance est une consigne pour l'équipe : faites l'action indiquée (depuis la session ou la fiche), puis « Marquer envoyée ».</p>}
+          {ouvert.status === 'valide' && ouvert.envoi_possible === false && <p className="text-ui-sm text-gray-500">Cette relance ne s'envoie pas depuis l'outil (consigne pour l'équipe, ou courrier à faire relire) : faites l'action indiquée, puis « Marquer envoyée ».</p>}
           {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && !ouvert.envoi_reserve_at && (
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-secondary" onClick={() => voirApercu(ouvert)} disabled={busy}><Eye className="w-4 h-4" /> Voir le mail</button>
@@ -269,7 +269,8 @@ export default function AValider() {
               <iframe title="Aperçu du mail" className="w-full border rounded-ui bg-white" style={{ minHeight: 320 }} sandbox="" srcDoc={apercu.html} />
             </div>
           )}
-          {ouvert.status === 'valide' && (
+          {/* Base d'avant 0518 (envoi_possible absent) : on garde la copie et la messagerie */}
+          {ouvert.status === 'valide' && ouvert.envoi_possible !== false && (
             <details className="text-ui-sm text-gray-600">
               <summary className="cursor-pointer">Envoyer plutôt depuis ma messagerie</summary>
               <div className="flex flex-wrap gap-2 mt-2">
