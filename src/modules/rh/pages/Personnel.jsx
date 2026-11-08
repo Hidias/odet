@@ -6,7 +6,7 @@ import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Plus, Phone, Mail, Search, Users, Pencil, Eye, Archive, ArchiveRestore, Trash2, Clock } from 'lucide-react'
+import { Plus, Phone, Mail, Search, Users, Pencil, Eye, Archive, ArchiveRestore, Trash2, Clock, LogOut } from 'lucide-react'
 import { useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
 import { PageHeader } from '../../../ui/PageHeader'
@@ -27,6 +27,7 @@ import Absences, { DemandeSheet } from './Absences'
 import Heures from './Heures'
 import { DocumentsFiche, HabilitationsFiche, SanteFiche, ConsignesFiche, AffichageAdapteFiche } from './DocumentsSante'
 import EpiFiche from './EpiFiche'
+import { DepartSheet, BandeauDepart } from './Depart'
 import MonEspace from './MonEspace'
 import TableauRH from './TableauRH'
 import RegistrePaie from './RegistrePaie'
@@ -409,6 +410,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
   const [contrats, setContrats] = useState([])
   const [edition, setEdition] = useState(false)
   const [contratEdite, setContratEdite] = useState(null)
+  const [depart, setDepart] = useState(false)
   const charger = useCallback(async () => {
     try {
       const [pp, cc] = await Promise.all([chargerPersonne(id), chargerContrats(id)])
@@ -437,9 +439,15 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
         actions={peutGerer ? (
           <div className="flex gap-2">
             <button type="button" className="btn btn-secondary" onClick={() => setEdition(true)}><Pencil className="w-4 h-4" aria-hidden="true" />Modifier</button>
+            {!p.archived_at && !(p.departure_on && !p.departure_applied_at) && (
+              <button type="button" className="btn btn-ghost" onClick={() => setDepart(true)}><LogOut className="w-4 h-4" aria-hidden="true" />Enregistrer un départ</button>
+            )}
             <button type="button" className="btn btn-ghost" onClick={archiver}>{p.archived_at ? <ArchiveRestore className="w-4 h-4" aria-hidden="true" /> : <Archive className="w-4 h-4" aria-hidden="true" />}{p.archived_at ? 'Désarchiver' : 'Archiver'}</button>
           </div>
         ) : null} />
+
+      <BandeauDepart personne={p} peutGerer={peutGerer} onChange={charger} />
+      {depart && <DepartSheet personne={p} nom={nomComplet(p)} onClose={() => setDepart(false)} onSaved={() => { setDepart(false); charger() }} />}
 
       <section className="card space-y-1">
         <h2 className="section-title mb-1">Identité et coordonnées</h2>
