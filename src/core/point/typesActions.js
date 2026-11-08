@@ -3,34 +3,39 @@
 // Quand une action d'un type qui a une suite est faite, la suite est PROPOSÉE pré-remplie : rien n'est créé d'office.
 import { supabase } from '../supabase'
 import { getCurrentCompanyId } from '../company/companyContext'
+import { VUE_GROUPE } from '../company/societes'
 import { decaler, iso } from './pointSemaine'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 
 export const DELAI_MAX = 365
 
+/** Société en cours, ou null en vue groupe (plusieurs sociétés) ou sans choix */
+export const societeEnCours = () => { const c = getCurrentCompanyId(); return c && c !== VUE_GROUPE ? c : null }
+
 /**
- * Types de la société en cours, dans l'ordre ; null si la lecture a échoué (jamais une liste vide inventée).
- * Filtrés par société : un compte membre de plusieurs sociétés les voit toutes (comme le point de la semaine).
+ * Types dans l'ordre ; null si la lecture a échoué (jamais une liste vide inventée). Société en cours seulement ;
+ * en vue groupe, ceux de toutes les sociétés visibles (chaque type garde sa société).
  */
 export async function chargerTypes() {
   let q = supabase.from('team_action_types').select('*')
-  if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+  if (societeEnCours()) q = q.eq('company_id', societeEnCours())
   const { data, error } = await q.order('position').order('name')
   return error ? null : data || []
 }
 
 // Messages lisibles pour les refus de la base (nom pris entre-temps, droits)
 const messageType = (err) => (err?.code === '23505' ? 'Un type porte déjà ce nom.'
-  : err?.code === 'PGRST116' ? 'Modification refusée : réservée à la direction.' : err?.message || 'Enregistrement impossible.')
+  : err?.code === 'PGRST116' || err?.code === '42501' ? 'Modification refusée : réservée à la direction.' : err?.message || 'Enregistrement impossible.')
 
-/** Nom d'un type : contrôle avant enregistrement (même règle qu'en base : 2 à 80 caractères, nom unique) */
-export function erreurNomType(nom, types = [], id = null) {
+/** Nom d'un type : contrôle avant enregistrement (même règle qu'en base : 2 à 80 caractères, nom unique par société) */
+export function erreurNomType(nom, types = [], id = null, societe = null) {
   const n = String(nom || '').trim()
   if (n.length < 2) return 'Le nom doit compter au moins 2 caractères.'
   if (n.length > 80) return 'Le nom ne doit pas dépasser 80 caractères.'
   const cle = n.toLocaleLowerCase('fr')
-  if ((types || []).some((t) => t.id !== id && String(t.name || '').trim().toLocaleLowerCase('fr') === cle)) return 'Un type porte déjà ce nom.'
+  if ((types || []).some((t) => t.id !== id && (!societe || !t.company_id || t.company_id === societe)
+    && String(t.name || '').trim().toLocaleLowerCase('fr') === cle)) return 'Un type porte déjà ce nom.'
   return null
 }
 
@@ -59,6 +64,7 @@ export function choixType(form, type, auj = iso(new Date()), types = []) {
   return {
     ...form,
     type_id: type.id,
+    ...(type.company_id ? { company_id: type.company_id } : {}),
     title: !titre || (avant && titre === avant.name) ? type.name : form.title,
     owner_id: type.default_owner_id || form.owner_id,
     due_on: echeanceDuType(type, auj),
@@ -103,9 +109,10 @@ export async function enregistrerType(t) {
   }
   try {
     if (t.id) return must(await supabase.from('team_action_types').update(ligne).eq('id', t.id).select('*').single())
-    const societe = getCurrentCompanyId()
+    const societe = societeEnCours()
+    if (!societe) throw new Error('Choisissez d\'abord une société (pas la vue groupe) pour ajouter un type.')
     return must(await supabase.from('team_action_types').insert({ ...ligne, position: Number(t.position) || 0, ...(societe ? { company_id: societe } : {}) }).select('*').single())
-  } catch (err) { throw new Error(messageType(err)) }
+  } catch (err) { throw new Error(err instanceof Error && !err.code ? err.message : messageType(err)) }
 }
 
 export async function supprimerType(id) {

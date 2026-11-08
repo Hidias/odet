@@ -18,6 +18,11 @@ describe('Types d\'action', () => {
     expect(erreurNomType('Relancer le devis', types, 'rel')).toBeNull()
     expect(erreurNomType('Visite', types)).toBeNull()
   })
+  it('nom unique par société seulement (vue groupe : même nom dans deux sociétés)', () => {
+    const t2 = [{ id: 'x1', company_id: 's1', name: 'Appeler' }, { id: 'x2', company_id: 's2', name: 'Appeler' }]
+    expect(erreurNomType('Appeler', t2, 'x1', 's1')).toBeNull()
+    expect(erreurNomType('Appeler', t2, null, 's1')).toMatch(/déjà/)
+  })
   it('délai : entier de 0 à 365', () => {
     expect(delaiValide('0')).toBe(0)
     expect(delaiValide(' 7 ')).toBe(7)
@@ -48,6 +53,9 @@ describe('Choix d\'un type à la création', () => {
     const f1 = choixType(form, types[0], auj, types)
     expect(choixType(f1, types[2], auj, types).title).toBe('Relancer le devis')
     expect(choixType({ ...f1, title: 'Appeler M. Durand' }, types[2], auj, types).title).toBe('Appeler M. Durand')
+  })
+  it('le type porte sa société (action créée dans la société du type)', () => {
+    expect(choixType(form, { ...types[0], company_id: 's2' }, auj, types).company_id).toBe('s2')
   })
   it('sans type : rien d\'autre ne change', () => {
     expect(choixType({ ...form, title: 'x', type_id: 'app' }, null, auj)).toEqual({ ...form, title: 'x', type_id: '' })

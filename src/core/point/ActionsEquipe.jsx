@@ -68,7 +68,7 @@ export default function ActionsEquipe() {
     e.preventDefault()
     setBusy(true)
     try {
-      await creerAction({ ...form, owner_id: form.owner_id || null, due_on: form.due_on || null, type_id: form.type_id || null })
+      await creerAction({ ...form, owner_id: form.owner_id || null, due_on: form.due_on || null, type_id: form.type_id || null, company_id: form.type_id ? form.company_id || null : null })
       setForm({ ...VIDE, owner_id: moi?.id || '' })
       toast.success('Action ajoutée')
       charger()
