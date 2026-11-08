@@ -6,7 +6,7 @@
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { conventionSigneeEtat, groupesParSession } from '../../formation/lib/etatConvention'
-import { resumeFinanceurs, ligneIndicateur30 } from './financeurs'
+import { resumeFinanceurs, lignesIndicateur30 } from './financeurs'
 
 const filled = (v) => v != null && String(v).trim() !== ''
 
@@ -338,7 +338,7 @@ export const RULES = {
       ...(e.n.coldEmployeurs ? [ok(`Entreprises, évaluations à froid de l'employeur : ${e.n.coldEmployeurs}`, L.indicateurs)] : []),
       // Financeurs (0517) : sollicités au moins une fois par an ou rencontrés (guide V10, p. 37) ; rien sans financeur ;
       // le suivi détaillé s'affiche sous ces preuves (SuiviFinanceurs)
-      ...[ligneIndicateur30(e.financeurs, e.anneeFinanceurs)].filter(Boolean).map((l) => (l.ok ? ok(l.label, null) : ko(l.label, null))),
+      ...lignesIndicateur30(e.financeurs, e.anneeFinanceurs).map((l) => (l.ok ? ok(l.label, null) : ko(l.label, null))),
     ],
     missing: ['Déposer ici les questionnaires entreprise et donneur d\'ordre retournés signés'],
   }),

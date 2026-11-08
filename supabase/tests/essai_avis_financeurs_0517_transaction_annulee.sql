@@ -14,18 +14,23 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- Décisions de H (08/11) : une sollicitation par financeur et par an ; envoi PRÉPARÉ (Relances à valider), jamais envoyé
 -- sans une personne ; le financeur répond par un lien, sans compte.
 --   1. funder_feedback : une demande d'avis par société, financeur et année (sessions financées gardées en photo), lien
---      à usage unique (jeton de 48 caractères), valable 90 jours, actif seulement une fois la relance validée ou envoyée.
+--      à usage unique (jeton de 48 caractères, illisible par les comptes), actif seulement une fois la relance validée ou
+--      envoyée, valable 90 jours à compter de la validation ou de l'envoi. Seules les sessions terminées sont annoncées.
 --      Aucune écriture par un compte : la base prépare, le financeur répond par les fonctions du lien.
 --   2. funder_exchanges : échanges avec un financeur saisis à la main (webinaire, réunion, échange sur une prestation,
 --      contrôle, consultation de son site d'avis), qui couvrent l'année comme une sollicitation (guide V10).
---   3. app.financeurs_de_l_annee(société, année) : financeurs des sessions non annulées de l'année (dernier jour dans
+--   3. app.financeur_cle : un financeur = CPF, France Travail, sa fiche (donnée, ou retrouvée par son nom sans casse ni
+--      accents dans la société), sinon son nom normalisé. app.financeurs_de_l_annee(société, année) : financeurs des
+--      sessions non annulées de l'année (dernier jour dans
 --      l'année), financements ni refusés ni annulés ; OPCO, région, autre, CPF, France Travail. Le financeur
 --      « entreprise » est l'entreprise elle-même (avis de l'entreprise, 0415, 0504) : il n'est pas repris ici.
 --   4. public.financeurs_avis_preparer() (la nuit, clé de service) : pour chaque OPCO, région ou autre financeur qui a au
 --      moins une session terminée dans l'année, avec une adresse, sans demande ni échange dans l'année : une demande et
---      une relance à valider (« avis_financeur ») ; 15 jours après l'envoi sans réponse, une seconde relance à valider.
+--      une relance à valider (« avis_financeur ») ; 15 jours après l'envoi sans réponse, une seconde relance à valider,
+--      à l'adresse retenue au premier envoi. L'année écoulée reste traitée jusqu'au 31 mars.
 --      CPF et France Travail : rien n'est préparé (leurs plateformes recueillent les avis) ; un échange saisi les couvre.
---   5. public.financeurs_suivi(année) : suivi par financeur pour l'écran (couvert : sollicité ou échange dans l'année).
+--   5. public.financeurs_suivi(année) : suivi par financeur pour l'écran (couvert : sollicité ou échange dans l'année),
+--      et sessions marquées financées sans aucun financeur renseigné (la nuit ne peut rien en faire).
 --   6. public.financeur_avis_ouvrir(jeton) et public.financeur_avis_repondre(jeton, réponses) : page publique du lien
 --      (une seule réponse, notification à l'organisme). Aucune donnée de stagiaire n'est montrée.
 -- Additive. Idempotente. Retour arrière : supabase/rollback/0517_avis_financeurs_retour.sql
@@ -35,7 +40,7 @@ create table if not exists public.funder_feedback (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
   year int not null check (year between 2020 and 2100),
-  funder_key text not null check (length(funder_key) between 3 and 200),
+  funder_key text not null check (length(funder_key) between 3 and 220),
   funder_type text not null check (funder_type in ('opco', 'region', 'autre')),
   funder_name text not null check (length(btrim(funder_name)) between 1 and 200),
   funder_client_id uuid references public.clients(id) on delete set null,
@@ -75,19 +80,48 @@ create table if not exists public.funder_exchanges (
 create index if not exists funder_exchanges_societe_idx on public.funder_exchanges (company_id, happened_on);
 comment on table public.funder_exchanges is 'Échanges avec un financeur (0517, Qualiopi 30 : webinaire, réunion, échange, contrôle, site d''avis), saisis à la main';
 
--- Clé d'un financeur : CPF et France Travail (financeur national unique), sinon sa fiche s'il en a une, sinon son type
--- et son nom (espaces et casse ignorés)
-create or replace function app.financeur_cle(p_type text, p_client uuid, p_name text)
+-- Nom d'un financeur comparé sans casse, sans accents et sans espaces en trop (« Région  Bretagne » = « region bretagne »)
+create or replace function app.financeur_nom_norme(p_name text)
 returns text
 language sql
 immutable
 set search_path = ''
 as $$
-  select case when p_type in ('cpf', 'pole_emploi') then p_type
-              when p_client is not null then 'c:' || p_client::text
-              else coalesce(p_type, 'autre') || ':' || lower(regexp_replace(btrim(coalesce(p_name, '')), '\s+', ' ', 'g')) end
+  select replace(replace(translate(lower(regexp_replace(btrim(coalesce(p_name, '')), '\s+', ' ', 'g')),
+    'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ', 'aaaaaaceeeeiiiinooooouuuuyy'), 'œ', 'oe'), 'æ', 'ae')
 $$;
-revoke all on function app.financeur_cle(text, uuid, text) from public, anon, authenticated;
+revoke all on function app.financeur_nom_norme(text) from public, anon, authenticated;
+
+-- Clé d'un financeur : CPF et France Travail (financeur national unique) ; sinon sa fiche, donnée ou retrouvée par son nom
+-- dans la société (une saisie libre « Akto » rejoint la fiche AKTO) ; sinon son nom normalisé, quel que soit le type saisi
+create or replace function app.financeur_cle(p_company uuid, p_type text, p_client uuid, p_name text)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when p_type in ('cpf', 'pole_emploi') then p_type
+    else coalesce('c:' || coalesce(p_client, (
+           select c.id from public.clients c
+           where c.company_id = p_company and app.financeur_nom_norme(p_name) <> ''
+             and app.financeur_nom_norme(c.name) = app.financeur_nom_norme(p_name)
+           order by (c.client_type = 'opco') desc, c.created_at, c.id limit 1))::text,
+         'n:' || app.financeur_nom_norme(p_name)) end
+$$;
+revoke all on function app.financeur_cle(uuid, text, uuid, text) from public, anon, authenticated;
+
+-- Même contrôle d'adresse pour la nuit et pour l'écran
+create or replace function app.financeur_email_valide(p_email text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(btrim(p_email) ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$', false)
+$$;
+revoke all on function app.financeur_email_valide(text) from public, anon, authenticated;
+
 
 -- Société, auteur et date de création figés ; fiche du financeur de la même société ; date passée ; nom nettoyé
 create or replace function app.funder_exchanges_regle()
@@ -123,24 +157,28 @@ create trigger funder_exchanges_regle before insert or update on public.funder_e
   for each row execute function app.funder_exchanges_regle();
 
 -- ── 3. Financeurs d'une année ──
+-- Sessions non annulées dont le dernier jour est dans l'année ; « sessions_finies » : celles déjà terminées (les seules
+-- annoncées au financeur)
 create or replace function app.financeurs_de_l_annee(p_company uuid, p_year int)
 returns table (funder_key text, funder_type text, funder_name text, funder_client_id uuid, contact_email text,
-               sessions jsonb, sessions_terminees int)
+               sessions jsonb, sessions_terminees int, sessions_finies jsonb)
 language sql
 stable
 security definer
 set search_path = ''
 as $$
   with f as (
-    select app.financeur_cle(sf.funder_type, sf.funder_client_id, coalesce(c.name, sf.funder_name)) as cle,
-           sf.funder_type, coalesce(nullif(btrim(c.name), ''), nullif(btrim(sf.funder_name), '')) as nom, sf.funder_client_id,
+    select k.cle, sf.funder_type, coalesce(nullif(btrim(c.name), ''), nullif(btrim(sf.funder_name), '')) as nom, c.id as client_id,
            coalesce(nullif(btrim(sf.funder_contact_email), ''), nullif(btrim(c.billing_email), ''), nullif(btrim(c.email), ''),
                     nullif(btrim(c.contact_email), '')) as email,
-           sf.updated_at, s.id as session_id, s.reference, co.title, s.start_date, coalesce(s.end_date, s.start_date) as fin
+           sf.updated_at, jsonb_build_object('id', s.id, 'reference', s.reference, 'titre', co.title, 'debut', s.start_date,
+                                             'fin', coalesce(s.end_date, s.start_date)) as session,
+           s.id as session_id, coalesce(s.end_date, s.start_date) <= (now() at time zone 'Europe/Paris')::date as finie
     from public.session_fundings sf
     join public.sessions s on s.id = sf.session_id
     left join public.courses co on co.id = s.course_id
-    left join public.clients c on c.id = sf.funder_client_id
+    cross join lateral (select app.financeur_cle(s.company_id, sf.funder_type, sf.funder_client_id, sf.funder_name) as cle) k
+    left join public.clients c on c.id = case when k.cle like 'c:%' then substr(k.cle, 3)::uuid end
     where s.company_id = p_company
       and s.status is distinct from 'cancelled'
       and sf.status not in ('refused', 'cancelled')
@@ -151,18 +189,32 @@ as $$
   )
   select f.cle, min(f.funder_type),
          coalesce(max(f.nom), case min(f.funder_type) when 'cpf' then 'CPF (Caisse des Dépôts)' when 'pole_emploi' then 'France Travail' else 'Financeur' end),
-         (array_agg(f.funder_client_id) filter (where f.funder_client_id is not null))[1],
+         (array_agg(f.client_id) filter (where f.client_id is not null))[1],
          (array_agg(f.email order by f.updated_at desc) filter (where f.email is not null))[1],
-         jsonb_agg(distinct jsonb_build_object('id', f.session_id, 'reference', f.reference, 'titre', f.title,
-                                               'debut', f.start_date, 'fin', f.fin)),
-         count(distinct f.session_id) filter (where f.fin <= (now() at time zone 'Europe/Paris')::date)::int
+         jsonb_agg(distinct f.session),
+         count(distinct f.session_id) filter (where f.finie)::int,
+         coalesce(jsonb_agg(distinct f.session) filter (where f.finie), '[]'::jsonb)
   from f
   group by f.cle
 $$;
 revoke all on function app.financeurs_de_l_annee(uuid, int) from public, anon, authenticated;
 
+-- Années encore traitées par la nuit : l'année en cours, et l'année écoulée jusqu'au 31 mars (session finie le 31/12,
+-- accord d'un OPCO reçu en janvier)
+create or replace function app.financeurs_annees_ouvertes()
+returns int[]
+language sql
+stable
+set search_path = ''
+as $$
+  select case when extract(month from (now() at time zone 'Europe/Paris')) <= 3
+              then array[extract(year from (now() at time zone 'Europe/Paris'))::int, extract(year from (now() at time zone 'Europe/Paris'))::int - 1]
+              else array[extract(year from (now() at time zone 'Europe/Paris'))::int] end
+$$;
+revoke all on function app.financeurs_annees_ouvertes() from public, anon, authenticated;
+
 -- ── 4. Préparation de la nuit ──
-create or replace function app.avis_financeur_texte(p_relance boolean, p_org text, p_annee int, p_n int, p_lien text, p_fin timestamptz)
+create or replace function app.avis_financeur_texte(p_relance boolean, p_org text, p_annee int, p_n int, p_lien text)
 returns text
 language sql
 immutable
@@ -172,23 +224,42 @@ as $$
     'Bonjour,' || E'\n\n' || 'Nous nous permettons de revenir vers vous : votre avis sur '
       || case when p_n > 1 then 'les formations que vous avez financées' else 'la formation que vous avez financée' end
       || ' en ' || p_annee || ' nous serait utile. Le questionnaire prend deux minutes, sans créer de compte :' || E'\n'
-      || p_lien || E'\n\n' || 'Il reste valable jusqu''au ' || to_char(p_fin at time zone 'Europe/Paris', 'DD/MM/YYYY') || '.'
-      || E'\n\n' || 'Cordialement,' || E'\n' || p_org
+      || p_lien || E'\n\n' || 'Cordialement,' || E'\n' || p_org
   else
-    'Bonjour,' || E'\n\n' || p_org || ' a réalisé en ' || p_annee || ' '
+    'Bonjour,' || E'\n\n' || 'En ' || p_annee || ', ' || p_org || ' a réalisé '
       || case when p_n > 1 then p_n || ' formations que vous avez financées' else 'une formation que vous avez financée' end
       || '. Dans le cadre de notre démarche qualité (certification Qualiopi), nous recueillons une fois par an l''avis des financeurs.'
       || E'\n\n' || 'Si vous le souhaitez, vous pouvez nous faire part de vos observations en deux minutes, sans créer de compte :'
-      || E'\n' || p_lien || E'\n\n' || 'Ce lien vous est réservé ; il est valable jusqu''au '
-      || to_char(p_fin at time zone 'Europe/Paris', 'DD/MM/YYYY') || '.' || E'\n\n' || 'Cordialement,' || E'\n' || p_org
+      || E'\n' || p_lien || E'\n\n' || 'Ce lien vous est réservé et ne sert qu''une fois.' || E'\n\n' || 'Cordialement,' || E'\n' || p_org
   end
 $$;
-revoke all on function app.avis_financeur_texte(boolean, text, int, int, text, timestamptz) from public, anon, authenticated;
+revoke all on function app.avis_financeur_texte(boolean, text, int, int, text) from public, anon, authenticated;
 
 alter table public.scheduled_actions drop constraint if exists scheduled_actions_kind_check;
 alter table public.scheduled_actions add constraint scheduled_actions_kind_check check (kind in ('relance_recyclage',
   'justificatif_prestataire', 'convocation', 'rappel', 'evaluation_froid', 'relance_impaye', 'autre', 'renouvellement_contrat',
   'visite_hors_contrat', 'emargement_manquant', 'eval_chaud', 'attestations', 'facture_brouillon', 'avis_financeur'));
+
+-- Lien valable 90 jours à compter de la validation ou de l'envoi (pas de la préparation : une relance peut attendre)
+create or replace function app.avis_financeur_lien_actif()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.kind = 'avis_financeur' and new.target_id is not null and new.status in ('valide', 'envoye')
+     and new.status is distinct from old.status then
+    update public.funder_feedback d set expires_at = greatest(d.expires_at, now() + interval '90 days'), updated_at = now()
+     where d.id = new.target_id and d.company_id = new.company_id and d.answered_at is null;
+  end if;
+  return null;
+end
+$$;
+revoke all on function app.avis_financeur_lien_actif() from public, anon, authenticated;
+drop trigger if exists scheduled_actions_avis_financeur on public.scheduled_actions;
+create trigger scheduled_actions_avis_financeur after update of status on public.scheduled_actions
+  for each row execute function app.avis_financeur_lien_actif();
 
 create or replace function public.financeurs_avis_preparer()
 returns jsonb
@@ -198,10 +269,11 @@ set search_path = ''
 as $$
 declare
   v_url text;
-  v_annee int := extract(year from (now() at time zone 'Europe/Paris'))::int;
+  v_annee int;
   v_cie record;
   v_f record;
   v_d public.funder_feedback;
+  v_r record;
   v_org text;
   v_n int;
   v_demandes int := 0;
@@ -215,45 +287,51 @@ begin
                from public.companies c where c.is_training_org is not false and c.status = 'active'
   loop
     v_org := coalesce(nullif(btrim(v_cie.nom), ''), 'L''organisme de formation');
-    for v_f in
-      select * from app.financeurs_de_l_annee(v_cie.id, v_annee) x
-      where x.funder_type in ('opco', 'region', 'autre') and x.sessions_terminees > 0
-        and x.contact_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'
-        and not exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.funder_key = x.funder_key and d.year = v_annee)
-        and not exists (select 1 from public.funder_exchanges e where e.company_id = v_cie.id
-                          and extract(year from e.happened_on)::int = v_annee
-                          and app.financeur_cle(e.funder_type, e.funder_client_id, e.funder_name) = x.funder_key)
-    loop
-      insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions)
-      values (v_cie.id, v_annee, v_f.funder_key, v_f.funder_type, v_f.funder_name, v_f.funder_client_id, v_f.contact_email, v_f.sessions)
-      on conflict (company_id, funder_key, year) do nothing
-      returning * into v_d;
-      if v_d.id is null then continue; end if;
-      v_n := jsonb_array_length(v_d.sessions);
-      insert into public.scheduled_actions (company_id, kind, target_table, target_id, client_id, due_on, title, payload, dedup_key)
-      values (v_cie.id, 'avis_financeur', 'funder_feedback', v_d.id, v_d.funder_client_id, (now() at time zone 'Europe/Paris')::date,
-              left('Avis du financeur ' || v_annee || ' : ' || v_d.funder_name, 255),
-              jsonb_build_object('destinataire', v_d.contact_email, 'objet', 'Votre avis sur nos formations ' || v_annee,
-                                 'texte', app.avis_financeur_texte(false, v_org, v_annee, v_n, v_url || '/#/avis-financeur/' || v_d.token, v_d.expires_at)),
-              'avis_financeur:' || v_d.id)
-      on conflict (company_id, dedup_key) do nothing;
-      v_demandes := v_demandes + 1;
+    foreach v_annee in array app.financeurs_annees_ouvertes() loop
+      for v_f in
+        select * from app.financeurs_de_l_annee(v_cie.id, v_annee) x
+        where x.funder_type in ('opco', 'region', 'autre') and x.sessions_terminees > 0
+          and app.financeur_email_valide(x.contact_email)
+          and not exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.funder_key = x.funder_key and d.year = v_annee)
+          and not exists (select 1 from public.funder_exchanges e where e.company_id = v_cie.id
+                            and extract(year from e.happened_on)::int = v_annee
+                            and app.financeur_cle(e.company_id, e.funder_type, e.funder_client_id, e.funder_name) = x.funder_key)
+      loop
+        v_d := null;
+        insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions)
+        values (v_cie.id, v_annee, v_f.funder_key, v_f.funder_type, v_f.funder_name, v_f.funder_client_id, btrim(v_f.contact_email), v_f.sessions_finies)
+        on conflict (company_id, funder_key, year) do nothing
+        returning * into v_d;
+        if v_d.id is null then continue; end if;
+        v_n := jsonb_array_length(v_d.sessions);
+        insert into public.scheduled_actions (company_id, kind, target_table, target_id, client_id, due_on, title, payload, dedup_key)
+        values (v_cie.id, 'avis_financeur', 'funder_feedback', v_d.id, v_d.funder_client_id, (now() at time zone 'Europe/Paris')::date,
+                left('Avis du financeur ' || v_annee || ' : ' || v_d.funder_name, 255),
+                jsonb_build_object('destinataire', v_d.contact_email, 'objet', 'Votre avis sur nos formations ' || v_annee,
+                                   'texte', app.avis_financeur_texte(false, v_org, v_annee, v_n, v_url || '/#/avis-financeur/' || v_d.token)),
+                'avis_financeur:' || v_d.id)
+        on conflict (company_id, dedup_key) do nothing;
+        v_demandes := v_demandes + 1;
+      end loop;
     end loop;
-    -- Seconde relance : 15 jours après l'envoi, sans réponse, encore au moins 10 jours de validité
-    for v_d in
-      select d.* from public.funder_feedback d
+    -- Seconde relance : 15 jours après l'envoi, sans réponse, encore au moins 10 jours de validité ; à l'adresse
+    -- retenue au premier envoi (elle a pu être corrigée dans les relances)
+    for v_r in
+      select d.id, d.year, d.funder_name, d.funder_client_id, d.token, d.sessions,
+             coalesce(nullif(btrim(a.payload->>'destinataire'), ''), d.contact_email) as destinataire
+      from public.funder_feedback d
       join public.scheduled_actions a on a.company_id = d.company_id and a.dedup_key = 'avis_financeur:' || d.id
       where d.company_id = v_cie.id and d.answered_at is null and d.expires_at > now() + interval '10 days'
         and a.status = 'envoye' and a.sent_at <= now() - interval '15 days'
         and not exists (select 1 from public.scheduled_actions r where r.company_id = d.company_id and r.dedup_key = 'avis_financeur_relance:' || d.id)
     loop
-      v_n := jsonb_array_length(v_d.sessions);
+      v_n := jsonb_array_length(v_r.sessions);
       insert into public.scheduled_actions (company_id, kind, target_table, target_id, client_id, due_on, title, payload, dedup_key)
-      values (v_cie.id, 'avis_financeur', 'funder_feedback', v_d.id, v_d.funder_client_id, (now() at time zone 'Europe/Paris')::date,
-              left('Relance, avis du financeur ' || v_d.year || ' : ' || v_d.funder_name, 255),
-              jsonb_build_object('destinataire', v_d.contact_email, 'objet', 'Rappel : votre avis sur nos formations ' || v_d.year,
-                                 'texte', app.avis_financeur_texte(true, v_org, v_d.year, v_n, v_url || '/#/avis-financeur/' || v_d.token, v_d.expires_at)),
-              'avis_financeur_relance:' || v_d.id)
+      values (v_cie.id, 'avis_financeur', 'funder_feedback', v_r.id, v_r.funder_client_id, (now() at time zone 'Europe/Paris')::date,
+              left('Relance, avis du financeur ' || v_r.year || ' : ' || v_r.funder_name, 255),
+              jsonb_build_object('destinataire', v_r.destinataire, 'objet', 'Rappel : votre avis sur nos formations ' || v_r.year,
+                                 'texte', app.avis_financeur_texte(true, v_org, v_r.year, v_n, v_url || '/#/avis-financeur/' || v_r.token)),
+              'avis_financeur_relance:' || v_r.id)
       on conflict (company_id, dedup_key) do nothing;
       v_relances := v_relances + 1;
     end loop;
@@ -265,6 +343,8 @@ revoke all on function public.financeurs_avis_preparer() from public, anon, auth
 grant execute on function public.financeurs_avis_preparer() to service_role;
 
 -- ── 5. Suivi pour l'écran ──
+-- { financeurs: [...], sans_financeur: [...] } : sans_financeur = sessions de l'année marquées financées (type de
+-- financement de la session) sans aucun financeur renseigné, que la nuit ne peut pas traiter
 create or replace function public.financeurs_suivi(p_annee int default null)
 returns jsonb
 language plpgsql
@@ -274,25 +354,31 @@ set search_path = ''
 as $$
 declare
   v_annee int := coalesce(p_annee, extract(year from (now() at time zone 'Europe/Paris'))::int);
+  v_ouverte boolean := v_annee = any (app.financeurs_annees_ouvertes());
 begin
   if (select auth.uid()) is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
-  return coalesce((
+  return jsonb_build_object('annee', v_annee, 'annee_ouverte', v_ouverte, 'financeurs', coalesce((
     select jsonb_agg(jsonb_build_object(
       'company_id', x.company_id, 'cle', x.funder_key, 'type', x.funder_type, 'nom', x.funder_name,
-      'client_id', x.funder_client_id, 'email', x.contact_email, 'sessions', x.sessions, 'sessions_terminees', x.sessions_terminees,
+      'client_id', x.funder_client_id, 'email', x.contact_email, 'email_valide', app.financeur_email_valide(x.contact_email),
+      'sessions', x.sessions, 'sessions_terminees', x.sessions_terminees,
       'demande', d.etat, 'repondu_le', d.answered_at, 'note', d.note_globale,
       'echanges', coalesce(e.n, 0), 'dernier_echange', e.dernier,
-      'couvert', coalesce(d.etat in ('envoyee', 'repondue'), false) or coalesce(e.n, 0) > 0
+      'couvert', coalesce(d.etat in ('envoyee', 'expiree', 'repondue'), false) or coalesce(e.n, 0) > 0,
+      'preparable', v_ouverte and d.etat is null and coalesce(e.n, 0) = 0 and x.funder_type in ('opco', 'region', 'autre')
+                    and x.sessions_terminees > 0 and app.financeur_email_valide(x.contact_email)
     ) order by x.funder_name)
     from (select c.id as company_id, f.* from public.companies c
             cross join lateral app.financeurs_de_l_annee(c.id, v_annee) f
            where c.id in (select app.visible_companies())) x
     left join lateral (
       select dd.answered_at, dd.note_globale,
+             -- Lien expiré : seulement après l'envoi (avant, il repart pour 90 jours à la validation)
              case when dd.answered_at is not null then 'repondue'
-                  when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'envoye') then 'envoyee'
-                  when dd.expires_at <= now() then 'expiree'
-                  when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status in ('a_valider', 'valide')) then 'preparee'
+                  when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'envoye')
+                    then case when dd.expires_at <= now() then 'expiree' else 'envoyee' end
+                  when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'valide') then 'validee'
+                  when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'a_valider') then 'preparee'
                   else 'ignoree' end as etat
       from public.funder_feedback dd
       where dd.company_id = x.company_id and dd.funder_key = x.funder_key and dd.year = v_annee
@@ -300,13 +386,25 @@ begin
     left join lateral (
       select count(*)::int as n, max(ee.happened_on) as dernier from public.funder_exchanges ee
       where ee.company_id = x.company_id and extract(year from ee.happened_on)::int = v_annee
-        and app.financeur_cle(ee.funder_type, ee.funder_client_id, ee.funder_name) = x.funder_key
+        and app.financeur_cle(ee.company_id, ee.funder_type, ee.funder_client_id, ee.funder_name) = x.funder_key
     ) e on true
-  ), '[]'::jsonb);
+  ), '[]'::jsonb), 'sans_financeur', coalesce((
+    select jsonb_agg(jsonb_build_object('company_id', s.company_id, 'id', s.id, 'reference', s.reference, 'titre', co.title,
+                                        'fin', coalesce(s.end_date, s.start_date), 'funding_type', s.funding_type)
+                     order by coalesce(s.end_date, s.start_date))
+    from public.sessions s left join public.courses co on co.id = s.course_id
+    where s.company_id in (select app.visible_companies())
+      and s.status is distinct from 'cancelled'
+      and extract(year from coalesce(s.end_date, s.start_date))::int = v_annee
+      and nullif(btrim(coalesce(s.funding_type, '')), '') is not null and s.funding_type not in ('none', 'direct')
+      and not exists (select 1 from public.session_fundings sf where sf.session_id = s.id and sf.funder_type <> 'entreprise'
+                        and sf.status not in ('refused', 'cancelled'))
+  ), '[]'::jsonb));
 end
 $$;
 revoke all on function public.financeurs_suivi(int) from public, anon;
 grant execute on function public.financeurs_suivi(int) to authenticated;
+
 
 -- ── 6. Page publique du lien ──
 create or replace function app.financeur_avis_lire(p_token text)
@@ -405,7 +503,11 @@ grant execute on function public.financeur_avis_repondre(text, jsonb) to anon, a
 -- ── Droits ──
 alter table public.funder_feedback enable row level security;
 revoke all on table public.funder_feedback from public, anon, authenticated;
-grant select on table public.funder_feedback to authenticated;
+-- Le jeton n'est pas lisible par les comptes (sinon n'importe quel compte de la société pourrait répondre à la place du
+-- financeur) : il n'apparaît que dans le texte de la relance, pour qui la valide
+grant select (id, company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions, expires_at,
+  answered_at, note_globale, q_information, q_administratif, q_qualite, q_relation, commentaire, created_at, updated_at)
+  on table public.funder_feedback to authenticated;
 grant all on table public.funder_feedback to service_role;
 drop policy if exists funder_feedback_lire on public.funder_feedback;
 create policy funder_feedback_lire on public.funder_feedback for select to authenticated
@@ -441,7 +543,7 @@ do $$
 declare
   v_cie uuid; v_autre uuid; v_u uuid := gen_random_uuid(); c_u text;
   v_course uuid; v_opco uuid; v_opco2 uuid; v_reg uuid; v_cli_autre uuid;
-  v_s1 uuid; v_s2 uuid; v_s3 uuid; v_s4 uuid; v_s5 uuid;
+  v_s1 uuid; v_s2 uuid; v_s3 uuid; v_s4 uuid; v_s5 uuid; v_s6 uuid; v_s7 uuid;
   v_an int := extract(year from (now() at time zone 'Europe/Paris'))::int;
   v_auj date := (now() at time zone 'Europe/Paris')::date;
   v_fin date;
@@ -480,11 +582,24 @@ begin
     (v_s4, 'opco', null, v_opco2, null, 100, 'pending', v_cie),                                 -- année suivante
     (v_s5, 'opco', null, v_opco2, null, 100, 'refused', v_cie),                                 -- financement refusé
     (v_s5, 'autre', 'Fonds  essai   sans adresse', null, null, 100, 'pending', v_cie),          -- sans adresse
-    (v_s5, 'entreprise', null, v_cli_autre, 'ent@exemple.invalid', 100, 'pending', v_cie);      -- l'entreprise elle-même
+    (v_s5, 'entreprise', null, v_cli_autre, 'ent@exemple.invalid', 100, 'pending', v_cie),      -- l'entreprise elle-même
+    (v_s2, 'autre', 'essai  0517 opco ÜN', null, null, 20, 'pending', v_cie);                   -- OPCO un saisi à la main
+  -- OPCO un : une session de plus, pas encore faite (jamais annoncée au financeur), si l'année n'est pas finie
+  if extract(year from v_auj + 1)::int = v_an then
+    insert into public.sessions (course_id, client_id, start_date, end_date, status, company_id) values
+      (v_course, v_cli_autre, v_auj + 1, v_auj + 1, 'planned', v_cie) returning id into v_s6;
+    insert into public.session_fundings (session_id, funder_type, funder_client_id, amount_ht, status, company_id) values (v_s6, 'opco', v_opco, 10, 'pending', v_cie);
+  end if;
+  -- Session marquée financée par un OPCO sans aucun financeur renseigné
+  insert into public.sessions (course_id, client_id, start_date, end_date, status, company_id, funding_type) values
+    (v_course, v_cli_autre, v_fin, v_fin, 'completed', v_cie, 'opco') returning id into v_s7;
 
   -- 1. Financeurs de l'année : OPCO un (2 sessions), CPF, « autre » sans adresse ; ni annulée, ni refusée, ni l'an prochain, ni l'entreprise
-  select count(*) into v_n from app.financeurs_de_l_annee(v_cie, v_an) f where f.funder_key in ('c:' || v_opco, 'cpf', 'autre:fonds essai sans adresse');
+  select count(*) into v_n from app.financeurs_de_l_annee(v_cie, v_an) f where f.funder_key in ('c:' || v_opco, 'cpf', 'n:fonds essai sans adresse');
   if v_n <> 3 then raise exception '1. financeurs de l''année : % sur 3', v_n; end if;
+  -- Saisie libre du même nom (casse, accents, espaces, autre type) : rattachée à la fiche
+  if exists (select 1 from app.financeurs_de_l_annee(v_cie, v_an) f where f.funder_key like 'n:essai 0517%') then raise exception '1a. même financeur sous deux clés'; end if;
+  if app.financeur_nom_norme(' Région   BRETAGNE ') <> 'region bretagne' then raise exception '1a2. nom normalisé : %', app.financeur_nom_norme(' Région   BRETAGNE '); end if;
   if exists (select 1 from app.financeurs_de_l_annee(v_cie, v_an) f where f.funder_key in ('c:' || v_reg, 'c:' || v_opco2, 'c:' || v_cli_autre)) then
     raise exception '1b. financeur exclu repris';
   end if;
@@ -497,12 +612,13 @@ begin
   r := public.financeurs_avis_preparer();
   select id, token into v_d, v_tok from public.funder_feedback where company_id = v_cie and funder_key = 'c:' || v_opco and year = v_an;
   if v_d is null then raise exception '2. demande absente (%)', r; end if;
-  if exists (select 1 from public.funder_feedback where company_id = v_cie and funder_key in ('cpf', 'autre:fonds essai sans adresse')) then raise exception '2b. demande sans adresse ou CPF'; end if;
+  if exists (select 1 from public.funder_feedback where company_id = v_cie and funder_key in ('cpf', 'n:fonds essai sans adresse')) then raise exception '2b. demande sans adresse ou CPF'; end if;
   select * into v_a from public.scheduled_actions where company_id = v_cie and dedup_key = 'avis_financeur:' || v_d;
   if v_a.id is null or v_a.status <> 'a_valider' or v_a.kind <> 'avis_financeur' or v_a.target_id <> v_d then raise exception '2c. relance absente ou fausse'; end if;
   if position('/#/avis-financeur/' || v_tok in v_a.payload->>'texte') = 0 then raise exception '2d. lien absent du texte'; end if;
   if v_a.payload->>'texte' like '%' || chr(8212) || '%' then raise exception '2e. tiret cadratin'; end if;
-  if position('2 formations que vous avez financées' in v_a.payload->>'texte') = 0 then raise exception '2f. nombre de formations : %', v_a.payload->>'texte'; end if;
+  if position('En ' || v_an || ', ' in v_a.payload->>'texte') = 0 or position('2 formations que vous avez financées' in v_a.payload->>'texte') = 0
+     or jsonb_array_length((select sessions from public.funder_feedback where id = v_d)) <> 2 then raise exception '2f. nombre de formations : %', v_a.payload->>'texte'; end if;
   if length(v_tok) <> 48 then raise exception '2g. jeton de % caractères', length(v_tok); end if;
   -- Rejouée : rien de plus
   perform public.financeurs_avis_preparer();
@@ -533,7 +649,10 @@ begin
   if not (r ? 'error') then raise exception '4. lien actif avant validation'; end if;
   r := public.financeur_avis_repondre(v_tok, '{"note_globale": 4}');
   if not (r ? 'error') or exists (select 1 from public.funder_feedback where id = v_d and answered_at is not null) then raise exception '4b. réponse avant validation'; end if;
+  -- Lien qui aurait expiré pendant l'attente : repart pour 90 jours à l'envoi
+  update public.funder_feedback set expires_at = now() - interval '1 day' where id = v_d;
   update public.scheduled_actions set status = 'envoye' where id = v_a.id;
+  if (select expires_at from public.funder_feedback where id = v_d) < now() + interval '89 days' then raise exception '4c. lien non prolongé à l''envoi'; end if;
 
   -- 5. Page publique, rôle anonyme : ouverture, réponses refusées, réponse unique, table fermée
   perform set_config('request.jwt.claims', '{"role":"anon"}', true);
@@ -576,6 +695,7 @@ begin
     returning id, token into v_d2, v_tok2;
   insert into public.scheduled_actions (company_id, kind, target_table, target_id, due_on, title, payload, dedup_key)
     values (v_cie, 'avis_financeur', 'funder_feedback', v_d2, v_auj, 'Essai', '{}', 'avis_financeur:' || v_d2);
+  update public.scheduled_actions set payload = '{"destinataire": " corrigee@exemple.invalid "}', status = 'valide' where dedup_key = 'avis_financeur:' || v_d2;
   update public.scheduled_actions set status = 'envoye' where dedup_key = 'avis_financeur:' || v_d2;
   update public.scheduled_actions set sent_at = now() - interval '14 days' where dedup_key in ('avis_financeur:' || v_d2, 'avis_financeur:' || v_d);
   perform public.financeurs_avis_preparer();
@@ -587,8 +707,13 @@ begin
   if exists (select 1 from public.scheduled_actions where dedup_key = 'avis_financeur_relance:' || v_d) then raise exception '6c. relance d''une demande répondue'; end if;
   select payload->>'texte' into v_t from public.scheduled_actions where dedup_key = 'avis_financeur_relance:' || v_d2;
   if position('/#/avis-financeur/' || v_tok2 in v_t) = 0 or position('la formation que vous avez financée' in v_t) = 0 then raise exception '6d. texte de relance : %', v_t; end if;
+  if (select payload->>'destinataire' from public.scheduled_actions where dedup_key = 'avis_financeur_relance:' || v_d2) <> 'corrigee@exemple.invalid' then raise exception '6d2. relance à l''ancienne adresse'; end if;
   -- Expirée : plus de réponse
   update public.funder_feedback set expires_at = now() - interval '1 minute' where id = v_d2;
+  -- Années ouvertes : l'année en cours, et l'année écoulée jusqu'au 31 mars
+  if app.financeurs_annees_ouvertes() <> (case when extract(month from (now() at time zone 'Europe/Paris')) <= 3 then array[v_an, v_an - 1] else array[v_an] end) then
+    raise exception '6g. années ouvertes : %', app.financeurs_annees_ouvertes();
+  end if;
   r := public.financeur_avis_repondre(v_tok2, '{"note_globale": 3}');
   if not (r ? 'error') or position('expiré' in r->>'error') = 0 then raise exception '6e. lien expiré accepté : %', r; end if;
   if not (public.financeur_avis_ouvrir(v_tok2)->>'expire')::boolean then raise exception '6f. expiration non signalée'; end if;
@@ -604,11 +729,24 @@ begin
   perform set_config('request.jwt.claim.sub', v_u::text, true);
   execute 'set local role authenticated';
   r := public.financeurs_suivi(v_an);
-  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)) x where x->>'cle' = 'c:' || v_opco;
+  if not exists (select 1 from jsonb_array_elements(r->'sans_financeur') x where (x->>'id')::uuid = v_s7)
+     or exists (select 1 from jsonb_array_elements(r->'sans_financeur') x where (x->>'id')::uuid in (v_s1, v_s2, v_s5)) then
+    raise exception '7a. sessions sans financeur : %', r->'sans_financeur';
+  end if;
+  if not (r->>'annee_ouverte')::boolean then raise exception '7a2. année en cours fermée'; end if;
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'n:fonds essai sans adresse';
+  if r is null or (r->>'preparable')::boolean or (r->>'email_valide')::boolean then raise exception '7a3. financeur sans adresse : %', r; end if;
+  begin
+    perform token from public.funder_feedback limit 1;
+    raise exception '7a4. jeton lisible par un compte';
+  exception when insufficient_privilege then null;
+  end;
+  if not exists (select 1 from public.funder_feedback where id = v_d) then raise exception '7a5. demande illisible pour la société'; end if;
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco;
   if r is null or r->>'demande' <> 'repondue' or not (r->>'couvert')::boolean or (r->>'note')::int <> 4 then raise exception '7. suivi OPCO un : %', r; end if;
-  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)) x where x->>'cle' = 'c:' || v_opco2;
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco2;
   if r is null or not (r->>'couvert')::boolean or (r->>'echanges')::int <> 1 then raise exception '7b. suivi OPCO deux : %', r; end if;
-  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)) x where x->>'cle' = 'cpf';
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'cpf';
   if r is null or (r->>'couvert')::boolean then raise exception '7c. suivi CPF : %', r; end if;
   begin
     update public.funder_feedback set note_globale = 5 where id = v_d;
@@ -621,7 +759,7 @@ begin
   exception when insufficient_privilege then null;
   end;
   insert into public.funder_exchanges (company_id, funder_type, funder_name, kind, happened_on) values (v_cie, 'cpf', ' CPF ', 'consultation_site', v_fin);
-  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)) x where x->>'cle' = 'cpf';
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'cpf';
   if not (r->>'couvert')::boolean then raise exception '7f. CPF non couvert après la consultation'; end if;
   if (select created_by from public.funder_exchanges where funder_type = 'cpf' and company_id = v_cie) is distinct from v_u then raise exception '7g. auteur'; end if;
   execute 'reset role';

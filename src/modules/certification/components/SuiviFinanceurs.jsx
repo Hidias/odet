@@ -20,6 +20,8 @@ const VIDE = { cle: '', type: 'opco', nom: '', kind: 'webinaire', date: '', note
 export default function SuiviFinanceurs({ canWrite }) {
   const [annee, setAnnee] = useState(anneeParis)
   const [liste, setListe] = useState(null) // null : chargement ou lecture impossible
+  const [sansFinanceur, setSansFinanceur] = useState([])
+  const [ouverte, setOuverte] = useState(true)
   const [avis, setAvis] = useState([])
   const [echanges, setEchanges] = useState([])
   const [erreur, setErreur] = useState(false)
@@ -40,7 +42,8 @@ export default function SuiviFinanceurs({ canWrite }) {
         .gte('happened_on', debut).lte('happened_on', fin).order('happened_on', { ascending: false }),
     ])
     if (s.error || a.error || e.error) { setErreur(true); setListe(null); return }
-    setListe(s.data || []); setAvis(a.data || []); setEchanges(e.data || [])
+    setListe(s.data?.financeurs || []); setSansFinanceur(s.data?.sans_financeur || []); setOuverte(s.data?.annee_ouverte !== false)
+    setAvis(a.data || []); setEchanges(e.data || [])
   }, [annee])
   useEffect(() => { charger() }, [charger])
 
@@ -92,11 +95,20 @@ export default function SuiviFinanceurs({ canWrite }) {
 
       {erreur && <p className="text-ui-sm text-[rgb(var(--c-danger))]" role="alert">Lecture impossible pour le moment. <button type="button" className="underline" onClick={charger}>Réessayer</button></p>}
       {!erreur && liste === null && <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-gray-400" aria-label="Chargement" /></div>}
-      {liste && !liste.length && <p className="text-ui-sm muted">Aucune session financée par un OPCO, une région, le CPF ou France Travail en {annee}.</p>}
+      {liste && !liste.length && !sansFinanceur.length && <p className="text-ui-sm muted">Aucune session financée par un OPCO, une région, le CPF ou France Travail en {annee}.</p>}
+      {sansFinanceur.length > 0 && (
+        <div className="rounded-ui-sm border border-[rgb(var(--c-warning)/0.3)] bg-[rgb(var(--c-warning-bg))] p-3 text-ui-sm space-y-1" role="status">
+          <div className="font-semibold">{sansFinanceur.length > 1 ? `${sansFinanceur.length} sessions financées sans financeur renseigné` : 'Une session financée sans financeur renseigné'}</div>
+          <div>Ajoutez le financeur dans l'onglet « Financement » de la session : sans lui, aucune demande d'avis ne peut être préparée.</div>
+          <ul className="list-disc pl-5">
+            {sansFinanceur.map((x) => <li key={x.id}><Link to={`/sessions/${x.id}`} className="font-semibold underline">{x.reference || x.titre || 'Session'}</Link>{x.titre && x.reference ? `, ${x.titre}` : ''}, le {fr(x.fin)}</li>)}
+          </ul>
+        </div>
+      )}
 
       {liste && liste.map((f) => {
         const etat = f.demande ? ETATS_DEMANDE[f.demande] : null
-        const raison = raisonSansDemande(f)
+        const raison = raisonSansDemande(f, ouverte)
         return (
           <div key={`${f.company_id}-${f.cle}`} className="rounded-ui-sm border border-gray-200 p-3 space-y-1">
             <div className="flex flex-wrap items-start justify-between gap-2">
