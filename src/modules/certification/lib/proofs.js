@@ -6,7 +6,7 @@
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { conventionSigneeEtat, groupesParSession } from '../../formation/lib/etatConvention'
-import { resumeFinanceurs, lignesIndicateur30 } from './financeurs'
+import { resumeFinanceurs, lignesIndicateur30, anneesFinanceurs } from './financeurs'
 
 const filled = (v) => v != null && String(v).trim() !== ''
 
@@ -73,8 +73,10 @@ export async function loadEvidence() {
     count('quality_alerts', (q) => q.neq('status', 'pending')),
     count('programme_versions'),
     count('sst_certifications', (q) => q.eq('candidat_certifie', true)),
-    // Financeurs de l'année (0517) : suivi calculé en base ; null si la lecture échoue (jamais « aucun financeur »)
-    supabase.rpc('financeurs_suivi', { p_annee: null }).then(({ data, error }) => (error ? null : resumeFinanceurs(data)), () => null),
+    // Financeurs (0517) : année en cours, et année écoulée tant que la nuit la traite (jusqu'au 31 mars) ; résumé null si
+    // la lecture échoue (jamais « aucun financeur »)
+    Promise.all(anneesFinanceurs().map((annee) => supabase.rpc('financeurs_suivi', { p_annee: annee })
+      .then(({ data, error }) => ({ annee, resume: error ? null : resumeFinanceurs(data) }), () => ({ annee, resume: null })))),
     count('audits_internes'),
     // Conventions signées, lues comme partout (etatConvention) : inter signée groupe par groupe ; une session de
     // sous-traitance signée compte toujours (pièce NDA « première convention signée », certData.js)
@@ -153,7 +155,6 @@ export async function loadEvidence() {
     },
     formativeOn,
     financeurs,
-    anneeFinanceurs: Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', year: 'numeric' }).format(new Date())),
     subcontracting: {
       providers: new Set(stCompliance.map((r) => r.subcontractor_id)).size,
       docs: stCompliance.length,
@@ -338,7 +339,7 @@ export const RULES = {
       ...(e.n.coldEmployeurs ? [ok(`Entreprises, évaluations à froid de l'employeur : ${e.n.coldEmployeurs}`, L.indicateurs)] : []),
       // Financeurs (0517) : sollicités au moins une fois par an ou rencontrés (guide V10, p. 37) ; rien sans financeur ;
       // le suivi détaillé s'affiche sous ces preuves (SuiviFinanceurs)
-      ...lignesIndicateur30(e.financeurs, e.anneeFinanceurs).map((l) => (l.ok ? ok(l.label, null) : ko(l.label, null))),
+      ...(e.financeurs || []).flatMap((f) => lignesIndicateur30(f.resume, f.annee)).map((l) => (l.ok ? ok(l.label, null) : ko(l.label, null))),
     ],
     missing: ['Déposer ici les questionnaires entreprise et donneur d\'ordre retournés signés'],
   }),

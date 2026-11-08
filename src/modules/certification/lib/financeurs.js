@@ -3,6 +3,13 @@
 // ou une réunion organisés par le financeur. Un financeur est « couvert » quand la demande est partie ou qu'un échange
 // de l'année est saisi (même règle que public.financeurs_suivi en base).
 
+// Années encore traitées par la nuit, comme app.financeurs_annees_ouvertes : l'année en cours, et l'année écoulée
+// jusqu'au 31 mars (heure de Paris)
+export function anneesFinanceurs(date = new Date()) {
+  const [a, m] = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit' }).format(date).split('-').map(Number)
+  return m <= 3 ? [a, a - 1] : [a]
+}
+
 export const TYPES_FINANCEUR = {
   opco: 'OPCO', region: 'Région', autre: 'Autre financeur', cpf: 'CPF (Caisse des Dépôts)', pole_emploi: 'France Travail',
 }

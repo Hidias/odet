@@ -23,6 +23,7 @@ drop function if exists app.funder_exchanges_regle();
 drop table if exists public.funder_feedback;
 drop function if exists app.financeur_cle(uuid, text, uuid, text);
 drop function if exists app.financeur_email_valide(text);
+drop function if exists app.financeur_meme(text, uuid, text, text, uuid, text);
 drop function if exists app.financeur_nom_norme(text);
 
 delete from public.schema_migrations where version = '0517_avis_financeurs';

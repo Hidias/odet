@@ -182,6 +182,23 @@ begin
   if not (r ? 'error') or position('expiré' in r->>'error') = 0 then raise exception '6e. lien expiré accepté : %', r; end if;
   if not (public.financeur_avis_ouvrir(v_tok2)->>'expire')::boolean then raise exception '6f. expiration non signalée'; end if;
 
+  -- 6h. Fiche créée après l'envoi d'une demande faite sur une saisie libre : pas de seconde demande, état gardé
+  insert into public.session_fundings (session_id, funder_type, funder_name, funder_contact_email, amount_ht, status, company_id)
+    values (v_s5, 'opco', 'Atlas essai 0517', 'atlas@exemple.invalid', 30, 'pending', v_cie);
+  perform public.financeurs_avis_preparer();
+  select id into v_d2 from public.funder_feedback where company_id = v_cie and funder_key = 'n:atlas essai 0517' and year = v_an;
+  if v_d2 is null then raise exception '6h. demande Atlas absente'; end if;
+  update public.scheduled_actions set status = 'envoye' where dedup_key = 'avis_financeur:' || v_d2;
+  insert into public.clients (name, client_type, company_id) values ('ATLAS ESSAI 0517', 'opco', v_cie);
+  perform public.financeurs_avis_preparer();
+  if (select count(*) from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) like 'atlas essai 0517') <> 1 then
+    raise exception '6h2. seconde demande après la création de la fiche';
+  end if;
+  if app.financeur_nom_norme('Région Pays-de-la-Loire') <> app.financeur_nom_norme('Region Pays de la Loire')
+     or app.financeur_nom_norme('OPCO de l''industrie') <> app.financeur_nom_norme('OPCO de l’industrie') then
+    raise exception '6i. tirets ou apostrophes';
+  end if;
+
   -- 7. Compte de la société : suivi lisible, demandes non modifiables, échanges avec le droit
   insert into auth.users (id, email, aud, role) values (v_u, 'u-0517@exemple.invalid', 'authenticated', 'authenticated');
   insert into public.profiles (id, email) values (v_u, 'u-0517@exemple.invalid') on conflict (id) do nothing;
@@ -208,6 +225,8 @@ begin
   if not exists (select 1 from public.funder_feedback where id = v_d) then raise exception '7a5. demande illisible pour la société'; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco;
   if r is null or r->>'demande' <> 'repondue' or not (r->>'couvert')::boolean or (r->>'note')::int <> 4 then raise exception '7. suivi OPCO un : %', r; end if;
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ATLAS ESSAI 0517';
+  if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a6. état perdu après la création de la fiche : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco2;
   if r is null or not (r->>'couvert')::boolean or (r->>'echanges')::int <> 1 then raise exception '7b. suivi OPCO deux : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'cpf';

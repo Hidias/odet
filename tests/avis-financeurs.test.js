@@ -1,7 +1,7 @@
 // Avis des financeurs (0517, Qualiopi 30) : règles d'affichage, ligne de l'indicateur 30, liens avec la base.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { resumeFinanceurs, lignesIndicateur30, raisonSansDemande, TYPES_ECHANGE, TYPES_FINANCEUR, QUESTIONS_FINANCEUR } from '../src/modules/certification/lib/financeurs.js'
+import { anneesFinanceurs, resumeFinanceurs, lignesIndicateur30, raisonSansDemande, TYPES_ECHANGE, TYPES_FINANCEUR, QUESTIONS_FINANCEUR } from '../src/modules/certification/lib/financeurs.js'
 import { RULES } from '../src/modules/certification/lib/proofs.js'
 
 const migration = readFileSync(new URL('../supabase/migrations/0517_avis_financeurs.sql', import.meta.url), 'utf8')
@@ -33,10 +33,14 @@ describe('avis des financeurs', () => {
   })
 
   it('indicateur 30 : la ligne des financeurs remplace « recueil à prévoir »', () => {
-    const base = { n: { hotEvals: 1, coldEvals: 1, trainerEvals: 1, satisfactionSent: 1 }, anneeFinanceurs: 2026 }
+    const base = { n: { hotEvals: 1, coldEvals: 1, trainerEvals: 1, satisfactionSent: 1 } }
+    expect(anneesFinanceurs(new Date('2027-03-31T21:00:00Z'))).toEqual([2027, 2026])
+    expect(anneesFinanceurs(new Date('2027-03-31T22:30:00Z'))).toEqual([2027])
+    const deux = RULES[30]({ ...base, financeurs: [{ annee: 2027, resume: { total: 0, couverts: 0, avis: 0, sansFinanceur: 0 } }, { annee: 2026, resume: { total: 1, couverts: 0, avis: 0, sansFinanceur: 0 } }] }).items
+    expect(deux.find((i) => /Financeurs 2026/.test(i.label)).ok).toBe(false)
     const sans = RULES[30]({ ...base, financeurs: null }).items
     expect(sans.some((i) => /Financeurs/.test(i.label))).toBe(false)
-    const avec = RULES[30]({ ...base, financeurs: { total: 2, couverts: 1, avis: 0, sansFinanceur: 0 } }).items
+    const avec = RULES[30]({ ...base, financeurs: [{ annee: 2026, resume: { total: 2, couverts: 1, avis: 0, sansFinanceur: 0 } }] }).items
     expect(avec.find((i) => /Financeurs 2026/.test(i.label)).ok).toBe(false)
     expect(JSON.stringify(avec)).not.toMatch(/recueil à prévoir/)
   })

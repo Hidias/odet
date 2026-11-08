@@ -10,7 +10,7 @@ import { Sheet } from '../../../ui/Sheet'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { confirmer } from '../../../ui/Confirm'
 import { enVueGroupe, societeEnCours, estRefusVueGroupe, MESSAGE_VUE_GROUPE } from '../../../core/company/societes'
-import { ETATS_DEMANDE, QUESTIONS_FINANCEUR, TYPES_ECHANGE, TYPES_FINANCEUR, libelleEchange, raisonSansDemande } from '../lib/financeurs'
+import { anneesFinanceurs, ETATS_DEMANDE, QUESTIONS_FINANCEUR, TYPES_ECHANGE, TYPES_FINANCEUR, libelleEchange, raisonSansDemande } from '../lib/financeurs'
 
 const anneeParis = () => Number(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', year: 'numeric' }).format(new Date()))
 const jourParis = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date())
@@ -89,6 +89,9 @@ export default function SuiviFinanceurs({ canWrite }) {
           {ecrire && <button type="button" className="btn btn-secondary btn-sm" onClick={ouvrir}><Plus className="w-4 h-4" />Noter un échange</button>}
         </div>
       </div>
+      {anneesFinanceurs().length > 1 && annee === anneeParis() && (
+        <p className="text-ui-sm text-gray-700">L'année {annee - 1} reste traitée jusqu'au 31 mars : choisissez-la dans la liste pour la suivre.</p>
+      )}
       <p className="text-ui-sm muted">
         Chaque financeur est sollicité une fois par an. La demande d'avis est préparée la nuit dans <Link to="/a-valider" className="font-semibold underline">Relances à valider</Link> : rien ne part sans vous. Un webinaire, une réunion ou un échange avec le financeur compte aussi.
       </p>

@@ -80,14 +80,15 @@ create table if not exists public.funder_exchanges (
 create index if not exists funder_exchanges_societe_idx on public.funder_exchanges (company_id, happened_on);
 comment on table public.funder_exchanges is 'Échanges avec un financeur (0517, Qualiopi 30 : webinaire, réunion, échange, contrôle, site d''avis), saisis à la main';
 
--- Nom d'un financeur comparé sans casse, sans accents et sans espaces en trop (« Région  Bretagne » = « region bretagne »)
+-- Nom d'un financeur comparé sans casse, sans accents, tirets, apostrophes ni espaces en trop (« Région Pays-de-la-Loire »
+-- = « region pays de la loire »)
 create or replace function app.financeur_nom_norme(p_name text)
 returns text
 language sql
 immutable
 set search_path = ''
 as $$
-  select replace(replace(translate(lower(regexp_replace(btrim(coalesce(p_name, '')), '\s+', ' ', 'g')),
+  select replace(replace(translate(lower(btrim(regexp_replace(regexp_replace(coalesce(p_name, ''), '[-''’.]', ' ', 'g'), '\s+', ' ', 'g'))),
     'àâäáãåçéèêëíìîïñóòôöõúùûüýÿ', 'aaaaaaceeeeiiiinooooouuuuyy'), 'œ', 'oe'), 'æ', 'ae')
 $$;
 revoke all on function app.financeur_nom_norme(text) from public, anon, authenticated;
@@ -110,6 +111,21 @@ as $$
          'n:' || app.financeur_nom_norme(p_name)) end
 $$;
 revoke all on function app.financeur_cle(uuid, text, uuid, text) from public, anon, authenticated;
+
+-- Même financeur qu'une demande ou un échange déjà enregistrés, même si sa clé a changé depuis (fiche créée après une
+-- saisie libre, fiche supprimée, deux fiches du même nom) : même clé, même fiche ou même nom normalisé
+create or replace function app.financeur_meme(p_cle text, p_client uuid, p_nom text, q_cle text, q_client uuid, q_nom text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_cle = q_cle
+      or (p_client is not null and p_client = q_client)
+      or (p_cle not in ('cpf', 'pole_emploi') and q_cle not in ('cpf', 'pole_emploi')
+          and app.financeur_nom_norme(p_nom) <> '' and app.financeur_nom_norme(p_nom) = app.financeur_nom_norme(q_nom))
+$$;
+revoke all on function app.financeur_meme(text, uuid, text, text, uuid, text) from public, anon, authenticated;
 
 -- Même contrôle d'adresse pour la nuit et pour l'écran
 create or replace function app.financeur_email_valide(p_email text)
@@ -292,10 +308,12 @@ begin
         select * from app.financeurs_de_l_annee(v_cie.id, v_annee) x
         where x.funder_type in ('opco', 'region', 'autre') and x.sessions_terminees > 0
           and app.financeur_email_valide(x.contact_email)
-          and not exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.funder_key = x.funder_key and d.year = v_annee)
+          and not exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.year = v_annee
+                            and app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, x.funder_key, x.funder_client_id, x.funder_name))
           and not exists (select 1 from public.funder_exchanges e where e.company_id = v_cie.id
                             and extract(year from e.happened_on)::int = v_annee
-                            and app.financeur_cle(e.company_id, e.funder_type, e.funder_client_id, e.funder_name) = x.funder_key)
+                            and app.financeur_meme(app.financeur_cle(e.company_id, e.funder_type, e.funder_client_id, e.funder_name),
+                                                   e.funder_client_id, e.funder_name, x.funder_key, x.funder_client_id, x.funder_name))
       loop
         v_d := null;
         insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions)
@@ -381,12 +399,16 @@ begin
                   when exists (select 1 from public.scheduled_actions a where a.company_id = dd.company_id and a.target_id = dd.id and a.kind = 'avis_financeur' and a.status = 'a_valider') then 'preparee'
                   else 'ignoree' end as etat
       from public.funder_feedback dd
-      where dd.company_id = x.company_id and dd.funder_key = x.funder_key and dd.year = v_annee
+      where dd.company_id = x.company_id and dd.year = v_annee
+        and app.financeur_meme(dd.funder_key, dd.funder_client_id, dd.funder_name, x.funder_key, x.funder_client_id, x.funder_name)
+      order by dd.answered_at is null, dd.created_at
+      limit 1
     ) d on true
     left join lateral (
       select count(*)::int as n, max(ee.happened_on) as dernier from public.funder_exchanges ee
       where ee.company_id = x.company_id and extract(year from ee.happened_on)::int = v_annee
-        and app.financeur_cle(ee.company_id, ee.funder_type, ee.funder_client_id, ee.funder_name) = x.funder_key
+        and app.financeur_meme(app.financeur_cle(ee.company_id, ee.funder_type, ee.funder_client_id, ee.funder_name),
+                               ee.funder_client_id, ee.funder_name, x.funder_key, x.funder_client_id, x.funder_name)
     ) e on true
   ), '[]'::jsonb), 'sans_financeur', coalesce((
     select jsonb_agg(jsonb_build_object('company_id', s.company_id, 'id', s.id, 'reference', s.reference, 'titre', co.title,
@@ -718,6 +740,23 @@ begin
   if not (r ? 'error') or position('expiré' in r->>'error') = 0 then raise exception '6e. lien expiré accepté : %', r; end if;
   if not (public.financeur_avis_ouvrir(v_tok2)->>'expire')::boolean then raise exception '6f. expiration non signalée'; end if;
 
+  -- 6h. Fiche créée après l'envoi d'une demande faite sur une saisie libre : pas de seconde demande, état gardé
+  insert into public.session_fundings (session_id, funder_type, funder_name, funder_contact_email, amount_ht, status, company_id)
+    values (v_s5, 'opco', 'Atlas essai 0517', 'atlas@exemple.invalid', 30, 'pending', v_cie);
+  perform public.financeurs_avis_preparer();
+  select id into v_d2 from public.funder_feedback where company_id = v_cie and funder_key = 'n:atlas essai 0517' and year = v_an;
+  if v_d2 is null then raise exception '6h. demande Atlas absente'; end if;
+  update public.scheduled_actions set status = 'envoye' where dedup_key = 'avis_financeur:' || v_d2;
+  insert into public.clients (name, client_type, company_id) values ('ATLAS ESSAI 0517', 'opco', v_cie);
+  perform public.financeurs_avis_preparer();
+  if (select count(*) from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) like 'atlas essai 0517') <> 1 then
+    raise exception '6h2. seconde demande après la création de la fiche';
+  end if;
+  if app.financeur_nom_norme('Région Pays-de-la-Loire') <> app.financeur_nom_norme('Region Pays de la Loire')
+     or app.financeur_nom_norme('OPCO de l''industrie') <> app.financeur_nom_norme('OPCO de l’industrie') then
+    raise exception '6i. tirets ou apostrophes';
+  end if;
+
   -- 7. Compte de la société : suivi lisible, demandes non modifiables, échanges avec le droit
   insert into auth.users (id, email, aud, role) values (v_u, 'u-0517@exemple.invalid', 'authenticated', 'authenticated');
   insert into public.profiles (id, email) values (v_u, 'u-0517@exemple.invalid') on conflict (id) do nothing;
@@ -744,6 +783,8 @@ begin
   if not exists (select 1 from public.funder_feedback where id = v_d) then raise exception '7a5. demande illisible pour la société'; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco;
   if r is null or r->>'demande' <> 'repondue' or not (r->>'couvert')::boolean or (r->>'note')::int <> 4 then raise exception '7. suivi OPCO un : %', r; end if;
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ATLAS ESSAI 0517';
+  if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a6. état perdu après la création de la fiche : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco2;
   if r is null or not (r->>'couvert')::boolean or (r->>'echanges')::int <> 1 then raise exception '7b. suivi OPCO deux : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'cpf';
