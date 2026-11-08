@@ -171,7 +171,7 @@ export default function ActionsEquipe() {
                       {[a.owner_id ? noms[a.owner_id] || 'Membre de l\'équipe' : 'Personne en particulier',
                         a.clients?.name ? <Link key="c" to={`/clients/${a.clients.id}`} className="hover:underline">{a.clients.name}</Link> : null,
                         a.postponed_count > 0 ? `reporté ${a.postponed_count} fois` : null,
-                        a.source !== 'manuel' ? { point: 'point de la semaine', bilan: 'bilan', reunion: 'réunion' }[a.source] : null,
+                        a.source !== 'manuel' ? { point: 'point de la semaine', bilan: 'bilan', reunion: 'réunion', habilitation: 'titres exigés' }[a.source] : null,
                       ].filter(Boolean).reduce((acc, x, i) => (i ? [...acc, ' · ', x] : [x]), [])}
                     </div>
                   </div>

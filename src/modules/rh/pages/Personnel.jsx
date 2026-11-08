@@ -30,6 +30,8 @@ import EpiFiche from './EpiFiche'
 import MonEspace from './MonEspace'
 import TableauRH from './TableauRH'
 import RegistrePaie from './RegistrePaie'
+import Postes from './Postes'
+import { chargerPostes, emploiDuContrat } from '../lib/rhPostes'
 import { EntretiensFiche, ListesFiche } from './EntretiensListes'
 import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
 
@@ -225,15 +227,15 @@ function FichePersonneSheet({ personne = null, onClose, onSaved }) {
 function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
   const [v, setV] = useState(() => ({
     contract_type: 'cdi', start_on: new Date().toISOString().slice(0, 10), end_on: '', trial_end_on: '', end_reason: '',
-    job_title: '', qualification: '', team_id: '', manager_person_id: '', weekly_hours: '35', days_per_year: '',
+    job_title: '', job_id: '', qualification: '', team_id: '', manager_person_id: '', weekly_hours: '35', days_per_year: '',
     schedule_id: '', establishment_id: '', job_description: '', agency_name: '', agency_address: '', authorization_on: '',
     ...Object.fromEntries(Object.entries(contrat || {}).map(([k, x]) => [k, x ?? ''])),
   }))
-  const [listes, setListes] = useState({ equipes: [], horaires: [], etablissements: [], personnes: [] })
+  const [listes, setListes] = useState({ equipes: [], horaires: [], etablissements: [], personnes: [], postes: [] })
   const [busy, setBusy] = useState(false)
   useEffect(() => {
-    Promise.all([chargerEquipes(), chargerHoraires(), chargerEtablissements(), chargerPersonnesChoix()])
-      .then(([equipes, horaires, etablissements, personnes]) => setListes({ equipes, horaires, etablissements, personnes: personnes.filter((p) => p.id !== personId) }))
+    Promise.all([chargerEquipes(), chargerHoraires(), chargerEtablissements(), chargerPersonnesChoix(), chargerPostes().catch(() => [])])
+      .then(([equipes, horaires, etablissements, personnes, postes]) => setListes({ equipes, horaires, etablissements, personnes: personnes.filter((p) => p.id !== personId), postes }))
       .catch(() => {})
   }, [personId])
   const m = (k) => (e) => setV({ ...v, [k]: e.target.value })
@@ -244,7 +246,7 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
       const nul = (x) => (x === '' ? null : x)
       await enregistrerContrat({
         ...(contrat?.id ? { id: contrat.id } : {}), person_id: personId, contract_type: v.contract_type, start_on: v.start_on,
-        end_on: nul(v.end_on), trial_end_on: nul(v.trial_end_on), end_reason: v.end_reason, job_title: v.job_title,
+        end_on: nul(v.end_on), trial_end_on: nul(v.trial_end_on), end_reason: v.end_reason, job_title: v.job_title, job_id: nul(v.job_id),
         qualification: v.qualification, team_id: nul(v.team_id), manager_person_id: nul(v.manager_person_id),
         weekly_hours: v.weekly_hours, days_per_year: v.days_per_year, schedule_id: nul(v.schedule_id),
         establishment_id: nul(v.establishment_id), job_description: v.job_description,
@@ -263,6 +265,17 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
           <Champ label="Type de contrat">
             <select className="select" value={v.contract_type} onChange={m('contract_type')}>{Object.entries(CONTRATS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
           </Champ>
+          {(listes.postes.length > 0 || v.job_id) && (
+            <Champ label="Poste (titres exigés)">
+              <select className="select" value={v.job_id} onChange={(e) => {
+                const poste = listes.postes.find((x) => x.id === e.target.value)
+                setV({ ...v, job_id: e.target.value, job_title: emploiDuContrat(v.job_title, poste) })
+              }}>
+                <option value="">Aucun</option>
+                {listes.postes.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+            </Champ>
+          )}
           <Champ label="Emploi"><input className="input" value={v.job_title} onChange={m('job_title')} placeholder="Technicien, formateur…" /></Champ>
           <Champ label="Début"><input className="input" type="date" required value={v.start_on} onChange={m('start_on')} /></Champ>
           <Champ label="Fin (CDD, départ)"><input className="input" type="date" value={v.end_on} onChange={m('end_on')} /></Champ>
@@ -673,7 +686,7 @@ export default function Personnel() {
   const peutValiderAbs = peutValider || responsable
   const peutValiderHeures = can('rh.heures.valider') === true || responsable
   const peutTableau = peutVoirTout || peutValiderAbs || peutValiderHeures
-  const ONGLETS = ['tableau', 'mon-espace', 'annuaire', 'absences', 'heures', 'equipes', 'horaires', 'registre']
+  const ONGLETS = ['tableau', 'mon-espace', 'annuaire', 'absences', 'heures', 'equipes', 'postes', 'horaires', 'registre']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
   // Technicien de terrain : seulement « Mon espace » (les autres onglets lui sont fermés)
@@ -682,7 +695,9 @@ export default function Personnel() {
     ...(peutTableau ? [{ id: 'tableau', label: 'Tableau de bord' }] : []),
     { id: 'mon-espace', label: 'Mon espace' },
     { id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'heures', label: 'Heures' },
-    { id: 'equipes', label: 'Équipes' }, { id: 'horaires', label: 'Horaires' },
+    { id: 'equipes', label: 'Équipes' },
+    ...(peutVoirTout || peutConfigurer ? [{ id: 'postes', label: 'Postes et titres' }] : []),
+    { id: 'horaires', label: 'Horaires' },
     ...(peutVoirTout ? [{ id: 'registre', label: 'Registre et paie' }] : []),
   ]
 
@@ -707,6 +722,7 @@ export default function Personnel() {
         <Route path="absences" element={<Absences peutValider={peutValiderAbs} peutVoirTout={peutVoirTout} peutConfigurer={peutConfigurer} />} />
         <Route path="heures" element={<Heures peutValider={peutValiderHeures} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
+        {(peutVoirTout || peutConfigurer) && <Route path="postes" element={<Postes peutConfigurer={peutConfigurer} />} />}
         <Route path="horaires" element={<div className="space-y-6"><Horaires peutConfigurer={peutConfigurer} /><JoursFeries peutConfigurer={peutConfigurer} /></div>} />
         <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} />} />
       </Routes>
