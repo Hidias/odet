@@ -5,57 +5,89 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 
 -- ===== supabase/migrations/0518_relances_envoi.sql =====
 -- 0518 : envoi des relances depuis l'outil (demande de H du 08/11, 14 h 36 ; option A choisie le 08/11, lot 1).
--- Jusqu'ici une relance validée se copiait dans sa messagerie, puis se marquait « envoyée » à la main. Désormais elle
--- part depuis l'outil, après aperçu, par la boîte de la personne connectée (signature et copie cachée habituelles) :
---   1. scheduled_actions : texte_retouche (l'objet, le texte ou le destinataire ont été changés par une personne avant
---      l'envoi ; sert au lot suivant, qui proposera le passage en automatique après 5 envois sans retouche d'un même
---      type, sans jamais basculer seul) ; envoi_reserve_at (envoi en cours, une seule personne à la fois, réservation
---      périmée après 10 minutes) ; envoi_boite et envoi_message_id (trace de l'envoi). Ces trois colonnes ne s'écrivent
---      que par les fonctions ci-dessous.
---   2. public.relance_envoi_reserver(id) : réserve une relance « à envoyer » (droit d'envoyer aux stagiaires et aux
---      clients dans sa société, ni bloquée, ni déjà en cours, adresse valable, objet et texte présents) et rend ce qui
---      doit partir. Pendant la réservation, le texte ne se modifie plus.
---   3. public.relance_envoi_terminer(id, ok, erreur, message_id, boite) : envoi réussi = « envoyée » (auteur et date
---      posés par la règle existante) ; échec = l'erreur est notée, la relance reste « à envoyer ».
+-- Jusqu'ici une relance validée se copiait dans sa messagerie, puis se marquait « envoyée » à la main. Désormais une
+-- relance qui porte un vrai message part depuis l'outil, après aperçu, par la boîte de la personne connectée
+-- (signature et copie cachée habituelles) :
+--   1. app.relance_envoyable(kind, payload) : seule règle de ce qui peut partir. Jamais une note interne (« interne »),
+--      un courrier dont le texte attend l'expert (« a_valider_par_expert »), ni une étape du pilote qui se fait depuis la
+--      session (convocations, attestations, émargement, évaluations, facture : le texte est une consigne pour l'équipe).
+--      Colonne calculée envoi_possible, lue par l'écran.
+--   2. scheduled_actions : texte_retouche (objet, texte ou destinataire changés par une personne avant validation ; sert
+--      au lot suivant, qui proposera le passage en automatique après 5 envois sans retouche d'un même type, sans jamais
+--      basculer seul) ; envoi_reserve_at et envoi_reserve_par (envoi en cours) ; envoi_boite et envoi_message_id (trace).
+--      Ces colonnes ne s'écrivent que par les fonctions ci-dessous. Une relance validée ne change plus de texte ni de
+--      destinataire : on la remet à valider pour la corriger.
+--   3. public.relance_envoi_reserver(id, destinataire) (compte) : relance « à envoyer », envoyable, non bloquée, droit
+--      d'envoyer aux stagiaires et aux clients dans sa société, adresse valable et identique à celle vue à l'écran, texte
+--      présent, aucun envoi précédent en suspens. Un envoi resté sans suite (coupure entre le mail et sa trace) n'est
+--      jamais repris seul : après 10 minutes, la personne vérifie sa boîte, puis marque la relance envoyée ou la remet
+--      à valider, ce qui lève la réservation.
+--   4. public.relance_envoi_terminer(id, auteur, ok, ...) (clé de service seule, appelée par la route après l'envoi) :
+--      envoyée (auteur = celui qui a réservé) ou erreur notée, la relance reste « à envoyer ».
 -- « Marquer envoyée » reste possible (envoi fait depuis sa messagerie). Aucun envoi automatique.
 -- Migration additive. Idempotente. Retour arrière : supabase/rollback/0518_relances_envoi_retour.sql
 
+create or replace function app.relance_envoyable(p_kind text, p_payload jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(p_kind in ('relance_recyclage', 'justificatif_prestataire', 'rappel', 'relance_impaye', 'avis_financeur',
+                             'renouvellement_contrat', 'visite_hors_contrat', 'autre'), false)
+     and coalesce((p_payload->>'interne')::boolean, false) = false
+     and coalesce((p_payload->>'a_valider_par_expert')::boolean, false) = false
+     and coalesce(p_payload->>'etape', '') not in ('convocation', 'attestations', 'emargement', 'eval_chaud', 'eval_froid', 'facture')
+$$;
+
 alter table public.scheduled_actions add column if not exists texte_retouche boolean not null default false;
 alter table public.scheduled_actions add column if not exists envoi_reserve_at timestamptz;
+alter table public.scheduled_actions add column if not exists envoi_reserve_par uuid;
 alter table public.scheduled_actions add column if not exists envoi_boite text;
 alter table public.scheduled_actions add column if not exists envoi_message_id text;
+alter table public.scheduled_actions add column if not exists envoi_possible boolean
+  generated always as (app.relance_envoyable(kind, payload)) stored;
 
 comment on column public.scheduled_actions.texte_retouche is 'Objet, texte ou destinataire changés par une personne avant l''envoi (0518).';
-comment on column public.scheduled_actions.envoi_reserve_at is 'Envoi depuis l''outil en cours depuis cette heure (0518, périmé après 10 minutes).';
+comment on column public.scheduled_actions.envoi_reserve_at is 'Envoi depuis l''outil commencé à cette heure, sans trace de fin (0518).';
+comment on column public.scheduled_actions.envoi_possible is 'La relance porte un vrai message, envoyable depuis l''outil (0518, app.relance_envoyable).';
 
--- 1. Règle des colonnes d'envoi et de la retouche (déclencheur d'avant)
+-- 1. Règle des colonnes d'envoi, du texte figé et de la retouche (déclencheur d'avant)
 create or replace function app.scheduled_actions_envoi_garde()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
-declare v_par_fonction boolean := coalesce(current_setting('app.relance_envoi', true), '') = 'on';
+declare
+  v_par_fonction boolean := coalesce(current_setting('app.relance_envoi', true), '') = 'on';
+  v_personne boolean := (select auth.uid()) is not null;
+  v_texte_change boolean := (new.payload->>'objet') is distinct from (old.payload->>'objet')
+    or (new.payload->>'texte') is distinct from (old.payload->>'texte')
+    or (new.payload->>'destinataire') is distinct from (old.payload->>'destinataire');
 begin
-  if not v_par_fonction then
-    new.envoi_reserve_at := old.envoi_reserve_at;
-    new.envoi_boite := old.envoi_boite;
-    new.envoi_message_id := old.envoi_message_id;
-    new.texte_retouche := old.texte_retouche;
-    -- Envoi en cours : l'état ne change que par la fin de l'envoi (sinon un mail parti resterait « à envoyer »)
+  if v_par_fonction then return new; end if;
+  new.envoi_reserve_at := old.envoi_reserve_at;
+  new.envoi_reserve_par := old.envoi_reserve_par;
+  new.envoi_boite := old.envoi_boite;
+  new.envoi_message_id := old.envoi_message_id;
+  new.texte_retouche := old.texte_retouche;
+  if v_personne then
+    -- Envoi en cours (moins de 10 minutes) : l'état ne change que par la fin de l'envoi
     if old.envoi_reserve_at is not null and old.envoi_reserve_at > now() - interval '10 minutes'
        and new.status is distinct from old.status then
       raise exception 'Envoi en cours : attendez la fin de l''envoi' using errcode = '22023';
     end if;
-    if (select auth.uid()) is not null
-       and ((new.payload->>'objet') is distinct from (old.payload->>'objet')
-         or (new.payload->>'texte') is distinct from (old.payload->>'texte')
-         or (new.payload->>'destinataire') is distinct from (old.payload->>'destinataire')) then
-      -- Envoi en cours : ce qui part a déjà été lu, on ne le change plus
-      if old.envoi_reserve_at is not null and old.envoi_reserve_at > now() - interval '10 minutes' then
-        raise exception 'Envoi en cours : le texte ne peut plus être modifié' using errcode = '22023';
-      end if;
-      new.texte_retouche := true;
+    -- Ce qui a été validé est ce qui part : pour corriger, remettre à valider
+    if v_texte_change and old.status <> 'a_valider' then
+      raise exception 'Relance déjà validée : remettez-la à valider pour changer le texte ou le destinataire' using errcode = '22023';
     end if;
+    if v_texte_change then new.texte_retouche := true; end if;
+  end if;
+  -- Changement d'état par une personne (envoi suspendu vérifié) ou par la base (règlement d'une facture...) :
+  -- la réservation tombe ; une fin d'envoi arrivée ensuite est refusée (la relance n'est plus « à envoyer »)
+  if new.status is distinct from old.status then
+    new.envoi_reserve_at := null;
+    new.envoi_reserve_par := null;
   end if;
   return new;
 end
@@ -65,8 +97,8 @@ drop trigger if exists scheduled_actions_envoi_garde on public.scheduled_actions
 create trigger scheduled_actions_envoi_garde before update on public.scheduled_actions
   for each row execute function app.scheduled_actions_envoi_garde();
 
--- 2. Réservation
-create or replace function public.relance_envoi_reserver(p_id uuid)
+-- 2. Réservation (compte de la personne qui envoie)
+create or replace function public.relance_envoi_reserver(p_id uuid, p_destinataire text)
 returns jsonb
 language plpgsql
 security definer
@@ -82,20 +114,29 @@ begin
   if a.status <> 'valide' then
     raise exception 'Cette relance n''est plus à envoyer : la liste est mise à jour' using errcode = '22023';
   end if;
+  if not a.envoi_possible then
+    raise exception 'Cette relance ne s''envoie pas depuis l''outil : faites l''action indiquée, puis marquez-la' using errcode = '22023';
+  end if;
   if a.blocked_reason is not null then
     raise exception 'Relance bloquée : %', a.blocked_reason using errcode = '22023';
   end if;
-  if a.envoi_reserve_at is not null and a.envoi_reserve_at > now() - interval '10 minutes' then
-    raise exception 'Envoi déjà en cours pour cette relance' using errcode = '22023';
+  if a.envoi_reserve_at is not null then
+    if a.envoi_reserve_at > now() - interval '10 minutes' then
+      raise exception 'Envoi déjà en cours pour cette relance' using errcode = '22023';
+    end if;
+    raise exception 'Envoi précédent sans suite : vérifiez dans votre boîte d''envoi s''il est parti, puis marquez la relance envoyée ou remettez-la à valider' using errcode = '22023';
   end if;
   if not app.financeur_email_valide(a.payload->>'destinataire') then
     raise exception 'Adresse du destinataire absente ou invalide' using errcode = '22023';
+  end if;
+  if lower(btrim(a.payload->>'destinataire')) is distinct from lower(btrim(p_destinataire)) then
+    raise exception 'Le destinataire a changé depuis l''aperçu : la liste est mise à jour' using errcode = '22023';
   end if;
   if coalesce(btrim(a.payload->>'texte'), '') = '' then
     raise exception 'Texte vide : rien à envoyer' using errcode = '22023';
   end if;
   perform set_config('app.relance_envoi', 'on', true);
-  update public.scheduled_actions set envoi_reserve_at = now(), error = null where id = a.id;
+  update public.scheduled_actions set envoi_reserve_at = now(), envoi_reserve_par = (select auth.uid()), error = null where id = a.id;
   perform set_config('app.relance_envoi', '', true);
   return jsonb_build_object('id', a.id, 'company_id', a.company_id, 'kind', a.kind,
     'destinataire', btrim(a.payload->>'destinataire'),
@@ -104,8 +145,8 @@ begin
 end
 $$;
 
--- 3. Fin de l'envoi
-create or replace function public.relance_envoi_terminer(p_id uuid, p_ok boolean, p_erreur text default null,
+-- 3. Fin de l'envoi (clé de service seule : la route, après l'envoi réel du mail)
+create or replace function public.relance_envoi_terminer(p_id uuid, p_auteur uuid, p_ok boolean, p_erreur text default null,
   p_message_id text default null, p_boite text default null)
 returns void
 language plpgsql
@@ -114,21 +155,19 @@ set search_path = ''
 as $$
 declare a public.scheduled_actions;
 begin
-  if (select auth.uid()) is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
   select * into a from public.scheduled_actions where id = p_id for update;
-  if not found or a.company_id not in (select app.societes_avec_droit('formation.convocations.envoyer')) then
-    raise exception 'Relance introuvable, ou droit d''envoyer aux stagiaires et aux clients requis' using errcode = '42501';
-  end if;
-  if a.envoi_reserve_at is null or a.status <> 'valide' then
+  if not found or a.envoi_reserve_at is null or a.status <> 'valide' or a.envoi_reserve_par is distinct from p_auteur then
     raise exception 'Aucun envoi en cours pour cette relance' using errcode = '22023';
   end if;
   perform set_config('app.relance_envoi', 'on', true);
   if p_ok then
-    update public.scheduled_actions set status = 'envoye', error = null, envoi_reserve_at = null,
+    update public.scheduled_actions set status = 'envoye', error = null, envoi_reserve_at = null, envoi_reserve_par = null,
       envoi_boite = left(p_boite, 320), envoi_message_id = left(p_message_id, 500)
      where id = a.id;
+    -- Auteur : la personne qui a réservé (la règle d'état pose l'utilisateur connecté, absent ici)
+    update public.scheduled_actions set sent_by = p_auteur where id = a.id;
   else
-    update public.scheduled_actions set envoi_reserve_at = null,
+    update public.scheduled_actions set envoi_reserve_at = null, envoi_reserve_par = null,
       error = left(coalesce(nullif(btrim(p_erreur), ''), 'Échec de l''envoi'), 300)
      where id = a.id;
   end if;
@@ -136,10 +175,10 @@ begin
 end
 $$;
 
-revoke all on function public.relance_envoi_reserver(uuid) from public, anon;
-revoke all on function public.relance_envoi_terminer(uuid, boolean, text, text, text) from public, anon;
-grant execute on function public.relance_envoi_reserver(uuid) to authenticated;
-grant execute on function public.relance_envoi_terminer(uuid, boolean, text, text, text) to authenticated;
+revoke all on function public.relance_envoi_reserver(uuid, text) from public, anon;
+revoke all on function public.relance_envoi_terminer(uuid, uuid, boolean, text, text, text) from public, anon, authenticated;
+grant execute on function public.relance_envoi_reserver(uuid, text) to authenticated;
+grant execute on function public.relance_envoi_terminer(uuid, uuid, boolean, text, text, text) to service_role;
 
 insert into public.schema_migrations (version) values ('0518_relances_envoi') on conflict (version) do nothing;
 
@@ -151,25 +190,39 @@ set local client_min_messages = warning;
 do $$
 declare
   v_cie uuid; v_u uuid := gen_random_uuid(); v_l uuid := gen_random_uuid(); c_u text; c_l text;
-  v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid; r jsonb; v_row public.scheduled_actions;
+  v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid; v_f uuid; v_g uuid; v_h uuid; v_i uuid;
+  r jsonb; v_row public.scheduled_actions;
+  c_srv text := '{"role":"service_role"}';
 begin
   select id into v_cie from public.companies where status = 'active' order by created_at limit 1;
 
   insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
-    (v_cie, 'autre', 'Essai 0518 A', 'valide', 'essai-0518-a', '{"destinataire":"a@exemple.invalid","objet":"Objet A","texte":"Bonjour A"}')
-    returning id into v_a;
+    (v_cie, 'autre', 'Essai 0518 A', 'valide', 'essai-0518-a', '{"destinataire":"a@exemple.invalid","objet":"Objet A","texte":"Bonjour A"}') returning id into v_a;
   insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
-    (v_cie, 'autre', 'Essai 0518 B', 'a_valider', 'essai-0518-b', '{"destinataire":"b@exemple.invalid","objet":"Objet B","texte":"Bonjour B"}')
-    returning id into v_b;
+    (v_cie, 'autre', 'Essai 0518 B', 'a_valider', 'essai-0518-b', '{"destinataire":"b@exemple.invalid","objet":"Objet B","texte":"Bonjour B"}') returning id into v_b;
   insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
-    (v_cie, 'autre', 'Essai 0518 C', 'valide', 'essai-0518-c', '{"destinataire":"pas une adresse","texte":"Bonjour C"}')
-    returning id into v_c;
+    (v_cie, 'autre', 'Essai 0518 C', 'valide', 'essai-0518-c', '{"destinataire":"pas une adresse","texte":"Bonjour C"}') returning id into v_c;
   insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
-    (v_cie, 'autre', 'Essai 0518 D', 'valide', 'essai-0518-d', '{"destinataire":"d@exemple.invalid","texte":"  "}')
-    returning id into v_d;
+    (v_cie, 'autre', 'Essai 0518 D', 'valide', 'essai-0518-d', '{"destinataire":"d@exemple.invalid","texte":"  "}') returning id into v_d;
   insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, blocked_reason) values
-    (v_cie, 'autre', 'Essai 0518 E', 'valide', 'essai-0518-e', '{"destinataire":"e@exemple.invalid","texte":"Bonjour E"}', 'session incomplète')
-    returning id into v_e;
+    (v_cie, 'autre', 'Essai 0518 E', 'valide', 'essai-0518-e', '{"destinataire":"e@exemple.invalid","texte":"Bonjour E"}', 'session incomplète') returning id into v_e;
+  -- Étape du pilote faite depuis la session : le texte est une consigne pour l'équipe
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
+    (v_cie, 'convocation', 'Essai 0518 F', 'valide', 'essai-0518-f', '{"etape":"convocation","destinataire":"f@exemple.invalid","texte":"Convocations à envoyer depuis la session"}') returning id into v_f;
+  -- Note interne et courrier qui attend l'expert
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
+    (v_cie, 'renouvellement_contrat', 'Essai 0518 G', 'valide', 'essai-0518-g', '{"interne":true,"destinataire":"g@exemple.invalid","texte":"Note"}') returning id into v_g;
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
+    (v_cie, 'renouvellement_contrat', 'Essai 0518 H', 'valide', 'essai-0518-h', '{"a_valider_par_expert":true,"destinataire":"h@exemple.invalid","texte":"Courrier"}') returning id into v_h;
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
+    (v_cie, 'relance_impaye', 'Essai 0518 I', 'valide', 'essai-0518-i', '{"destinataire":"i@exemple.invalid","objet":"Facture","texte":"Bonjour I"}') returning id into v_i;
+
+  -- 0. Ce qui peut partir
+  if not (select envoi_possible from public.scheduled_actions where id = v_a) or not (select envoi_possible from public.scheduled_actions where id = v_i)
+     or (select envoi_possible from public.scheduled_actions where id = v_f) or (select envoi_possible from public.scheduled_actions where id = v_g)
+     or (select envoi_possible from public.scheduled_actions where id = v_h) then
+    raise exception '0. règle des relances envoyables';
+  end if;
 
   -- Comptes : un administrateur (droit d'envoyer) et un compte en lecture seule
   insert into auth.users (id, email, aud, role) values (v_u, 'u-0518@exemple.invalid', 'authenticated', 'authenticated'),
@@ -182,21 +235,15 @@ begin
   c_l := json_build_object('sub', v_l, 'role', 'authenticated')::text;
 
   -- 1. Sans connexion : refusé
-  begin
-    perform public.relance_envoi_reserver(v_a);
-    raise exception '1. réservation sans connexion acceptée';
-  exception when insufficient_privilege then null;
-  end;
+  begin perform public.relance_envoi_reserver(v_a, 'a@exemple.invalid'); raise exception '1. réservation sans connexion acceptée';
+  exception when insufficient_privilege then null; end;
 
   -- 2. Compte en lecture seule : refusé
   perform set_config('request.jwt.claims', c_l, true);
   perform set_config('request.jwt.claim.sub', v_l::text, true);
   execute 'set local role authenticated';
-  begin
-    perform public.relance_envoi_reserver(v_a);
-    raise exception '2. réservation par un compte sans droit acceptée';
-  exception when insufficient_privilege then null;
-  end;
+  begin perform public.relance_envoi_reserver(v_a, 'a@exemple.invalid'); raise exception '2. réservation par un compte sans droit acceptée';
+  exception when insufficient_privilege then null; end;
   execute 'reset role';
 
   -- Compte avec le droit
@@ -205,72 +252,135 @@ begin
   execute 'set local role authenticated';
 
   -- 3. Colonnes d'envoi non écrites par un compte
-  update public.scheduled_actions set envoi_reserve_at = now(), envoi_boite = 'x@exemple.invalid', envoi_message_id = 'x', texte_retouche = true where id = v_a;
+  update public.scheduled_actions set envoi_reserve_at = now(), envoi_reserve_par = v_u, envoi_boite = 'x@exemple.invalid', envoi_message_id = 'x', texte_retouche = true where id = v_a;
   select * into v_row from public.scheduled_actions where id = v_a;
-  if v_row.envoi_reserve_at is not null or v_row.envoi_boite is not null or v_row.envoi_message_id is not null or v_row.texte_retouche then
+  if v_row.envoi_reserve_at is not null or v_row.envoi_reserve_par is not null or v_row.envoi_boite is not null or v_row.envoi_message_id is not null or v_row.texte_retouche then
     raise exception '3. colonnes d''envoi écrites par un compte';
   end if;
 
-  -- 4. Retouche : texte changé par une personne
+  -- 4. Retouche avant validation ; texte figé après validation
   update public.scheduled_actions set payload = payload || '{"texte":"Bonjour B, corrigé"}' where id = v_b;
   if not (select texte_retouche from public.scheduled_actions where id = v_b) then raise exception '4a. retouche non notée'; end if;
   update public.scheduled_actions set status = 'valide' where id = v_b;
   if not (select texte_retouche from public.scheduled_actions where id = v_b) then raise exception '4b. retouche perdue'; end if;
+  begin update public.scheduled_actions set payload = payload || '{"destinataire":"autre@exemple.invalid"}' where id = v_b; raise exception '4c. destinataire changé après validation';
+  exception when invalid_parameter_value then null; end;
+  begin update public.scheduled_actions set payload = payload || '{"texte":"autre"}' where id = v_b; raise exception '4d. texte changé après validation';
+  exception when invalid_parameter_value then null; end;
+  update public.scheduled_actions set payload = payload || '{"note":"vu"}' where id = v_b;
 
-  -- 5. Refus : pas « à envoyer », adresse invalide, texte vide, relance bloquée
+  -- 5. Refus : pas « à envoyer », adresse invalide, texte vide, bloquée, non envoyable, destinataire différent de l'aperçu
   update public.scheduled_actions set status = 'a_valider' where id = v_b;
-  begin perform public.relance_envoi_reserver(v_b); raise exception '5a. relance à valider réservée';
+  begin perform public.relance_envoi_reserver(v_b, 'b@exemple.invalid'); raise exception '5a. relance à valider réservée';
   exception when invalid_parameter_value then null; end;
-  begin perform public.relance_envoi_reserver(v_c); raise exception '5b. adresse invalide réservée';
+  begin perform public.relance_envoi_reserver(v_c, 'pas une adresse'); raise exception '5b. adresse invalide réservée';
   exception when invalid_parameter_value then null; end;
-  begin perform public.relance_envoi_reserver(v_d); raise exception '5c. texte vide réservé';
+  begin perform public.relance_envoi_reserver(v_d, 'd@exemple.invalid'); raise exception '5c. texte vide réservé';
   exception when invalid_parameter_value then null; end;
-  begin perform public.relance_envoi_reserver(v_e); raise exception '5d. relance bloquée réservée';
+  begin perform public.relance_envoi_reserver(v_e, 'e@exemple.invalid'); raise exception '5d. relance bloquée réservée';
+  exception when invalid_parameter_value then null; end;
+  begin perform public.relance_envoi_reserver(v_f, 'f@exemple.invalid'); raise exception '5e. étape du pilote réservée';
+  exception when invalid_parameter_value then null; end;
+  begin perform public.relance_envoi_reserver(v_g, 'g@exemple.invalid'); raise exception '5f. note interne réservée';
+  exception when invalid_parameter_value then null; end;
+  begin perform public.relance_envoi_reserver(v_a, 'autre@exemple.invalid'); raise exception '5g. destinataire différent de l''aperçu';
   exception when invalid_parameter_value then null; end;
 
-  -- 6. Réservation : ce qui part, objet par défaut = titre si vide
-  r := public.relance_envoi_reserver(v_a);
+  -- 6. Réservation : ce qui part ; seconde réservation et état figés pendant l'envoi
+  r := public.relance_envoi_reserver(v_a, ' A@exemple.invalid ');
   if r->>'destinataire' <> 'a@exemple.invalid' or r->>'objet' <> 'Objet A' or r->>'texte' <> 'Bonjour A' then raise exception '6a. contenu %', r; end if;
-  if (select envoi_reserve_at from public.scheduled_actions where id = v_a) is null then raise exception '6b. réservation non posée'; end if;
-  -- Seconde réservation pendant l'envoi : refusée
-  begin perform public.relance_envoi_reserver(v_a); raise exception '6c. double réservation';
-  exception when invalid_parameter_value then null; end;
-  -- Texte et état figés pendant l'envoi
-  begin update public.scheduled_actions set payload = payload || '{"texte":"autre"}' where id = v_a; raise exception '6d. texte changé pendant l''envoi';
-  exception when invalid_parameter_value then null; end;
+  select * into v_row from public.scheduled_actions where id = v_a;
+  if v_row.envoi_reserve_at is null or v_row.envoi_reserve_par is distinct from v_u then raise exception '6b. réservation non posée'; end if;
+  begin perform public.relance_envoi_reserver(v_a, 'a@exemple.invalid'); raise exception '6c. double réservation';
+  exception when invalid_parameter_value then
+    if sqlerrm not like 'Envoi déjà en cours%' then raise exception '6c. message : %', sqlerrm; end if;
+  end;
+  -- Étape du pilote, quel que soit le type
+  perform set_config('app.relance_envoi', '', true);
+  if app.relance_envoyable('autre', '{"etape":"convocation"}') or app.relance_envoyable('autre', '{"etape":"attestations"}') then
+    raise exception '6f. étape du pilote envoyable';
+  end if;
   begin update public.scheduled_actions set status = 'a_valider' where id = v_a; raise exception '6e. état changé pendant l''envoi';
   exception when invalid_parameter_value then null; end;
 
-  -- 7. Échec : l'erreur est notée, la relance reste à envoyer et peut repartir
-  perform public.relance_envoi_terminer(v_a, false, 'Boîte injoignable');
-  select * into v_row from public.scheduled_actions where id = v_a;
-  if v_row.status <> 'valide' or v_row.error <> 'Boîte injoignable' or v_row.envoi_reserve_at is not null then raise exception '7a. échec mal noté'; end if;
-  begin perform public.relance_envoi_terminer(v_a, true); raise exception '7b. fin sans envoi en cours acceptée';
-  exception when invalid_parameter_value then null; end;
+  -- 7. Fin d'envoi interdite à un compte
+  begin perform public.relance_envoi_terminer(v_a, v_u, true); raise exception '7a. fin d''envoi par un compte';
+  exception when insufficient_privilege then null; end;
+  execute 'reset role';
 
-  -- 8. Réussite : envoyée, auteur, date, boîte, message ; erreur effacée ; plus rien ne bouge
-  r := public.relance_envoi_reserver(v_a);
-  if (select error from public.scheduled_actions where id = v_a) is not null then raise exception '8a. erreur gardée à la réservation'; end if;
-  perform public.relance_envoi_terminer(v_a, true, null, '<m-0518@exemple.invalid>', 'u-0518@exemple.invalid');
+  -- Clé de service (la route)
+  perform set_config('request.jwt.claims', c_srv, true);
+  perform set_config('request.jwt.claim.sub', '', true);
+  execute 'set local role service_role';
+  begin perform public.relance_envoi_terminer(v_a, v_l, true); raise exception '7b. fin par un autre auteur';
+  exception when invalid_parameter_value then null; end;
+  -- 8. Échec : l'erreur est notée, la relance reste à envoyer
+  perform public.relance_envoi_terminer(v_a, v_u, false, 'Boîte injoignable');
+  select * into v_row from public.scheduled_actions where id = v_a;
+  if v_row.status <> 'valide' or v_row.error <> 'Boîte injoignable' or v_row.envoi_reserve_at is not null or v_row.envoi_reserve_par is not null then raise exception '8a. échec mal noté'; end if;
+  begin perform public.relance_envoi_terminer(v_a, v_u, true); raise exception '8b. fin sans envoi en cours acceptée';
+  exception when invalid_parameter_value then null; end;
+  execute 'reset role';
+
+  -- 9. Réussite : envoyée, auteur, date, boîte, message ; erreur effacée ; plus rien ne bouge
+  perform set_config('request.jwt.claims', c_u, true);
+  perform set_config('request.jwt.claim.sub', v_u::text, true);
+  execute 'set local role authenticated';
+  r := public.relance_envoi_reserver(v_a, 'a@exemple.invalid');
+  if (select error from public.scheduled_actions where id = v_a) is not null then raise exception '9a. erreur gardée à la réservation'; end if;
+  execute 'reset role';
+  perform set_config('request.jwt.claims', c_srv, true);
+  perform set_config('request.jwt.claim.sub', '', true);
+  execute 'set local role service_role';
+  perform public.relance_envoi_terminer(v_a, v_u, true, null, '<m-0518@exemple.invalid>', 'u-0518@exemple.invalid');
+  execute 'reset role';
   select * into v_row from public.scheduled_actions where id = v_a;
   if v_row.status <> 'envoye' or v_row.sent_by is distinct from v_u or v_row.sent_at is null
      or v_row.envoi_boite <> 'u-0518@exemple.invalid' or v_row.envoi_message_id <> '<m-0518@exemple.invalid>'
      or v_row.envoi_reserve_at is not null or v_row.error is not null or v_row.texte_retouche then
-    raise exception '8b. réussite mal notée : %', row_to_json(v_row);
+    raise exception '9b. réussite mal notée : %', row_to_json(v_row);
   end if;
-  begin perform public.relance_envoi_reserver(v_a); raise exception '8c. relance envoyée réservée';
-  exception when invalid_parameter_value then null; end;
 
-  -- 9. « Marquer envoyée » à la main reste possible
+  -- 10. Changement d'état par la base pendant un envoi (règlement de la facture) : accepté, réservation levée
+  perform set_config('request.jwt.claims', c_u, true);
+  perform set_config('request.jwt.claim.sub', v_u::text, true);
+  execute 'set local role authenticated';
+  r := public.relance_envoi_reserver(v_i, 'i@exemple.invalid');
+  begin perform public.relance_envoi_reserver(v_a, 'a@exemple.invalid'); raise exception '9c. relance envoyée réservée';
+  exception when invalid_parameter_value then null; end;
+  execute 'reset role';
+  perform set_config('request.jwt.claims', '', true);
+  perform set_config('request.jwt.claim.sub', '', true);
+  update public.scheduled_actions set status = 'ignore' where id = v_i;
+  select * into v_row from public.scheduled_actions where id = v_i;
+  if v_row.status <> 'ignore' or v_row.envoi_reserve_at is not null then raise exception '10a. état de la base refusé pendant l''envoi'; end if;
+  perform set_config('request.jwt.claims', c_srv, true);
+  execute 'set local role service_role';
+  begin perform public.relance_envoi_terminer(v_i, v_u, true); raise exception '10b. fin acceptée sur une relance ignorée';
+  exception when invalid_parameter_value then null; end;
+  execute 'reset role';
+  perform set_config('request.jwt.claims', '', true);
+
+  -- 11. Envoi resté sans suite : jamais repris seul ; marquer envoyée lève la réservation
   update public.scheduled_actions set status = 'valide' where id = v_b;
+  perform set_config('app.relance_envoi', 'on', true);
+  update public.scheduled_actions set envoi_reserve_at = now() - interval '11 minutes', envoi_reserve_par = v_u where id = v_b;
+  perform set_config('app.relance_envoi', '', true);
+  perform set_config('request.jwt.claims', c_u, true);
+  perform set_config('request.jwt.claim.sub', v_u::text, true);
+  execute 'set local role authenticated';
+  begin perform public.relance_envoi_reserver(v_b, 'b@exemple.invalid'); raise exception '11a. envoi sans suite repris';
+  exception when invalid_parameter_value then null; end;
   update public.scheduled_actions set status = 'envoye' where id = v_b;
-  if (select status from public.scheduled_actions where id = v_b) <> 'envoye' then raise exception '9. marquer envoyée refusé'; end if;
+  select * into v_row from public.scheduled_actions where id = v_b;
+  if v_row.status <> 'envoye' or v_row.envoi_reserve_at is not null or v_row.sent_by is distinct from v_u then raise exception '11b. marquer envoyée après envoi sans suite'; end if;
   execute 'reset role';
 
-  -- 10. Fonctions fermées au visiteur sans compte
-  if has_function_privilege('anon', 'public.relance_envoi_reserver(uuid)', 'execute')
-     or has_function_privilege('anon', 'public.relance_envoi_terminer(uuid, boolean, text, text, text)', 'execute') then
-    raise exception '10. fonctions ouvertes au visiteur';
+  -- 12. Fonctions fermées au visiteur ; fin d'envoi fermée aux comptes
+  if has_function_privilege('anon', 'public.relance_envoi_reserver(uuid, text)', 'execute')
+     or has_function_privilege('anon', 'public.relance_envoi_terminer(uuid, uuid, boolean, text, text, text)', 'execute')
+     or has_function_privilege('authenticated', 'public.relance_envoi_terminer(uuid, uuid, boolean, text, text, text)', 'execute') then
+    raise exception '12. fonctions trop ouvertes';
   end if;
 end $$;
 

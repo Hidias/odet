@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Envoi d'une relance depuis l'outil (0518) : texte du mail et route, sans base ni messagerie
-const etat = vi.hoisted(() => ({ rpc: [], envois: [], mailerErreur: null, envoiEchoue: false, ligne: null, reserve: null, reserveErreur: null }))
+const etat = vi.hoisted(() => ({ rpc: [], envois: [], mailerErreur: null, envoiEchoue: false, ligne: null, reserve: null, reserveErreur: null, finErreurs: 0, demo: false, reel: false, orgErreur: false }))
 
 vi.mock('../api/_lib/auth.js', () => ({
   OFFICE_WRITE: ['admin'],
@@ -22,10 +22,20 @@ vi.mock('../api/_lib/mailer.js', async (orig) => {
   return {
     finirParCordialement: vrai.finirParCordialement,
     buildSignatureHTML: () => '<div>SIGNATURE</div>',
-    getSupabaseAdmin: () => ({}),
-    getOrgForCompany: async () => ({ name: 'Organisme', email_bcc: 'copie@exemple.invalid' }),
+    isTestEnvironment: () => false,
+    getSupabaseAdmin: () => ({
+      rpc: async (nom, args) => {
+        etat.rpc.push([nom, args])
+        if (etat.finErreurs > 0) { etat.finErreurs -= 1; return { error: { message: 'base injoignable' } } }
+        return { error: null }
+      },
+    }),
+    getOrgForCompany: async (_c, societe) => {
+      if (societe && etat.orgErreur) throw new Error('réglages illisibles')
+      return { name: 'Organisme', email_bcc: 'copie@exemple.invalid', demo_mode: etat.demo }
+    },
     getSender: async () => ({ name: 'Anne Envoi' }),
-    getMailer: async () => (etat.mailerErreur ? { error: etat.mailerErreur } : { transporter: { close() {} }, emailConfig: { email: 'moi@exemple.invalid' }, error: null }),
+    getMailer: async () => (etat.mailerErreur ? { error: etat.mailerErreur } : { transporter: { close() {} }, emailConfig: { email: 'moi@exemple.invalid' }, error: null, envoiReel: etat.reel }),
     sendWithRetry: async (_t, opts) => {
       if (etat.envoiEchoue) throw new Error('Boîte injoignable')
       etat.envois.push(opts)
@@ -43,7 +53,7 @@ function appel(body) {
 }
 
 beforeEach(() => {
-  Object.assign(etat, { rpc: [], envois: [], mailerErreur: null, envoiEchoue: false, reserveErreur: null,
+  Object.assign(etat, { rpc: [], envois: [], mailerErreur: null, envoiEchoue: false, reserveErreur: null, finErreurs: 0, demo: false, reel: false, orgErreur: false,
     ligne: { id: ID, company_id: 'c1', title: 'Titre', status: 'valide', payload: { destinataire: 'client@exemple.invalid', objet: 'Objet', texte: 'Bonjour,\n\nR&D < 10' } },
     reserve: { id: ID, company_id: 'c1', kind: 'autre', destinataire: 'client@exemple.invalid', objet: 'Objet', texte: 'Bonjour' } })
 })
@@ -80,16 +90,17 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
   })
 
   it('envoi : réservé par la base, parti au destinataire avec copie cachée, puis noté envoyé', async () => {
-    const r = await appel({ id: ID, action: 'envoi' })
+    const r = await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid' })
     expect(r.code).toBe(200)
     expect(etat.rpc.map((x) => x[0])).toEqual(['relance_envoi_reserver', 'relance_envoi_terminer'])
     expect(etat.envois[0]).toMatchObject({ to: 'client@exemple.invalid', bcc: 'copie@exemple.invalid', subject: 'Objet' })
-    expect(etat.rpc[1][1]).toMatchObject({ p_id: ID, p_ok: true, p_message_id: '<m1@exemple.invalid>', p_boite: 'moi@exemple.invalid' })
+    expect(etat.rpc[0][1]).toEqual({ p_id: ID, p_destinataire: 'client@exemple.invalid' })
+    expect(etat.rpc[1][1]).toMatchObject({ p_id: ID, p_auteur: 'u1', p_ok: true, p_message_id: '<m1@exemple.invalid>', p_boite: 'moi@exemple.invalid' })
   })
 
   it('envoi : boîte non configurée = rien n\'est réservé', async () => {
     etat.mailerErreur = 'Votre boîte d\'envoi n\'est pas configurée'
-    const r = await appel({ id: ID, action: 'envoi' })
+    const r = await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid' })
     expect(r.code).toBe(400)
     expect(etat.rpc).toEqual([])
     expect(etat.envois).toEqual([])
@@ -97,7 +108,7 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
 
   it('envoi : refus de la base = rien ne part', async () => {
     etat.reserveErreur = { code: '22023', message: 'Envoi déjà en cours pour cette relance' }
-    const r = await appel({ id: ID, action: 'envoi' })
+    const r = await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid' })
     expect(r.code).toBe(409)
     expect(r.json.error).toContain('déjà en cours')
     expect(etat.envois).toEqual([])
@@ -105,13 +116,47 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
 
   it('envoi échoué : l\'erreur est notée sur la relance', async () => {
     etat.envoiEchoue = true
-    const r = await appel({ id: ID, action: 'envoi' })
+    const r = await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid' })
     expect(r.code).toBe(502)
-    expect(etat.rpc[1]).toEqual(['relance_envoi_terminer', { p_id: ID, p_ok: false, p_erreur: 'Boîte injoignable' }])
+    expect(etat.rpc[1]).toEqual(['relance_envoi_terminer', { p_id: ID, p_auteur: 'u1', p_ok: false, p_erreur: 'Boîte injoignable' }])
+  })
+
+  it('envoi sans aperçu (destinataire vu absent) : refusé avant tout', async () => {
+    const r = await appel({ id: ID, action: 'envoi' })
+    expect(r.code).toBe(400)
+    expect(etat.rpc).toEqual([])
+  })
+
+  it('mode démonstration : refusé sauf envoi réel du super administrateur, et signalé à l\'aperçu', async () => {
+    etat.demo = true
+    const r = await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid' })
+    expect(r.code).toBe(409)
+    expect(etat.rpc).toEqual([])
+    expect(etat.envois).toEqual([])
+    expect((await appel({ id: ID, action: 'apercu' })).json.avertissement).toContain('Mode démonstration')
+    etat.reel = true
+    expect((await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid' })).code).toBe(200)
+    expect(etat.envois).toHaveLength(1)
+  })
+
+  it('trace refusée après le mail : un second essai, puis avertissement sans renvoi', async () => {
+    etat.finErreurs = 2
+    const r = await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid' })
+    expect(r.code).toBe(200)
+    expect(r.json.avertissement).toContain('Ne la renvoyez pas')
+    expect(etat.rpc.filter((x) => x[0] === 'relance_envoi_terminer')).toHaveLength(2)
+    expect(etat.envois).toHaveLength(1)
+  })
+
+  it('erreur après la réservation, avant le mail : réservation levée, rien ne part', async () => {
+    etat.orgErreur = true
+    await expect(appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid' })).rejects.toThrow('réglages illisibles')
+    expect(etat.rpc[1]).toEqual(['relance_envoi_terminer', { p_id: ID, p_auteur: 'u1', p_ok: false, p_erreur: 'Mail non préparé, rien n\'est parti' }])
+    expect(etat.envois).toEqual([])
   })
 
   it('demande mal formée refusée', async () => {
-    expect((await appel({ id: 'x', action: 'envoi' })).code).toBe(400)
+    expect((await appel({ id: 'x', action: 'envoi', destinataire: 'client@exemple.invalid' })).code).toBe(400)
     expect((await appel({ id: ID, action: 'autre' })).code).toBe(400)
   })
 })

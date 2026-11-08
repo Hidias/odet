@@ -44,7 +44,7 @@ export default function AValider() {
   const load = async () => {
     // Avant 0518 (envoi depuis l'outil) : ni erreur d'envoi ni boîte
     let { data, error } = await supabase.from('scheduled_actions')
-      .select('id, kind, client_id, target_table, target_id, session_id, blocked_reason, due_on, title, payload, status, validated_at, sent_at, error, envoi_boite, clients(name)')
+      .select('id, kind, client_id, target_table, target_id, session_id, blocked_reason, due_on, title, payload, status, validated_at, sent_at, error, envoi_boite, envoi_possible, envoi_reserve_at, clients(name)')
       .order('due_on', { ascending: true }).limit(500)
     if (error) ({ data, error } = await supabase.from('scheduled_actions')
       .select('id, kind, client_id, target_table, target_id, session_id, blocked_reason, due_on, title, payload, status, validated_at, sent_at, clients(name)')
@@ -127,16 +127,20 @@ export default function AValider() {
     setBusy(false)
   }
   const envoyer = async (a) => {
-    const dest = String(a.payload?.destinataire || '').trim()
+    // Le destinataire est celui de l'aperçu affiché : la base refuse s'il a changé entre-temps
+    const dest = apercu?.id === a.id ? String(apercu.destinataire || '').trim() : ''
+    if (!dest) return toast.error('Ouvrez d\'abord « Voir le mail »')
     if (!(await confirmer({ title: 'Envoyer la relance', message: `Envoyer cette relance à ${dest} depuis votre boîte d'envoi ? Le mail part tout de suite.`, confirmLabel: 'Envoyer' }))) return
     setBusy(true)
     try {
-      const r = await callApi('/api/relance-envoi', { id: a.id, action: 'envoi' })
+      const r = await callApi('/api/relance-envoi', { id: a.id, action: 'envoi', destinataire: dest })
       if (r.avertissement) toast.error(r.avertissement, { duration: 10000 })
       else toast.success(`Relance envoyée à ${r.destinataire}`)
-      setOuvert(null)
     } catch (e) { toast.error(e.message, { duration: 8000 }) }
+    // Succès ou échec : la fiche se ferme, la liste relue montre l'état réel (erreur notée sur la relance)
     setBusy(false)
+    setOuvert(null)
+    setApercu(null)
     load()
   }
 
@@ -215,8 +219,9 @@ export default function AValider() {
             {ouvert.status === 'valide' && <button type="button" className="btn btn-ghost mr-auto" onClick={() => changer(ouvert, 'a_valider')} disabled={busy}>Remettre à valider</button>}
             {ouvert.status === 'a_valider' && !ouvert.blocked_reason && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'valide', ouvert.payload)} disabled={busy}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Valider</button>}
-            {ouvert.status === 'valide' && (ouvert.payload.destinataire
-              ? <button type="button" className="btn btn-primary" onClick={() => envoyer(ouvert)} disabled={busy}>
+            {ouvert.status === 'valide' && (ouvert.envoi_possible && ouvert.payload.destinataire
+              ? <button type="button" className="btn btn-primary" onClick={() => envoyer(ouvert)} disabled={busy || apercu?.id !== ouvert.id}
+                title={apercu?.id !== ouvert.id ? 'Voir le mail avant de l\'envoyer' : undefined}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer</button>
               : <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'envoye', null, true)} disabled={busy}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer envoyée</button>)}
@@ -246,7 +251,9 @@ export default function AValider() {
               onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, texte: e.target.value } })} />
           </div>
           {ouvert.status === 'valide' && ouvert.error && <Banner tone="danger">Dernier envoi échoué : {ouvert.error}. Vous pouvez réessayer.</Banner>}
-          {ouvert.status === 'valide' && ouvert.payload.destinataire && (
+          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} sans suite connue. Vérifiez dans votre boîte d'envoi s'il est parti : marquez la relance envoyée, ou remettez-la à valider pour la renvoyer (possible 10 minutes après le début de l'envoi).</Banner>}
+          {ouvert.status === 'valide' && !ouvert.envoi_possible && <p className="text-ui-sm text-gray-500">Cette relance est une consigne pour l'équipe : faites l'action indiquée (depuis la session ou la fiche), puis « Marquer envoyée ».</p>}
+          {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && !ouvert.envoi_reserve_at && (
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-secondary" onClick={() => voirApercu(ouvert)} disabled={busy}><Eye className="w-4 h-4" /> Voir le mail</button>
               <button type="button" className="btn btn-secondary" onClick={() => testAMoi(ouvert)} disabled={busy}><Mail className="w-4 h-4" /> Test à moi</button>

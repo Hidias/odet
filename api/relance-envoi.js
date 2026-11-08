@@ -7,19 +7,28 @@
 //     tout à la réservation (relance_envoi_reserver, appelée avec le jeton de l'appelant) ;
 //   - boîte d'envoi de la personne connectée, signature et copie cachée habituelles ; les règles d'envoi réel de
 //     l'outil s'appliquent (getMailer, envoi réel du super administrateur ; sinon mode démonstration) ;
-//   - l'envoi est tracé sur la relance (relance_envoi_terminer) : envoyée, ou erreur notée et relance à reprendre.
+//   - mode démonstration ou environnement de test : seul l'envoi réel du super administrateur part au destinataire ;
+//     pour les autres comptes l'envoi est refusé (la relance serait marquée envoyée sans être arrivée) ;
+//   - l'envoi est tracé sur la relance (relance_envoi_terminer, clé de service) : envoyée, ou erreur notée et relance à
+//     reprendre. Une trace qui échoue après le mail laisse la relance « envoi sans suite » : jamais renvoyée seule.
 //
-//   POST /api/relance-envoi { id, action: 'apercu' } → le mail tel qu'il partira, rien n'est réservé ni envoyé
-//   POST /api/relance-envoi { id, action: 'test' }   → un exemple à l'adresse de la personne connectée
-//   POST /api/relance-envoi { id, action: 'envoi' }  → envoi au destinataire
+//   POST /api/relance-envoi { id, action: 'apercu' }               → le mail tel qu'il partira, rien n'est réservé ni envoyé
+//   POST /api/relance-envoi { id, action: 'test' }                 → un exemple à l'adresse de la personne connectée
+//   POST /api/relance-envoi { id, action: 'envoi', destinataire }  → envoi au destinataire vu dans l'aperçu
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, getOrgForCompany, getSender, buildSignatureHTML, finirParCordialement } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrgForCompany, getSender, buildSignatureHTML, finirParCordialement, isTestEnvironment } from './_lib/mailer.js'
 import { requireRight, clientDeLAppelant, refusVueGroupe, OFFICE_WRITE } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 import { texteEnHtml } from '../src/core/html.js'
 
 export const config = { maxDuration: 60 }
+
+// Envoi qui n'arriverait pas au destinataire : mode démonstration ou test, hors envoi réel du super administrateur
+export function envoiRedirige(mailer, org) {
+  return !mailer.envoiReel && (isTestEnvironment() || !!org.demo_mode)
+}
+export const MESSAGE_REDIRIGE = 'Mode démonstration : le mail irait à l\'adresse de test, pas au destinataire. Seul le super administrateur envoie pour de vrai ; utilisez « Test à moi ».'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -57,9 +66,9 @@ async function handler(req, res) {
     if (action === 'apercu') {
       try { mailer.transporter?.close() } catch {}
       return res.status(200).json({
-        destinataire: String(p.destinataire || '').trim(), expediteur: mailer.emailConfig?.email || null,
+        id: a.id, destinataire: String(p.destinataire || '').trim(), expediteur: mailer.emailConfig?.email || null,
         copieCachee: org.email_bcc || null, sujet: mail.sujet, html: mail.html, piecesJointes: [],
-        avertissement: mailer.error || null,
+        avertissement: mailer.error || (envoiRedirige(mailer, org) ? MESSAGE_REDIRIGE : null),
       })
     }
     if (mailer.error) return res.status(400).json({ error: mailer.error })
@@ -73,33 +82,52 @@ async function handler(req, res) {
   }
 
   // Boîte d'envoi d'abord : sans elle, rien n'est réservé
+  const destinataireVu = typeof req.body?.destinataire === 'string' ? req.body.destinataire : ''
+  if (!destinataireVu.trim()) return res.status(400).json({ error: 'Ouvrez l\'aperçu du mail avant de l\'envoyer' })
   const mailer = await getMailer(admin, ctx.user.id, { envoiReel: true })
   if (mailer.error) return res.status(400).json({ error: mailer.error })
-  // Réservation par la base au nom de l'appelant (droit, état, adresse, texte, une seule personne à la fois)
-  const { data: r, error: rErr } = await appelant.rpc('relance_envoi_reserver', { p_id: id })
-  if (rErr) {
-    try { mailer.transporter.close() } catch {}
-    return res.status(rErr.code === '42501' ? 403 : 409).json({ error: rErr.message })
+  const fermer = () => { try { mailer.transporter.close() } catch {} }
+  {
+    const orgDefaut = await getOrgForCompany(admin, null)
+    if (envoiRedirige(mailer, orgDefaut)) { fermer(); return res.status(409).json({ error: MESSAGE_REDIRIGE }) }
   }
-  const org = await getOrgForCompany(admin, r.company_id)
-  const sender = await getSender(admin, mailer.emailConfig.email)
-  const mail = mailDeRelance({ objet: r.objet, texte: r.texte }, sender, org)
+  // Réservation par la base au nom de l'appelant (droit, état, adresse vue, texte, une seule personne à la fois)
+  const { data: r, error: rErr } = await appelant.rpc('relance_envoi_reserver', { p_id: id, p_destinataire: destinataireVu })
+  if (rErr) { fermer(); return res.status(rErr.code === '42501' ? 403 : 409).json({ error: rErr.message }) }
+  // Trace de fin par la clé de service ; un second essai si la base ne répond pas
+  const terminer = async (args) => {
+    const appelFin = () => admin.rpc('relance_envoi_terminer', { p_id: id, p_auteur: ctx.user.id, ...args })
+    let { error } = await appelFin()
+    if (error) ({ error } = await appelFin())
+    return error
+  }
+  let mail
+  let sender
+  try {
+    const org = await getOrgForCompany(admin, r.company_id)
+    sender = await getSender(admin, mailer.emailConfig.email)
+    mail = { ...mailDeRelance({ objet: r.objet, texte: r.texte }, sender, org), bcc: org.email_bcc || undefined }
+  } catch (err) {
+    fermer()
+    await terminer({ p_ok: false, p_erreur: 'Mail non préparé, rien n\'est parti' })
+    throw err
+  }
   try {
     const info = await sendWithRetry(mailer.transporter, {
       from: `"${sender.name}" <${mailer.emailConfig.email}>`,
       to: r.destinataire,
-      bcc: org.email_bcc || undefined,
+      bcc: mail.bcc,
       subject: mail.sujet, text: mail.texte, html: mail.html,
     }, 1)
-    const { error: fErr } = await appelant.rpc('relance_envoi_terminer', { p_id: id, p_ok: true, p_message_id: info?.messageId || null, p_boite: mailer.emailConfig.email })
-    // Mail parti mais trace refusée : on le dit, pour ne pas le renvoyer une seconde fois
-    if (fErr) return res.status(200).json({ ok: true, destinataire: r.destinataire, avertissement: 'Mail envoyé, mais la relance n\'a pas pu être marquée « envoyée » : ne la renvoyez pas, marquez-la envoyée dans quelques minutes.' })
+    const fErr = await terminer({ p_ok: true, p_message_id: info?.messageId || null, p_boite: mailer.emailConfig.email })
+    // Mail parti mais trace refusée : la relance reste « envoi sans suite », jamais renvoyée seule
+    if (fErr) return res.status(200).json({ ok: true, destinataire: r.destinataire, avertissement: 'Mail envoyé, mais la relance n\'a pas pu être marquée « envoyée ». Ne la renvoyez pas : dans 10 minutes, marquez-la envoyée.' })
     return res.status(200).json({ ok: true, destinataire: r.destinataire })
   } catch (err) {
     const message = String(err?.message || 'Échec de l\'envoi').slice(0, 300)
-    await appelant.rpc('relance_envoi_terminer', { p_id: id, p_ok: false, p_erreur: message })
+    await terminer({ p_ok: false, p_erreur: message })
     return res.status(502).json({ error: `Envoi impossible : ${message}` })
-  } finally { try { mailer.transporter.close() } catch {} }
+  } finally { fermer() }
 }
 
 export default withErrorLog(handler, 'relance-envoi')
