@@ -41,7 +41,7 @@ describe('préparation de la nuit', () => {
   it('lance la préparation des actions sur les titres exigés', () => {
     const src = readFileSync('api/maintenance-nuit.js', 'utf8')
     expect(src).toMatch(/rpc\('habilitations_actions_generer'\)/)
-    expect(src).toMatch(/habilitations, \.\.\.\(nbErreurs/)
+    expect(src).toMatch(/habilitations, departs, \.\.\.\(nbErreurs/)
   })
   it('affiche la source des actions préparées', () => {
     const src = readFileSync('src/core/point/ActionsEquipe.jsx', 'utf8')
