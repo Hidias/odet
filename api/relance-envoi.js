@@ -36,6 +36,8 @@ export const MESSAGE_REDIRIGE = 'Mode démonstration : le mail irait à l\'adres
 // plus tard porte aussi « CONN » chez nodemailer : le mail a pu partir, donc incertain.
 export function echecAvantEnvoi(err) {
   if (['EAUTH', 'ENOAUTH', 'EENVELOPE', 'EDNS'].includes(err?.code)) return true
+  // Connexion refusée ou serveur injoignable
+  if (err?.code === 'ESOCKET' && err?.syscall === 'connect') return true
   const message = String(err?.message || '')
   if (err?.code === 'ETIMEDOUT') return /^(Connection timeout|Greeting never received)/.test(message)
   if (err?.code === 'ETLS') return /^Error initiating TLS/.test(message)
@@ -99,7 +101,7 @@ async function handler(req, res) {
         subject: `[Test] ${mail.sujet}`, text: mail.texte, html: mail.html,
       }, 1)
     } finally { try { mailer.transporter.close() } catch {} }
-    return res.status(200).json({ ok: true, test: redirige ? 'l\'adresse de test du mode démonstration' : mailer.emailConfig.email })
+    return res.status(200).json({ ok: true, test: redirige ? 'l\'adresse de test' : mailer.emailConfig.email })
   }
 
   // Boîte d'envoi d'abord : sans elle, rien n'est réservé
@@ -150,7 +152,7 @@ async function handler(req, res) {
     const { error: fErr, data: fin } = await terminer({ p_ok: true, p_message_id: info?.messageId || null, p_boite: mailer.emailConfig.email })
     if (!fErr && fin === 'ecartee') return res.status(200).json({ ok: true, destinataire: r.destinataire, avertissement: 'Mail envoyé alors que la relance venait d\'être écartée par l\'outil (par exemple facture réglée entre-temps). L\'envoi est noté sur la relance.' })
     // Mail parti mais trace refusée : la relance reste « envoi sans suite », jamais renvoyée seule
-    if (fErr) return res.status(200).json({ ok: true, destinataire: r.destinataire, avertissement: 'Mail envoyé, mais la relance n\'a pas pu être marquée « envoyée ». Ne la renvoyez pas : dans 10 minutes, marquez-la envoyée.' })
+    if (fErr) return res.status(200).json({ ok: true, destinataire: r.destinataire, avertissement: 'Mail envoyé, mais la relance n\'a pas pu être mise à jour. Ne la renvoyez pas : vérifiez-la dans quelques minutes (si elle est encore « à envoyer », marquez-la envoyée).' })
     return res.status(200).json({ ok: true, destinataire: r.destinataire })
   } catch (err) {
     const message = String(err?.message || 'Échec de l\'envoi').slice(0, 300)

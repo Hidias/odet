@@ -194,7 +194,7 @@ begin
   execute 'set local role service_role';
   perform public.relance_envoi_terminer(v_a, v_u, true, null, '<m-0518@exemple.invalid>', 'u-0518@exemple.invalid');
   -- Second appel après une réponse perdue : accepté sans rien changer
-  perform public.relance_envoi_terminer(v_a, v_u, true, null, '<m-0518@exemple.invalid>', 'u-0518@exemple.invalid');
+  if public.relance_envoi_terminer(v_a, v_u, true, null, '<m-0518@exemple.invalid>', 'u-0518@exemple.invalid') <> 'envoyee' then raise exception '9d. second appel'; end if;
   begin perform public.relance_envoi_terminer(v_a, v_u, true, null, '<autre@exemple.invalid>', 'u-0518@exemple.invalid'); raise exception '9d. second appel avec un autre message';
   exception when invalid_parameter_value then null; end;
   execute 'reset role';
@@ -228,6 +228,7 @@ begin
   end if;
   begin perform public.relance_envoi_terminer(v_i, v_u, true, null, '<j@exemple.invalid>'); raise exception '10b. seconde fin sur une relance écartée';
   exception when invalid_parameter_value then null; end;
+  if public.relance_envoi_terminer(v_i, v_u, true, null, '<i-0518@exemple.invalid>', 'u-0518@exemple.invalid') <> 'ecartee' then raise exception '10b. second appel identique refusé'; end if;
   execute 'reset role';
   perform set_config('request.jwt.claims', '', true);
 
@@ -244,6 +245,10 @@ begin
   if v_row.status <> 'ignore' or v_row.envoi_reserve_at is not null then raise exception '10c. règlement saisi par une personne refusé pendant l''envoi'; end if;
   perform set_config('request.jwt.claims', '', true);
   perform set_config('request.jwt.claim.sub', '', true);
+
+  -- 10d. Motif écrit par la base avec l'état : gardé
+  update public.scheduled_actions set status = 'ignore', error = 'Session annulée' where id = v_e;
+  if (select error from public.scheduled_actions where id = v_e) is distinct from 'Session annulée' then raise exception '10d. motif de la base effacé'; end if;
 
   -- 11. Envoi resté sans suite : jamais repris seul ; marquer envoyée lève la réservation
   update public.scheduled_actions set status = 'valide' where id = v_b;

@@ -99,11 +99,11 @@ begin
   -- Changement d'état par une personne (envoi suspendu vérifié) ou par la base (règlement d'une facture...) :
   -- la réservation tombe ; une fin d'envoi arrivée ensuite est refusée (la relance n'est plus « à envoyer »)
   -- Par la base, l'auteur de l'envoi reste connu : un mail parti juste après est tracé sans changer l'état.
-  -- L'erreur d'un envoi précédent ne vaut plus pour la suite.
+  -- L'erreur d'un envoi précédent ne vaut plus pour la suite (sauf motif écrit avec l'état, comme « facture réglée »).
   if new.status is distinct from old.status then
     new.envoi_reserve_at := null;
     if v_personne then new.envoi_reserve_par := null; end if;
-    new.error := null;
+    if new.error is not distinct from old.error then new.error := null; end if;
   end if;
   return new;
 end
@@ -182,6 +182,10 @@ begin
   if found and p_ok and a.status = 'envoye' and a.sent_by is not distinct from p_auteur and p_message_id is not null
      and a.envoi_message_id is not distinct from left(p_message_id, 500) then
     return 'envoyee';
+  end if;
+  if found and p_ok and a.status not in ('valide', 'envoye') and a.envoi_reserve_par is null and p_message_id is not null
+     and a.envoi_message_id is not distinct from left(p_message_id, 500) then
+    return 'ecartee';
   end if;
   -- Relance écartée par la base pendant l'envoi (facture réglée...) : le mail est parti, on le note sans changer l'état
   if found and p_ok and a.status <> 'valide' and a.envoi_reserve_at is null and a.envoi_reserve_par is not distinct from p_auteur then
@@ -418,7 +422,7 @@ begin
   execute 'set local role service_role';
   perform public.relance_envoi_terminer(v_a, v_u, true, null, '<m-0518@exemple.invalid>', 'u-0518@exemple.invalid');
   -- Second appel après une réponse perdue : accepté sans rien changer
-  perform public.relance_envoi_terminer(v_a, v_u, true, null, '<m-0518@exemple.invalid>', 'u-0518@exemple.invalid');
+  if public.relance_envoi_terminer(v_a, v_u, true, null, '<m-0518@exemple.invalid>', 'u-0518@exemple.invalid') <> 'envoyee' then raise exception '9d. second appel'; end if;
   begin perform public.relance_envoi_terminer(v_a, v_u, true, null, '<autre@exemple.invalid>', 'u-0518@exemple.invalid'); raise exception '9d. second appel avec un autre message';
   exception when invalid_parameter_value then null; end;
   execute 'reset role';
@@ -452,6 +456,7 @@ begin
   end if;
   begin perform public.relance_envoi_terminer(v_i, v_u, true, null, '<j@exemple.invalid>'); raise exception '10b. seconde fin sur une relance écartée';
   exception when invalid_parameter_value then null; end;
+  if public.relance_envoi_terminer(v_i, v_u, true, null, '<i-0518@exemple.invalid>', 'u-0518@exemple.invalid') <> 'ecartee' then raise exception '10b. second appel identique refusé'; end if;
   execute 'reset role';
   perform set_config('request.jwt.claims', '', true);
 
@@ -468,6 +473,10 @@ begin
   if v_row.status <> 'ignore' or v_row.envoi_reserve_at is not null then raise exception '10c. règlement saisi par une personne refusé pendant l''envoi'; end if;
   perform set_config('request.jwt.claims', '', true);
   perform set_config('request.jwt.claim.sub', '', true);
+
+  -- 10d. Motif écrit par la base avec l'état : gardé
+  update public.scheduled_actions set status = 'ignore', error = 'Session annulée' where id = v_e;
+  if (select error from public.scheduled_actions where id = v_e) is distinct from 'Session annulée' then raise exception '10d. motif de la base effacé'; end if;
 
   -- 11. Envoi resté sans suite : jamais repris seul ; marquer envoyée lève la réservation
   update public.scheduled_actions set status = 'valide' where id = v_b;

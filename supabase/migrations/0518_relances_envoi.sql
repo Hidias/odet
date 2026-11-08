@@ -93,11 +93,11 @@ begin
   -- Changement d'état par une personne (envoi suspendu vérifié) ou par la base (règlement d'une facture...) :
   -- la réservation tombe ; une fin d'envoi arrivée ensuite est refusée (la relance n'est plus « à envoyer »)
   -- Par la base, l'auteur de l'envoi reste connu : un mail parti juste après est tracé sans changer l'état.
-  -- L'erreur d'un envoi précédent ne vaut plus pour la suite.
+  -- L'erreur d'un envoi précédent ne vaut plus pour la suite (sauf motif écrit avec l'état, comme « facture réglée »).
   if new.status is distinct from old.status then
     new.envoi_reserve_at := null;
     if v_personne then new.envoi_reserve_par := null; end if;
-    new.error := null;
+    if new.error is not distinct from old.error then new.error := null; end if;
   end if;
   return new;
 end
@@ -176,6 +176,10 @@ begin
   if found and p_ok and a.status = 'envoye' and a.sent_by is not distinct from p_auteur and p_message_id is not null
      and a.envoi_message_id is not distinct from left(p_message_id, 500) then
     return 'envoyee';
+  end if;
+  if found and p_ok and a.status not in ('valide', 'envoye') and a.envoi_reserve_par is null and p_message_id is not null
+     and a.envoi_message_id is not distinct from left(p_message_id, 500) then
+    return 'ecartee';
   end if;
   -- Relance écartée par la base pendant l'envoi (facture réglée...) : le mail est parti, on le note sans changer l'état
   if found and p_ok and a.status <> 'valide' and a.envoi_reserve_at is null and a.envoi_reserve_par is not distinct from p_auteur then

@@ -170,6 +170,7 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
     expect(echecAvantEnvoi({ code: 'ETIMEDOUT', command: 'CONN', message: 'Timeout' })).toBe(false)
     expect(echecAvantEnvoi({ code: 'ECONNECTION', command: 'CONN', message: 'Connection closed unexpectedly' })).toBe(false)
     expect(echecAvantEnvoi({ code: 'ESOCKET', command: 'CONN' })).toBe(false)
+    expect(echecAvantEnvoi({ code: 'ESOCKET', command: 'CONN', syscall: 'connect' })).toBe(true)
     expect(echecAvantEnvoi({ command: 'DATA' })).toBe(false)
     expect(echecAvantEnvoi(new Error('socket hang up'))).toBe(false)
   })
