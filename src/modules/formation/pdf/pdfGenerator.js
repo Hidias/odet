@@ -97,7 +97,7 @@ export function blocsAnnulation(qt, course) {
     if (b.h) return [{ h: remplir(b.h) }]
     if (b.p) return [{ p: remplir(b.p) }]
     if (b.list) return [{ list: b.list.map(remplir), ...(b.numerote ? { numerote: true } : {}) }]
-    if (b.bareme) return [{ kv: b.bareme.map(([k, v]) => [remplir(k), remplir(v)]), plain: true, titre: b.titre ? `${remplir(b.titre)} :` : '' }]
+    if (b.bareme) return [{ kv: b.bareme.map(([k, v]) => [remplir(k), remplir(v)]), plain: true, titre: b.titre ? `${remplir(b.titre).replace(/\s*:\s*$/, '')} :` : '' }]
     return []
   })]
 }
@@ -418,7 +418,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
   const BOTTOM = 275
   const sigBlockH = 44
   const measureBlock = (b) => {
-    if (b.h) return doc.splitTextToSize(b.h, bodyW).length * LINE + 1.5
+    if (b.h) { doc.setFont('helvetica', 'bold'); const n = doc.splitTextToSize(b.h, bodyW).length; doc.setFont('helvetica', 'normal'); return n * LINE + 1.5 }
     if (b.p) return doc.splitTextToSize(b.p, bodyW).length * LINE + 2
     if (b.list) return b.cols === 2 ? Math.ceil(b.list.length / 2) * LINE + 2 : b.list.reduce((a, it) => a + doc.splitTextToSize(it, bodyW - 6).length * LINE, 0) + 2
     if (b.kv && b.plain) return (b.titre ? LINE + 2 : 0) + b.kv.reduce((a, r) => a + hauteurLigneKv(r), 0) + 3
@@ -458,13 +458,15 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
     doc.setTextColor(...t.accent); doc.text(`${i + 1}.`, M, y)
     doc.setTextColor(...t.primary); doc.text(art.title, M + 7, y)
     y += 6.5
-    art.blocks.forEach(b => {
+    art.blocks.forEach((b, bi) => {
       body()
       if (b.h) {
         // Intertitre : jamais seul en bas de page (avec au moins deux lignes de ce qui suit)
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...t.primary)
         const ls = doc.splitTextToSize(b.h, bodyW)
-        ensure(LINE * (ls.length + 2) + 1.5)
+        // Suivi d'un barème : réservé en entier (le barème ne se coupe pas), sinon deux lignes
+        const suivant = art.blocks[bi + 1]
+        ensure(ls.length * LINE + 1.5 + (suivant?.kv && suivant.plain ? measureBlock(suivant) : LINE * 2))
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...t.primary)
         ls.forEach((l) => { doc.text(l, M + 7, y); y += LINE })
         y += 1.5
@@ -513,7 +515,7 @@ function generateConvention(session, trainees = [], trainer = null, costs = [], 
       } else if (b.kv) {
         ensure(b.kv.length * 5.5 + 3)
         b.kv.forEach(([k, v], idx) => {
-          const last = !b.plain && idx === b.kv.length - 1 && b.kv.length > 1
+          const last = idx === b.kv.length - 1 && b.kv.length > 1
           doc.setFont('helvetica', last ? 'bold' : 'normal'); doc.setFontSize(9); doc.setTextColor(...t.text)
           doc.text(k, M + 7, y)
           if (v) doc.text(v, M + W, y, { align: 'right' })
