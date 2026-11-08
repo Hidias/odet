@@ -5,7 +5,7 @@ import { Plus, BookOpenText, Loader2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { fetchAll } from '../fetchAll'
 import { useAuthStore } from '../store'
-import { getCurrentCompanyId } from '../company/companyContext'
+import { societeEnCours } from '../company/societes'
 import { PageHeader } from '../../ui/PageHeader'
 import { DataTable } from '../../ui/DataTable'
 import { StatusBadge } from '../../ui/StatusBadge'
@@ -76,7 +76,7 @@ export default function Reunions() {
       let guide = guideDepuisTrame(trame?.items)
       if (form.kind === 'reunion_interne' && form.reprendrePoint && direction) {
         let q = supabase.from('weekly_briefs').select('lines').eq('week_start', lundi()).eq('kind', 'point')
-        if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+        if (societeEnCours()) q = q.eq('company_id', societeEnCours())
         const { data } = await q.limit(1).maybeSingle()
         guide = [...sujetsDuPoint(data?.lines), ...guide]
       }

@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { getAdminClient, requireUser, clientDeLAppelant } from './_lib/auth.js'
+import { getAdminClient, requireUser, clientDeLAppelant, refusVueGroupe } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 
 // Convention de l'espace client (0402), par lien et code ou par compte entreprise.
@@ -41,6 +41,8 @@ async function acces(req) {
 async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non autorisée' })
   const { action } = req.body || {}
+  // Vue groupe : refusée pour un compte connecté ; l'accès par lien et code (sans compte) n'est pas concerné
+  if (!(req.body?.token && req.body?.code) && refusVueGroupe(req, res)) return null
   try {
     const a = await acces(req)
     if (!a) return res.status(403).json({ error: 'Accès refusé' })

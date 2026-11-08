@@ -6,6 +6,7 @@ import { Banner } from '../../ui/Banner'
 import { chargerEquipe, nomProfil } from '../point/actions'
 import { chargerTypes, enregistrerType, supprimerType, erreurNomType, delaiValide, libelleDelai, DELAI_MAX, societeEnCours, enVueGroupe, libelleType } from '../point/typesActions'
 import { useAuthStore } from '../store'
+import { MESSAGE_VUE_GROUPE } from '../company/societes'
 
 // Types d'action de l'équipe (0514) : délai, responsable par défaut et suite proposée quand l'action est faite.
 // Réglés par la direction ; la suite n'est jamais créée seule, elle est proposée au moment où l'on coche « Fait ».
@@ -77,6 +78,8 @@ export default function TypesActions() {
   const [form, setForm] = useState(NOUVEAU)
   const [busy, setBusy] = useState(false)
   const ctx = useAuthStore((s) => s.societes)
+  // Vue groupe (0516) : la base refuse toute écriture ; les types se lisent sans rien proposer de modifier
+  const lecture = enVueGroupe()
   const charger = () => chargerTypes().then(setTypes)
   useEffect(() => { charger(); chargerEquipe().then(setEquipe) }, [])
   const societe = societeEnCours()
@@ -104,10 +107,10 @@ export default function TypesActions() {
       {types === undefined ? <div className="text-ui-sm text-gray-500">Chargement…</div>
         : types === null ? <Banner tone="warning">Les types d'action ne sont pas encore disponibles.</Banner>
           : types.length === 0 ? <p className="text-ui-sm text-gray-500">Aucun type pour l'instant.</p>
-            : <ul className="divide-y divide-gray-100">{types.map((t) => <LigneType key={`${t.id}-${t.updated_at}`} type={t} types={types} equipe={equipe} onChange={charger} ctx={ctx} />)}</ul>}
+            : <fieldset disabled={lecture} className="contents"><ul className="divide-y divide-gray-100">{types.map((t) => <LigneType key={`${t.id}-${t.updated_at}`} type={t} types={types} equipe={equipe} onChange={charger} ctx={ctx} />)}</ul></fieldset>}
 
-      {types && enVueGroupe() && <p className="text-ui-sm text-gray-500 border-t hairline pt-4">Pour ajouter un type, choisissez d'abord une société (pas la vue groupe).</p>}
-      {types && !enVueGroupe() && (
+      {types && lecture && <Banner tone="info">{MESSAGE_VUE_GROUPE}</Banner>}
+      {types && !lecture && (
         <form onSubmit={ajouter} className="border-t hairline pt-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_110px_auto] gap-2 items-end">
           <div>
             <label className="label" htmlFor="ta-nouveau">Nouveau type</label>

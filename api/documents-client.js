@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { getAdminClient, requireUser, clientDeLAppelant } from './_lib/auth.js'
+import { getAdminClient, requireUser, clientDeLAppelant, refusVueGroupe } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 import { finValiditeInterne, statutCertificat, dateFinImpossible } from '../src/modules/formation/lib/effectifPrerequis.js'
 
@@ -41,6 +41,7 @@ const KINDS = ['rapport', 'facture', 'devis', 'contrat', 'convention', 'attestat
 async function publier(req, res) {
   const ctx = await requireUser(req)
   if (!ctx || ctx.profile.role === 'entreprise') return res.status(403).json({ error: 'Accès refusé' })
+  if (refusVueGroupe(req, res)) return null
   const appelant = clientDeLAppelant(req)
   const { object_type: type, object_id: id, kind, label, pdf_base64: b64 } = req.body || {}
   if (!TABLES[type] || !UUID.test(String(id || '')) || !KINDS.includes(kind) || !b64) return res.status(400).json({ error: 'Paramètres manquants' })

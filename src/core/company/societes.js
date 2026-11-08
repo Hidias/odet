@@ -38,6 +38,13 @@ export function choisirSociete(id) {
 
 export const VUE_GROUPE = 'groupe'
 
+// Refus de la vue groupe (0516) : même phrase que la base, qui refuse toute écriture faite en vue groupe
+export const MESSAGE_VUE_GROUPE = 'Vue groupe : lecture seule. Pour créer ou modifier, choisissez une société dans l\'en-tête.'
+export const estRefusVueGroupe = (err) => String(err?.message || '').startsWith('Vue groupe : lecture seule')
+
+/** Société choisie, ou null en vue groupe et sans choix (instance à une seule société : la base pose la sienne) */
+export const societeEnCours = () => { const c = getCurrentCompanyId(); return c && c !== VUE_GROUPE ? c : null }
+
 export function societeChoisie() {
   return getCurrentCompanyId()
 }

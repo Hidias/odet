@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { ChevronLeft, ChevronRight, RefreshCw, Send, Eye, Plus, X, Undo2, ListPlus, Loader2, Users, ExternalLink } from 'lucide-react'
 import { supabase } from '../supabase'
 import { callApi } from '../api'
-import { getCurrentCompanyId } from '../company/companyContext'
+import { societeEnCours } from '../company/societes'
 import { PageHeader } from '../../ui/PageHeader'
 import { Tabs } from '../../ui/Tabs'
 import { Banner } from '../../ui/Banner'
@@ -37,7 +37,7 @@ export default function PointSemaine() {
   const charger = async () => {
     setBrief(undefined)
     let q = supabase.from('weekly_briefs').select('*').eq('week_start', semaine).eq('kind', kind)
-    if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+    if (societeEnCours()) q = q.eq('company_id', societeEnCours())
     const { data, error } = await q.order('created_at').limit(1).maybeSingle()
     if (error) { setBrief(null); toast.error('Le point de la semaine n\'est pas encore disponible.'); return }
     setBrief(data || null)
@@ -47,7 +47,7 @@ export default function PointSemaine() {
   useEffect(() => {
     chargerEquipe().then(setEquipe)
     let q = supabase.from('weekly_brief_recipients').select('profile_id, point, bilan')
-    if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+    if (societeEnCours()) q = q.eq('company_id', societeEnCours())
     q.then(({ data }) => setDestinataires(data || []))
   }, [])
 

@@ -27,7 +27,7 @@ describe('Ajout d\'un type et société', () => {
   })
   it('vue groupe : ajout refusé avec un message clair, rien n\'est envoyé', async () => {
     setCurrentCompanyId('groupe')
-    await expect(enregistrerType({ name: 'Visite' })).rejects.toThrow(/choisissez d'abord une société/i)
+    await expect(enregistrerType({ name: 'Visite' })).rejects.toThrow(/Vue groupe : lecture seule/)
     expect(inserts).toHaveLength(0)
     setCurrentCompanyId(null)
   })
