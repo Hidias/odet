@@ -69,6 +69,7 @@ const Invoices = lazy(importSur(() => import('../modules/commercial/pages/Invoic
 const QualiteEditables = lazy(importSur(() => import('../modules/qualite/pages/QualiteEditables')))
 const Relecture = lazy(importSur(() => import('../modules/qualite/pages/Relecture')))
 const RelectureExpert = lazy(importSur(() => import('../modules/qualite/pages/RelectureExpert')))
+const AvisFinanceur = lazy(importSur(() => import('../modules/certification/pages/AvisFinanceur')))
 const Completude = lazy(importSur(() => import('../modules/qualite/pages/Completude')))
 const EvaluationsFroid = lazy(importSur(() => import('../modules/qualite/pages/EvaluationsFroid')))
 const BPF = lazy(importSur(() => import('../modules/qualite/pages/BPF')))
@@ -272,6 +273,8 @@ export default function App() {
           <Route path="/entreprise/:token" element={<ClientPortal />} />
           {/* Relecture d'un document par l'expert de l'entreprise (0457) : lien et code, sans compte */}
           <Route path="/relecture-expert/:token" element={<RelectureExpert />} />
+          {/* Avis d'un financeur (0517, Qualiopi 30) : lien à usage unique, sans compte */}
+          <Route path="/avis-financeur/:token" element={<AvisFinanceur />} />
           {/* Connexion dédiée à l'espace client (compte personnel, 0449) */}
           <Route path="/espace-client" element={<EspaceClientConnexion />} />
 

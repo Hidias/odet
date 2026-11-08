@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, ExternalLink, Loader2, Plus, Trash2, Upload,
 import { IndicatorTile, StatusBadge } from '../components/ui'
 import { STATUS_LABEL } from '../lib/proofs'
 import { addProof, removeProof, saveIndicatorStatus, saveSettings, signedUrl } from '../lib/certData'
+import SuiviFinanceurs from '../components/SuiviFinanceurs'
 
 import { confirmer } from '../../../ui/Confirm'
 import { confirmationRetraitPreuve } from '../../../core/portail/alertesPublication'
@@ -110,6 +111,8 @@ function Detail({ ind, refCode, canWrite, onChanged, onBack, mots = MOTS_QUALIOP
               <div className="muted">Une preuve ajoutée ci-dessous lève ces points.</div>
             </div>
           )}
+          {/* Qualiopi 2026, indicateur 30 : avis des financeurs (0517) */}
+          {mots === MOTS_QUALIOPI && refCode === 'rnq-2026' && ind.number === 30 && <SuiviFinanceurs canWrite={canWrite} />}
         </>
       )}
 

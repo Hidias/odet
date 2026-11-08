@@ -4,7 +4,8 @@
 // valider (0043, scheduled_actions_generate : préparées, jamais envoyées), les étapes des sessions (0160, pilote_generate)
 // les purges RGPD à valider (0344, rgpd_purges_generer), le point de la semaine (0407, point_semaine_generer) et les
 // actions sur les titres exigés par poste (0513, habilitations_actions_generer) et les départs du personnel (0515,
-// rh_departs_appliquer : fiche archivée et compte coupé le lendemain du dernier jour).
+// rh_departs_appliquer : fiche archivée et compte coupé le lendemain du dernier jour) et les demandes d'avis des
+// financeurs (0517, financeurs_avis_preparer : préparées, jamais envoyées).
 // Toute la logique est dans la base (public.daily_maintenance, idempotente) ; cette route ne fait que la lancer.
 //
 // Déclenchée chaque nuit par la tâche planifiée Vercel (vercel.json, en-tête Authorization: Bearer CRON_SECRET),
@@ -93,10 +94,16 @@ async function handler(req, res) {
     if (dep?.echecs) { erreurs.departs = 'echecs'; console.error('[maintenance-nuit] departs', dep.echecs) }
   }
   else if (depErr.code !== 'PGRST202') { erreurs.departs = depErr.code || 'erreur'; console.error('[maintenance-nuit] departs', depErr.code || 'erreur') }
+  // Avis des financeurs (0517, Qualiopi 30) : une demande par financeur et par an, puis une relance 15 jours après
+  // l'envoi ; préparées dans les relances à valider, jamais envoyées
+  let financeurs = null
+  const { data: fin, error: finErr } = await admin.rpc('financeurs_avis_preparer')
+  if (!finErr) financeurs = fin
+  else if (finErr.code !== 'PGRST202') { erreurs.financeurs = finErr.code || 'erreur'; console.error('[maintenance-nuit] financeurs', finErr.code || 'erreur') }
   await purgerJournalTaches()
   const nbErreurs = Object.keys(erreurs).length
   // 500 si une étape a échoué : le journal des tâches la note « erreur » et le suivi des erreurs la reçoit
-  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, contrats, impayes, pilote, purges, point, habilitations, departs, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
+  return res.status(nbErreurs ? 500 : 200).json({ ok: !nbErreurs, resultat: data, relances, contrats, impayes, pilote, purges, point, habilitations, departs, financeurs, ...(nbErreurs ? { error: `Étapes en erreur : ${Object.entries(erreurs).map(([k, v]) => `${k} (${v})`).join(', ')}` } : {}) })
 }
 
 export default withErrorLog(withJobLog(handler, 'maintenance-nuit'), 'maintenance-nuit')
