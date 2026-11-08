@@ -1,6 +1,6 @@
 // Actions de l'équipe (0407) : une seule table pour le point de la semaine, le bilan, les réunions et la saisie libre.
 import { supabase } from '../supabase'
-import { decaler, iso } from './pointSemaine'
+import { decaler, iso, lundi } from './pointSemaine'
 import { FILTRE_EQUIPE } from '../org/currentOrg'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -46,8 +46,7 @@ export function groupeEcheance(a, auj = iso(new Date())) {
   if (a.status !== 'a_faire') return 'terminees'
   if (!a.due_on) return 'sans'
   if (a.due_on < auj) return 'retard'
-  const fin = (() => { const d = new Date(`${auj}T12:00:00`); d.setDate(d.getDate() + (7 - ((d.getDay() + 6) % 7)) - 1); return iso(d) })()
-  return a.due_on <= fin ? 'semaine' : 'plus_tard'
+  return a.due_on <= finDeSemaine(auj) ? 'semaine' : 'plus_tard'
 }
 
 export const GROUPES = [
@@ -57,3 +56,47 @@ export const GROUPES = [
   { id: 'sans', titre: 'Sans échéance' },
   { id: 'terminees', titre: 'Terminées' },
 ]
+
+/** Dimanche de la semaine d'une date (AAAA-MM-JJ) */
+export const finDeSemaine = (auj) => decaler(lundi(auj), 6)
+/** Lundi de la semaine suivante */
+export const lundiProchain = (auj) => decaler(lundi(auj), 7)
+
+// Kanban des actions (consigne de H du 04/11) : une colonne par échéance, comme la liste. Déplacer une carte change
+// sa date : « Cette semaine » la met à aujourd'hui, « Plus tard » au lundi suivant (compté comme un report),
+// « Sans échéance » retire la date, « Terminées » la marque faite. On ne dépose jamais dans « En retard ».
+// La colonne « En retard » n'apparaît que si elle a des cartes ; « Terminées » seulement quand on les affiche.
+export function colonnesActions(actions, { auj = iso(new Date()), avecTerminees = false } = {}) {
+  return GROUPES
+    .filter((g) => g.id !== 'terminees' || avecTerminees)
+    .map((g) => ({ code: g.id, label: g.titre, lignes: (actions || []).filter((a) => groupeEcheance(a, auj) === g.id) }))
+    .filter((c) => c.code !== 'retard' || c.lignes.length > 0)
+}
+
+/** Changement à écrire quand une action est déposée dans une colonne ; null si rien ne change ou si c'est refusé */
+export function changementColonne(a, code, auj = iso(new Date())) {
+  if (!a || !code || code === 'retard') return null
+  const actuelle = groupeEcheance(a, auj)
+  if (actuelle === code) return null
+  if (code === 'terminees') return { status: 'fait' }
+  const rouvrir = a.status !== 'a_faire' ? { status: 'a_faire' } : {}
+  if (code === 'semaine') return { ...rouvrir, due_on: auj }
+  if (code === 'plus_tard') return { ...rouvrir, due_on: lundiProchain(auj) }
+  if (code === 'sans') return { ...rouvrir, due_on: null }
+  return null
+}
+
+/** Choix du menu « ⋯ » d'une action du Kanban (les choix sans effet sont retirés) */
+export function choixAction(a, auj = iso(new Date())) {
+  if (!a) return []
+  if (a.status !== 'a_faire') return [{ code: 'rouvrir', label: 'Remettre à faire', patch: { status: 'a_faire' }, message: 'Action remise à faire' }]
+  const tous = [
+    { code: 'aujourdhui', label: 'Pour aujourd\'hui', patch: { due_on: auj }, message: 'Prévue aujourd\'hui' },
+    { code: 'lundi', label: 'Pour lundi prochain', patch: { due_on: lundiProchain(auj) }, message: 'Prévue lundi prochain' },
+    { code: 'report', label: 'Reporter d\'une semaine', patch: { due_on: dateReport(a.due_on) }, message: 'Reportée d\'une semaine' },
+    { code: 'sans', label: 'Sans échéance', patch: { due_on: null }, message: 'Échéance retirée' },
+    { code: 'fait', label: 'Marquer comme fait', patch: { status: 'fait' }, message: 'Bravo !' },
+    { code: 'abandonne', label: 'Abandonner', patch: { status: 'abandonne' }, message: 'Action abandonnée' },
+  ]
+  return tous.filter((c) => !('due_on' in c.patch) || (c.patch.due_on || null) !== (a.due_on || null))
+}

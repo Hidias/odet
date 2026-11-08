@@ -12,10 +12,14 @@ import { EmptyState, Spinner } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
 import { useAuthStore } from '../../../core/store'
 import PiloteReglages from '../../pilote/PiloteReglages'
+import { Kanban, CLASSE_ITEM_MENU } from '../../../ui/Kanban'
+import { ChoixVue, useVue } from '../../../ui/ChoixVue'
+import { colonnesRelances, passagesRelance, depotRelancePossible, MESSAGES_RELANCE } from '../lib/relances'
 
 // Relances à valider (lot 2, 0043) : actions préparées chaque nuit par la base (recyclages à prévoir, puis
 // justificatifs des prestataires, rappels…). Rien ne part tout seul : on valide, on corrige ou on ignore ; une action validée se
 // transmet par sa messagerie (texte prêt à copier) puis se marque « envoyée ». Téléphone d'abord.
+// Deux affichages : liste par onglet, ou colonnes par état (Kanban, règles dans `lib/relances.js`).
 
 const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', renouvellement_contrat: 'Renouvellement de contrat', visite_hors_contrat: 'Visite hors contrat', convocation: 'Convocation', rappel: 'Rappel', emargement_manquant: 'Émargement', eval_chaud: 'Évaluation à chaud', attestations: 'Attestations', evaluation_froid: 'Évaluation à froid', facture_brouillon: 'Facture', relance_impaye: 'Impayé', autre: 'Autre' }
 const STATUTS = { a_valider: ['warning', 'À valider'], valide: ['info', 'Validée'], envoye: ['success', 'Envoyée'], ignore: ['neutral', 'Ignorée'], erreur: ['danger', 'Erreur'] }
@@ -28,6 +32,7 @@ export default function AValider() {
   const [ouvert, setOuvert] = useState(null)
   const [busy, setBusy] = useState(false)
   const [reglages, setReglages] = useState(false)
+  const [vue, setVue] = useVue('relances')
   const can = useAuthStore((st) => st.can)
   const role = useAuthStore((st) => st.userRole)
   const droitModules = can('parametres.modules.gerer')
@@ -49,6 +54,8 @@ export default function AValider() {
   const [type, setType] = useState('')
   const compte = useMemo(() => Object.fromEntries(ONGLETS.map(([k]) => [k, (items || []).filter((i) => i.status === k).length])), [items])
   const liste = (items || []).filter((i) => i.status === onglet && (!type || i.kind === type))
+  const colonnes = useMemo(() => colonnesRelances((items || []).filter((i) => !type || i.kind === type)), [items, type])
+  const ouvrir = (a) => setOuvert({ ...a, payload: { ...(a.payload || {}) } })
   const types = useMemo(() => [...new Set((items || []).map((i) => i.kind))], [items])
   const prets = liste.filter((i) => i.status === 'a_valider' && !i.blocked_reason)
 
@@ -62,14 +69,25 @@ export default function AValider() {
     load()
   }
 
-  const changer = async (a, status, payload) => {
-    if (status === 'ignore' && !(await confirmer('Ignorer cette relance ? Elle ne sera plus proposée.'))) return
+  // depuisFiche : la relance est ouverte, son texte sous les yeux (« Marquer envoyée » sans nouvelle question)
+  const changer = async (a, status, payload, depuisFiche = false) => {
+    const passage = passagesRelance(a).find((p) => p.status === status)
+    if (!passage) return toast.error('Cette relance ne peut plus changer d\'état')
+    if (passage.confirmer && !(depuisFiche && status === 'envoye') && !(await confirmer(passage.confirmer))) return
     setBusy(true)
     const maj = { status, ...(payload ? { payload } : {}) }
-    const { error } = await supabase.from('scheduled_actions').update(maj).eq('id', a.id)
+    // Seulement si la relance est encore dans l'état vu à l'écran (une autre personne a pu la traiter)
+    const { data, error } = await supabase.from('scheduled_actions').update(maj).eq('id', a.id).eq('status', a.status).select('id')
     setBusy(false)
     if (error) return toast.error(error.message)
-    toast.success({ valide: 'Relance validée : à envoyer', envoye: 'Relance marquée envoyée', ignore: 'Relance ignorée', a_valider: 'Remise à valider' }[status] || 'Enregistré')
+    if (!data?.length) {
+      // 0 ligne sans erreur : soit l'état a changé entre-temps, soit le compte n'a pas le droit d'écrire (lecture seule)
+      const { data: lue } = await supabase.from('scheduled_actions').select('status').eq('id', a.id).maybeSingle()
+      toast.error(lue && lue.status === a.status ? 'Votre compte ne peut pas modifier les relances' : 'Cette relance a déjà été traitée : la liste est mise à jour')
+      setOuvert(null)
+      return load()
+    }
+    toast.success(MESSAGES_RELANCE[status] || 'Enregistré')
     setOuvert(null)
     load()
   }
@@ -94,17 +112,43 @@ export default function AValider() {
         actions={peutRegler ? <button type="button" className="btn btn-secondary" onClick={() => setReglages(true)}>Pilote des sessions</button> : null} />
       {reglages && <PiloteReglages onClose={() => { setReglages(false); load() }} />}
       {indispo && <Banner tone="warning">Les relances ne sont pas encore disponibles. Prévenez le support.</Banner>}
-      <Tabs tabs={ONGLETS.map(([k, l]) => ({ id: k, label: l, count: compte[k] || 0 }))} value={onglet} onChange={setOnglet} />
-      {types.length > 1 && (
-        <div className="flex flex-wrap items-center gap-2">
+      {vue === 'liste' && <Tabs tabs={ONGLETS.map(([k, l]) => ({ id: k, label: l, count: compte[k] || 0 }))} value={onglet} onChange={setOnglet} />}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="order-last ml-auto"><ChoixVue vue={vue} onChange={setVue} /></div>
+        {types.length > 1 && (<>
           <select className="select w-auto" value={type} onChange={(e) => setType(e.target.value)} aria-label="Type de relance">
             <option value="">Tous les types</option>
             {types.map((k) => <option key={k} value={k}>{KINDS[k] || k}</option>)}
           </select>
-          {type && onglet === 'a_valider' && prets.length > 1 && <button type="button" className="btn btn-sm btn-secondary" onClick={toutValider} disabled={busy}><Check className="w-4 h-4" /> Tout valider ({prets.length})</button>}
-        </div>
-      )}
-      {items === null ? <Spinner /> : liste.length === 0 ? (
+          {type && vue === 'liste' && onglet === 'a_valider' && prets.length > 1 && <button type="button" className="btn btn-sm btn-secondary" onClick={toutValider} disabled={busy}><Check className="w-4 h-4" /> Tout valider ({prets.length})</button>}
+        </>)}
+      </div>
+      {items === null ? <Spinner /> : vue === 'colonnes' ? (
+        <Kanban colonnes={colonnes} cle={(a) => a.id} label="Relances par état" labelMenu="Actions de la relance" vide="Aucune relance"
+          onOuvrir={ouvrir}
+          deplacable={(a) => !busy && passagesRelance(a).some((p) => p.parGlisser !== false)}
+          peutDeposer={(a, code) => !busy && depotRelancePossible(a, code)}
+          onDeposer={(a, code) => changer(a, code)}
+          libelleMenu={(a) => `Actions : ${a.title}`}
+          carte={(a) => (
+            <>
+              <div className="text-ui font-medium">{a.title}</div>
+              <div className="text-ui-sm text-gray-500">
+                {KINDS[a.kind]}{a.clients?.name ? ` · ${a.clients.name}` : ''}{a.due_on ? ` · échéance ${new Date(`${a.due_on}T12:00:00`).toLocaleDateString('fr-FR')}` : ''}
+                {a.payload?.depasse ? ' · dépassée' : ''}
+              </div>
+              {a.blocked_reason && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Bloquée : {a.blocked_reason}</div>}
+            </>
+          )}
+          menu={({ ligne, choisir }) => (
+            <>
+              <button type="button" className={CLASSE_ITEM_MENU} onClick={() => choisir(() => ouvrir(ligne))}>Ouvrir (texte et destinataire)</button>
+              {passagesRelance(ligne).map((p) => (
+                <button key={p.status} type="button" className={CLASSE_ITEM_MENU} disabled={busy} onClick={() => choisir(() => changer(ligne, p.status))}>{p.label}</button>
+              ))}
+            </>
+          )} />
+      ) : liste.length === 0 ? (
         <EmptyState icon={Inbox} title={onglet === 'a_valider' ? 'Rien à valider' : 'Aucune relance ici'} compact>
           {onglet === 'a_valider' ? 'Chaque nuit, l\'outil prépare ici les relances utiles : recyclages à prévoir (formation arrivée à échéance), devis sans réponse, justificatifs à demander aux prestataires. Rien n\'est dû aujourd\'hui : la liste se remplit dès qu\'une échéance approche.' : null}
         </EmptyState>
@@ -112,7 +156,7 @@ export default function AValider() {
         <ul className="space-y-2">
           {liste.map((a) => (
             <li key={a.id}>
-              <button type="button" onClick={() => setOuvert({ ...a, payload: { ...(a.payload || {}) } })} className="card w-full text-left hover:bg-gray-50 space-y-1">
+              <button type="button" onClick={() => ouvrir(a)} className="card w-full text-left hover:bg-gray-50 space-y-1">
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-medium text-gray-900">{a.title}</span>
                   <StatusBadge tone={STATUTS[a.status]?.[0]}>{STATUTS[a.status]?.[1]}</StatusBadge>
@@ -133,9 +177,9 @@ export default function AValider() {
           footer={<>
             {ouvert.status === 'a_valider' && <button type="button" className="btn btn-ghost mr-auto" onClick={() => changer(ouvert, 'ignore')} disabled={busy}><X className="w-4 h-4" /> Ignorer</button>}
             {ouvert.status === 'valide' && <button type="button" className="btn btn-ghost mr-auto" onClick={() => changer(ouvert, 'a_valider')} disabled={busy}>Remettre à valider</button>}
-            {ouvert.status === 'a_valider' && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'valide', ouvert.payload)} disabled={busy}>
+            {ouvert.status === 'a_valider' && !ouvert.blocked_reason && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'valide', ouvert.payload)} disabled={busy}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Valider</button>}
-            {ouvert.status === 'valide' && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'envoye')} disabled={busy}>
+            {ouvert.status === 'valide' && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'envoye', null, true)} disabled={busy}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer envoyée</button>}
             {['envoye', 'ignore'].includes(ouvert.status) && <button type="button" className="btn btn-secondary" onClick={() => setOuvert(null)}>Fermer</button>}
           </>}>

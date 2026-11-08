@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, CalendarClock, Check, ListTodo, Trash2, RotateCcw, Ban } from 'lucide-react'
 import { supabase } from '../supabase'
@@ -8,11 +8,16 @@ import { PageHeader } from '../../ui/PageHeader'
 import { EmptyState } from '../../ui/EmptyState'
 import { Banner } from '../../ui/Banner'
 import { confirmer } from '../../ui/Confirm'
-import { chargerEquipe, nomProfil, creerAction, modifierAction, dateReport, groupeEcheance, GROUPES } from './actions'
+import { Kanban, CLASSE_ITEM_MENU } from '../../ui/Kanban'
+import { ChoixVue, useVue } from '../../ui/ChoixVue'
+import {
+  chargerEquipe, nomProfil, creerAction, modifierAction, dateReport, groupeEcheance, GROUPES, colonnesActions, changementColonne, choixAction,
+} from './actions'
 import { jjmm } from './pointSemaine'
 
 // Actions de l'équipe (0407) : ce que chacun a à faire, d'où que ça vienne (point de la semaine, bilan, réunion,
 // saisie libre). Une action se coche, se reporte d'une semaine (le report est compté), s'abandonne.
+// Deux affichages : liste par échéance, ou colonnes par échéance (Kanban : déplacer une carte change sa date).
 
 const VIDE = { title: '', owner_id: '', due_on: '', urgent: false }
 
@@ -27,6 +32,8 @@ export default function ActionsEquipe() {
   const [form, setForm] = useState(VIDE)
   const [erreur, setErreur] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [vue, setVue] = useVue('actions')
+  const navigate = useNavigate()
 
   const charger = async () => {
     const { data, error } = await supabase.from('team_actions').select('*, clients(id, name)')
@@ -40,6 +47,9 @@ export default function ActionsEquipe() {
   const noms = useMemo(() => Object.fromEntries(equipe.map((p) => [p.id, nomProfil(p)])), [equipe])
   const liste = useMemo(() => (actions || []).filter((a) => (qui === 'moi' ? a.owner_id === moi?.id || (!a.owner_id && a.created_by === moi?.id) : qui === 'tous' ? true : a.owner_id === qui)
     && (voirTerminees || a.status === 'a_faire')), [actions, qui, voirTerminees, moi?.id])
+  const colonnes = useMemo(() => colonnesActions(liste, { avecTerminees: voirTerminees }), [liste, voirTerminees])
+  const peutModifier = (a) => direction || a.owner_id === moi?.id || a.created_by === moi?.id
+  const lienDe = (a) => a.link || (a.clients?.id ? `/clients/${a.clients.id}` : null)
   const groupes = useMemo(() => GROUPES.map((g) => ({ ...g, lignes: liste.filter((a) => groupeEcheance(a) === g.id) })).filter((g) => g.lignes.length), [liste])
 
   const ajouter = async (e) => {
@@ -99,9 +109,37 @@ export default function ActionsEquipe() {
         <label className="inline-flex items-center gap-2 text-ui text-gray-700">
           <input type="checkbox" checked={voirTerminees} onChange={(e) => setVoirTerminees(e.target.checked)} />Voir les actions terminées
         </label>
+        <div className="ml-auto"><ChoixVue vue={vue} onChange={setVue} /></div>
       </div>
 
       {actions === null ? <div className="text-ui-sm text-gray-500">Chargement…</div>
+        : vue === 'colonnes' && liste.length > 0 ? (
+          <Kanban colonnes={colonnes} cle={(a) => a.id} label="Actions par échéance" labelMenu="Actions possibles" vide="Aucune action"
+            onOuvrir={(a) => navigate(lienDe(a))} ouvrable={(a) => !!lienDe(a)}
+            deplacable={peutModifier}
+            peutDeposer={(a, code) => peutModifier(a) && !!changementColonne(a, code)}
+            onDeposer={(a, code) => maj(a, changementColonne(a, code), code === 'terminees' ? 'Bravo !' : 'Échéance changée')}
+            libelleMenu={(a) => (peutModifier(a) ? `Actions : ${a.title}` : null)}
+            carte={(a) => (
+              <>
+                <div className={`text-ui ${a.status !== 'a_faire' ? 'line-through text-gray-500' : 'text-gray-900 font-medium'}`}>
+                  {a.urgent && a.status === 'a_faire' && <span className="status status-danger mr-2">Urgent</span>}{a.title}
+                </div>
+                <div className="text-ui-sm text-gray-500">
+                  {[a.owner_id ? noms[a.owner_id] || 'Membre de l\'équipe' : 'Personne en particulier', a.clients?.name || null,
+                    a.due_on ? `pour le ${jjmm(a.due_on)}` : null, a.postponed_count > 0 ? `reporté ${a.postponed_count} fois` : null].filter(Boolean).join(' · ')}
+                </div>
+              </>
+            )}
+            menu={({ ligne, choisir }) => (
+              <>
+                <div className="px-3 pt-1.5 pb-1 text-ui-sm text-gray-500">Changer d'échéance ou d'état</div>
+                {choixAction(ligne).map((c) => (
+                  <button key={c.code} type="button" className={CLASSE_ITEM_MENU} onClick={() => choisir(() => maj(ligne, c.patch, c.message))}>{c.label}</button>
+                ))}
+              </>
+            )} />
+        )
         : groupes.length === 0 ? (
           <div className="card"><EmptyState icon={ListTodo} title="Aucune action" compact>Les actions du point de la semaine et des réunions apparaissent ici.</EmptyState></div>
         ) : groupes.map((g) => (
