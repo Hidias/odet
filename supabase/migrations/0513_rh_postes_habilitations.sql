@@ -145,6 +145,24 @@ end
 $$;
 revoke all on function app.team_actions_maj() from public, anon, authenticated;
 
+-- Une action préparée par la nuit ne se supprime pas (elle reviendrait la nuit suivante) : on l'abandonne
+create or replace function app.team_actions_suppression()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if old.source = 'habilitation' and auth.uid() is not null then
+    raise exception 'Action préparée par la nuit : marquez-la « Abandonné » au lieu de la supprimer' using errcode = '42501';
+  end if;
+  return old;
+end
+$$;
+revoke all on function app.team_actions_suppression() from public, anon, authenticated;
+drop trigger if exists team_actions_suppression on public.team_actions;
+create trigger team_actions_suppression before delete on public.team_actions
+  for each row execute function app.team_actions_suppression();
+
 -- ── 5. Écarts et préparation de la nuit ──
 -- Un titre couvre une exigence : même type, et un des symboles acceptés (sur le titre ou dans son libellé), comme 0386
 create or replace function app.habilitation_couvre(p_q public.hr_qualifications, p_kind text, p_symbols text[])
@@ -162,7 +180,7 @@ revoke all on function app.habilitation_couvre(public.hr_qualifications, text, t
 -- Manques (aucun titre valide ce jour-là) et fins à moins de 3 mois, pour les personnes sous contrat avec un poste
 create or replace function app.habilitations_ecarts(p_company uuid, p_jour date)
 returns table (person_id uuid, nom text, poste text, requirement_id uuid, exigence text, motif text,
-               qualification_id uuid, titre text, expires_on date, derniere_fin date)
+               qualification_id uuid, titre text, expires_on date, dernier_titre uuid, derniere_fin date)
 language sql
 stable
 security definer
@@ -185,14 +203,20 @@ as $$
               and (q.expires_on is null or q.expires_on >= p_jour)
               and app.habilitation_couvre(q, b.required_kind, b.required_symbols)
             order by q.expires_on desc nulls first limit 1) as qid,
-           (select max(q.expires_on) from public.hr_qualifications q
-            where q.person_id = b.person_id and q.expires_on < p_jour
-              and app.habilitation_couvre(q, b.required_kind, b.required_symbols)) as derniere_fin
+           -- Dernier titre qui couvrait l'exigence et n'est plus valide (échu, suspendu ou archivé) : il distingue un
+           -- nouveau manque d'un manque déjà signalé
+           (select array[q.id::text, least(q.expires_on, q.suspended_at::date, q.archived_at::date)::text]
+            from public.hr_qualifications q
+            where q.person_id = b.person_id and app.habilitation_couvre(q, b.required_kind, b.required_symbols)
+              and (q.archived_at is not null or q.suspended_at is not null or q.expires_on < p_jour)
+            order by least(q.expires_on, q.suspended_at::date, q.archived_at::date) desc nulls last,
+                     coalesce(least(q.archived_at, q.suspended_at), q.created_at) desc, q.id
+            limit 1) as dernier
     from besoins b
   )
   select m.person_id, m.nom, m.poste, m.requirement_id, m.exigence,
          case when m.qid is null then 'manque' else 'fin_proche' end,
-         m.qid, q.label, q.expires_on, m.derniere_fin
+         m.qid, q.label, q.expires_on, m.dernier[1]::uuid, m.dernier[2]::date
   from meilleur m
   left join public.hr_qualifications q on q.id = m.qid
   where m.qid is null or (q.expires_on is not null and q.expires_on < (p_jour + interval '3 months')::date)
@@ -235,9 +259,13 @@ begin
            case e.motif when 'manque' then v_jour else e.expires_on end,
            'habilitation', e.person_id, '/collaborateurs/' || e.person_id,
            'hab:' || e.person_id || ':' || e.requirement_id || ':' ||
-             case e.motif when 'manque' then 'manque:' || coalesce(e.derniere_fin::text, 'aucun')
+             case e.motif when 'manque' then 'manque:' || coalesce(e.dernier_titre || ':' || e.derniere_fin, 'aucun')
                           else 'fin:' || e.expires_on::text end
     from app.habilitations_ecarts(c.id, v_jour) e
+    -- Titre échu dont le renouvellement est encore à faire : pas de seconde action pour la même fin
+    where not (e.motif = 'manque' and e.derniere_fin is not null and exists (
+      select 1 from public.team_actions t where t.company_id = c.id and t.status = 'a_faire'
+        and t.dedup_key = 'hab:' || e.person_id || ':' || e.requirement_id || ':fin:' || e.derniere_fin::text))
     on conflict (company_id, dedup_key) where dedup_key is not null do nothing;
     get diagnostics v_n = row_count;
     v_total := v_total + v_n;

@@ -15,10 +15,14 @@ export function libelleExigence(kind, symboles = []) {
   return `${base} ${s.length === 1 ? s[0] : `${s.slice(0, -1).join(', ')} ou ${s[s.length - 1]}`}`
 }
 
-/** Emploi écrit sur le contrat : le texte saisi, sinon le nom du poste choisi */
-export function emploiDuContrat(jobTitle, poste) {
+/** Emploi écrit sur le contrat au choix d'un poste : le nom du poste si l'emploi est vide ou reprenait l'ancien poste,
+ *  sinon le texte saisi (gardé, aussi quand on retire le poste) */
+export function emploiDuContrat(jobTitle, poste, ancienPoste = null) {
   const t = String(jobTitle || '').trim()
-  return t || String(poste?.name || '').trim()
+  const ancien = String(ancienPoste?.name || '').trim()
+  const nom = String(poste?.name || '').trim()
+  if (!nom || (t && t !== ancien)) return t
+  return nom
 }
 
 /** Nom de poste valide (2 à 100 caractères, sans doublon dans la société, casse ignorée) */
@@ -47,6 +51,13 @@ export async function ajouterExigence({ jobId, kind, symboles = [], label = '' }
     job_id: jobId, required_kind: kind, required_symbols: s.length ? s : null,
     label: String(label || '').trim() || libelleExigence(kind, s),
   }))
+}
+export async function modifierExigence({ id, kind, symboles = [], label = '' }) {
+  const s = (symboles || []).filter(Boolean)
+  return must(await supabase.from('hr_job_requirements').update({
+    required_kind: kind, required_symbols: s.length ? s : null,
+    label: String(label || '').trim() || libelleExigence(kind, s),
+  }).eq('id', id))
 }
 export const supprimerExigence = async (id) => must(await supabase.from('hr_job_requirements').delete().eq('id', id))
 

@@ -8,7 +8,7 @@ declare
   v_cie uuid; v_j uuid; v_he uuid; v_sst uuid; v_resp uuid := gen_random_uuid(); v_moi uuid := gen_random_uuid();
   v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid; v_f uuid;
   v_jour date := (now() at time zone 'Europe/Paris')::date;
-  v_r jsonb; v_n int; t record; v_id uuid;
+  v_r jsonb; v_n int; t record; v_id uuid; v_h uuid; v_i uuid; v_q uuid;
 begin
   select id into v_cie from public.companies order by created_at limit 1;
   insert into public.company_modules (company_id, key, enabled) values (v_cie, 'rh', true)
@@ -96,6 +96,49 @@ begin
   perform public.habilitations_actions_generer();
   if (select owner_id from public.team_actions where source = 'habilitation' and source_id = v_b and due_on = v_jour + 80) is not null then raise exception '4. responsable inactif'; end if;
 
+  -- 4b. Manque déjà signalé et traité, titre saisi puis suspendu : nouvelle action
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Hugo', 'Hotel') returning id into v_h;
+  insert into public.hr_employments (company_id, person_id, start_on, job_id) values (v_cie, v_h, v_jour - 5, v_j);
+  insert into public.hr_qualifications (company_id, person_id, kind, label, expires_on) values (v_cie, v_h, 'sst', 'SST', v_jour + 900);
+  perform public.habilitations_actions_generer();
+  update public.team_actions set status = 'fait' where source_id = v_h;
+  insert into public.hr_qualifications (company_id, person_id, kind, label, symbols, expires_on)
+    values (v_cie, v_h, 'habilitation_electrique', 'Habilitation', array['BS'], v_jour + 900) returning id into v_q;
+  perform public.habilitations_actions_generer();
+  if exists (select 1 from public.team_actions where source_id = v_h and status = 'a_faire') then raise exception '4b. titre valide signalé'; end if;
+  update public.hr_qualifications set suspended_at = now() where id = v_q;
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_h and status = 'a_faire' and title like 'Titre à obtenir%') <> 1 then raise exception '4c. suspension non signalée'; end if;
+  update public.hr_qualifications set suspended_at = null, archived_at = now() where id = v_q;
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_h and status = 'a_faire') <> 1 then raise exception '4d. archivage du même titre recompté'; end if;
+
+  -- 4g. Nouveau titre saisi puis archivé le même jour : c'est un nouveau manque (autre titre)
+  -- (une seule transaction : même heure partout ; le premier titre est remis archivé une heure plus tôt)
+  update public.hr_qualifications set archived_at = now() - interval '1 hour', created_at = now() - interval '2 hours' where id = v_q;
+  update public.team_actions set status = 'fait' where source_id = v_h;
+  insert into public.hr_qualifications (company_id, person_id, kind, label, symbols, expires_on)
+    values (v_cie, v_h, 'habilitation_electrique', 'Habilitation', array['BR'], v_jour + 900) returning id into v_q;
+  perform public.habilitations_actions_generer();
+  update public.hr_qualifications set archived_at = now() where id = v_q;
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_h and status = 'a_faire') <> 1 then raise exception '4g. second titre archivé non signalé'; end if;
+
+  -- 4e. Titre échu dont l'action de renouvellement (préparée avant la fin) est encore à faire : pas d'action « à obtenir »
+  -- en plus ; une fois l'action faite, le manque est signalé
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Inès', 'India') returning id into v_i;
+  insert into public.hr_employments (company_id, person_id, start_on, job_id) values (v_cie, v_i, v_jour - 5, v_j);
+  insert into public.hr_qualifications (company_id, person_id, kind, label, expires_on) values (v_cie, v_i, 'sst', 'SST', v_jour + 900);
+  insert into public.hr_qualifications (company_id, person_id, kind, label, symbols, expires_on)
+    values (v_cie, v_i, 'habilitation_electrique', 'Habilitation', array['BR'], v_jour - 1);
+  insert into public.team_actions (company_id, title, source, source_id, due_on, dedup_key)
+    values (v_cie, 'Titre à renouveler : INDIA Inès', 'habilitation', v_i, v_jour - 1, 'hab:' || v_i || ':' || v_he || ':fin:' || (v_jour - 1)::text);
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_i) <> 1 then raise exception '4e. seconde action pour la même fin'; end if;
+  update public.team_actions set status = 'fait' where source_id = v_i;
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_i and status = 'a_faire' and title like 'Titre à obtenir%') <> 1 then raise exception '4f. manque après l''action faite'; end if;
+
   -- 5. Module RH coupé : rien
   update public.company_modules set enabled = false where company_id = v_cie and key = 'rh';
   update public.hr_qualifications set expires_on = v_jour + 85 where person_id = v_b and kind = 'habilitation_electrique';
@@ -113,6 +156,11 @@ begin
   if (select dedup_key from public.team_actions where id = v_id) is not null then raise exception '6b. clé posée par un compte'; end if;
   update public.team_actions set dedup_key = 'autre', source = 'manuel', status = 'abandonne' where source = 'habilitation' and source_id = v_b;
   if exists (select 1 from public.team_actions where source_id = v_b and (dedup_key not like 'hab:%' or source <> 'habilitation')) then raise exception '6c. clé ou source changée'; end if;
+  begin
+    delete from public.team_actions where source_id = v_i;
+    raise exception '6e. action préparée supprimée par un compte';
+  exception when insufficient_privilege then null;
+  end;
   begin
     perform public.habilitations_actions_generer();
     raise exception '6d. préparation lancée par un compte';

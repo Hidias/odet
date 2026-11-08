@@ -4,6 +4,8 @@
 drop function if exists public.habilitations_actions_generer();
 drop function if exists app.habilitations_ecarts(uuid, date);
 drop function if exists app.habilitation_couvre(public.hr_qualifications, text, text[]);
+drop trigger if exists team_actions_suppression on public.team_actions;
+drop function if exists app.team_actions_suppression();
 
 CREATE OR REPLACE FUNCTION app.team_actions_maj()
  RETURNS trigger

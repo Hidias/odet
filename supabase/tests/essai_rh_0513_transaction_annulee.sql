@@ -151,6 +151,24 @@ end
 $$;
 revoke all on function app.team_actions_maj() from public, anon, authenticated;
 
+-- Une action préparée par la nuit ne se supprime pas (elle reviendrait la nuit suivante) : on l'abandonne
+create or replace function app.team_actions_suppression()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if old.source = 'habilitation' and auth.uid() is not null then
+    raise exception 'Action préparée par la nuit : marquez-la « Abandonné » au lieu de la supprimer' using errcode = '42501';
+  end if;
+  return old;
+end
+$$;
+revoke all on function app.team_actions_suppression() from public, anon, authenticated;
+drop trigger if exists team_actions_suppression on public.team_actions;
+create trigger team_actions_suppression before delete on public.team_actions
+  for each row execute function app.team_actions_suppression();
+
 -- ── 5. Écarts et préparation de la nuit ──
 -- Un titre couvre une exigence : même type, et un des symboles acceptés (sur le titre ou dans son libellé), comme 0386
 create or replace function app.habilitation_couvre(p_q public.hr_qualifications, p_kind text, p_symbols text[])
@@ -168,7 +186,7 @@ revoke all on function app.habilitation_couvre(public.hr_qualifications, text, t
 -- Manques (aucun titre valide ce jour-là) et fins à moins de 3 mois, pour les personnes sous contrat avec un poste
 create or replace function app.habilitations_ecarts(p_company uuid, p_jour date)
 returns table (person_id uuid, nom text, poste text, requirement_id uuid, exigence text, motif text,
-               qualification_id uuid, titre text, expires_on date, derniere_fin date)
+               qualification_id uuid, titre text, expires_on date, dernier_titre uuid, derniere_fin date)
 language sql
 stable
 security definer
@@ -191,14 +209,20 @@ as $$
               and (q.expires_on is null or q.expires_on >= p_jour)
               and app.habilitation_couvre(q, b.required_kind, b.required_symbols)
             order by q.expires_on desc nulls first limit 1) as qid,
-           (select max(q.expires_on) from public.hr_qualifications q
-            where q.person_id = b.person_id and q.expires_on < p_jour
-              and app.habilitation_couvre(q, b.required_kind, b.required_symbols)) as derniere_fin
+           -- Dernier titre qui couvrait l'exigence et n'est plus valide (échu, suspendu ou archivé) : il distingue un
+           -- nouveau manque d'un manque déjà signalé
+           (select array[q.id::text, least(q.expires_on, q.suspended_at::date, q.archived_at::date)::text]
+            from public.hr_qualifications q
+            where q.person_id = b.person_id and app.habilitation_couvre(q, b.required_kind, b.required_symbols)
+              and (q.archived_at is not null or q.suspended_at is not null or q.expires_on < p_jour)
+            order by least(q.expires_on, q.suspended_at::date, q.archived_at::date) desc nulls last,
+                     coalesce(least(q.archived_at, q.suspended_at), q.created_at) desc, q.id
+            limit 1) as dernier
     from besoins b
   )
   select m.person_id, m.nom, m.poste, m.requirement_id, m.exigence,
          case when m.qid is null then 'manque' else 'fin_proche' end,
-         m.qid, q.label, q.expires_on, m.derniere_fin
+         m.qid, q.label, q.expires_on, m.dernier[1]::uuid, m.dernier[2]::date
   from meilleur m
   left join public.hr_qualifications q on q.id = m.qid
   where m.qid is null or (q.expires_on is not null and q.expires_on < (p_jour + interval '3 months')::date)
@@ -241,9 +265,13 @@ begin
            case e.motif when 'manque' then v_jour else e.expires_on end,
            'habilitation', e.person_id, '/collaborateurs/' || e.person_id,
            'hab:' || e.person_id || ':' || e.requirement_id || ':' ||
-             case e.motif when 'manque' then 'manque:' || coalesce(e.derniere_fin::text, 'aucun')
+             case e.motif when 'manque' then 'manque:' || coalesce(e.dernier_titre || ':' || e.derniere_fin, 'aucun')
                           else 'fin:' || e.expires_on::text end
     from app.habilitations_ecarts(c.id, v_jour) e
+    -- Titre échu dont le renouvellement est encore à faire : pas de seconde action pour la même fin
+    where not (e.motif = 'manque' and e.derniere_fin is not null and exists (
+      select 1 from public.team_actions t where t.company_id = c.id and t.status = 'a_faire'
+        and t.dedup_key = 'hab:' || e.person_id || ':' || e.requirement_id || ':fin:' || e.derniere_fin::text))
     on conflict (company_id, dedup_key) where dedup_key is not null do nothing;
     get diagnostics v_n = row_count;
     v_total := v_total + v_n;
@@ -300,7 +328,7 @@ declare
   v_cie uuid; v_j uuid; v_he uuid; v_sst uuid; v_resp uuid := gen_random_uuid(); v_moi uuid := gen_random_uuid();
   v_a uuid; v_b uuid; v_c uuid; v_d uuid; v_e uuid; v_f uuid;
   v_jour date := (now() at time zone 'Europe/Paris')::date;
-  v_r jsonb; v_n int; t record; v_id uuid;
+  v_r jsonb; v_n int; t record; v_id uuid; v_h uuid; v_i uuid; v_q uuid;
 begin
   select id into v_cie from public.companies order by created_at limit 1;
   insert into public.company_modules (company_id, key, enabled) values (v_cie, 'rh', true)
@@ -388,6 +416,49 @@ begin
   perform public.habilitations_actions_generer();
   if (select owner_id from public.team_actions where source = 'habilitation' and source_id = v_b and due_on = v_jour + 80) is not null then raise exception '4. responsable inactif'; end if;
 
+  -- 4b. Manque déjà signalé et traité, titre saisi puis suspendu : nouvelle action
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Hugo', 'Hotel') returning id into v_h;
+  insert into public.hr_employments (company_id, person_id, start_on, job_id) values (v_cie, v_h, v_jour - 5, v_j);
+  insert into public.hr_qualifications (company_id, person_id, kind, label, expires_on) values (v_cie, v_h, 'sst', 'SST', v_jour + 900);
+  perform public.habilitations_actions_generer();
+  update public.team_actions set status = 'fait' where source_id = v_h;
+  insert into public.hr_qualifications (company_id, person_id, kind, label, symbols, expires_on)
+    values (v_cie, v_h, 'habilitation_electrique', 'Habilitation', array['BS'], v_jour + 900) returning id into v_q;
+  perform public.habilitations_actions_generer();
+  if exists (select 1 from public.team_actions where source_id = v_h and status = 'a_faire') then raise exception '4b. titre valide signalé'; end if;
+  update public.hr_qualifications set suspended_at = now() where id = v_q;
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_h and status = 'a_faire' and title like 'Titre à obtenir%') <> 1 then raise exception '4c. suspension non signalée'; end if;
+  update public.hr_qualifications set suspended_at = null, archived_at = now() where id = v_q;
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_h and status = 'a_faire') <> 1 then raise exception '4d. archivage du même titre recompté'; end if;
+
+  -- 4g. Nouveau titre saisi puis archivé le même jour : c'est un nouveau manque (autre titre)
+  -- (une seule transaction : même heure partout ; le premier titre est remis archivé une heure plus tôt)
+  update public.hr_qualifications set archived_at = now() - interval '1 hour', created_at = now() - interval '2 hours' where id = v_q;
+  update public.team_actions set status = 'fait' where source_id = v_h;
+  insert into public.hr_qualifications (company_id, person_id, kind, label, symbols, expires_on)
+    values (v_cie, v_h, 'habilitation_electrique', 'Habilitation', array['BR'], v_jour + 900) returning id into v_q;
+  perform public.habilitations_actions_generer();
+  update public.hr_qualifications set archived_at = now() where id = v_q;
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_h and status = 'a_faire') <> 1 then raise exception '4g. second titre archivé non signalé'; end if;
+
+  -- 4e. Titre échu dont l'action de renouvellement (préparée avant la fin) est encore à faire : pas d'action « à obtenir »
+  -- en plus ; une fois l'action faite, le manque est signalé
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Inès', 'India') returning id into v_i;
+  insert into public.hr_employments (company_id, person_id, start_on, job_id) values (v_cie, v_i, v_jour - 5, v_j);
+  insert into public.hr_qualifications (company_id, person_id, kind, label, expires_on) values (v_cie, v_i, 'sst', 'SST', v_jour + 900);
+  insert into public.hr_qualifications (company_id, person_id, kind, label, symbols, expires_on)
+    values (v_cie, v_i, 'habilitation_electrique', 'Habilitation', array['BR'], v_jour - 1);
+  insert into public.team_actions (company_id, title, source, source_id, due_on, dedup_key)
+    values (v_cie, 'Titre à renouveler : INDIA Inès', 'habilitation', v_i, v_jour - 1, 'hab:' || v_i || ':' || v_he || ':fin:' || (v_jour - 1)::text);
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_i) <> 1 then raise exception '4e. seconde action pour la même fin'; end if;
+  update public.team_actions set status = 'fait' where source_id = v_i;
+  perform public.habilitations_actions_generer();
+  if (select count(*) from public.team_actions where source_id = v_i and status = 'a_faire' and title like 'Titre à obtenir%') <> 1 then raise exception '4f. manque après l''action faite'; end if;
+
   -- 5. Module RH coupé : rien
   update public.company_modules set enabled = false where company_id = v_cie and key = 'rh';
   update public.hr_qualifications set expires_on = v_jour + 85 where person_id = v_b and kind = 'habilitation_electrique';
@@ -405,6 +476,11 @@ begin
   if (select dedup_key from public.team_actions where id = v_id) is not null then raise exception '6b. clé posée par un compte'; end if;
   update public.team_actions set dedup_key = 'autre', source = 'manuel', status = 'abandonne' where source = 'habilitation' and source_id = v_b;
   if exists (select 1 from public.team_actions where source_id = v_b and (dedup_key not like 'hab:%' or source <> 'habilitation')) then raise exception '6c. clé ou source changée'; end if;
+  begin
+    delete from public.team_actions where source_id = v_i;
+    raise exception '6e. action préparée supprimée par un compte';
+  exception when insufficient_privilege then null;
+  end;
   begin
     perform public.habilitations_actions_generer();
     raise exception '6d. préparation lancée par un compte';

@@ -10,7 +10,7 @@ import { confirmer } from '../../../ui/Confirm'
 import { chargerEquipe, nomProfil } from '../../../core/point/actions'
 import { TYPES_HABILITATION, SYMBOLES_HABILITATION, CATEGORIES_CONDUITE } from '../lib/rhDocuments'
 import {
-  libelleExigence, erreurNomPoste, chargerPostes, enregistrerPoste, supprimerPoste, ajouterExigence, supprimerExigence,
+  libelleExigence, erreurNomPoste, chargerPostes, enregistrerPoste, supprimerPoste, ajouterExigence, modifierExigence, supprimerExigence,
   chargerResponsableTitres, enregistrerResponsableTitres,
 } from '../lib/rhPostes'
 
@@ -20,15 +20,21 @@ function Champ({ label, children, className = '' }) {
   return <label className={`block ${className}`}><span className="label">{label}</span>{children}</label>
 }
 
-function AjoutExigence({ poste, onAjoute, onAnnule }) {
-  const [v, setV] = useState({ kind: 'habilitation_electrique', symboles: [], label: '' })
+function AjoutExigence({ poste, exigence = null, onAjoute, onAnnule }) {
+  const [v, setV] = useState(() => exigence
+    ? { kind: exigence.required_kind, symboles: exigence.required_symbols || [], label: exigence.label }
+    : { kind: 'habilitation_electrique', symboles: [], label: '' })
   const [busy, setBusy] = useState(false)
   const choix = SYMBOLES[v.kind] || []
   const basculer = (s) => setV({ ...v, symboles: v.symboles.includes(s) ? v.symboles.filter((x) => x !== s) : [...v.symboles, s] })
   const enregistrer = async (e) => {
     e.preventDefault()
     setBusy(true)
-    try { await ajouterExigence({ jobId: poste.id, kind: v.kind, symboles: v.symboles, label: v.label }); onAjoute() } catch (err) { toast.error(err.message) }
+    try {
+      if (exigence) await modifierExigence({ id: exigence.id, kind: v.kind, symboles: v.symboles, label: v.label })
+      else await ajouterExigence({ jobId: poste.id, kind: v.kind, symboles: v.symboles, label: v.label })
+      onAjoute()
+    } catch (err) { toast.error(err.message) }
     setBusy(false)
   }
   return (
@@ -53,7 +59,7 @@ function AjoutExigence({ poste, onAjoute, onAnnule }) {
         <input className="input" value={v.label} maxLength={200} onChange={(e) => setV({ ...v, label: e.target.value })} placeholder={libelleExigence(v.kind, v.symboles)} />
       </Champ>
       <div className="flex gap-2">
-        <button type="submit" className="btn btn-primary" disabled={busy}>Ajouter ce titre</button>
+        <button type="submit" className="btn btn-primary" disabled={busy}>{exigence ? 'Enregistrer' : 'Ajouter ce titre'}</button>
         <button type="button" className="btn btn-ghost" onClick={onAnnule}>Annuler</button>
       </div>
     </form>
@@ -63,6 +69,7 @@ function AjoutExigence({ poste, onAjoute, onAnnule }) {
 function CartePoste({ poste, postes, peutConfigurer, onChange }) {
   const [nom, setNom] = useState(null)
   const [ajout, setAjout] = useState(false)
+  const [modifiee, setModifiee] = useState(null)
   const exigences = [...(poste.hr_job_requirements || [])].sort((a, b) => a.label.localeCompare(b.label, 'fr'))
   const renommer = async (e) => {
     e.preventDefault()
@@ -75,7 +82,7 @@ function CartePoste({ poste, postes, peutConfigurer, onChange }) {
     try { await supprimerPoste(poste.id); onChange() } catch (er) { toast.error(er.message) }
   }
   const retirer = async (x) => {
-    if (!(await confirmer(`Ne plus exiger « ${x.label} » pour le poste « ${poste.name} » ?`))) return
+    if (!(await confirmer(`Ne plus exiger « ${x.label} » pour le poste « ${poste.name} » ? Pour changer les symboles acceptés, utilisez plutôt « Modifier » : retirer puis remettre un titre fait revenir les actions déjà traitées.`))) return
     try { await supprimerExigence(x.id); onChange() } catch (er) { toast.error(er.message) }
   }
   return (
@@ -97,13 +104,18 @@ function CartePoste({ poste, postes, peutConfigurer, onChange }) {
         ? <p className="text-ui-sm text-gray-600">Aucun titre exigé pour ce poste.</p>
         : (
           <ul className="divide-y divide-gray-100">
-            {exigences.map((x) => (
+            {exigences.map((x) => (modifiee === x.id ? (
+              <li key={x.id} className="py-2">
+                <AjoutExigence poste={poste} exigence={x} onAjoute={() => { setModifiee(null); onChange() }} onAnnule={() => setModifiee(null)} />
+              </li>
+            ) : (
               <li key={x.id} className="py-2 flex items-center gap-2">
                 <BadgeCheck className="w-4 h-4 text-gray-400 flex-none" aria-hidden="true" />
                 <span className="flex-1 min-w-0 text-ui">{x.label}</span>
+                {peutConfigurer && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Modifier ${x.label}`} onClick={() => { setAjout(false); setModifiee(x.id) }}><Pencil className="w-4 h-4" /></button>}
                 {peutConfigurer && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Ne plus exiger ${x.label}`} onClick={() => retirer(x)}><Trash2 className="w-4 h-4" /></button>}
               </li>
-            ))}
+            )))}
           </ul>
         )}
       {peutConfigurer && !ajout && <button type="button" className="btn btn-secondary btn-sm min-h-[44px]" onClick={() => setAjout(true)}><Plus className="w-4 h-4" aria-hidden="true" />Exiger un titre</button>}

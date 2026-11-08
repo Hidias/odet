@@ -269,7 +269,8 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
             <Champ label="Poste (titres exigés)">
               <select className="select" value={v.job_id} onChange={(e) => {
                 const poste = listes.postes.find((x) => x.id === e.target.value)
-                setV({ ...v, job_id: e.target.value, job_title: emploiDuContrat(v.job_title, poste) })
+                const ancien = listes.postes.find((x) => x.id === v.job_id)
+                setV({ ...v, job_id: e.target.value, job_title: emploiDuContrat(v.job_title, poste, ancien) })
               }}>
                 <option value="">Aucun</option>
                 {listes.postes.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}

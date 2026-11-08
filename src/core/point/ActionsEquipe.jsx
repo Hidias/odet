@@ -185,7 +185,7 @@ export default function ActionsEquipe() {
                   {a.status === 'a_faire' && (
                     <button type="button" className="btn btn-ghost btn-sm" title="Abandonner" onClick={() => maj(a, { status: 'abandonne' }, 'Action abandonnée')}><Ban className="w-4 h-4" /></button>
                   )}
-                  {(direction || a.created_by === moi?.id) && (
+                  {a.source !== 'habilitation' && (direction || a.created_by === moi?.id) && (
                     <button type="button" className="btn btn-ghost btn-sm" title="Supprimer" aria-label="Supprimer" onClick={() => supprimer(a)}><Trash2 className="w-4 h-4" /></button>
                   )}
                 </li>

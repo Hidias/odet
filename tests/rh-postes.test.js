@@ -19,6 +19,11 @@ describe('emploiDuContrat', () => {
     expect(emploiDuContrat('  ', { name: 'Technicien ' })).toBe('Technicien')
     expect(emploiDuContrat('', null)).toBe('')
   })
+  it('suit le poste tant que l\'emploi reprend l\'ancien poste', () => {
+    expect(emploiDuContrat('Technicien', { name: 'Formateur' }, { name: 'Technicien' })).toBe('Formateur')
+    expect(emploiDuContrat('Technicien', null, { name: 'Technicien' })).toBe('Technicien')
+    expect(emploiDuContrat('Chef d\'équipe', { name: 'Formateur' }, { name: 'Technicien' })).toBe('Chef d\'équipe')
+  })
 })
 
 describe('erreurNomPoste', () => {
@@ -39,6 +44,8 @@ describe('préparation de la nuit', () => {
     expect(src).toMatch(/habilitations, \.\.\.\(nbErreurs/)
   })
   it('affiche la source des actions préparées', () => {
-    expect(readFileSync('src/core/point/ActionsEquipe.jsx', 'utf8')).toMatch(/habilitation: 'titres exigés'/)
+    const src = readFileSync('src/core/point/ActionsEquipe.jsx', 'utf8')
+    expect(src).toMatch(/habilitation: 'titres exigés'/)
+    expect(src).toMatch(/a\.source !== 'habilitation' && \(direction/)
   })
 })
