@@ -69,6 +69,8 @@ begin
   insert into public.team_actions (company_id, title) values (v_autre, 'Autre action 0514') returning id into v_c;
   update public.team_actions set previous_id = v_c where id = v_b;
   if (select previous_id from public.team_actions where id = v_b) <> v_a then raise exception '3d. précédente changée'; end if;
+  update public.team_actions set previous_id = null where id = v_b;
+  if (select previous_id from public.team_actions where id = v_b) is distinct from v_a then raise exception '3f. lien vidé à la main'; end if;
   begin
     update public.team_actions set type_id = v_t where id = v_c;
     raise exception '3e. type d''une autre société accepté à la modification';

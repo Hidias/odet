@@ -2,17 +2,27 @@
 // Un type porte un délai (échéance proposée = jour de création + délai), un responsable par défaut et un type suivant.
 // Quand une action d'un type qui a une suite est faite, la suite est PROPOSÉE pré-remplie : rien n'est créé d'office.
 import { supabase } from '../supabase'
+import { getCurrentCompanyId } from '../company/companyContext'
 import { decaler, iso } from './pointSemaine'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 
 export const DELAI_MAX = 365
 
-/** Types de la société, dans l'ordre ; null si la lecture a échoué (jamais une liste vide inventée) */
+/**
+ * Types de la société en cours, dans l'ordre ; null si la lecture a échoué (jamais une liste vide inventée).
+ * Filtrés par société : un compte membre de plusieurs sociétés les voit toutes (comme le point de la semaine).
+ */
 export async function chargerTypes() {
-  const { data, error } = await supabase.from('team_action_types').select('*').order('position').order('name')
+  let q = supabase.from('team_action_types').select('*')
+  if (getCurrentCompanyId()) q = q.eq('company_id', getCurrentCompanyId())
+  const { data, error } = await q.order('position').order('name')
   return error ? null : data || []
 }
+
+// Messages lisibles pour les refus de la base (nom pris entre-temps, droits)
+const messageType = (err) => (err?.code === '23505' ? 'Un type porte déjà ce nom.'
+  : err?.code === 'PGRST116' ? 'Modification refusée : réservée à la direction.' : err?.message || 'Enregistrement impossible.')
 
 /** Nom d'un type : contrôle avant enregistrement (même règle qu'en base : 2 à 80 caractères, nom unique) */
 export function erreurNomType(nom, types = [], id = null) {
@@ -62,8 +72,10 @@ export function choixType(form, type, auj = iso(new Date()), types = []) {
 export function suiteProposee(action, types, { auj = iso(new Date()), dejaSuivies = [] } = {}) {
   if (!action || !action.type_id) return null
   if ((dejaSuivies || []).includes(action.id)) return null
-  const type = typeActif(types, action.type_id)
-  const suivant = type ? typeActif(types, type.next_type_id) : null
+  // Types de la société de l'action seulement (la suite se crée dans la même société)
+  const memes = (types || []).filter((t) => !action.company_id || !t.company_id || t.company_id === action.company_id)
+  const type = typeActif(memes, action.type_id)
+  const suivant = type ? typeActif(memes, type.next_type_id) : null
   if (!suivant) return null
   const client = action.clients?.name || null
   return {
@@ -72,6 +84,7 @@ export function suiteProposee(action, types, { auj = iso(new Date()), dejaSuivie
     due_on: echeanceDuType(suivant, auj),
     type_id: suivant.id,
     previous_id: action.id,
+    company_id: action.company_id || null,
     client_id: action.client_id || null,
     link: action.link || null,
   }
@@ -88,8 +101,11 @@ export async function enregistrerType(t) {
     next_type_id: t.next_type_id || null,
     active: t.active !== false,
   }
-  if (t.id) return must(await supabase.from('team_action_types').update(ligne).eq('id', t.id).select('*').single())
-  return must(await supabase.from('team_action_types').insert({ ...ligne, position: Number(t.position) || 0 }).select('*').single())
+  try {
+    if (t.id) return must(await supabase.from('team_action_types').update(ligne).eq('id', t.id).select('*').single())
+    const societe = getCurrentCompanyId()
+    return must(await supabase.from('team_action_types').insert({ ...ligne, position: Number(t.position) || 0, ...(societe ? { company_id: societe } : {}) }).select('*').single())
+  } catch (err) { throw new Error(messageType(err)) }
 }
 
 export async function supprimerType(id) {

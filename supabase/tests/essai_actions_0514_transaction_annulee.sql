@@ -70,15 +70,16 @@ create unique index if not exists team_actions_suite_uniq on public.team_actions
 comment on column public.team_actions.type_id is 'Type de l''action (0514), de la même société';
 comment on column public.team_actions.previous_id is 'Action dont celle-ci est la suite (0514), figée à la création';
 
--- Type et action précédente de la même société ; la précédente ne change plus après la création (elle peut seulement se vider)
+-- Type et action précédente de la même société ; la précédente ne change plus après la création
 create or replace function app.team_actions_suite()
 returns trigger
 language plpgsql
 set search_path = ''
 as $$
 begin
-  -- Le lien se vide (action précédente supprimée), il ne se change jamais
-  if tg_op = 'UPDATE' and new.previous_id is not null then
+  -- Le lien ne change jamais ; il se vide seulement par la clé étrangère (action précédente supprimée : mise à jour
+  -- lancée par un déclencheur, profondeur 2), jamais par un compte (sinon la règle « une seule suite » se contourne)
+  if tg_op = 'UPDATE' and (new.previous_id is not null or pg_trigger_depth() < 2) then
     new.previous_id := old.previous_id;
   end if;
   if new.type_id is not null and (tg_op = 'INSERT' or new.type_id is distinct from old.type_id) and not exists (
@@ -87,7 +88,7 @@ begin
   end if;
   if tg_op = 'INSERT' and new.previous_id is not null and not exists (
     select 1 from public.team_actions a where a.id = new.previous_id and a.company_id = new.company_id) then
-    raise exception 'Action précédente d''une autre société' using errcode = '23514';
+    raise exception 'Action précédente introuvable ou d''une autre société' using errcode = '23514';
   end if;
   return new;
 end
@@ -256,6 +257,8 @@ begin
   insert into public.team_actions (company_id, title) values (v_autre, 'Autre action 0514') returning id into v_c;
   update public.team_actions set previous_id = v_c where id = v_b;
   if (select previous_id from public.team_actions where id = v_b) <> v_a then raise exception '3d. précédente changée'; end if;
+  update public.team_actions set previous_id = null where id = v_b;
+  if (select previous_id from public.team_actions where id = v_b) is distinct from v_a then raise exception '3f. lien vidé à la main'; end if;
   begin
     update public.team_actions set type_id = v_t where id = v_c;
     raise exception '3e. type d''une autre société accepté à la modification';

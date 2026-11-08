@@ -58,7 +58,7 @@ describe('Suite proposée', () => {
   const faite = { id: 'a1', type_id: 'env', owner_id: 'moi', client_id: 'c1', clients: { id: 'c1', name: 'SARL Dupont' }, link: '/devis/x' }
   it('type suivant, son délai et son responsable, même client et même lien', () => {
     expect(suiteProposee(faite, types, { auj })).toEqual({
-      title: 'Relancer le devis : SARL Dupont', owner_id: 'marie', due_on: '2026-11-18', type_id: 'rel', previous_id: 'a1', client_id: 'c1', link: '/devis/x',
+      title: 'Relancer le devis : SARL Dupont', owner_id: 'marie', due_on: '2026-11-18', type_id: 'rel', previous_id: 'a1', company_id: null, client_id: 'c1', link: '/devis/x',
     })
   })
   it('sans responsable sur le type suivant : le même que l\'action faite', () => {
@@ -73,6 +73,15 @@ describe('Suite proposée', () => {
     expect(suiteProposee({ ...faite, type_id: 'inconnu' }, types, { auj })).toBeNull()
     expect(suiteProposee(faite, types, { auj, dejaSuivies: ['a1'] })).toBeNull()
     expect(suiteProposee(faite, null, { auj })).toBeNull()
+  })
+  it('compte de plusieurs sociétés : types et suite de la société de l\'action', () => {
+    const t2 = [
+      { id: 'e1', company_id: 's1', name: 'Envoyer', next_type_id: 'r2', active: true },
+      { id: 'r2', company_id: 's2', name: 'Relancer', delay_days: 7, active: true },
+      { id: 'e3', company_id: 's2', name: 'Envoyer', next_type_id: 'r2', active: true },
+    ]
+    expect(suiteProposee({ id: 'x', type_id: 'e1', company_id: 's1' }, t2, { auj })).toBeNull()
+    expect(suiteProposee({ id: 'y', type_id: 'e3', company_id: 's2' }, t2, { auj })).toMatchObject({ type_id: 'r2', company_id: 's2' })
   })
   it('intitulé coupé à 300 caractères', () => {
     expect(suiteProposee({ ...faite, clients: { name: 'x'.repeat(400) } }, types, { auj }).title).toHaveLength(300)
