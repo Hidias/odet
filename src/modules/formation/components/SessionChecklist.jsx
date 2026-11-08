@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { buildSessionChecklistPDF } from '../pdf/sessionChecklistPDF'
 import { useDroits } from '../../../core/rights/useDroit'
+import { estFormationSST } from '../lib/sst'
 
 // Liste complète des contrôles
 const CHECKLIST_ITEMS = {
@@ -55,8 +56,7 @@ export default function SessionChecklist({ session }) {
   }, [session])
 
   const checkIfSST = () => {
-    const title = session.courses?.title?.toLowerCase() || ''
-    setIsSST(title.includes('sst') || title.includes('secouriste'))
+    setIsSST(estFormationSST(session.courses))
   }
 
   const loadTraineeCount = async () => {

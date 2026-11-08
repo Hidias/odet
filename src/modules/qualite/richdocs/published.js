@@ -38,22 +38,47 @@ export const versionLabel = (pub) => (pub?.version ? `Version ${pub.version} du 
 
 const strip = (s) => String(s ?? '').replace(/\*\*([^*]+)\*\*/g, '$1')
 
-/** Article des CGV sur l'annulation, en texte suivi (repris dans l'article « Annulation et report » des conventions) */
-export function cgvCancellationText(content) {
+// Intertitre d'un passage propre aux formations SST (ex. « Formations Sauveteur Secouriste du Travail (SST) »)
+const intertitreSST = (b) => b.t === 'h' && /\bSST\b|sauveteur secouriste/i.test(strip(b.text))
+
+/**
+ * Articles 8 et 9 des CGV (annulation et report), repris dans l'article « Annulation et report » des conventions,
+ * en blocs lisibles : intertitre par article, paragraphes, barème (lignes [quand, dédommagement]), listes
+ * (numérotées si elles le sont dans les CGV). Le passage propre au SST (de son intertitre à la fin de l'article)
+ * n'est repris que pour une formation SST. Rien n'est reformulé. Un intertitre sans contenu derrière est retiré ;
+ * [] s'il ne reste aucun texte.
+ */
+export function cgvAnnulationBlocs(content, { sst = false } = {}) {
   const secs = visibleSections(content || { sections: [] })
   const pick = (re) => secs.find((s) => re.test(s.title || ''))
-  const parts = []
+  const blocs = []
   ;[pick(/^Article 8\b/), pick(/^Article 9\b/)].filter(Boolean).forEach((s) => {
+    const titre = strip(s.title).replace(/^Article \d+\.?\s*/, '')
+    if (titre) blocs.push({ h: titre, article: true })
+    let dansSST = false
     s.blocks.forEach((b) => {
-      if (b.t === 'p') parts.push(strip(b.text))
-      if (b.t === 'table') {
-        const lc = (x) => { const t = strip(x); return t.charAt(0).toLowerCase() + t.slice(1) }
-        parts.push(`${strip(b.head?.[1] || 'Montant dû')} : ${(b.rows || []).map((r) => `${lc(r[0])}, ${lc(r[1])}`).join(' ; ')}.`)
+      // Passage SST : de son intertitre à la fin de l'article (un sous-titre ou un intertitre vide ne le ferme pas)
+      if (intertitreSST(b)) dansSST = true
+      if (dansSST && !sst) return
+      if (b.t === 'h' && strip(b.text)) blocs.push({ h: strip(b.text) })
+      if (b.t === 'p' && strip(b.text)) blocs.push({ p: strip(b.text) })
+      if (b.t === 'table' && (b.rows || []).length) {
+        blocs.push({ bareme: (b.rows || []).map((r) => [strip(r[0]), strip(r[1])]), titre: strip(b.head?.[1] || '') })
       }
-      if (b.t === 'ul' || b.t === 'ol') parts.push((b.items || []).map(strip).join(' ; ') + '.')
+      const items = (b.items || []).map(strip).filter(Boolean)
+      if ((b.t === 'ul' || b.t === 'ol') && items.length) blocs.push(b.t === 'ol' ? { list: items.map((x, i) => `${i + 1}. ${x}`), numerote: true } : { list: items })
     })
   })
-  return parts.join(' ')
+  // Intertitre sans contenu derrière : retiré (un sous-titre jusqu'au suivant, un titre d'article jusqu'au suivant)
+  const contenuApres = (i) => {
+    for (let j = i + 1; j < blocs.length; j++) {
+      if (!blocs[j].h) return true
+      if (blocs[j].article || !blocs[i].article) return false
+    }
+    return false
+  }
+  const gardes = blocs.filter((b, i) => !b.h || contenuApres(i)).map(({ article, ...b }) => b) // eslint-disable-line no-unused-vars
+  return gardes.some((b) => !b.h) ? gardes : []
 }
 
 /**
