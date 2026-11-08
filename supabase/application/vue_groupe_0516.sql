@@ -13,6 +13,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      app.vue_groupe() est mémorisée) ; sans compte connecté (tâches de nuit, clé de service), rien ne change.
 --      Une écriture faite par un autre déclencheur (pg_trigger_depth() > 1) passe : c'est la suite d'une écriture
 --      déjà admise (ex. profile_to_trainer : le compte qui corrige son propre nom met à jour sa fiche formateur).
+--      Vigilance : un futur déclencheur posé sur une table laissée ouverte (ou sans company_id) qui INSÈRE dans une
+--      table fermée passerait aussi en vue groupe, rangé dans la société par défaut : à éviter, ou à contrôler.
 --   2. app.vue_groupe_poser() : pose le déclencheur sur toutes les tables de public qui ont une colonne company_id,
 --      sauf les journaux et les réglages qui désignent leur société eux-mêmes (liste ci-dessous) ; idempotente, à
 --      rappeler après la création d'une table rattachée à une société.

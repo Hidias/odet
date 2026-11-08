@@ -5,7 +5,7 @@ import { Plus, BookOpenText, Loader2 } from 'lucide-react'
 import { supabase } from '../supabase'
 import { fetchAll } from '../fetchAll'
 import { useAuthStore } from '../store'
-import { societeEnCours } from '../company/societes'
+import { societeEnCours, enVueGroupe, MESSAGE_VUE_GROUPE } from '../company/societes'
 import { PageHeader } from '../../ui/PageHeader'
 import { DataTable } from '../../ui/DataTable'
 import { StatusBadge } from '../../ui/StatusBadge'
@@ -70,6 +70,8 @@ export default function Reunions() {
   const filtrees = useMemo(() => (liste || []).filter((m) => filtre === 'toutes' || (filtre === 'a_traiter' ? m.status !== 'terminee' : m.status === 'terminee')), [liste, filtre])
 
   const creer = async () => {
+    // Vue groupe : la base refuse la réunion ; refus clair avant de lire le point d'une société au hasard
+    if (enVueGroupe()) { toast.error(MESSAGE_VUE_GROUPE); return }
     setBusy(true)
     try {
       const trame = trames.find((t) => t.id === form.template_id)
