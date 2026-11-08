@@ -158,7 +158,8 @@ begin
       when not pr.is_active then 'deja_inactif'
       when pr.role = 'superadmin' then 'superadmin'
       -- Couper un compte est réservé à qui gère les utilisateurs (app.profiles_liens_garde) : la nuit ne sert pas de passe-droit
-      when not (app.a_le_droit('parametres.utilisateurs.gerer') or app.a_le_droit('plateforme.administrer')) then 'non_autorise'
+      -- (droit lu dans la société de la fiche, pas dans la société en cours de l'écran)
+      when not (app.rights_for((select auth.uid()), p.company_id) && array['parametres.utilisateurs.gerer', 'plateforme.administrer']) then 'non_autorise'
       when v_autres > 0 then 'societe'
       else 'desactive' end;
   end if;
@@ -388,7 +389,7 @@ begin
              'Départ le ' || to_char(p_jour, 'DD/MM/YYYY') || '. '
              || case b -> 'compte' ->> 'etat' when 'superadmin' then 'Le compte de connexion est celui d''un super administrateur : il n''est jamais coupé automatiquement.'
                 else 'Le départ a été enregistré par un compte qui ne gère pas les utilisateurs : le compte de connexion n''est pas coupé automatiquement.' end
-             || ' À couper dans Paramètres, Utilisateurs.'
+             || ' À couper dans Paramètres, Utilisateurs, par une personne qui gère les utilisateurs.'
       where v_arc and b -> 'compte' ->> 'etat' in ('superadmin', 'non_autorise')
     ) a
     on conflict (company_id, dedup_key) where dedup_key is not null do nothing;
@@ -452,7 +453,11 @@ begin
   loop
     -- Une fiche en erreur n'empêche pas les autres ; elle sera reprise la nuit suivante
     begin
-    perform 1 from public.hr_people where id = p.id for update;
+    -- Relue sous verrou : un départ annulé entre-temps n'est pas traité
+    select h.id, h.company_id, h.profile_id, h.departure_profile_id, h.departure_auto into p from public.hr_people h
+    where h.id = p.id and h.departure_on is not null and h.departure_on < v_jour and h.departure_applied_at is null
+    for update;
+    if not found then continue; end if;
     if p.departure_auto then
       update public.hr_people set archived_at = now() where id = p.id and archived_at is null;
       if found then v_arch := v_arch + 1; end if;
@@ -472,6 +477,7 @@ begin
     update public.hr_people set departure_applied_at = now() where id = p.id;
     exception when others then
       v_echecs := v_echecs + 1;
+      raise warning 'Départ non traité pour la fiche % : %', p.id, sqlerrm;
     end;
   end loop;
   return jsonb_build_object('fiches_archivees', v_arch, 'comptes_coupes', v_comptes, 'appartenances_coupees', v_appart, 'echecs', v_echecs);

@@ -87,7 +87,11 @@ async function handler(req, res) {
   // super administrateur) ; seulement si la case était cochée au départ
   let departs = null
   const { data: dep, error: depErr } = await admin.rpc('rh_departs_appliquer')
-  if (!depErr) departs = dep
+  if (!depErr) {
+    departs = dep
+    // Une fiche non traitée (les autres le sont) : la tâche passe en erreur pour qu'on le voie
+    if (dep?.echecs) { erreurs.departs = 'echecs'; console.error('[maintenance-nuit] departs', dep.echecs) }
+  }
   else if (depErr.code !== 'PGRST202') { erreurs.departs = depErr.code || 'erreur'; console.error('[maintenance-nuit] departs', depErr.code || 'erreur') }
   await purgerJournalTaches()
   const nbErreurs = Object.keys(erreurs).length

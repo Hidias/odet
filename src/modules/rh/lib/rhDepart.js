@@ -36,9 +36,8 @@ export function texteCompte(compte, archiver = true, actions = true) {
   if (etat === 'aucun') return 'Pas de compte de connexion relié à cette fiche.'
   if (etat === 'deja_inactif') return 'Le compte de connexion est déjà désactivé.'
   if (!archiver) return 'Le compte de connexion reste actif (archivage décoché).'
-  const rappel = actions ? 'une action vous le rappelle.' : 'pensez à le couper vous-même dans Paramètres, Utilisateurs.'
-  if (etat === 'superadmin') return `Compte de super administrateur : il n'est jamais coupé automatiquement, ${rappel}`
-  if (etat === 'non_autorise') return `Votre profil ne permet pas de couper un compte de connexion : il reste actif, ${rappel}`
+  if (etat === 'superadmin') return `Compte de super administrateur : il n'est jamais coupé automatiquement, ${actions ? 'une action vous le rappelle.' : 'pensez à le couper vous-même dans Paramètres, Utilisateurs.'}`
+  if (etat === 'non_autorise') return `Votre profil ne permet pas de couper un compte de connexion : il reste actif, ${actions ? 'une action le rappelle.' : 'demandez à la personne qui gère les utilisateurs de le couper.'}`
   if (etat === 'societe') return 'La personne garde son compte pour les autres sociétés du groupe ; son accès à cette société est coupé.'
   return 'Le compte de connexion est désactivé (son historique est conservé).'
 }

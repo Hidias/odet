@@ -49,7 +49,8 @@ describe('texteCompte', () => {
     expect(texteCompte({ etat: 'desactive' })).toMatch(/désactivé/)
     expect(texteCompte({ etat: 'desactive' }, false)).toMatch(/reste actif/)
     expect(texteCompte(null)).toMatch(/Pas de compte/)
-    expect(texteCompte({ etat: 'non_autorise' })).toMatch(/reste actif, une action vous le rappelle/)
+    expect(texteCompte({ etat: 'non_autorise' })).toMatch(/reste actif, une action le rappelle/)
+    expect(texteCompte({ etat: 'non_autorise' }, true, false)).toMatch(/demandez à la personne qui gère les utilisateurs/)
     // Actions décochées : plus de promesse d'action
     expect(texteCompte({ etat: 'superadmin' }, true, false)).toMatch(/pensez à le couper vous-même/)
     expect(texteCompte({ etat: 'superadmin' }, true, false)).not.toMatch(/une action/)
