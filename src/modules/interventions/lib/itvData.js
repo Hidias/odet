@@ -186,6 +186,11 @@ export const loadVisit = async (id) => must(await supabase.from('itv_visits').se
 export const loadVisitItems = async (visitId) => must(await supabase.from('itv_visit_items').select('*').eq('visit_id', visitId))
 export const loadVisitParts = async (visitId) => must(await supabase.from(prixMasques ? 'itv_visit_parts_terrain' : 'itv_visit_parts').select('*').eq('visit_id', visitId).order('created_at'))
 export const updateVisit = async (id, patch) => must(await supabase.from('itv_visits').update(patch).eq('id', id).select().single())
+/** Visites terminées depuis une date (date de fin réelle, la plus récente d'abord) : Kanban des visites */
+export async function loadVisitesTerminees(depuis) {
+  return mustAll(() => supabase.from('itv_visits').select(VISIT_COLS).eq('status', 'terminee').gte('finished_at', depuis)
+    .order('finished_at', { ascending: false }))
+}
 /** Remet une visite planifiée « à planifier », seulement si elle l'est encore (Kanban des visites) ; nombre de lignes changées */
 export async function remettreAPlanifier(id, retour) {
   const rows = must(await supabase.from('itv_visits').update(retour).eq('id', id).eq('status', 'planifiee').select('id'))

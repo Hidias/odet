@@ -36,3 +36,19 @@ export function choixVisite(v, peutGerer = true) {
   }
   return choix
 }
+
+/** À planifier : l'échéance la plus proche d'abord (sans échéance à la fin), les autres dans l'ordre reçu */
+export function trierAPlanifier(visites) {
+  const l = visites || []
+  const a = l.filter((v) => v.status === 'a_planifier').sort((x, y) => String(x.due_on || '9999').localeCompare(String(y.due_on || '9999')))
+  return [...a, ...l.filter((v) => v.status !== 'a_planifier')]
+}
+
+/** Jour demandé dans l'adresse du Planning (?jour=) : une vraie date AAAA-MM-JJ, sinon null */
+export function jourValide(s) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s || '')) return null
+  const d = new Date(`${s}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return null
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return iso === s ? s : null
+}

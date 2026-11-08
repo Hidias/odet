@@ -9,10 +9,12 @@ import { Loader2, CalendarCheck } from 'lucide-react'
 import { Kanban, CLASSE_ITEM_MENU } from '../../../ui/Kanban'
 import { EmptyState } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
-import { loadVisits, remettreAPlanifier } from '../lib/itvData'
+import { loadVisits, loadVisitesTerminees, remettreAPlanifier } from '../lib/itvData'
 import { todayIso, parseDay, isoDay, frShort } from '../lib/schedule'
-import { colonnesVisites, depotVisitePossible, choixVisite, RETOUR_A_PLANIFIER, JOURS_TERMINEES } from '../lib/visitesKanban'
+import { colonnesVisites, depotVisitePossible, choixVisite, RETOUR_A_PLANIFIER, JOURS_TERMINEES, trierAPlanifier } from '../lib/visitesKanban'
 
+// Date courte, avec l'année seulement si ce n'est pas l'année en cours
+const dateCourte = (iso) => frShort(iso, { year: String(iso).slice(0, 4) !== todayIso().slice(0, 4) })
 const ilYa = (n) => { const d = parseDay(todayIso()); d.setDate(d.getDate() - n); return isoDay(d) }
 
 export default function VisitesKanban({ technicians, isManager }) {
@@ -26,10 +28,11 @@ export default function VisitesKanban({ technicians, isManager }) {
     try {
       const [ouvertes, terminees] = await Promise.all([
         loadVisits({ status: ['a_planifier', 'planifiee', 'en_cours'] }),
-        loadVisits({ status: 'terminee', from: ilYa(JOURS_TERMINEES) }),
+        loadVisitesTerminees(`${ilYa(JOURS_TERMINEES)}T00:00:00`),
       ])
       if (n !== demande.current) return
-      setVisites([...(ouvertes || []), ...(terminees || [])])
+      // À planifier : la plus urgente d'abord (comme le Planning) ; terminées : la plus récente d'abord
+      setVisites([...trierAPlanifier(ouvertes), ...(terminees || [])])
     } catch (e) { if (n === demande.current) { toast.error(e.message); setVisites([]) } }
   }, [])
   useEffect(() => { charger() }, [charger])
@@ -37,9 +40,12 @@ export default function VisitesKanban({ technicians, isManager }) {
   const colonnes = useMemo(() => colonnesVisites(visites), [visites])
 
   const deplanifier = async (v) => {
-    const quand = v.planned_on ? ` du ${frShort(v.planned_on, { year: false })}` : ''
+    const quand = v.planned_on ? ` du ${dateCourte(v.planned_on)}` : ''
     const qui = v.technician_id && noms[v.technician_id] ? ` de ${noms[v.technician_id]}` : ''
-    if (!(await confirmer({ title: 'Remettre à planifier ?', message: `La visite ${v.clients?.name ? `chez ${v.clients.name} ` : ''}sort de la tournée${quand}${qui}. Il faudra la replacer dans le Planning.`, confirmLabel: 'Remettre à planifier' }))) return
+    if (!(await confirmer({ title: 'Remettre à planifier ?', message: `La visite ${v.clients?.name ? `chez ${v.clients.name} ` : ''}sort de la tournée${qui}${quand} ; il faudra la replacer dans le Planning.`, confirmLabel: 'Remettre à planifier' }))) {
+      setVisites((l) => l && [...l]) // le Kanban rend le focus à la carte
+      return
+    }
     setVisites((l) => (l || []).map((x) => (x.id === v.id ? { ...x, ...RETOUR_A_PLANIFIER } : x)))
     try {
       const n = await remettreAPlanifier(v.id, RETOUR_A_PLANIFIER)
@@ -68,7 +74,12 @@ export default function VisitesKanban({ technicians, isManager }) {
             <div className="text-ui font-medium truncate">{v.clients?.name || 'Client'}</div>
             <div className="text-ui-sm text-gray-500 truncate">{[v.sites?.name, v.sites?.city].filter(Boolean).join(', ') || ' '}</div>
             <div className="text-ui-sm text-gray-400 flex justify-between gap-2">
-              <span>{v.status === 'a_planifier' ? (v.due_on ? `à faire avant le ${frShort(v.due_on, { year: false })}` : 'à planifier') : (v.planned_on ? frShort(v.planned_on, { year: false }) : '')}</span>
+              <span className={v.status === 'a_planifier' && v.due_on && v.due_on < todayIso() ? 'text-red-700' : ''}>
+                {v.status === 'a_planifier'
+                  ? (v.due_on ? `${v.due_on < todayIso() ? 'en retard, ' : ''}à faire avant le ${dateCourte(v.due_on)}` : 'à planifier')
+                  : v.status === 'terminee' && v.finished_at ? `terminée le ${dateCourte(String(v.finished_at).slice(0, 10))}`
+                    : (v.planned_on ? dateCourte(v.planned_on) : '')}
+              </span>
               <span className="truncate">{v.technician_id ? noms[v.technician_id] || 'Technicien' : ''}</span>
             </div>
             {v.itv_contracts?.label && <div className="text-ui-sm text-gray-400 truncate">{v.itv_contracts.label}</div>}

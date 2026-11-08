@@ -11,6 +11,7 @@ import 'leaflet/dist/leaflet.css'
 import { ChevronLeft, ChevronRight, GripVertical, Loader2, X, Plus } from 'lucide-react'
 import { loadDueSites, loadVisits, planSite, reorderVisits, updateVisit, affecterVisite, AffectationRefusee, verifierAffectation, leverAffectation } from '../lib/itvData'
 import { pluriel } from '../../../core/genre'
+import { jourValide } from '../lib/visitesKanban'
 import { todayIso, isoDay, parseDay, daysBetween, routeKm, frShort } from '../lib/schedule'
 import { Empty, Sheet } from '../components/ui'
 
@@ -80,7 +81,7 @@ function RefusAffectation({ refus, technicians, onClose, onDone }) {
 export default function Planning({ technicians }) {
   // ?jour=AAAA-MM-JJ : ouverture à ce jour (menu « Changer de jour » des visites par étape)
   const [params] = useSearchParams()
-  const [day, setDay] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get('jour') || '') ? params.get('jour') : todayIso()))
+  const [day, setDay] = useState(() => jourValide(params.get('jour')) || todayIso())
   const [due, setDue] = useState(null)
   const [visits, setVisits] = useState([])
   const [sector, setSector] = useState('')
