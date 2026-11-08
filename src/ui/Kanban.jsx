@@ -6,7 +6,7 @@
 // colonnes : [{ code, label, lignes, sousTitre? }] ; cle(ligne) : clé unique ; carte(ligne) : contenu de la carte ;
 // onOuvrir(ligne) : clic sur la carte ; ouvrable(ligne) : la carte s'ouvre (sinon simple texte) ; deplacable(ligne) : la carte se glisse ; peutDeposer(ligne, code) ;
 // onDeposer(ligne, code) ; libelleMenu(ligne) : nom du bouton « ⋯ » (absent : pas de menu) ;
-// menu({ ligne, fermer, choisir }) : contenu du menu ; choisir(action) ferme le menu, rend ensuite le focus au
+// menu({ ligne, fermer, choisir }) : contenu du menu ; choisir(action, rendreFocus = true) ferme le menu, rend ensuite le focus au
 // bouton « ⋯ » de la carte (elle a pu changer de colonne) et lance l'action.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -45,8 +45,10 @@ export function Kanban({
   useEffect(() => {
     const cible = aRefocaliser.current
     if (!cible) return
+    aRefocaliser.current = null
     const b = [...(zone.current?.querySelectorAll('[data-kanban-menu]') || [])].find((x) => x.getAttribute('data-kanban-menu') === cible)
-    if (b) { b.focus({ preventScroll: false }); aRefocaliser.current = null }
+    // Carte sortie du tableau (ex. faite alors que les terminées sont masquées) : le focus reste dans le tableau
+    if (b) b.focus({ preventScroll: false }); else zone.current?.focus({ preventScroll: true })
   }, [colonnes])
 
   const deposer = (code) => {
@@ -55,17 +57,18 @@ export function Kanban({
     setSurvol(null)
     if (l && peutDeposer(l, code)) onDeposer?.(l, code)
   }
-  const choisir = (action) => {
+  // rendreFocus : faux pour une action qui ouvre une fenêtre (elle rend elle-même le focus en se fermant)
+  const choisir = (action, rendreFocus = true) => {
     const l = ouvert?.ligne
     fermer()
-    if (l) aRefocaliser.current = String(cle(l))
+    if (l && rendreFocus) aRefocaliser.current = String(cle(l))
     action?.()
   }
   const estOuvert = (l) => !!(ouvert?.ligne && cle(ouvert.ligne) === cle(l))
 
   return (
     <>
-      <div ref={zone} className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1" aria-label={label}>
+      <div ref={zone} tabIndex={-1} className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-1 px-1" aria-label={label}>
         {colonnes.map((c) => (
           <section key={c.code} aria-label={`${c.label} : ${c.lignes.length}`}
             className={`card p-3 flex-none w-[85vw] sm:w-72 snap-start flex flex-col gap-2 ${survol === c.code ? 'ring-2 ring-accent-500' : ''}`}

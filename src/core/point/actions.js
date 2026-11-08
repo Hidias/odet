@@ -35,8 +35,7 @@ export async function modifierAction(id, patch) {
 }
 
 /** Report d'une semaine (à partir de l'échéance, ou d'aujourd'hui si elle est passée ou absente) */
-export function dateReport(dueOn) {
-  const auj = iso(new Date())
+export function dateReport(dueOn, auj = iso(new Date())) {
   const base = dueOn && dueOn > auj ? dueOn : auj
   return decaler(base, 7)
 }
@@ -93,10 +92,12 @@ export function choixAction(a, auj = iso(new Date())) {
   const tous = [
     { code: 'aujourdhui', label: 'Pour aujourd\'hui', patch: { due_on: auj }, message: 'Prévue aujourd\'hui' },
     { code: 'lundi', label: 'Pour lundi prochain', patch: { due_on: lundiProchain(auj) }, message: 'Prévue lundi prochain' },
-    { code: 'report', label: 'Reporter d\'une semaine', patch: { due_on: dateReport(a.due_on) }, message: 'Reportée d\'une semaine' },
+    { code: 'report', label: 'Reporter d\'une semaine', patch: { due_on: dateReport(a.due_on, auj) }, message: 'Reportée d\'une semaine' },
     { code: 'sans', label: 'Sans échéance', patch: { due_on: null }, message: 'Échéance retirée' },
     { code: 'fait', label: 'Marquer comme fait', patch: { status: 'fait' }, message: 'Bravo !' },
     { code: 'abandonne', label: 'Abandonner', patch: { status: 'abandonne' }, message: 'Action abandonnée' },
   ]
-  return tous.filter((c) => !('due_on' in c.patch) || (c.patch.due_on || null) !== (a.due_on || null))
+  // Choix sans effet retirés, et « Reporter » quand il tombe sur le même jour que « lundi prochain » (un lundi)
+  return tous.filter((c) => (!('due_on' in c.patch) || (c.patch.due_on || null) !== (a.due_on || null))
+    && !(c.code === 'report' && c.patch.due_on === lundiProchain(auj)))
 }

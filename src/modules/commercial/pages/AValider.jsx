@@ -62,10 +62,12 @@ export default function AValider() {
   const toutValider = async () => {
     if (!(await confirmer(`Valider ${prets.length} relance${prets.length > 1 ? 's' : ''} « ${KINDS[type] || type} » ? Elles passeront « à envoyer ».`))) return
     setBusy(true)
-    const { error } = await supabase.from('scheduled_actions').update({ status: 'valide' }).in('id', prets.map((i) => i.id))
+    // Seulement les relances encore « à valider » ; 0 ligne sans erreur : compte en lecture seule ou déjà traitées
+    const { data, error } = await supabase.from('scheduled_actions').update({ status: 'valide' }).in('id', prets.map((i) => i.id)).eq('status', 'a_valider').select('id')
     setBusy(false)
     if (error) return toast.error(error.message)
-    toast.success('Relances validées : à envoyer')
+    if (!data?.length) { toast.error('Aucune relance validée : déjà traitées, ou votre compte ne peut pas les modifier'); return load() }
+    toast.success(data.length < prets.length ? `${data.length} relance${data.length > 1 ? 's' : ''} validée${data.length > 1 ? 's' : ''} sur ${prets.length} (les autres étaient déjà traitées)` : 'Relances validées : à envoyer')
     load()
   }
 
@@ -123,7 +125,7 @@ export default function AValider() {
           {type && vue === 'liste' && onglet === 'a_valider' && prets.length > 1 && <button type="button" className="btn btn-sm btn-secondary" onClick={toutValider} disabled={busy}><Check className="w-4 h-4" /> Tout valider ({prets.length})</button>}
         </>)}
       </div>
-      {items === null ? <Spinner /> : vue === 'colonnes' ? (
+      {items === null ? <Spinner /> : vue === 'colonnes' && items.length > 0 ? (
         <Kanban colonnes={colonnes} cle={(a) => a.id} label="Relances par état" labelMenu="Actions de la relance" vide="Aucune relance"
           onOuvrir={ouvrir}
           deplacable={(a) => !busy && passagesRelance(a).some((p) => p.parGlisser !== false)}
@@ -142,7 +144,7 @@ export default function AValider() {
           )}
           menu={({ ligne, choisir }) => (
             <>
-              <button type="button" className={CLASSE_ITEM_MENU} onClick={() => choisir(() => ouvrir(ligne))}>Ouvrir (texte et destinataire)</button>
+              <button type="button" className={CLASSE_ITEM_MENU} onClick={() => choisir(() => ouvrir(ligne), false)}>Ouvrir (texte et destinataire)</button>
               {passagesRelance(ligne).map((p) => (
                 <button key={p.status} type="button" className={CLASSE_ITEM_MENU} disabled={busy} onClick={() => choisir(() => changer(ligne, p.status))}>{p.label}</button>
               ))}

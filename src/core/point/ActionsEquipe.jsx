@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, CalendarClock, Check, ListTodo, Trash2, RotateCcw, Ban } from 'lucide-react'
@@ -35,9 +35,12 @@ export default function ActionsEquipe() {
   const [vue, setVue] = useVue('actions')
   const navigate = useNavigate()
 
+  const demande = useRef(0)
   const charger = async () => {
+    const n = ++demande.current
     const { data, error } = await supabase.from('team_actions').select('*, clients(id, name)')
       .order('due_on', { ascending: true, nullsFirst: false }).order('created_at').limit(1000)
+    if (n !== demande.current) return // une lecture plus récente est partie (changements rapprochés)
     if (error) { setErreur('Les actions ne sont pas encore disponibles.'); setActions([]); return }
     setActions(data || [])
   }
@@ -63,7 +66,10 @@ export default function ActionsEquipe() {
     } catch (err) { toast.error(err.message) } finally { setBusy(false) }
   }
   const maj = async (a, patch, msg) => {
-    try { await modifierAction(a.id, patch); if (msg) toast.success(msg); charger() } catch (err) { toast.error(err.message) }
+    // Vue tout de suite à sa nouvelle place (la carte ne revient pas en arrière pendant l'enregistrement)
+    setActions((l) => (l || []).map((x) => (x.id === a.id ? { ...x, ...patch } : x)))
+    try { await modifierAction(a.id, patch); if (msg) toast.success(msg) } catch (err) { toast.error(err.message) }
+    charger()
   }
   const supprimer = async (a) => {
     if (!await confirmer(`Supprimer l'action « ${a.title} » ?`)) return

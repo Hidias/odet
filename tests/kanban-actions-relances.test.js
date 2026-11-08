@@ -39,6 +39,8 @@ describe('Kanban des actions (échéances)', () => {
     expect(codes({ status: 'a_faire', due_on: auj })).toEqual(['lundi', 'report', 'sans', 'fait', 'abandonne'])
     expect(codes({ status: 'a_faire', due_on: null })).toEqual(['aujourdhui', 'lundi', 'report', 'fait', 'abandonne'])
     expect(codes({ status: 'abandonne', due_on: null })).toEqual(['rouvrir'])
+    // Un lundi, « Reporter d'une semaine » tomberait le même jour que « lundi prochain » : un seul choix
+    expect(choixAction({ status: 'a_faire', due_on: '2026-11-09' }, '2026-11-09').map((c) => c.code)).toEqual(['lundi', 'sans', 'fait', 'abandonne'])
   })
 })
 
