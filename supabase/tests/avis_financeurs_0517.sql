@@ -201,7 +201,8 @@ begin
 
   -- 6j. Deux fiches du même nom, chacune sur une session : un seul financeur, une seule demande la même nuit
   insert into public.clients (name, client_type, email, company_id) values ('ESSAI 0517 DOUBLE', 'opco', 'double@exemple.invalid', v_cie) returning id into v_dbl1;
-  insert into public.clients (name, client_type, email, company_id) values ('Essai 0517 double', 'opco', 'double@exemple.invalid', v_cie) returning id into v_dbl2;
+  update public.clients set created_at = now() - interval '1 day' where id = v_dbl1;  -- fiche retenue toujours la même
+  insert into public.clients (name, client_type, email, company_id) values ('Essai 0517 double', 'opco', 'avis-double@exemple.invalid', v_cie) returning id into v_dbl2;
   insert into public.session_fundings (session_id, funder_type, funder_client_id, amount_ht, status, company_id) values
     (v_s1, 'opco', v_dbl1, 5, 'pending', v_cie), (v_s2, 'opco', v_dbl2, 5, 'pending', v_cie);
   if (select count(*) from app.financeurs_de_l_annee(v_cie, v_an) f where app.financeur_nom_norme(f.funder_name) = 'essai 0517 double') <> 1 then
@@ -211,9 +212,22 @@ begin
   if (select count(*) from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) = 'essai 0517 double') <> 1 then
     raise exception '6j2. deux demandes la même nuit';
   end if;
+  -- Adresse : celle de la fiche choisie sur le financement avant celle de la fiche retenue
+  if (select contact_email from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) = 'essai 0517 double') not in ('double@exemple.invalid', 'avis-double@exemple.invalid') then
+    raise exception '6j3. adresse';
+  end if;
+  if (select f.contact_email from app.financeurs_de_l_annee(v_cie, v_an) f where f.funder_key = 'c:' || v_dbl1) is null then raise exception '6j4. adresse absente'; end if;
+  -- Doublon renommé après la demande : la demande est retrouvée par ses financements, pas de seconde demande
+  update public.clients set name = 'Essai 0517 double Bretagne' where id = v_dbl2;
+  perform public.financeurs_avis_preparer();
+  if (select count(*) from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) like 'essai 0517 double%') <> 1 then
+    raise exception '6j5. seconde demande après le renommage d''une fiche';
+  end if;
+  update public.clients set name = 'Essai 0517 double' where id = v_dbl2;
   -- Doublon ancien ignoré, l'autre envoyée : le suivi retient celle qui est partie
-  insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, contact_email, sessions, created_at)
-    values (v_cie, v_an, 'n:essai 0517 double ancien', 'opco', 'Essai 0517 double', 'double@exemple.invalid', '[]', now() - interval '1 day')
+  insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, contact_email, sessions, created_at, funding_ids)
+    select v_cie, v_an, 'n:essai 0517 double ancien', 'opco', 'Essai 0517 double', 'double@exemple.invalid', '[]', now() - interval '1 day', d.funding_ids
+    from public.funder_feedback d where d.company_id = v_cie and d.year = v_an and d.funder_key = 'c:' || v_dbl1
     returning id into v_d2;
   insert into public.scheduled_actions (company_id, kind, target_table, target_id, due_on, title, payload, dedup_key, status)
     values (v_cie, 'avis_financeur', 'funder_feedback', v_d2, v_auj, 'Essai', '{}', 'avis_financeur:' || v_d2, 'ignore');
@@ -249,7 +263,7 @@ begin
   if r is null or r->>'demande' <> 'repondue' or not (r->>'couvert')::boolean or (r->>'note')::int <> 4 then raise exception '7. suivi OPCO un : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ATLAS ESSAI 0517';
   if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a6. état perdu après la création de la fiche : %', r; end if;
-  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ESSAI 0517 DOUBLE';
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_dbl1;
   if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a7. demande envoyée cachée par un doublon ignoré : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco2;
   if r is null or not (r->>'couvert')::boolean or (r->>'echanges')::int <> 1 then raise exception '7b. suivi OPCO deux : %', r; end if;

@@ -16,6 +16,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --   1. funder_feedback : une demande d'avis par société, financeur et année (sessions financées gardées en photo), lien
 --      à usage unique (jeton de 48 caractères, illisible par les comptes), actif seulement une fois la relance validée ou
 --      envoyée, valable 90 jours à compter de la validation ou de l'envoi. Seules les sessions terminées sont annoncées.
+--      Les financements couverts sont gardés (funding_ids) : une demande est retrouvée par eux même si la fiche du
+--      financeur est renommée ou réunie à une autre ensuite.
 --      Aucune écriture par un compte : la base prépare, le financeur répond par les fonctions du lien.
 --   2. funder_exchanges : échanges avec un financeur saisis à la main (webinaire, réunion, échange sur une prestation,
 --      contrôle, consultation de son site d'avis), qui couvrent l'année comme une sollicitation (guide V10).
@@ -46,6 +48,7 @@ create table if not exists public.funder_feedback (
   funder_client_id uuid references public.clients(id) on delete set null,
   contact_email text check (contact_email is null or length(contact_email) <= 255),
   sessions jsonb not null default '[]'::jsonb,
+  funding_ids uuid[] not null default '{}',
   token text not null unique default encode(extensions.gen_random_bytes(24), 'hex'),
   expires_at timestamptz not null default (now() + interval '90 days'),
   answered_at timestamptz,
@@ -115,18 +118,15 @@ as $$
 $$;
 revoke all on function app.financeur_cle(uuid, text, uuid, text) from public, anon, authenticated;
 
--- Même financeur qu'une demande ou un échange déjà enregistrés, même si sa clé a changé depuis (fiche créée après une
--- saisie libre, fiche supprimée, deux fiches du même nom) : même clé, même fiche ou même nom normalisé
+-- Même financeur qu'une demande ou un échange déjà enregistrés : même clé ou même fiche (les noms sont déjà réunis par
+-- la clé ; une demande est aussi retrouvée par ses financements, funding_ids)
 create or replace function app.financeur_meme(p_cle text, p_client uuid, p_nom text, q_cle text, q_client uuid, q_nom text)
 returns boolean
 language sql
 immutable
 set search_path = ''
 as $$
-  select p_cle = q_cle
-      or (p_client is not null and p_client = q_client)
-      or (p_cle not in ('cpf', 'pole_emploi') and q_cle not in ('cpf', 'pole_emploi')
-          and app.financeur_nom_norme(p_nom) <> '' and app.financeur_nom_norme(p_nom) = app.financeur_nom_norme(q_nom))
+  select p_cle = q_cle or (p_client is not null and p_client = q_client)
 $$;
 revoke all on function app.financeur_meme(text, uuid, text, text, uuid, text) from public, anon, authenticated;
 
@@ -180,15 +180,17 @@ create trigger funder_exchanges_regle before insert or update on public.funder_e
 -- annoncées au financeur)
 create or replace function app.financeurs_de_l_annee(p_company uuid, p_year int)
 returns table (funder_key text, funder_type text, funder_name text, funder_client_id uuid, contact_email text,
-               sessions jsonb, sessions_terminees int, sessions_finies jsonb)
+               sessions jsonb, sessions_terminees int, sessions_finies jsonb, funding_ids uuid[])
 language sql
 stable
 security definer
 set search_path = ''
 as $$
   with f as (
-    select k.cle, sf.funder_type, coalesce(nullif(btrim(c.name), ''), nullif(btrim(sf.funder_name), '')) as nom, c.id as client_id,
-           coalesce(nullif(btrim(sf.funder_contact_email), ''), nullif(btrim(c.billing_email), ''), nullif(btrim(c.email), ''),
+    select k.cle, sf.id as funding_id, sf.funder_type, coalesce(nullif(btrim(c.name), ''), nullif(btrim(sf.funder_name), '')) as nom, c.id as client_id,
+           -- Adresse : celle du financement, puis celle de la fiche choisie sur le financement, puis celle de la fiche retenue
+           coalesce(nullif(btrim(sf.funder_contact_email), ''), nullif(btrim(cg.billing_email), ''), nullif(btrim(cg.email), ''),
+                    nullif(btrim(cg.contact_email), ''), nullif(btrim(c.billing_email), ''), nullif(btrim(c.email), ''),
                     nullif(btrim(c.contact_email), '')) as email,
            sf.updated_at, jsonb_build_object('id', s.id, 'reference', s.reference, 'titre', co.title, 'debut', s.start_date,
                                              'fin', coalesce(s.end_date, s.start_date)) as session,
@@ -198,6 +200,7 @@ as $$
     left join public.courses co on co.id = s.course_id
     cross join lateral (select app.financeur_cle(s.company_id, sf.funder_type, sf.funder_client_id, sf.funder_name) as cle) k
     left join public.clients c on c.id = case when k.cle like 'c:%' then substr(k.cle, 3)::uuid end
+    left join public.clients cg on cg.id = sf.funder_client_id
     where s.company_id = p_company
       and s.status is distinct from 'cancelled'
       and sf.status not in ('refused', 'cancelled')
@@ -212,7 +215,8 @@ as $$
          (array_agg(f.email order by f.updated_at desc) filter (where f.email is not null))[1],
          jsonb_agg(distinct f.session),
          count(distinct f.session_id) filter (where f.finie)::int,
-         coalesce(jsonb_agg(distinct f.session) filter (where f.finie), '[]'::jsonb)
+         coalesce(jsonb_agg(distinct f.session) filter (where f.finie), '[]'::jsonb),
+         array_agg(distinct f.funding_id)
   from f
   group by f.cle
 $$;
@@ -312,7 +316,8 @@ begin
         where x.funder_type in ('opco', 'region', 'autre') and x.sessions_terminees > 0
           and app.financeur_email_valide(x.contact_email)
           and not exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.year = v_annee
-                            and app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, x.funder_key, x.funder_client_id, x.funder_name))
+                            and (d.funding_ids && x.funding_ids
+                                 or app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, x.funder_key, x.funder_client_id, x.funder_name)))
           and not exists (select 1 from public.funder_exchanges e where e.company_id = v_cie.id
                             and extract(year from e.happened_on)::int = v_annee
                             and app.financeur_meme(app.financeur_cle(e.company_id, e.funder_type, e.funder_client_id, e.funder_name),
@@ -321,11 +326,12 @@ begin
         v_d := null;
         -- Contrôle refait ici : la liste de la boucle ne voit pas les demandes insérées pendant la boucle
         if exists (select 1 from public.funder_feedback d where d.company_id = v_cie.id and d.year = v_annee
-                     and app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, v_f.funder_key, v_f.funder_client_id, v_f.funder_name)) then
+                     and (d.funding_ids && v_f.funding_ids
+                          or app.financeur_meme(d.funder_key, d.funder_client_id, d.funder_name, v_f.funder_key, v_f.funder_client_id, v_f.funder_name))) then
           continue;
         end if;
-        insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions)
-        values (v_cie.id, v_annee, v_f.funder_key, v_f.funder_type, v_f.funder_name, v_f.funder_client_id, btrim(v_f.contact_email), v_f.sessions_finies)
+        insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions, funding_ids)
+        values (v_cie.id, v_annee, v_f.funder_key, v_f.funder_type, v_f.funder_name, v_f.funder_client_id, btrim(v_f.contact_email), v_f.sessions_finies, v_f.funding_ids)
         on conflict (company_id, funder_key, year) do nothing
         returning * into v_d;
         if v_d.id is null then continue; end if;
@@ -408,7 +414,8 @@ begin
                   else 'ignoree' end as etat
       from public.funder_feedback dd
       where dd.company_id = x.company_id and dd.year = v_annee
-        and app.financeur_meme(dd.funder_key, dd.funder_client_id, dd.funder_name, x.funder_key, x.funder_client_id, x.funder_name)
+        and (dd.funding_ids && x.funding_ids
+             or app.financeur_meme(dd.funder_key, dd.funder_client_id, dd.funder_name, x.funder_key, x.funder_client_id, x.funder_name))
       -- Par état (répondue, envoyée, validée, préparée, ignorée), puis la plus ancienne : une demande en double ignorée ne
       -- cache jamais celle qui est partie
       order by case when dd.answered_at is not null then 0
@@ -541,7 +548,7 @@ alter table public.funder_feedback enable row level security;
 revoke all on table public.funder_feedback from public, anon, authenticated;
 -- Le jeton n'est pas lisible par les comptes (sinon n'importe quel compte de la société pourrait répondre à la place du
 -- financeur) : il n'apparaît que dans le texte de la relance, pour qui la valide
-grant select (id, company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions, expires_at,
+grant select (id, company_id, year, funder_key, funder_type, funder_name, funder_client_id, contact_email, sessions, funding_ids, expires_at,
   answered_at, note_globale, q_information, q_administratif, q_qualite, q_relation, commentaire, created_at, updated_at)
   on table public.funder_feedback to authenticated;
 grant all on table public.funder_feedback to service_role;
@@ -773,7 +780,8 @@ begin
 
   -- 6j. Deux fiches du même nom, chacune sur une session : un seul financeur, une seule demande la même nuit
   insert into public.clients (name, client_type, email, company_id) values ('ESSAI 0517 DOUBLE', 'opco', 'double@exemple.invalid', v_cie) returning id into v_dbl1;
-  insert into public.clients (name, client_type, email, company_id) values ('Essai 0517 double', 'opco', 'double@exemple.invalid', v_cie) returning id into v_dbl2;
+  update public.clients set created_at = now() - interval '1 day' where id = v_dbl1;  -- fiche retenue toujours la même
+  insert into public.clients (name, client_type, email, company_id) values ('Essai 0517 double', 'opco', 'avis-double@exemple.invalid', v_cie) returning id into v_dbl2;
   insert into public.session_fundings (session_id, funder_type, funder_client_id, amount_ht, status, company_id) values
     (v_s1, 'opco', v_dbl1, 5, 'pending', v_cie), (v_s2, 'opco', v_dbl2, 5, 'pending', v_cie);
   if (select count(*) from app.financeurs_de_l_annee(v_cie, v_an) f where app.financeur_nom_norme(f.funder_name) = 'essai 0517 double') <> 1 then
@@ -783,9 +791,22 @@ begin
   if (select count(*) from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) = 'essai 0517 double') <> 1 then
     raise exception '6j2. deux demandes la même nuit';
   end if;
+  -- Adresse : celle de la fiche choisie sur le financement avant celle de la fiche retenue
+  if (select contact_email from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) = 'essai 0517 double') not in ('double@exemple.invalid', 'avis-double@exemple.invalid') then
+    raise exception '6j3. adresse';
+  end if;
+  if (select f.contact_email from app.financeurs_de_l_annee(v_cie, v_an) f where f.funder_key = 'c:' || v_dbl1) is null then raise exception '6j4. adresse absente'; end if;
+  -- Doublon renommé après la demande : la demande est retrouvée par ses financements, pas de seconde demande
+  update public.clients set name = 'Essai 0517 double Bretagne' where id = v_dbl2;
+  perform public.financeurs_avis_preparer();
+  if (select count(*) from public.funder_feedback where company_id = v_cie and year = v_an and app.financeur_nom_norme(funder_name) like 'essai 0517 double%') <> 1 then
+    raise exception '6j5. seconde demande après le renommage d''une fiche';
+  end if;
+  update public.clients set name = 'Essai 0517 double' where id = v_dbl2;
   -- Doublon ancien ignoré, l'autre envoyée : le suivi retient celle qui est partie
-  insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, contact_email, sessions, created_at)
-    values (v_cie, v_an, 'n:essai 0517 double ancien', 'opco', 'Essai 0517 double', 'double@exemple.invalid', '[]', now() - interval '1 day')
+  insert into public.funder_feedback (company_id, year, funder_key, funder_type, funder_name, contact_email, sessions, created_at, funding_ids)
+    select v_cie, v_an, 'n:essai 0517 double ancien', 'opco', 'Essai 0517 double', 'double@exemple.invalid', '[]', now() - interval '1 day', d.funding_ids
+    from public.funder_feedback d where d.company_id = v_cie and d.year = v_an and d.funder_key = 'c:' || v_dbl1
     returning id into v_d2;
   insert into public.scheduled_actions (company_id, kind, target_table, target_id, due_on, title, payload, dedup_key, status)
     values (v_cie, 'avis_financeur', 'funder_feedback', v_d2, v_auj, 'Essai', '{}', 'avis_financeur:' || v_d2, 'ignore');
@@ -821,7 +842,7 @@ begin
   if r is null or r->>'demande' <> 'repondue' or not (r->>'couvert')::boolean or (r->>'note')::int <> 4 then raise exception '7. suivi OPCO un : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ATLAS ESSAI 0517';
   if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a6. état perdu après la création de la fiche : %', r; end if;
-  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'nom' = 'ESSAI 0517 DOUBLE';
+  select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_dbl1;
   if r is null or r->>'demande' <> 'envoyee' or not (r->>'couvert')::boolean then raise exception '7a7. demande envoyée cachée par un doublon ignoré : %', r; end if;
   select x into r from jsonb_array_elements(public.financeurs_suivi(v_an)->'financeurs') x where x->>'cle' = 'c:' || v_opco2;
   if r is null or not (r->>'couvert')::boolean or (r->>'echanges')::int <> 1 then raise exception '7b. suivi OPCO deux : %', r; end if;
