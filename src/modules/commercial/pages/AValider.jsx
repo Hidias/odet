@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Copy, Mail, Check, X, Loader2, Inbox } from 'lucide-react'
+import { Copy, Mail, Check, X, Loader2, Inbox, Send, Eye } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { callApi } from '../../../core/api'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
 import { StatusBadge } from '../../../ui/StatusBadge'
@@ -17,8 +18,9 @@ import { ChoixVue, useVue } from '../../../ui/ChoixVue'
 import { colonnesRelances, passagesRelance, depotRelancePossible, MESSAGES_RELANCE } from '../lib/relances'
 
 // Relances à valider (lot 2, 0043) : actions préparées chaque nuit par la base (recyclages à prévoir, puis
-// justificatifs des prestataires, rappels…). Rien ne part tout seul : on valide, on corrige ou on ignore ; une action validée se
-// transmet par sa messagerie (texte prêt à copier) puis se marque « envoyée ». Téléphone d'abord.
+// justificatifs des prestataires, rappels…). Rien ne part tout seul : on valide, on corrige ou on ignore ; une action validée
+// part depuis l'outil après aperçu (0518, /api/relance-envoi), ou se transmet par sa messagerie puis se marque « envoyée ».
+// Téléphone d'abord.
 // Deux affichages : liste par onglet, ou colonnes par état (Kanban, règles dans `lib/relances.js`).
 
 const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', renouvellement_contrat: 'Renouvellement de contrat', visite_hors_contrat: 'Visite hors contrat', convocation: 'Convocation', rappel: 'Rappel', emargement_manquant: 'Émargement', eval_chaud: 'Évaluation à chaud', attestations: 'Attestations', evaluation_froid: 'Évaluation à froid', facture_brouillon: 'Facture', relance_impaye: 'Impayé', avis_financeur: 'Avis du financeur', autre: 'Autre' }
@@ -33,15 +35,20 @@ export default function AValider() {
   const [busy, setBusy] = useState(false)
   const [reglages, setReglages] = useState(false)
   const [vue, setVue] = useVue('relances')
+  const [apercu, setApercu] = useState(null)
   const can = useAuthStore((st) => st.can)
   const role = useAuthStore((st) => st.userRole)
   const droitModules = can('parametres.modules.gerer')
   const peutRegler = droitModules === true || (droitModules == null && ['superadmin', 'admin'].includes(role))
 
   const load = async () => {
+    // Avant 0518 (envoi depuis l'outil) : ni erreur d'envoi ni boîte
     let { data, error } = await supabase.from('scheduled_actions')
-      .select('id, kind, client_id, target_table, target_id, session_id, blocked_reason, due_on, title, payload, status, validated_at, sent_at, clients(name)')
+      .select('id, kind, client_id, target_table, target_id, session_id, blocked_reason, due_on, title, payload, status, validated_at, sent_at, error, envoi_boite, clients(name)')
       .order('due_on', { ascending: true }).limit(500)
+    if (error) ({ data, error } = await supabase.from('scheduled_actions')
+      .select('id, kind, client_id, target_table, target_id, session_id, blocked_reason, due_on, title, payload, status, validated_at, sent_at, clients(name)')
+      .order('due_on', { ascending: true }).limit(500))
     // Avant 0160 (pilote des sessions) : ni session_id ni blocked_reason
     if (error) ({ data, error } = await supabase.from('scheduled_actions')
       .select('id, kind, client_id, target_table, target_id, due_on, title, payload, status, validated_at, sent_at, clients(name)')
@@ -55,7 +62,7 @@ export default function AValider() {
   const compte = useMemo(() => Object.fromEntries(ONGLETS.map(([k]) => [k, (items || []).filter((i) => i.status === k).length])), [items])
   const liste = (items || []).filter((i) => i.status === onglet && (!type || i.kind === type))
   const colonnes = useMemo(() => colonnesRelances((items || []).filter((i) => !type || i.kind === type)), [items, type])
-  const ouvrir = (a) => setOuvert({ ...a, payload: { ...(a.payload || {}) } })
+  const ouvrir = (a) => { setApercu(null); setOuvert({ ...a, payload: { ...(a.payload || {}) } }) }
   const types = useMemo(() => [...new Set((items || []).map((i) => i.kind))], [items])
   const prets = liste.filter((i) => i.status === 'a_valider' && !i.blocked_reason)
 
@@ -108,6 +115,31 @@ export default function AValider() {
     return `mailto:${encodeURIComponent(p.destinataire)}?subject=${encodeURIComponent(p.objet || a.title)}&body=${encodeURIComponent(p.texte || '')}`
   }
 
+  // Envoi depuis l'outil (0518) : aperçu tel qu'il partira, exemple à soi, puis envoi au destinataire
+  const voirApercu = async (a) => {
+    setBusy(true)
+    try { setApercu(await callApi('/api/relance-envoi', { id: a.id, action: 'apercu' })) } catch (e) { toast.error(e.message) }
+    setBusy(false)
+  }
+  const testAMoi = async (a) => {
+    setBusy(true)
+    try { const r = await callApi('/api/relance-envoi', { id: a.id, action: 'test' }); toast.success(`Exemple envoyé à ${r.test}`) } catch (e) { toast.error(e.message) }
+    setBusy(false)
+  }
+  const envoyer = async (a) => {
+    const dest = String(a.payload?.destinataire || '').trim()
+    if (!(await confirmer({ title: 'Envoyer la relance', message: `Envoyer cette relance à ${dest} depuis votre boîte d'envoi ? Le mail part tout de suite.`, confirmLabel: 'Envoyer' }))) return
+    setBusy(true)
+    try {
+      const r = await callApi('/api/relance-envoi', { id: a.id, action: 'envoi' })
+      if (r.avertissement) toast.error(r.avertissement, { duration: 10000 })
+      else toast.success(`Relance envoyée à ${r.destinataire}`)
+      setOuvert(null)
+    } catch (e) { toast.error(e.message, { duration: 8000 }) }
+    setBusy(false)
+    load()
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader title="Relances à valider" meta={<span>Préparées chaque nuit par l'application ; rien n'est envoyé sans vous.</span>}
@@ -140,6 +172,7 @@ export default function AValider() {
                 {a.payload?.depasse ? ' · dépassée' : ''}
               </div>
               {a.blocked_reason && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Bloquée : {a.blocked_reason}</div>}
+              {a.status === 'valide' && a.error && <div className="text-ui-sm text-[rgb(var(--c-danger))]">Envoi échoué : {a.error}</div>}
             </>
           )}
           menu={({ ligne, choisir }) => (
@@ -168,6 +201,7 @@ export default function AValider() {
                   {a.payload?.depasse ? ' · dépassée' : ''}
                 </div>
                 {a.blocked_reason && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Bloquée : {a.blocked_reason}</div>}
+                {a.status === 'valide' && a.error && <div className="text-ui-sm text-[rgb(var(--c-danger))]">Envoi échoué : {a.error}</div>}
               </button>
             </li>
           ))}
@@ -181,8 +215,11 @@ export default function AValider() {
             {ouvert.status === 'valide' && <button type="button" className="btn btn-ghost mr-auto" onClick={() => changer(ouvert, 'a_valider')} disabled={busy}>Remettre à valider</button>}
             {ouvert.status === 'a_valider' && !ouvert.blocked_reason && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'valide', ouvert.payload)} disabled={busy}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Valider</button>}
-            {ouvert.status === 'valide' && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'envoye', null, true)} disabled={busy}>
-              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer envoyée</button>}
+            {ouvert.status === 'valide' && (ouvert.payload.destinataire
+              ? <button type="button" className="btn btn-primary" onClick={() => envoyer(ouvert)} disabled={busy}>
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer</button>
+              : <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'envoye', null, true)} disabled={busy}>
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Marquer envoyée</button>)}
             {['envoye', 'ignore'].includes(ouvert.status) && <button type="button" className="btn btn-secondary" onClick={() => setOuvert(null)}>Fermer</button>}
           </>}>
           <div className="text-ui-sm text-gray-600">
@@ -208,13 +245,34 @@ export default function AValider() {
             <textarea id="rel-texte" className="input min-h-[220px]" value={ouvert.payload.texte || ''} disabled={ouvert.status !== 'a_valider'}
               onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, texte: e.target.value } })} />
           </div>
-          {ouvert.status === 'valide' && (
+          {ouvert.status === 'valide' && ouvert.error && <Banner tone="danger">Dernier envoi échoué : {ouvert.error}. Vous pouvez réessayer.</Banner>}
+          {ouvert.status === 'valide' && ouvert.payload.destinataire && (
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn btn-secondary" onClick={() => copier(ouvert)}><Copy className="w-4 h-4" /> Copier objet et texte</button>
-              {mailto(ouvert) && <a className="btn btn-secondary" href={mailto(ouvert)}><Mail className="w-4 h-4" /> Ouvrir dans ma messagerie</a>}
+              <button type="button" className="btn btn-secondary" onClick={() => voirApercu(ouvert)} disabled={busy}><Eye className="w-4 h-4" /> Voir le mail</button>
+              <button type="button" className="btn btn-secondary" onClick={() => testAMoi(ouvert)} disabled={busy}><Mail className="w-4 h-4" /> Test à moi</button>
             </div>
           )}
-          {ouvert.status === 'valide' && <p className="text-ui-sm text-gray-500">L'envoi automatique n'est pas activé : envoyez depuis votre messagerie, puis « Marquer envoyée ».</p>}
+          {ouvert.status === 'valide' && apercu && (
+            <div className="space-y-1 text-ui-sm text-gray-600">
+              <p>De : {apercu.expediteur || 'boîte d\'envoi non configurée'} · À : {apercu.destinataire || 'aucun destinataire'}{apercu.copieCachee ? ` · Copie cachée : ${apercu.copieCachee}` : ''}</p>
+              <p>Objet : <span className="font-medium text-gray-900">{apercu.sujet}</span></p>
+              <p>Pièces jointes : {apercu.piecesJointes?.length ? apercu.piecesJointes.map((x) => x.nom).join(', ') : 'aucune'}</p>
+              {apercu.avertissement && <p className="text-[rgb(var(--c-warning))]">{apercu.avertissement}</p>}
+              <iframe title="Aperçu du mail" className="w-full border rounded-ui bg-white" style={{ minHeight: 320 }} sandbox="" srcDoc={apercu.html} />
+            </div>
+          )}
+          {ouvert.status === 'valide' && (
+            <details className="text-ui-sm text-gray-600">
+              <summary className="cursor-pointer">Envoyer plutôt depuis ma messagerie</summary>
+              <div className="flex flex-wrap gap-2 mt-2">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => copier(ouvert)}><Copy className="w-4 h-4" /> Copier objet et texte</button>
+                {mailto(ouvert) && <a className="btn btn-secondary btn-sm" href={mailto(ouvert)}><Mail className="w-4 h-4" /> Ouvrir dans ma messagerie</a>}
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => changer(ouvert, 'envoye', null, true)} disabled={busy}><Check className="w-4 h-4" /> Marquer envoyée</button>
+              </div>
+              <p className="mt-1">Une fois le mail parti de votre messagerie, « Marquer envoyée ».</p>
+            </details>
+          )}
+          {ouvert.status === 'envoye' && ouvert.envoi_boite && <p className="text-ui-sm text-gray-500">Envoyée depuis l'outil, par la boîte {ouvert.envoi_boite}{ouvert.sent_at ? ` le ${new Date(ouvert.sent_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}.</p>}
         </Sheet>
       )}
     </div>
