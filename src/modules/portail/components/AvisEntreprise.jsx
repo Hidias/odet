@@ -28,7 +28,7 @@ export const messageAvis = (error, defaut) => (['22023', '42501'].includes(error
 // Même critère que la base (0504) : session non annulée, dernier jour passé (fin, sinon début)
 export const avisPossible = (s, aujourdhui) => s?.status !== 'cancelled' && !!(s?.end_date || s?.start_date) && (s.end_date || s.start_date) <= aujourdhui
 
-const Notes = ({ valeur, onChange, label }) => (
+export const Notes = ({ valeur, onChange, label }) => (
   <div className="flex gap-1.5" role="radiogroup" aria-label={label}>
     {[1, 2, 3, 4, 5].map((n) => (
       <button key={n} type="button" role="radio" aria-checked={valeur === n} onClick={() => onChange(valeur === n ? null : n)}

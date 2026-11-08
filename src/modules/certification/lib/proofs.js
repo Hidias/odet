@@ -6,6 +6,7 @@
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { conventionSigneeEtat, groupesParSession } from '../../formation/lib/etatConvention'
+import { resumeFinanceurs, lignesIndicateur30, anneesFinanceurs } from './financeurs'
 
 const filled = (v) => v != null && String(v).trim() !== ''
 
@@ -36,7 +37,7 @@ export async function loadEvidence() {
   const [
     needs, positioning, positioningTests, objectivesValidated, results, convocations, infoSheets, psh, disability,
     attendance, partial, equipment, courseDocs, sessionTrainers, trainerCerts, trainerTrainings, trainerInterviews,
-    hotEvals, coldEvals, coldEmployeurs, trainerEvals, satisfactionSent, reclamations, ncs, alertsTreated, programmes, sst, opcoSessions,
+    hotEvals, coldEvals, coldEmployeurs, trainerEvals, satisfactionSent, reclamations, ncs, alertsTreated, programmes, sst, financeurs,
     audits, signedConventions, formativeSheets, formativeSessions, formativeOn,
   ] = await Promise.all([
     // 0486 : une analyse remplie par l'entreprise ne compte qu'une fois validée par l'organisme
@@ -72,7 +73,10 @@ export async function loadEvidence() {
     count('quality_alerts', (q) => q.neq('status', 'pending')),
     count('programme_versions'),
     count('sst_certifications', (q) => q.eq('candidat_certifie', true)),
-    count('sessions', (q) => q.ilike('funding_type', '%opco%')),
+    // Financeurs (0517) : année en cours, et année écoulée tant que la nuit la traite (jusqu'au 31 mars) ; résumé null si
+    // la lecture échoue (jamais « aucun financeur »)
+    Promise.all(anneesFinanceurs().map((annee) => supabase.rpc('financeurs_suivi', { p_annee: annee })
+      .then(({ data, error }) => ({ annee, resume: error ? null : resumeFinanceurs(data) }), () => ({ annee, resume: null })))),
     count('audits_internes'),
     // Conventions signées, lues comme partout (etatConvention) : inter signée groupe par groupe ; une session de
     // sous-traitance signée compte toujours (pièce NDA « première convention signée », certData.js)
@@ -146,10 +150,11 @@ export async function loadEvidence() {
       sessionsTotal, sessionsDone, needs, positioning: positioning + positioningTests, objectivesValidated, results,
       convocations, infoSheets, psh, disability, attendance, partial, equipment, courseDocs, sessionTrainers,
       trainerCerts, trainerTrainings, trainerInterviews, hotEvals, coldEvals, coldEmployeurs, trainerEvals, satisfactionSent,
-      reclamations, ncs, alertsTreated, programmes, sst, opcoSessions, audits, signedConventions,
+      reclamations, ncs, alertsTreated, programmes, sst, audits, signedConventions,
       formativeSheets, formativeSessions,
     },
     formativeOn,
+    financeurs,
     subcontracting: {
       providers: new Set(stCompliance.map((r) => r.subcontractor_id)).size,
       docs: stCompliance.length,
@@ -332,7 +337,9 @@ export const RULES = {
       // Évaluation à froid de l'employeur (0482) : preuve en plus quand il y en a ; son absence n'est pas un manque à elle
       // seule (le questionnaire entreprise ci-dessus couvre aussi les entreprises)
       ...(e.n.coldEmployeurs ? [ok(`Entreprises, évaluations à froid de l'employeur : ${e.n.coldEmployeurs}`, L.indicateurs)] : []),
-      ...(e.n.opcoSessions ? [ko(`Financeurs : ${plural(e.n.opcoSessions, 'session financée')} par un OPCO, recueil à prévoir`, null)] : []),
+      // Financeurs (0517) : sollicités au moins une fois par an ou rencontrés (guide V10, p. 37) ; rien sans financeur ;
+      // le suivi détaillé s'affiche sous ces preuves (SuiviFinanceurs)
+      ...(e.financeurs || []).flatMap((f) => lignesIndicateur30(f.resume, f.annee)).map((l) => (l.ok ? ok(l.label, null) : ko(l.label, null))),
     ],
     missing: ['Déposer ici les questionnaires entreprise et donneur d\'ordre retournés signés'],
   }),
