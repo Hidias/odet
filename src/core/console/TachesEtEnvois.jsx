@@ -28,7 +28,7 @@ export function rythmeDe(t, jour = new Date()) {
 
 // `utc` : heure et minute du planning de vercel.json (tests/console-taches.test.js vérifie la concordance)
 export const TACHES = [
-  { job: 'maintenance-nuit', label: 'Préparation de la nuit (relances, rappels, étapes des sessions, purges à valider)', rythme: 'Chaque nuit, vers {h}', utc: [2, 10] },
+  { job: 'maintenance-nuit', label: 'Préparation de la nuit (relances, rappels, étapes des sessions, purges à valider, titres exigés)', rythme: 'Chaque nuit, vers {h}', utc: [2, 10] },
   { job: 'sync-sent-emails', label: 'Synchronisation des emails envoyés', rythme: 'Toutes les 30 min en journée, en semaine' },
   { job: 'signature-alert', label: 'Alertes de signature', rythme: 'En semaine, vers {h}', utc: [7, 0] },
   { job: 'signature-weekly', label: 'Bilan des signatures', rythme: 'Le lundi, vers {h}', utc: [7, 0] },
