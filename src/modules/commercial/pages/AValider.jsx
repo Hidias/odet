@@ -222,7 +222,7 @@ export default function AValider() {
             {ouvert.status === 'valide' && <button type="button" className="btn btn-ghost mr-auto" onClick={() => changer(ouvert, 'a_valider')} disabled={busy}>Remettre à valider</button>}
             {ouvert.status === 'a_valider' && !ouvert.blocked_reason && <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'valide', ouvert.payload)} disabled={busy}>
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Valider</button>}
-            {ouvert.status === 'valide' && (ouvert.envoi_possible && ouvert.payload.destinataire
+            {ouvert.status === 'valide' && (ouvert.envoi_possible && ouvert.payload.destinataire && !ouvert.envoi_reserve_at
               ? <button type="button" className="btn btn-primary" onClick={() => envoyer(ouvert)} disabled={busy || apercu?.id !== ouvert.id || apercu?.redirige || !apercu?.expediteur}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Envoyer</button>
               : <button type="button" className="btn btn-primary" onClick={() => changer(ouvert, 'envoye', null, true)} disabled={busy}>
@@ -240,7 +240,7 @@ export default function AValider() {
             <label className="label" htmlFor="rel-dest">Destinataire</label>
             <input id="rel-dest" className="input" value={ouvert.payload.destinataire || ''} disabled={ouvert.status !== 'a_valider'}
               onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, destinataire: e.target.value } })} placeholder="Adresse email du destinataire" />
-            {!ouvert.payload.destinataire && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">Aucune adresse sur la fiche : complétez-la ici ou sur la fiche.</p>}
+            {ouvert.status === 'a_valider' && !ouvert.payload.destinataire && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">Aucune adresse sur la fiche : complétez-la ici ou sur la fiche.</p>}
           </div>
           <div>
             <label className="label" htmlFor="rel-objet">Objet</label>
@@ -271,7 +271,12 @@ export default function AValider() {
               <iframe title="Aperçu du mail" className="w-full border rounded-ui bg-white" style={{ minHeight: 320 }} sandbox="" srcDoc={apercu.html} />
             </div>
           )}
-          {ouvert.status === 'valide' && ouvert.envoi_possible && !ouvert.payload.destinataire && <p className="text-ui-sm text-gray-500">Pas de destinataire : remettez-la à valider pour en saisir un, ou envoyez depuis votre messagerie puis « Marquer envoyée ».</p>}
+          {ouvert.status === 'valide' && ouvert.envoi_possible && !ouvert.payload.destinataire && (
+            <div className="space-y-2">
+              <p className="text-ui-sm text-gray-500">Pas de destinataire : remettez-la à valider pour en saisir un, ou envoyez depuis votre messagerie puis « Marquer envoyée ».</p>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => copier(ouvert)}><Copy className="w-4 h-4" /> Copier objet et texte</button>
+            </div>
+          )}
           {/* Base d'avant 0518 (envoi_possible absent) : copie et messagerie, comme avant */}
           {ouvert.status === 'valide' && ouvert.envoi_possible === undefined && (
             <>
@@ -293,7 +298,7 @@ export default function AValider() {
               <p className="mt-1">Une fois le mail parti de votre messagerie, « Marquer envoyée ».</p>
             </details>
           )}
-          {ouvert.status === 'ignore' && ouvert.envoi_boite && <Banner tone="warning">Un mail est parti par la boîte {ouvert.envoi_boite} alors que la relance venait d'être écartée.{ouvert.error ? ` ${ouvert.error}.` : ''}</Banner>}
+          {ouvert.status === 'ignore' && ouvert.envoi_boite && <Banner tone="warning">Un mail est parti par la boîte {ouvert.envoi_boite} alors que la relance venait d'être écartée{ouvert.error?.split(' ; ')[0] && !ouvert.error.startsWith('Mail parti') ? ` (motif : ${ouvert.error.split(' ; ')[0]})` : ''}.</Banner>}
           {ouvert.status === 'envoye' && ouvert.envoi_boite && <p className="text-ui-sm text-gray-500">Envoyée depuis l'outil, par la boîte {ouvert.envoi_boite}{ouvert.sent_at ? ` le ${new Date(ouvert.sent_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}.</p>}
         </Sheet>
       )}

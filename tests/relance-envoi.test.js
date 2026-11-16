@@ -191,7 +191,9 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
     expect(r.json.error).toContain('Préversion ou test')
     expect(etat.envois).toEqual([])
     expect((await appel({ id: ID, action: 'test' })).json.test).toContain('adresse de test')
-    expect((await appel({ id: ID, action: 'apercu' })).json.redirige).toBe(true)
+    const ap = (await appel({ id: ID, action: 'apercu' })).json
+    expect(ap.redirige).toBe(true)
+    expect(ap.avertissement).toContain('Préversion ou test')
   })
 
   const V = { id: ID, action: 'envoi', destinataire: 'client@exemple.invalid', valideLe: '2026-11-08T14:00:00.123456+00:00' }

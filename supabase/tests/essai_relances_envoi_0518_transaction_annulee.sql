@@ -443,7 +443,7 @@ begin
   execute 'reset role';
   perform set_config('request.jwt.claims', '', true);
   perform set_config('request.jwt.claim.sub', '', true);
-  update public.scheduled_actions set status = 'ignore' where id = v_i;
+  update public.scheduled_actions set status = 'ignore', error = 'Facture réglée avant l''envoi' where id = v_i;
   select * into v_row from public.scheduled_actions where id = v_i;
   if v_row.status <> 'ignore' or v_row.envoi_reserve_at is not null then raise exception '10a. état de la base refusé pendant l''envoi'; end if;
   perform set_config('request.jwt.claims', c_srv, true);
@@ -451,7 +451,7 @@ begin
   -- Mail parti quand même : noté sans changer l'état
   if public.relance_envoi_terminer(v_i, v_u, true, null, '<i-0518@exemple.invalid>', 'u-0518@exemple.invalid') <> 'ecartee' then raise exception '10b. fin sur une relance écartée'; end if;
   select * into v_row from public.scheduled_actions where id = v_i;
-  if v_row.status <> 'ignore' or v_row.envoi_boite <> 'u-0518@exemple.invalid' or v_row.envoi_message_id <> '<i-0518@exemple.invalid>' or v_row.error is null or v_row.envoi_reserve_par is not null then
+  if v_row.status <> 'ignore' or v_row.envoi_boite <> 'u-0518@exemple.invalid' or v_row.envoi_message_id <> '<i-0518@exemple.invalid>' or v_row.error is distinct from 'Facture réglée avant l''envoi ; Mail parti alors que la relance venait d''être écartée par l''outil' or v_row.envoi_reserve_par is not null then
     raise exception '10b. trace du mail parti après écartement : %', row_to_json(v_row);
   end if;
   begin perform public.relance_envoi_terminer(v_i, v_u, true, null, '<j@exemple.invalid>'); raise exception '10b. seconde fin sur une relance écartée';
