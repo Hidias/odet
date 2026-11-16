@@ -29,6 +29,7 @@ export const config = { maxDuration: 60 }
 export function envoiRedirige(mailer, org) {
   return isTestEnvironment() || (!mailer.envoiReel && !!org.demo_mode)
 }
+export const MESSAGE_TEST = 'Préversion ou test : tous les mails partent vers l\'adresse de test, rien n\'est envoyé au destinataire.'
 export const MESSAGE_REDIRIGE = 'Mode démonstration : le mail irait à l\'adresse de test, pas au destinataire. Seul le super administrateur envoie pour de vrai ; « Test à moi » part lui aussi vers l\'adresse de test.'
 
 // Échec de messagerie survenu sûrement avant l'envoi du contenu (nodemailer 6) : identifiants refusés, adresse refusée,
@@ -89,7 +90,7 @@ async function handler(req, res) {
       return res.status(200).json({
         id: a.id, valideLe: a.validated_at || null, redirige: envoiRedirige(mailer.error ? {} : mailer, org), destinataire: String(p.destinataire || '').trim(), expediteur: mailer.emailConfig?.email || null,
         copieCachee: [org.email_bcc, mailer.envoiReel ? mailer.emailConfig?.email : null].filter(Boolean).join(', ') || null, sujet: mail.sujet, html: mail.html, piecesJointes: [],
-        avertissement: mailer.error || (envoiRedirige(mailer, org) ? MESSAGE_REDIRIGE : null),
+        avertissement: mailer.error || (envoiRedirige(mailer, org) ? (isTestEnvironment() ? MESSAGE_TEST : MESSAGE_REDIRIGE) : null),
       })
     }
     if (mailer.error) return res.status(400).json({ error: mailer.error })
@@ -113,7 +114,7 @@ async function handler(req, res) {
   const fermer = () => { try { mailer.transporter.close() } catch {} }
   {
     const orgDefaut = await getOrgForCompany(admin, null)
-    if (envoiRedirige(mailer, orgDefaut)) { fermer(); return res.status(409).json({ error: MESSAGE_REDIRIGE }) }
+    if (envoiRedirige(mailer, orgDefaut)) { fermer(); return res.status(409).json({ error: isTestEnvironment() ? MESSAGE_TEST : MESSAGE_REDIRIGE }) }
   }
   // Réservation par la base au nom de l'appelant (droit, état, adresse vue, texte, une seule personne à la fois)
   const { data: r, error: rErr } = await appelant.rpc('relance_envoi_reserver', { p_id: id, p_destinataire: destinataireVu, p_valide_le: valideLe })

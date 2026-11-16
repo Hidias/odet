@@ -186,7 +186,9 @@ describe('relance envoyée depuis l\'outil (0518)', () => {
   it('préversion ou test : refusé même pour l\'envoi réel ; « Test à moi » le dit', async () => {
     etat.testEnv = true
     etat.reel = true
-    expect((await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid', valideLe: '2026-11-08T14:00:00.123456+00:00' })).code).toBe(409)
+    const r = await appel({ id: ID, action: 'envoi', destinataire: 'client@exemple.invalid', valideLe: '2026-11-08T14:00:00.123456+00:00' })
+    expect(r.code).toBe(409)
+    expect(r.json.error).toContain('Préversion ou test')
     expect(etat.envois).toEqual([])
     expect((await appel({ id: ID, action: 'test' })).json.test).toContain('adresse de test')
     expect((await appel({ id: ID, action: 'apercu' })).json.redirige).toBe(true)

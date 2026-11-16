@@ -178,6 +178,7 @@ export default function AValider() {
               </div>
               {a.blocked_reason && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Bloquée : {a.blocked_reason}</div>}
               {a.status === 'valide' && a.error && <div className="text-ui-sm text-[rgb(var(--c-danger))]">Envoi échoué : {a.error}</div>}
+                {a.status === 'ignore' && a.envoi_boite && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Mail parti malgré l'écartement</div>}
             </>
           )}
           menu={({ ligne, choisir }) => (
@@ -207,6 +208,7 @@ export default function AValider() {
                 </div>
                 {a.blocked_reason && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Bloquée : {a.blocked_reason}</div>}
                 {a.status === 'valide' && a.error && <div className="text-ui-sm text-[rgb(var(--c-danger))]">Envoi échoué : {a.error}</div>}
+                {a.status === 'ignore' && a.envoi_boite && <div className="text-ui-sm text-[rgb(var(--c-warning))]">Mail parti malgré l'écartement</div>}
               </button>
             </li>
           ))}
@@ -251,7 +253,7 @@ export default function AValider() {
               onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, texte: e.target.value } })} />
           </div>
           {ouvert.status === 'valide' && ouvert.error && <Banner tone="danger">Dernier envoi échoué : {ouvert.error}. Vous pouvez réessayer.</Banner>}
-          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? ', par une autre personne,' : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti : marquez la relance envoyée, ou remettez-la à valider pour la renvoyer (possible 10 minutes après le début de l'envoi).</Banner>}
+          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? ', par une autre personne,' : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti, puis marquez la relance envoyée ou remettez-la à valider pour la renvoyer. Les deux sont possibles 10 minutes après le début de l'envoi.</Banner>}
           {ouvert.status === 'valide' && ouvert.envoi_possible === false && <p className="text-ui-sm text-gray-500">Cette relance ne s'envoie pas depuis l'outil (consigne pour l'équipe, ou courrier à faire relire) : faites l'action indiquée, puis « Marquer envoyée ».</p>}
           {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && !ouvert.envoi_reserve_at && (
             <div className="flex flex-wrap gap-2">
@@ -269,8 +271,18 @@ export default function AValider() {
               <iframe title="Aperçu du mail" className="w-full border rounded-ui bg-white" style={{ minHeight: 320 }} sandbox="" srcDoc={apercu.html} />
             </div>
           )}
-          {/* Base d'avant 0518 (envoi_possible absent) : on garde la copie et la messagerie */}
-          {ouvert.status === 'valide' && ouvert.envoi_possible !== false && (
+          {ouvert.status === 'valide' && ouvert.envoi_possible && !ouvert.payload.destinataire && <p className="text-ui-sm text-gray-500">Pas de destinataire : remettez-la à valider pour en saisir un, ou envoyez depuis votre messagerie puis « Marquer envoyée ».</p>}
+          {/* Base d'avant 0518 (envoi_possible absent) : copie et messagerie, comme avant */}
+          {ouvert.status === 'valide' && ouvert.envoi_possible === undefined && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn btn-secondary" onClick={() => copier(ouvert)}><Copy className="w-4 h-4" /> Copier objet et texte</button>
+                {mailto(ouvert) && <a className="btn btn-secondary" href={mailto(ouvert)}><Mail className="w-4 h-4" /> Ouvrir dans ma messagerie</a>}
+              </div>
+              <p className="text-ui-sm text-gray-500">Envoyez depuis votre messagerie, puis « Marquer envoyée ».</p>
+            </>
+          )}
+          {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && (
             <details className="text-ui-sm text-gray-600">
               <summary className="cursor-pointer">Envoyer plutôt depuis ma messagerie</summary>
               <div className="flex flex-wrap gap-2 mt-2">
@@ -281,6 +293,7 @@ export default function AValider() {
               <p className="mt-1">Une fois le mail parti de votre messagerie, « Marquer envoyée ».</p>
             </details>
           )}
+          {ouvert.status === 'ignore' && ouvert.envoi_boite && <Banner tone="warning">Un mail est parti par la boîte {ouvert.envoi_boite} alors que la relance venait d'être écartée.{ouvert.error ? ` ${ouvert.error}.` : ''}</Banner>}
           {ouvert.status === 'envoye' && ouvert.envoi_boite && <p className="text-ui-sm text-gray-500">Envoyée depuis l'outil, par la boîte {ouvert.envoi_boite}{ouvert.sent_at ? ` le ${new Date(ouvert.sent_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}` : ''}.</p>}
         </Sheet>
       )}

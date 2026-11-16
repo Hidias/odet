@@ -78,7 +78,7 @@ begin
     -- Envoi en cours (moins de 10 minutes) : l'état ne change que par la fin de l'envoi
     if old.envoi_reserve_at is not null and old.envoi_reserve_at > now() - interval '10 minutes'
        and new.status is distinct from old.status then
-      raise exception 'Envoi en cours : attendez la fin de l''envoi' using errcode = '22023';
+      raise exception 'Envoi commencé il y a moins de 10 minutes : réessayez après' using errcode = '22023';
     end if;
     -- Nature de la relance (consigne interne, courrier à faire relire, étape du pilote) : posée par la base seulement
     new.payload := (coalesce(new.payload, '{}'::jsonb) - 'interne' - 'a_valider_par_expert' - 'etape')
@@ -185,7 +185,7 @@ begin
   if found and p_ok and a.status <> 'valide' and a.envoi_reserve_at is null and a.envoi_reserve_par is not distinct from p_auteur then
     perform set_config('app.relance_envoi', 'on', true);
     update public.scheduled_actions set envoi_reserve_par = null, envoi_boite = left(p_boite, 320), envoi_message_id = left(p_message_id, 500),
-      error = 'Mail parti alors que la relance venait d''être écartée par l''outil (par exemple facture réglée)'
+      error = left(concat_ws(' ; ', nullif(a.error, ''), 'Mail parti alors que la relance venait d''être écartée par l''outil'), 300)
      where id = a.id;
     perform set_config('app.relance_envoi', '', true);
     return 'ecartee';
