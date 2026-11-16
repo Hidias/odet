@@ -128,6 +128,7 @@ export async function loadEvidence() {
       vssProc: qual.has('proc-vss'),
       riskMap: qual.has('carto-risques') && ((qual.get('carto-risques')?.content?.risques || []).length > 0),
       organigramme: qual.has('organigramme'),
+      stProc: qual.has('proc-st'),
       contratSt: qual.has('contrat-st'),
       contratStClause: JSON.stringify(qual.get('contrat-st')?.content || {}).toLowerCase().includes('référentiel national'),
       charteSt: qual.has('charte-st'),
@@ -317,6 +318,7 @@ export const RULES = {
   }),
   27: (e) => ({
     items: [
+      e.docs.stProc ? ok('Procédure sous-traitance (P13)', L.qualite) : ko('Procédure sous-traitance (P13) absente', L.qualite),
       e.docs.contratSt ? ok('Contrat de sous-traitance type', L.qualite) : ko('Contrat de sous-traitance type absent', L.qualite),
       e.docs.contratSt && e.docs.contratStClause ? ok('Clause de conformité au référentiel national qualité dans le contrat', L.qualite) : ko('Clause de conformité au référentiel absente du contrat (exigence 2026)', L.qualite),
       e.docs.charteSt ? ok('Charte qualité prestataire', L.qualite) : ko('Charte qualité prestataire absente', L.qualite),

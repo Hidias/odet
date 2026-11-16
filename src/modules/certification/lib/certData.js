@@ -230,3 +230,9 @@ export function qualiopiCycle(s) {
     validUntil,
   }
 }
+
+/** « 2, 3 et 26 » : numéros des indicateurs du référentiel suivi où la formalisation suffit à l'audit initial d'un nouvel entrant */
+export function indicateursNouvelEntrant(indicators) {
+  const n = (indicators || []).filter((i) => i.new_entrant_light).map((i) => i.number).sort((a, b) => a - b)
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} et ${n[n.length - 1]}` : n.join('')
+}

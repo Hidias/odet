@@ -7,12 +7,12 @@ import toast from 'react-hot-toast'
 import { Plus, Check, ChevronRight } from 'lucide-react'
 import { Toggle } from '../../../core/settings/shared'
 import { DateField, DueBadge, Step } from '../components/ui'
-import { saveSettings, loadFindings, saveFinding, frDate, qualiopiCycle, todayIso, addMonths, addDays } from '../lib/certData'
+import { saveSettings, loadFindings, saveFinding, frDate, qualiopiCycle, todayIso, addMonths, addDays, indicateursNouvelEntrant } from '../lib/certData'
 
 const CERT_STATUS = [['pressenti', 'Pressenti'], ['devis', 'Devis demandé'], ['contrat_signe', 'Contrat signé']]
 const AUDIT_KIND = { initial: 'Audit initial', surveillance: 'Surveillance', renouvellement: 'Renouvellement', complementaire: 'Audit complémentaire' }
 
-export default function CertQualiopi({ settings, canWrite, organization, updateOrganization, reloadSettings, reloadIndicators, deadlines, evidence }) {
+export default function CertQualiopi({ settings, canWrite, organization, updateOrganization, reloadSettings, reloadIndicators, deadlines, evidence, referential }) {
   const [form, setForm] = useState(settings)
   const [findings, setFindings] = useState([])
   const [nc, setNc] = useState(null)
@@ -41,6 +41,8 @@ export default function CertQualiopi({ settings, canWrite, organization, updateO
   }
 
   const cycle = qualiopiCycle(form)
+  // Liste lue dans le référentiel suivi (cert_indicators), jamais recopiée ici (arrêté du 28 octobre 2026 pour celui de 2026)
+  const nouveaux = indicateursNouvelEntrant(referential?.indicators)
   const firstActionDone = (evidence?.n?.sessionsDone || 0) > 0
   const bpf = deadlines.find((d) => d.key.startsWith('bpf_'))
 
@@ -81,7 +83,7 @@ export default function CertQualiopi({ settings, canWrite, organization, updateO
         </Step>
         <Step done={!!form.certified_at} current={!form.certified_at} title="Audit initial" aside={!form.certified_at && form.initial_audit_at ? <DueBadge date={form.initial_audit_at} /> : null}>
           <span>Sur site, 1 jour pour un organisme de formation de moins de 150 000 € de chiffre d'affaires.</span>
-          {form.new_entrant && <span>Nouvel entrant : pour les indicateurs 2, 3, 11, 13, 14, 19, 22, 24, 25, 26 et 32, la formalisation suffit à cet audit ; la mise en oeuvre est vérifiée à la surveillance.</span>}
+          {form.new_entrant && nouveaux && <span>Nouvel entrant : pour les indicateurs {nouveaux}, la formalisation suffit à cet audit ; la mise en oeuvre est vérifiée à la surveillance.</span>}
           {canWrite && <div className="sm:w-1/2 pt-1"><DateField label="Date prévue" value={form.initial_audit_at} onChange={(v) => save({ initial_audit_at: v })} /></div>}
         </Step>
         <Step done={!!form.certified_at} title="Certificat obtenu">
