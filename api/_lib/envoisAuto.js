@@ -67,7 +67,7 @@ export async function envoyerRelancesAuto(admin, { dry = false, budgetMs = 40000
       } else if (issue === 'erreur') {
         // Adresse refusée (sans copie cachée, nodemailer lève EENVELOPE) : même motif, jamais repris seul
         const refusee = !err || err.code === 'EENVELOPE'
-        await terminer({ p_ok: false, p_erreur: refusee ? `Adresse refusée par le serveur : ${r.destinataire}` : String(err.message || 'Échec').slice(0, 300) })
+        await terminer({ p_ok: false, p_erreur: (refusee ? `Adresse refusée par le serveur : ${r.destinataire}${err ? ` (${err.message || err.code})` : ''}` : String(err.message || 'Échec')).slice(0, 300) })
       }
       resultats.push({ id, kind: r.kind, issue })
     }

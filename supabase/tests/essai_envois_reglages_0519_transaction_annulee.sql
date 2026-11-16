@@ -396,7 +396,7 @@ grant execute on function public.circuit_relances_ecarter() to service_role;
 -- 6. Envoi automatique de la file (clé de service seule, route planifiée)
 -- Conditions propres à l'automatique : préparée après le passage en automatique (le stock en attente reste à la main),
 -- jamais remise à valider par une personne (validée puis revenue « à valider »), jamais refusée par le serveur de
--- messagerie (elle repartirait chaque jour), relance du circuit encore utile, session pas encore commencée
+-- messagerie (elle repartirait chaque jour), relance du circuit encore utile, rappel d'une session pas encore commencée
 create or replace function app.relance_auto_eligible(a public.scheduled_actions)
 returns boolean
 language sql
@@ -408,9 +408,10 @@ as $$
      and not (a.status = 'a_valider' and a.validated_at is not null)
      and coalesce(a.error, '') not like 'Adresse refusée par le serveur%'
      and (a.kind <> 'relance_circuit' or app.circuit_relance_utile(a.session_id, a.payload->>'circuit'))
-     -- Relance liée à une session : jamais seule une fois la formation commencée (rappel « la veille » d'une session
-     -- du lundi, préparé le dimanche, alors que la tâche d'envoi ne passe qu'en semaine)
-     and (a.session_id is null or exists (select 1 from public.sessions s where s.id = a.session_id and s.start_date > current_date))
+     -- Rappel lié à une session : jamais seul une fois la formation commencée (rappel « la veille » d'une session du
+     -- lundi, préparé le dimanche, alors que la tâche d'envoi ne passe qu'en semaine). Les impayés, qui portent la
+     -- session de la facture, ne sont pas concernés.
+     and (a.kind <> 'rappel' or a.session_id is null or exists (select 1 from public.sessions s where s.id = a.session_id and s.start_date > current_date))
 $$;
 revoke all on function app.relance_auto_eligible(public.scheduled_actions) from public, anon, authenticated;
 grant execute on function app.relance_auto_eligible(public.scheduled_actions) to service_role;
@@ -872,6 +873,13 @@ begin
   if v_x = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_x) is not null then raise exception '5u. session commencée'; end if;
   update public.sessions set start_date = current_date + 1, end_date = current_date + 1 where id = v_t;
   if not (v_x = any (array(select public.relances_auto_a_envoyer(100)))) then raise exception '5v. session à venir'; end if;
+  -- Impayé qui porte la session (passée) de la facture : part seul quand même
+  update public.auto_send_switches set mode = 'auto' where company_id = v_cie and kind = 'relance_impaye';
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, session_id, due_on) values
+    (v_cie, 'relance_impaye', 'Essai 0519 S8', 'a_valider', 'essai-0519-s8', '{"destinataire":"s8@exemple.invalid","texte":"T"}', v_s, current_date) returning id into v_y;
+  update public.sessions set start_date = current_date - 30, end_date = current_date - 30 where id = v_s;
+  if not (v_y = any (array(select public.relances_auto_a_envoyer(100)))) then raise exception '5w. impayé d''une session passée'; end if;
+  update public.auto_send_switches set mode = 'a_valider' where company_id = v_cie and kind = 'relance_impaye';
   -- Relance déjà validée par une personne : garde sa validation
   insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, validated_by, validated_at) values
     (v_cie, 'rappel', 'Essai 0519 S5', 'valide', 'essai-0519-s5', '{"destinataire":"s5@exemple.invalid","texte":"T"}', v_adm, now()) returning id into v_x;
