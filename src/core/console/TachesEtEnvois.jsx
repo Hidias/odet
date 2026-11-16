@@ -57,7 +57,7 @@ export const TYPES_ENVOI = [
 ]
 
 export const MODES_ENVOI = {
-  ferme: { label: 'Fermé', aide: 'Rien n\'est préparé ni envoyé', badge: 'badge-neutral' },
+  ferme: { label: 'Fermé', aide: 'Rien ne part', badge: 'badge-neutral' },
   a_valider: { label: 'À valider', aide: 'Préparé, puis validé et envoyé depuis l\'outil', badge: 'badge-info' },
   auto: { label: 'Automatique', aide: 'Part seul, sans validation (jamais en mode démonstration)', badge: 'badge-success' },
 }
@@ -150,7 +150,7 @@ export function EnvoisAutomatiques({ companyId }) {
       if (!await confirmer({ title: 'Passer en automatique', message: `« ${t.label} » partira seul aux vrais destinataires, sans validation, depuis la boîte d'envoi par défaut de l'organisme. Les relances déjà préparées restent à valider à la main : seules les nouvelles partiront seules. Rien ne part tant que le mode démonstration est actif.`, confirmLabel: 'Continuer' })) return
       if (!await confirmer({ title: 'Deuxième confirmation', message: 'Vous pourrez revenir à « À valider » à tout moment. Confirmez-vous le passage en automatique ?', confirmLabel: 'Je confirme' })) return
     } else if (mode === 'ferme') {
-      if (!await confirmer({ title: 'Fermer cet envoi', message: `« ${t.label} » : plus rien ne sera préparé ni envoyé. Les relances déjà préparées restent dans la liste.`, confirmLabel: 'Fermer' })) return
+      if (!await confirmer({ title: 'Fermer cet envoi', message: `« ${t.label} » : plus rien ne sera préparé ni envoyé. Les relances déjà préparées restent dans la liste, mais ne pourront plus être envoyées.`, confirmLabel: 'Fermer' })) return
     }
     setOccupe(kind)
     const { error } = await supabase.rpc('envoi_regler', { p_company: companyId, p_kind: kind, p_mode: mode })

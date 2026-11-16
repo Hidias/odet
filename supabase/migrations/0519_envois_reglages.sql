@@ -390,7 +390,7 @@ grant execute on function public.circuit_relances_ecarter() to service_role;
 -- 6. Envoi automatique de la file (clé de service seule, route planifiée)
 -- Conditions propres à l'automatique : préparée après le passage en automatique (le stock en attente reste à la main),
 -- jamais remise à valider par une personne (validée puis revenue « à valider »), jamais refusée par le serveur de
--- messagerie (elle repartirait chaque jour), relance du circuit encore utile
+-- messagerie (elle repartirait chaque jour), relance du circuit encore utile, session pas encore commencée
 create or replace function app.relance_auto_eligible(a public.scheduled_actions)
 returns boolean
 language sql
@@ -402,6 +402,9 @@ as $$
      and not (a.status = 'a_valider' and a.validated_at is not null)
      and coalesce(a.error, '') not like 'Adresse refusée par le serveur%'
      and (a.kind <> 'relance_circuit' or app.circuit_relance_utile(a.session_id, a.payload->>'circuit'))
+     -- Relance liée à une session : jamais seule une fois la formation commencée (rappel « la veille » d'une session
+     -- du lundi, préparé le dimanche, alors que la tâche d'envoi ne passe qu'en semaine)
+     and (a.session_id is null or exists (select 1 from public.sessions s where s.id = a.session_id and s.start_date > current_date))
 $$;
 revoke all on function app.relance_auto_eligible(public.scheduled_actions) from public, anon, authenticated;
 grant execute on function app.relance_auto_eligible(public.scheduled_actions) to service_role;

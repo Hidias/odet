@@ -225,6 +225,14 @@ begin
   if v_y = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_y) is not null then raise exception '5m. échéance ancienne'; end if;
   if v_z = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_z) is not null then raise exception '5n. remise à valider'; end if;
   if v_w = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_w) is not null then raise exception '5o. adresse refusée'; end if;
+  -- Rappel d'une session déjà commencée (préparé la veille, un dimanche) : jamais seul
+  insert into public.sessions (reference, start_date, end_date, status, company_id, client_id)
+    values ('ESSAI-0519-2', current_date, current_date, 'planned', v_cie, v_cli) returning id into v_t;
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, session_id, due_on) values
+    (v_cie, 'rappel', 'Essai 0519 S7', 'a_valider', 'essai-0519-s7', '{"destinataire":"s7@exemple.invalid","texte":"T"}', v_t, current_date - 1) returning id into v_x;
+  if v_x = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_x) is not null then raise exception '5u. session commencée'; end if;
+  update public.sessions set start_date = current_date + 1, end_date = current_date + 1 where id = v_t;
+  if not (v_x = any (array(select public.relances_auto_a_envoyer(100)))) then raise exception '5v. session à venir'; end if;
   -- Relance déjà validée par une personne : garde sa validation
   insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, validated_by, validated_at) values
     (v_cie, 'rappel', 'Essai 0519 S5', 'valide', 'essai-0519-s5', '{"destinataire":"s5@exemple.invalid","texte":"T"}', v_adm, now()) returning id into v_x;

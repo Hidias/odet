@@ -65,7 +65,9 @@ export async function envoyerRelancesAuto(admin, { dry = false, budgetMs = 40000
       if (issue === 'envoyee') {
         await terminer({ p_ok: true, p_message_id: info?.messageId || null, p_boite: mailer.cfg.email })
       } else if (issue === 'erreur') {
-        await terminer({ p_ok: false, p_erreur: err ? String(err.message || 'Échec').slice(0, 300) : `Adresse refusée par le serveur : ${r.destinataire}` })
+        // Adresse refusée (sans copie cachée, nodemailer lève EENVELOPE) : même motif, jamais repris seul
+        const refusee = !err || err.code === 'EENVELOPE'
+        await terminer({ p_ok: false, p_erreur: refusee ? `Adresse refusée par le serveur : ${r.destinataire}` : String(err.message || 'Échec').slice(0, 300) })
       }
       resultats.push({ id, kind: r.kind, issue })
     }
