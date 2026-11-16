@@ -63,7 +63,16 @@ export default function AValider() {
   const compte = useMemo(() => Object.fromEntries(ONGLETS.map(([k]) => [k, (items || []).filter((i) => i.status === k).length])), [items])
   const liste = (items || []).filter((i) => i.status === onglet && (!type || i.kind === type))
   const colonnes = useMemo(() => colonnesRelances((items || []).filter((i) => !type || i.kind === type)), [items, type])
-  const ouvrir = (a) => { setApercu(null); setOuvert({ ...a, payload: { ...(a.payload || {}) } }) }
+  const ouvrir = async (a) => {
+    setApercu(null)
+    setOuvert({ ...a, payload: { ...(a.payload || {}) } })
+    // Envoi sans suite commencé par une autre personne : son nom, pour savoir à qui demander
+    if (a.envoi_reserve_at && a.envoi_reserve_par && a.envoi_reserve_par !== moiId) {
+      const { data } = await supabase.from('profiles').select('id, display_name, first_name, last_name').eq('id', a.envoi_reserve_par).maybeSingle()
+      const nom = data ? (data.display_name || [data.first_name, data.last_name].filter(Boolean).join(' ')) : ''
+      if (nom) setOuvert((o) => (o && o.id === a.id ? { ...o, envoiPar: nom } : o))
+    }
+  }
   const types = useMemo(() => [...new Set((items || []).map((i) => i.kind))], [items])
   const prets = liste.filter((i) => i.status === 'a_valider' && !i.blocked_reason)
 
@@ -240,7 +249,7 @@ export default function AValider() {
             <label className="label" htmlFor="rel-dest">Destinataire</label>
             <input id="rel-dest" className="input" value={ouvert.payload.destinataire || ''} disabled={ouvert.status !== 'a_valider'}
               onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, destinataire: e.target.value } })} placeholder="Adresse email du destinataire" />
-            {ouvert.status === 'a_valider' && !ouvert.payload.destinataire && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">Aucune adresse sur la fiche : complétez-la ici ou sur la fiche.</p>}
+            {ouvert.status === 'a_valider' && ouvert.envoi_possible !== false && !ouvert.payload.destinataire && <p className="text-ui-sm text-[rgb(var(--c-warning))] mt-1">Aucune adresse : saisissez-la ici avant de valider.</p>}
           </div>
           <div>
             <label className="label" htmlFor="rel-objet">Objet</label>
@@ -253,7 +262,7 @@ export default function AValider() {
               onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, texte: e.target.value } })} />
           </div>
           {ouvert.status === 'valide' && ouvert.error && <Banner tone="danger">Dernier envoi échoué : {ouvert.error}. Vous pouvez réessayer.</Banner>}
-          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? ', par une autre personne,' : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti, puis marquez la relance envoyée ou remettez-la à valider pour la renvoyer. Les deux sont possibles 10 minutes après le début de l'envoi.</Banner>}
+          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? `, par ${ouvert.envoiPar || 'une autre personne'},` : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti, puis marquez la relance envoyée ou remettez-la à valider pour la renvoyer. Les deux sont possibles 10 minutes après le début de l'envoi.</Banner>}
           {ouvert.status === 'valide' && ouvert.envoi_possible === false && <p className="text-ui-sm text-gray-500">Cette relance ne s'envoie pas depuis l'outil (consigne pour l'équipe, ou courrier à faire relire) : faites l'action indiquée, puis « Marquer envoyée ».</p>}
           {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && !ouvert.envoi_reserve_at && (
             <div className="flex flex-wrap gap-2">
@@ -287,7 +296,7 @@ export default function AValider() {
               <p className="text-ui-sm text-gray-500">Envoyez depuis votre messagerie, puis « Marquer envoyée ».</p>
             </>
           )}
-          {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && (
+          {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && !ouvert.envoi_reserve_at && (
             <details className="text-ui-sm text-gray-600">
               <summary className="cursor-pointer">Envoyer plutôt depuis ma messagerie</summary>
               <div className="flex flex-wrap gap-2 mt-2">
