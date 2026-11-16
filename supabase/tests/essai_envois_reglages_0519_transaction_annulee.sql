@@ -12,9 +12,11 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --   « a_valider »  préparé, puis validé et envoyé depuis l'outil par une personne (défaut) ;
 --   « auto »       part seul, sans validation (super administrateur seul, jamais en mode démonstration ni en
 --                  préversion : la route ne fait alors rien et ne marque rien).
---   1. Types réels (app.envoi_types) : les relances envoyables de la file (0518) et les relances du circuit, les
---      questionnaires à froid (fermé ou à valider : leur envoi automatique n'existe pas encore) et la demande du n° de
---      sécurité sociale (à valider, c'est-à-dire envoyée depuis la session, ou automatique). Les interrupteurs des
+--   1. Types réels (app.envoi_types) : les relances envoyables de la file (0518 : à valider ou automatique ; leur
+--      préparation de nuit ne lit pas le réglage, donc pas de « fermé » qui ne fermerait rien), les relances du circuit
+--      (les trois modes), les questionnaires à froid (fermé ou à valider : leur envoi automatique n'existe pas encore) et
+--      la demande du n° de sécurité sociale (à valider, c'est-à-dire envoyée depuis la session, ou automatique).
+--      Suspension de 24 h : plus rien ne part, ni à la main depuis la file ni seul (relance_envoi_reserver revérifie). Les interrupteurs des
 --      relances de devis, convocations et attestations, qui ne commandaient rien, sont retirés (choix de H du 16/11).
 --      Colonne mode de auto_send_switches ; enabled n'est plus lu (gardé pour le retour arrière).
 --   2. Reprise à l'identique : questionnaires à froid ouverts → à valider ; relances du circuit et demande du n°
@@ -26,7 +28,9 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --   5. Relances du circuit (J-10, J-7) : préparées dans la file (type relance_circuit), validées puis envoyées depuis
 --      l'outil, ou parties seules en automatique ; écartées si la situation est réglée avant l'envoi.
 --   6. Envoi automatique de la file : relances_auto_a_envoyer et relance_auto_reserver (clé de service seule), fin par
---      relance_envoi_terminer (0518) sans auteur ; un envoi au résultat incertain n'est jamais repris seul.
+--      relance_envoi_terminer (0518) sans auteur ; un envoi au résultat incertain n'est jamais repris seul. Seules
+--      partent les relances préparées après le passage en automatique (mode_at), à échéance depuis 3 jours au plus,
+--      jamais remises à valider par une personne ni refusées par le serveur : le stock en attente reste à la main.
 --   7. Questionnaires à froid : réservation soumise à app.envoi_ouvert ; fin d'envoi par la clé de service seule, au
 --      nom de la personne qui a réservé.
 -- Migration additive. Idempotente. Retour arrière : supabase/rollback/0519_envois_reglages_retour.sql
@@ -61,10 +65,13 @@ as $$
   select case when p_kind is null or not (p_kind = any (app.envoi_types())) then null
               when p_kind = 'evaluation_froid' then array['ferme', 'a_valider']
               when p_kind = 'demande_nir' then array['a_valider', 'auto']
-              else array['ferme', 'a_valider', 'auto'] end
+              when p_kind = 'relance_circuit' then array['ferme', 'a_valider', 'auto']
+              else array['a_valider', 'auto'] end
 $$;
 
 alter table public.auto_send_switches add column if not exists mode text;
+-- Dernier changement de mode (la suspension ne le touche pas) : départ du compteur et des envois automatiques
+alter table public.auto_send_switches add column if not exists mode_at timestamptz;
 do $$
 begin
   if not exists (select 1 from pg_constraint where conrelid = 'public.auto_send_switches'::regclass and conname = 'auto_send_switches_mode_check') then
@@ -84,18 +91,18 @@ alter table public.auto_send_switch_log add constraint auto_send_switch_log_acti
   check (action in ('ouvert', 'ferme', 'suspendu', 'repris', 'a_valider', 'automatique'));
 
 -- 2. Reprise à l'identique (seulement là où le mode n'est pas encore posé)
-insert into public.auto_send_switches (company_id, kind, enabled, mode, updated_at)
+insert into public.auto_send_switches (company_id, kind, enabled, mode, mode_at, updated_at)
 select c.id, t.kind, coalesce(s.enabled, false),
   case t.kind
     when 'evaluation_froid' then case when coalesce(s.enabled, false) then 'a_valider' else 'ferme' end
     when 'relance_circuit' then case when coalesce(s.enabled, false) then 'auto' else 'ferme' end
     when 'demande_nir' then case when coalesce(s.enabled, false) then 'auto' else 'a_valider' end
     else 'a_valider' end,
-  now()
+  now(), now()
 from public.companies c
 cross join unnest(app.envoi_types()) t(kind)
 left join public.auto_send_switches s on s.company_id = c.id and s.kind = t.kind
-on conflict (company_id, kind) do update set mode = excluded.mode
+on conflict (company_id, kind) do update set mode = excluded.mode, mode_at = excluded.mode_at
   where public.auto_send_switches.mode is null;
 
 -- 3. Règles d'envoi
@@ -151,12 +158,16 @@ revoke all on function app.envoi_ouvert(uuid, text) from public, anon;
 revoke all on function app.envoi_auto_autorise(uuid, text) from public, anon;
 grant execute on function app.envoi_types() to authenticated, service_role;
 grant execute on function app.envoi_modes_permis(text) to authenticated, service_role;
-grant execute on function app.envoi_mode(uuid, text) to authenticated, service_role;
-grant execute on function app.envoi_suspendu(uuid, text) to authenticated, service_role;
-grant execute on function app.envoi_ouvert(uuid, text) to authenticated, service_role;
+revoke execute on function app.envoi_mode(uuid, text) from authenticated;
+revoke execute on function app.envoi_suspendu(uuid, text) from authenticated;
+revoke execute on function app.envoi_ouvert(uuid, text) from authenticated;
+grant execute on function app.envoi_mode(uuid, text) to service_role;
+grant execute on function app.envoi_suspendu(uuid, text) to service_role;
+grant execute on function app.envoi_ouvert(uuid, text) to service_role;
 grant execute on function app.envoi_auto_autorise(uuid, text) to authenticated, service_role;
 
--- Régler un type : administrateur de la société ; « automatique » par le super administrateur seul
+-- Régler un type : droit de modifier les réglages de l'organisme (même droit que la lecture) ; « automatique » par le
+-- super administrateur seul
 create or replace function public.envoi_regler(p_company uuid, p_kind text, p_mode text)
 returns void
 language plpgsql
@@ -171,17 +182,18 @@ begin
     raise exception 'Réglage impossible pour cet envoi' using errcode = '22023';
   end if;
   if not exists (select 1 from public.companies where id = p_company) then raise exception 'Société inconnue' using errcode = '22023'; end if;
-  if not (app.is_superadmin() or app.is_company_admin(p_company)) then
-    raise exception 'Réservé aux administrateurs de la société' using errcode = '42501';
+  if not (app.is_superadmin() or app.a_le_droit('plateforme.administrer')
+          or p_company in (select app.societes_avec_droit('parametres.organisme.modifier'))) then
+    raise exception 'Droit de modifier les réglages de l''organisme requis' using errcode = '42501';
   end if;
   v_avant := app.envoi_mode(p_company, p_kind);
   if p_mode = 'auto' and v_avant <> 'auto' and not app.is_superadmin() then
     raise exception 'Seul le super administrateur passe un envoi en automatique' using errcode = '42501';
   end if;
   if p_mode = v_avant then return; end if;
-  insert into public.auto_send_switches (company_id, kind, enabled, mode, updated_by, updated_at)
-  values (p_company, p_kind, false, p_mode, (select auth.uid()), now())
-  on conflict (company_id, kind) do update set mode = excluded.mode, updated_by = excluded.updated_by, updated_at = now();
+  insert into public.auto_send_switches (company_id, kind, enabled, mode, mode_at, updated_by, updated_at)
+  values (p_company, p_kind, false, p_mode, now(), (select auth.uid()), now())
+  on conflict (company_id, kind) do update set mode = excluded.mode, mode_at = now(), updated_by = excluded.updated_by, updated_at = now();
   insert into public.auto_send_switch_log (company_id, kind, action, motif, user_id)
   values (p_company, p_kind, case p_mode when 'auto' then 'automatique' when 'ferme' then 'ferme' else 'a_valider' end,
           'Avant : ' || case v_avant when 'auto' then 'automatique' when 'ferme' then 'fermé' else 'à valider' end, (select auth.uid()));
@@ -207,7 +219,7 @@ as $$
      and not a.texte_retouche and a.envoi_possible
      and a.sent_at > coalesce((select max(b.sent_at) from public.scheduled_actions b
                                 where b.company_id = p_company and b.kind = p_kind and b.status = 'envoye' and b.texte_retouche), '-infinity')
-     and a.sent_at > coalesce((select s.updated_at from public.auto_send_switches s where s.company_id = p_company and s.kind = p_kind), '-infinity')
+     and a.sent_at > coalesce((select s.mode_at from public.auto_send_switches s where s.company_id = p_company and s.kind = p_kind), '-infinity')
 $$;
 revoke all on function app.envoi_sans_retouche(uuid, text) from public, anon, authenticated;
 grant execute on function app.envoi_sans_retouche(uuid, text) to service_role;
@@ -309,6 +321,22 @@ $$;
 revoke all on function public.circuit_relances_dues() from public, anon, authenticated;
 grant execute on function public.circuit_relances_dues() to service_role;
 
+-- Relance du circuit encore utile (revérifiée à l'envoi, à la main comme seul) : session à venir, non annulée, et
+-- participants toujours absents, ou convention toujours non signée
+create or replace function app.circuit_relance_utile(p_session uuid, p_circuit text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.sessions s where s.id = p_session and s.start_date > current_date and coalesce(s.status, '') <> 'cancelled'
+                   and ((p_circuit = 'participants' and not exists (select 1 from public.session_trainees st where st.session_id = s.id))
+                     or (p_circuit = 'convention' and not coalesce(s.convention_signed, false))))
+$$;
+revoke all on function app.circuit_relance_utile(uuid, text) from public, anon, authenticated;
+grant execute on function app.circuit_relance_utile(uuid, text) to service_role;
+
 -- Préparer une relance du circuit (texte écrit par la route) : à valider, une seule par session et par objet
 create or replace function public.circuit_relance_preparer(p_session uuid, p_kind text, p_destinataire text, p_objet text, p_texte text)
 returns uuid
@@ -366,6 +394,24 @@ revoke all on function public.circuit_relances_ecarter() from public, anon, auth
 grant execute on function public.circuit_relances_ecarter() to service_role;
 
 -- 6. Envoi automatique de la file (clé de service seule, route planifiée)
+-- Conditions propres à l'automatique : préparée après le passage en automatique (le stock en attente reste à la main),
+-- jamais remise à valider par une personne (validée puis revenue « à valider »), jamais refusée par le serveur de
+-- messagerie (elle repartirait chaque jour), relance du circuit encore utile
+create or replace function app.relance_auto_eligible(a public.scheduled_actions)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.created_at >= coalesce((select s.mode_at from public.auto_send_switches s where s.company_id = a.company_id and s.kind = a.kind), 'infinity')
+     and not (a.status = 'a_valider' and a.validated_at is not null)
+     and coalesce(a.error, '') not like 'Adresse refusée par le serveur%'
+     and (a.kind <> 'relance_circuit' or app.circuit_relance_utile(a.session_id, a.payload->>'circuit'))
+$$;
+revoke all on function app.relance_auto_eligible(public.scheduled_actions) from public, anon, authenticated;
+grant execute on function app.relance_auto_eligible(public.scheduled_actions) to service_role;
+
 -- Relances qui peuvent partir seules aujourd'hui
 create or replace function public.relances_auto_a_envoyer(p_limite integer default 30)
 returns setof uuid
@@ -376,8 +422,9 @@ set search_path = ''
 as $$
   select a.id from public.scheduled_actions a
    where a.status in ('a_valider', 'valide') and a.envoi_possible and a.blocked_reason is null and a.envoi_reserve_at is null
-     and (a.due_on is null or a.due_on <= current_date)
+     and (a.due_on is null or a.due_on between current_date - 3 and current_date)
      and app.envoi_auto_autorise(a.company_id, a.kind)
+     and app.relance_auto_eligible(a)
      and not exists (select 1 from public.demo_records r where r.tbl = 'scheduled_actions' and r.id = a.id)
    order by a.due_on nulls first, a.created_at
    limit greatest(1, least(coalesce(p_limite, 30), 100))
@@ -397,8 +444,8 @@ declare a public.scheduled_actions;
 begin
   select * into a from public.scheduled_actions where id = p_id for update;
   if not found or a.status not in ('a_valider', 'valide') or not a.envoi_possible or a.blocked_reason is not null
-     or a.envoi_reserve_at is not null or (a.due_on is not null and a.due_on > current_date)
-     or not app.envoi_auto_autorise(a.company_id, a.kind)
+     or a.envoi_reserve_at is not null or (a.due_on is not null and a.due_on not between current_date - 3 and current_date)
+     or not app.envoi_auto_autorise(a.company_id, a.kind) or not app.relance_auto_eligible(a)
      or not app.financeur_email_valide(a.payload->>'destinataire')
      or coalesce(btrim(a.payload->>'texte'), '') = ''
      or exists (select 1 from public.demo_records r where r.tbl = 'scheduled_actions' and r.id = a.id) then
@@ -406,8 +453,9 @@ begin
   end if;
   perform set_config('app.relance_envoi', 'on', true);
   update public.scheduled_actions set status = 'valide', envoi_reserve_at = now(), envoi_reserve_par = null, error = null where id = a.id;
-  -- Validée par la base, jamais au nom d'un compte (la règle d'état pose l'utilisateur connecté, s'il y en a un)
-  update public.scheduled_actions set validated_by = null where id = a.id;
+  -- Validée par la base, jamais au nom d'un compte (la règle d'état pose l'utilisateur connecté, s'il y en a un) ;
+  -- une relance déjà validée par une personne garde sa validation
+  if a.status = 'a_valider' then update public.scheduled_actions set validated_by = null where id = a.id; end if;
   perform set_config('app.relance_envoi', '', true);
   return jsonb_build_object('id', a.id, 'company_id', a.company_id, 'kind', a.kind,
     'destinataire', btrim(a.payload->>'destinataire'),
@@ -417,6 +465,68 @@ end
 $$;
 revoke all on function public.relance_auto_reserver(uuid) from public, anon, authenticated;
 grant execute on function public.relance_auto_reserver(uuid) to service_role;
+
+-- Envoi à la main depuis la file : corps de 0518, plus le réglage et la situation du circuit revérifiés
+create or replace function public.relance_envoi_reserver(p_id uuid, p_destinataire text, p_valide_le timestamptz)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare a public.scheduled_actions;
+begin
+  if (select auth.uid()) is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
+  select * into a from public.scheduled_actions where id = p_id for update;
+  if not found or a.company_id not in (select app.societes_avec_droit('formation.convocations.envoyer'))
+     or a.company_id not in (select app.societes_ecriture()) then
+    raise exception 'Relance introuvable, ou droit d''envoyer aux stagiaires et aux clients requis' using errcode = '42501';
+  end if;
+  if a.status <> 'valide' then
+    raise exception 'Cette relance n''est plus à envoyer : la liste est mise à jour' using errcode = '22023';
+  end if;
+  if not a.envoi_possible then
+    raise exception 'Cette relance ne s''envoie pas depuis l''outil : faites l''action indiquée, puis marquez-la' using errcode = '22023';
+  end if;
+  -- 0519 : type suspendu (ou fermé) dans la Console, relance du circuit devenue inutile
+  if not app.envoi_ouvert(a.company_id, a.kind) then
+    raise exception 'Envoi de ce type suspendu ou fermé dans la Console : rien ne part pour le moment' using errcode = '22023';
+  end if;
+  if a.kind = 'relance_circuit' and not app.circuit_relance_utile(a.session_id, a.payload->>'circuit') then
+    raise exception 'Situation réglée depuis la préparation (participants saisis, convention signée ou formation commencée) : ignorez cette relance' using errcode = '22023';
+  end if;
+  if a.blocked_reason is not null then
+    raise exception 'Relance bloquée : %', a.blocked_reason using errcode = '22023';
+  end if;
+  if a.envoi_reserve_at is not null then
+    if a.envoi_reserve_at > now() - interval '10 minutes' then
+      raise exception 'Envoi déjà en cours pour cette relance' using errcode = '22023';
+    end if;
+    raise exception 'Envoi précédent sans suite : vérifiez dans votre boîte d''envoi s''il est parti, puis marquez la relance envoyée ou remettez-la à valider' using errcode = '22023';
+  end if;
+  if not app.financeur_email_valide(a.payload->>'destinataire') then
+    raise exception 'Adresse du destinataire absente ou invalide' using errcode = '22023';
+  end if;
+  if lower(btrim(a.payload->>'destinataire')) is distinct from lower(btrim(p_destinataire)) then
+    raise exception 'Le destinataire a changé depuis l''aperçu : la liste est mise à jour' using errcode = '22023';
+  end if;
+  -- Validée de nouveau depuis l'aperçu (texte peut-être changé entre-temps) : nouvel aperçu
+  if a.validated_at is distinct from p_valide_le then
+    raise exception 'La relance a été modifiée depuis l''aperçu : ouvrez de nouveau « Voir le mail »' using errcode = '22023';
+  end if;
+  if coalesce(btrim(a.payload->>'texte'), '') = '' then
+    raise exception 'Texte vide : rien à envoyer' using errcode = '22023';
+  end if;
+  perform set_config('app.relance_envoi', 'on', true);
+  update public.scheduled_actions set envoi_reserve_at = now(), envoi_reserve_par = (select auth.uid()), error = null where id = a.id;
+  perform set_config('app.relance_envoi', '', true);
+  return jsonb_build_object('id', a.id, 'company_id', a.company_id, 'kind', a.kind,
+    'destinataire', btrim(a.payload->>'destinataire'),
+    'objet', coalesce(nullif(btrim(a.payload->>'objet'), ''), a.title),
+    'texte', a.payload->>'texte');
+end
+$$;
+revoke all on function public.relance_envoi_reserver(uuid, text, timestamptz) from public, anon;
+grant execute on function public.relance_envoi_reserver(uuid, text, timestamptz) to authenticated;
 
 -- 7. Questionnaires à froid
 -- Réservation : corps de 0482 inchangé, sauf le réglage lu (ouvert = à valider)
@@ -555,6 +665,8 @@ begin
   insert into public.profiles (id, email) values (v_adm, 'adm-0519@exemple.invalid'), (v_lec, 'lec-0519@exemple.invalid'), (v_sa, 'sa-0519@exemple.invalid')
   on conflict (id) do nothing;
   update public.profiles set is_active = true where id in (v_adm, v_lec, v_sa);
+  -- Droits complets de la société (licence), pour que l'administrateur ait le droit de régler l'organisme
+  update public.companies set full_license = true where id = v_cie;
   alter table public.profiles disable trigger profiles_protect_role;
   update public.profiles set role = 'superadmin' where id = v_sa;
   update public.profiles set role = 'admin' where id = v_adm;
@@ -567,11 +679,11 @@ begin
   c_sa := json_build_object('sub', v_sa, 'role', 'authenticated')::text;
 
   -- 1. Régler : sans connexion, compte en lecture, administrateur (pas l'automatique), super administrateur
-  begin perform public.envoi_regler(v_cie, 'rappel', 'ferme'); raise exception '1. réglage sans connexion accepté';
+  begin perform public.envoi_regler(v_cie, 'relance_circuit', 'ferme'); raise exception '1. réglage sans connexion accepté';
   exception when insufficient_privilege then null; end;
   perform set_config('request.jwt.claims', c_lec, true); perform set_config('request.jwt.claim.sub', v_lec::text, true);
   execute 'set local role authenticated';
-  begin perform public.envoi_regler(v_cie, 'rappel', 'ferme'); raise exception '1b. réglage par un compte en lecture accepté';
+  begin perform public.envoi_regler(v_cie, 'relance_circuit', 'ferme'); raise exception '1b. réglage par un compte en lecture accepté';
   exception when insufficient_privilege then null; end;
   begin perform public.envois_reglages(v_cie); raise exception '1c. lecture des réglages sans droit acceptée';
   exception when insufficient_privilege then null; end;
@@ -579,27 +691,29 @@ begin
   execute 'reset role';
   perform set_config('request.jwt.claims', c_adm, true); perform set_config('request.jwt.claim.sub', v_adm::text, true);
   execute 'set local role authenticated';
-  perform public.envoi_regler(v_cie, 'rappel', 'ferme');
   perform public.envoi_regler(v_cie, 'relance_circuit', 'a_valider');
+  perform public.envoi_regler(v_cie, 'relance_circuit', 'ferme');
+  begin perform public.envoi_regler(v_cie, 'rappel', 'ferme'); raise exception '1j1. relance de la file fermée acceptée (la préparation ne lit pas le réglage)';
+  exception when invalid_parameter_value then null; end;
   begin perform public.envoi_regler(v_cie, 'rappel', 'auto'); raise exception '1e. automatique par un administrateur accepté';
   exception when insufficient_privilege then null; end;
-  begin perform public.envoi_regler(v_cie, 'evaluation_froid', 'auto'); raise exception '1f. automatique des questionnaires à froid accepté';
-  exception when invalid_parameter_value then null; end;
-  begin perform public.envoi_regler(v_cie, 'demande_nir', 'ferme'); raise exception '1g. demande du n° fermée acceptée';
-  exception when invalid_parameter_value then null; end;
   begin perform public.envoi_regler(v_cie, 'convocation', 'a_valider'); raise exception '1h. type retiré accepté';
   exception when invalid_parameter_value then null; end;
   begin update public.auto_send_switches set mode = 'auto' where company_id = v_cie and kind = 'rappel';
     if found then raise exception '1i. mode écrit à la main'; end if;
   exception when insufficient_privilege then null; end;
   execute 'reset role';
-  if app.envoi_mode(v_cie, 'rappel') <> 'ferme' or app.envoi_ouvert(v_cie, 'rappel') or app.envoi_auto_autorise(v_cie, 'rappel') then
-    raise exception '1j. fermé : %', app.envoi_mode(v_cie, 'rappel'); end if;
-  if not exists (select 1 from public.auto_send_switch_log where company_id = v_cie and kind = 'rappel' and action = 'ferme' and user_id = v_adm) then
+  if app.envoi_ouvert(v_cie, 'relance_circuit') or app.envoi_auto_autorise(v_cie, 'relance_circuit') then raise exception '1j. fermé'; end if;
+  if not exists (select 1 from public.auto_send_switch_log where company_id = v_cie and kind = 'relance_circuit' and action = 'ferme' and user_id = v_adm) then
     raise exception '1k. journal'; end if;
   perform set_config('request.jwt.claims', c_sa, true); perform set_config('request.jwt.claim.sub', v_sa::text, true);
   execute 'set local role authenticated';
   perform public.envoi_regler(v_cie, 'rappel', 'auto');
+  -- Modes permis, même pour le super administrateur
+  begin perform public.envoi_regler(v_cie, 'evaluation_froid', 'auto'); raise exception '1f. automatique des questionnaires à froid accepté';
+  exception when invalid_parameter_value then null; end;
+  begin perform public.envoi_regler(v_cie, 'demande_nir', 'ferme'); raise exception '1g. demande du n° fermée acceptée';
+  exception when invalid_parameter_value then null; end;
   execute 'reset role';
   if not app.envoi_auto_autorise(v_cie, 'rappel') or not app.envoi_ouvert(v_cie, 'rappel') then raise exception '1l. automatique'; end if;
   -- Un administrateur peut ramener à « à valider »
@@ -619,7 +733,7 @@ begin
   execute 'set local role authenticated';
   perform public.envoi_regler(v_cie, 'avis_financeur', 'a_valider');
   execute 'reset role';
-  update public.auto_send_switches set updated_at = now() - interval '1 day' where company_id = v_cie and kind = 'avis_financeur';
+  update public.auto_send_switches set mode_at = now() - interval '1 day' where company_id = v_cie and kind = 'avis_financeur';
   insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, validated_by, validated_at, sent_at, texte_retouche)
   select v_cie, 'avis_financeur', 'Essai 0519 P' || g, 'envoye', 'essai-0519-p' || g, '{"destinataire":"p@exemple.invalid","texte":"T"}',
          v_adm, now() - interval '2 hours', now() - interval '1 hour' + g * interval '1 minute', false
@@ -650,10 +764,11 @@ begin
   if app.envoi_sans_retouche(v_cie, 'avis_financeur') <> 0 then raise exception '3e. retouche : %', app.envoi_sans_retouche(v_cie, 'avis_financeur'); end if;
   -- Un nouveau réglage aussi (envois comptés depuis le dernier changement)
   delete from public.scheduled_actions where dedup_key = 'essai-0519-p7';
-  update public.auto_send_switches set updated_at = now() - interval '25 minutes' where company_id = v_cie and kind = 'avis_financeur';
+  update public.auto_send_switches set mode_at = now() - interval '25 minutes' where company_id = v_cie and kind = 'avis_financeur';
   if app.envoi_sans_retouche(v_cie, 'avis_financeur') <> 0 then raise exception '3f. depuis le réglage'; end if;
 
   -- 4. Relances du circuit dans la file
+  update public.auto_send_switches set mode = 'a_valider' where company_id = v_cie and kind = 'relance_circuit';
   insert into public.clients (name, company_id, email) values ('Client essai 0519', v_cie, 'client-0519@exemple.invalid') returning id into v_cli;
   insert into public.quotes (reference, client_id, company_id, status, object) values ('ESSAI-0519', v_cli, v_cie, 'accepted', 'Formation') returning id into v_q;
   insert into public.sessions (reference, start_date, end_date, status, company_id, client_id, quote_id)
@@ -733,6 +848,50 @@ begin
     (v_cie, 'rappel', 'Essai 0519 I', 'a_valider', 'essai-0519-i', '{"interne":true,"destinataire":"i@exemple.invalid","texte":"Note"}') returning id into v_z;
   if v_z = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_z) is not null then raise exception '5k. note interne'; end if;
 
+  -- Stock d'avant le passage en automatique, échéance dépassée de plus de 3 jours, remise à valider, adresse refusée : à la main
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, created_at) values
+    (v_cie, 'rappel', 'Essai 0519 S1', 'a_valider', 'essai-0519-s1', '{"destinataire":"s1@exemple.invalid","texte":"T"}', now() - interval '1 day') returning id into v_x;
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, due_on) values
+    (v_cie, 'rappel', 'Essai 0519 S2', 'a_valider', 'essai-0519-s2', '{"destinataire":"s2@exemple.invalid","texte":"T"}', current_date - 4) returning id into v_y;
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, validated_at) values
+    (v_cie, 'rappel', 'Essai 0519 S3', 'a_valider', 'essai-0519-s3', '{"destinataire":"s3@exemple.invalid","texte":"T"}', now()) returning id into v_z;
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, error) values
+    (v_cie, 'rappel', 'Essai 0519 S4', 'valide', 'essai-0519-s4', '{"destinataire":"s4@exemple.invalid","texte":"T"}', 'Adresse refusée par le serveur : s4@exemple.invalid') returning id into v_w;
+  if v_x = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_x) is not null then raise exception '5l. stock parti seul'; end if;
+  if v_y = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_y) is not null then raise exception '5m. échéance ancienne'; end if;
+  if v_z = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_z) is not null then raise exception '5n. remise à valider'; end if;
+  if v_w = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_w) is not null then raise exception '5o. adresse refusée'; end if;
+  -- Relance déjà validée par une personne : garde sa validation
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, validated_by, validated_at) values
+    (v_cie, 'rappel', 'Essai 0519 S5', 'valide', 'essai-0519-s5', '{"destinataire":"s5@exemple.invalid","texte":"T"}', v_adm, now()) returning id into v_x;
+  r := public.relance_auto_reserver(v_x);
+  if r is null or (select validated_by from public.scheduled_actions where id = v_x) is distinct from v_adm then raise exception '5p. validation perdue'; end if;
+  -- Relance du circuit devenue inutile : ni seule, ni à la main
+  update public.auto_send_switches set mode = 'auto' where company_id = v_cie and kind = 'relance_circuit';
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload, session_id) values
+    (v_cie, 'relance_circuit', 'Essai 0519 C', 'valide', 'essai-0519-c', jsonb_build_object('circuit', 'convention', 'destinataire', 'client-0519@exemple.invalid', 'texte', 'T'), v_s)
+    returning id into v_r2;
+  if v_r2 = any (array(select public.relances_auto_a_envoyer(100))) or public.relance_auto_reserver(v_r2) is not null then raise exception '5q. circuit inutile parti seul'; end if;
+  perform set_config('request.jwt.claims', c_adm, true); perform set_config('request.jwt.claim.sub', v_adm::text, true);
+  execute 'set local role authenticated';
+  begin perform public.relance_envoi_reserver(v_r2, 'client-0519@exemple.invalid', (select validated_at from public.scheduled_actions where id = v_r2));
+    raise exception '5r. circuit inutile envoyé à la main';
+  exception when invalid_parameter_value then null; end;
+  execute 'reset role';
+  -- Type suspendu : plus d'envoi à la main depuis la file
+  insert into public.scheduled_actions (company_id, kind, title, status, dedup_key, payload) values
+    (v_cie, 'relance_impaye', 'Essai 0519 S6', 'valide', 'essai-0519-s6', '{"destinataire":"s6@exemple.invalid","texte":"T"}') returning id into v_x;
+  update public.auto_send_switches set suspended_until = now() + interval '1 hour' where company_id = v_cie and kind = 'relance_impaye';
+  execute 'set local role authenticated';
+  begin perform public.relance_envoi_reserver(v_x, 's6@exemple.invalid', (select validated_at from public.scheduled_actions where id = v_x));
+    raise exception '5s. type suspendu envoyé à la main';
+  exception when invalid_parameter_value then null; end;
+  execute 'reset role';
+  update public.auto_send_switches set suspended_until = null where company_id = v_cie and kind = 'relance_impaye';
+  execute 'set local role authenticated';
+  if public.relance_envoi_reserver(v_x, 's6@exemple.invalid', (select validated_at from public.scheduled_actions where id = v_x)) is null then raise exception '5t. envoi à la main'; end if;
+  execute 'reset role';
+
   -- 6. Droits des fonctions de service et questionnaires à froid
   if has_function_privilege('authenticated', 'public.relance_auto_reserver(uuid)', 'execute')
      or has_function_privilege('authenticated', 'public.relances_auto_a_envoyer(integer)', 'execute')
@@ -740,6 +899,7 @@ begin
      or has_function_privilege('authenticated', 'public.circuit_relances_ecarter()', 'execute')
      or has_function_privilege('authenticated', 'public.froid_envoi_terminer(uuid,uuid,boolean,text,text,text)', 'execute')
      or has_function_privilege('authenticated', 'public.envoi_auto_regler(uuid,text,boolean)', 'execute')
+     or has_function_privilege('authenticated', 'app.envoi_ouvert(uuid,text)', 'execute')
      or to_regprocedure('public.froid_envoi_terminer(uuid,boolean,text,text,text)') is not null then
     raise exception '6. droits des fonctions';
   end if;

@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Envoi automatique des relances de la file (0519, décisions de H du 16/11) : seuls les types passés en
 // « automatique » par le super administrateur, texte seul (pas de pièce jointe), boîte par défaut de l'organisme.
-//   - mode démonstration ou préversion : rien ne part et rien n'est marqué (la route le dit dans son résultat) ;
+//   - mode démonstration ou préversion, ou boîte par défaut absente : rien ne part et rien n'est marqué ;
 //   - chaque relance est réservée par la base (relance_auto_reserver, mêmes contrôles qu'un envoi à la main), puis
 //     terminée sans auteur (relance_envoi_terminer de 0518) ;
 //   - échec sûrement avant l'envoi : erreur notée, la relance repart au passage suivant ; résultat incertain : la
@@ -30,8 +30,15 @@ export async function envoyerRelancesAuto(admin, { dry = false, budgetMs = 40000
   const orgDefaut = await getOrgForCompany(admin, null)
   if (envoiRedirige({ envoiReel: false }, orgDefaut)) return { envoyees: 0, aEnvoyer: liste.length, raison: 'Mode démonstration ou préversion : aucun envoi automatique' }
   if (dry) return { envoyees: 0, aEnvoyer: liste.length, simulation: true }
+  // Boîte par défaut de l'organisme exigée (choix de H) : jamais la boîte d'un collègue prise au hasard
+  const defaut = String(orgDefaut.email_default_sender || '').trim().toLowerCase()
+  if (!defaut) return { envoyees: 0, aEnvoyer: liste.length, raison: 'Aucune boîte d\'envoi par défaut pour l\'organisme : aucun envoi automatique' }
   const mailer = await internalMailer(admin)
   if (mailer.error) return { envoyees: 0, aEnvoyer: liste.length, raison: mailer.error }
+  if (String(mailer.cfg?.email || '').toLowerCase() !== defaut) {
+    try { mailer.transporter.close() } catch { /* rien */ }
+    return { envoyees: 0, aEnvoyer: liste.length, raison: 'Boîte d\'envoi par défaut de l\'organisme désactivée : aucun envoi automatique' }
+  }
   const sender = await getSender(admin, mailer.cfg.email)
   const debut = Date.now()
   const resultats = []

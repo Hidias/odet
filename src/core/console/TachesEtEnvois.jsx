@@ -147,7 +147,7 @@ export function EnvoisAutomatiques({ companyId }) {
   const regler = async (kind, mode) => {
     const t = TYPES_ENVOI.find((x) => x.kind === kind)
     if (mode === 'auto') {
-      if (!await confirmer({ title: 'Passer en automatique', message: `« ${t.label} » partira seul aux vrais destinataires, sans validation, depuis la boîte d'envoi par défaut de l'organisme. Rien ne part tant que le mode démonstration est actif.`, confirmLabel: 'Continuer' })) return
+      if (!await confirmer({ title: 'Passer en automatique', message: `« ${t.label} » partira seul aux vrais destinataires, sans validation, depuis la boîte d'envoi par défaut de l'organisme. Les relances déjà préparées restent à valider à la main : seules les nouvelles partiront seules. Rien ne part tant que le mode démonstration est actif.`, confirmLabel: 'Continuer' })) return
       if (!await confirmer({ title: 'Deuxième confirmation', message: 'Vous pourrez revenir à « À valider » à tout moment. Confirmez-vous le passage en automatique ?', confirmLabel: 'Je confirme' })) return
     } else if (mode === 'ferme') {
       if (!await confirmer({ title: 'Fermer cet envoi', message: `« ${t.label} » : plus rien ne sera préparé ni envoyé. Les relances déjà préparées restent dans la liste.`, confirmLabel: 'Fermer' })) return
@@ -162,7 +162,7 @@ export function EnvoisAutomatiques({ companyId }) {
 
   const suspendre = async (kind) => {
     const t = TYPES_ENVOI.find((x) => x.kind === kind)
-    if (!await confirmer({ title: 'Suspendre cet envoi', message: `Suspendre « ${t.label} » pendant 24 heures ? Plus rien de ce type ne sera préparé ni ne partira pendant ce temps.`, confirmLabel: 'Continuer' })) return
+    if (!await confirmer({ title: 'Suspendre cet envoi', message: `Suspendre « ${t.label} » pendant 24 heures ? Plus rien de ce type ne partira pendant ce temps, ni seul ni depuis « Relances à valider ».`, confirmLabel: 'Continuer' })) return
     if (!await confirmer({ title: 'Deuxième confirmation', message: "L'envoi reprendra tout seul dans 24 heures. Le super administrateur sera seul à pouvoir le reprendre avant. Confirmez-vous ?", confirmLabel: 'Je confirme' })) return
     const saisie = await demander('Dernière confirmation : recopiez « SUSPENDRE 24 H » pour suspendre cet envoi.', { title: 'Troisième confirmation', placeholder: 'SUSPENDRE 24 H' })
     if (saisie == null) return

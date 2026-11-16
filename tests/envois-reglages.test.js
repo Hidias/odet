@@ -40,3 +40,29 @@ describe('Issue d\'un envoi automatique', () => {
     expect(issueEnvoi({ err: { code: 'ECONNECTION', message: 'Connection closed' }, destinataire: 'a@b.fr' })).toBe('incertain')
   })
 })
+
+describe('Envoi automatique : rien ne part sans les conditions', async () => {
+  const { vi } = await import('vitest')
+  it('mode démonstration, préversion ou boîte par défaut absente : aucune réservation, aucun envoi', async () => {
+    vi.resetModules()
+    const reglage = { org: { demo_mode: true, email_default_sender: 'contact@exemple.invalid' } }
+    const mailer = vi.fn(async () => ({ cfg: { email: 'autre@exemple.invalid' }, transporter: { sendMail: vi.fn(), close: vi.fn() }, from: 'x' }))
+    vi.doMock('../api/_lib/mailer.js', async (orig) => ({ ...(await orig()), getOrgForCompany: async () => reglage.org, getSender: async () => ({ name: 'Org' }) }))
+    vi.doMock('../api/_lib/internal.js', () => ({ internalMailer: mailer }))
+    const { envoyerRelancesAuto } = await import('../api/_lib/envoisAuto.js')
+    const appels = []
+    const admin = { rpc: async (nom) => { appels.push(nom); return nom === 'relances_auto_a_envoyer' ? { data: ['id-1'] } : { data: null } } }
+    let r = await envoyerRelancesAuto(admin)
+    expect(r.envoyees).toBe(0)
+    expect(r.raison).toMatch(/démonstration/)
+    expect(mailer).not.toHaveBeenCalled()
+    reglage.org = { demo_mode: false, email_default_sender: '' }
+    r = await envoyerRelancesAuto(admin)
+    expect(r.raison).toMatch(/par défaut/)
+    reglage.org = { demo_mode: false, email_default_sender: 'contact@exemple.invalid' }
+    r = await envoyerRelancesAuto(admin)
+    expect(r.raison).toMatch(/désactivée/)
+    expect(appels.filter((n) => n !== 'relances_auto_a_envoyer')).toEqual([])
+    vi.doUnmock('../api/_lib/mailer.js'); vi.doUnmock('../api/_lib/internal.js')
+  })
+})

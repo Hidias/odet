@@ -168,7 +168,7 @@ export default function AValider() {
       {indispo && <Banner tone="warning">Les relances ne sont pas encore disponibles. Prévenez le support.</Banner>}
       {proposes.length > 0 && (
         <Banner tone="info">
-          {proposes.map((p) => `« ${p.type.label} »`).join(', ')} : au moins 5 envois validés sans retouche. Le passage en automatique est possible (Console › Tâches et envois, super administrateur). Rien ne change sans vous.
+          {proposes.map((p) => `« ${p.type.label} »`).join(', ')} : au moins 5 envois validés sans retouche. Le passage en automatique est possible (Console, rubrique « Envois : à valider ou automatiques », super administrateur). Rien ne change sans vous.
         </Banner>
       )}
       {vue === 'liste' && <Tabs tabs={ONGLETS.map(([k, l]) => ({ id: k, label: l, count: compte[k] || 0 }))} value={onglet} onChange={setOnglet} />}
@@ -273,7 +273,8 @@ export default function AValider() {
               onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, texte: e.target.value } })} />
           </div>
           {ouvert.status === 'valide' && ouvert.error && <Banner tone="danger">Dernier envoi échoué : {ouvert.error}. Vous pouvez réessayer.</Banner>}
-          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? `, par ${ouvert.envoiPar || 'une autre personne'},` : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti, puis marquez la relance envoyée ou remettez-la à valider pour la renvoyer. Les deux sont possibles 10 minutes après le début de l'envoi.</Banner>}
+          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && !ouvert.envoi_reserve_par && <Banner tone="warning">Un envoi automatique a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} sans suite connue. Vérifiez dans la boîte d'envoi par défaut de l'organisme s'il est parti : si oui, marquez la relance envoyée ; sinon, ignorez-la. Ne la remettez pas à valider pour la renvoyer.</Banner>}
+          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && ouvert.envoi_reserve_par && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? `, par ${ouvert.envoiPar || 'une autre personne'},` : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti, puis marquez la relance envoyée ou remettez-la à valider pour la renvoyer. Les deux sont possibles 10 minutes après le début de l'envoi.</Banner>}
           {ouvert.status === 'valide' && ouvert.envoi_possible === false && <p className="text-ui-sm text-gray-500">Cette relance ne s'envoie pas depuis l'outil (consigne pour l'équipe, ou courrier à faire relire) : faites l'action indiquée, puis « Marquer envoyée ».</p>}
           {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && !ouvert.envoi_reserve_at && (
             <div className="flex flex-wrap gap-2">

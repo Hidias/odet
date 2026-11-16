@@ -1,8 +1,8 @@
 -- Retour arrière de 0519 : réglage à trois modes retiré, interrupteurs ouvert / fermé de 0382 remis.
 -- Ouvert recalculé depuis le mode : questionnaires à froid ouverts s'ils étaient à valider, relances du circuit et
 -- demande du n° ouvertes s'ils étaient en automatique. Les relances du circuit déjà préparées dans la file restent,
--- en type « autre » (même texte, même état) ; celles qui sont parties sont notées dans circuit_relances pour ne pas
--- repartir par l'ancienne route. Le journal garde chaque changement (actions de 0519 ramenées à ouvert / fermé).
+-- en type « autre » : celles qui sont parties, notées dans circuit_relances pour ne pas
+-- repartir par l'ancienne route ; les autres, écartées. Le journal garde chaque changement (actions de 0519 ramenées à ouvert / fermé).
 
 -- Interrupteurs : ouvert d'après le mode
 update public.auto_send_switches set enabled = case kind
@@ -14,6 +14,7 @@ update public.auto_send_switches set enabled = case kind
 delete from public.auto_send_switches where kind in ('relance_impaye', 'avis_financeur', 'rappel', 'autre');
 alter table public.auto_send_switches drop constraint if exists auto_send_switches_mode_check;
 alter table public.auto_send_switches drop column if exists mode;
+alter table public.auto_send_switches drop column if exists mode_at;
 alter table public.auto_send_switches drop constraint if exists auto_send_switches_kind_check;
 alter table public.auto_send_switches add constraint auto_send_switches_kind_check
   check (kind in ('relance_recyclage', 'relance_devis', 'relance_facture', 'convocation', 'attestation', 'evaluation_froid',
@@ -31,6 +32,9 @@ select a.company_id, a.session_id, a.payload->>'circuit', left(a.payload->>'dest
   from public.scheduled_actions a
  where a.kind = 'relance_circuit' and a.status = 'envoye' and a.session_id is not null and a.payload->>'circuit' in ('participants', 'convention')
 on conflict (session_id, kind) do nothing;
+-- Pas encore parties : écartées (l'ancienne route 0437 les enverrait aussi, deux envois possibles)
+update public.scheduled_actions set status = 'ignore', error = 'Retour arrière de 0519 : relance du circuit écartée'
+ where kind = 'relance_circuit' and status in ('a_valider', 'valide') and envoi_reserve_at is null;
 alter table public.scheduled_actions drop constraint if exists scheduled_actions_kind_check;
 -- La règle d'état garde le type (« ne se corrige pas depuis l'écran ») : levée le temps de la conversion
 alter table public.scheduled_actions disable trigger scheduled_actions_maj;
@@ -214,8 +218,64 @@ $$;
 revoke all on function public.froid_envoi_terminer(uuid, boolean, text, text, text) from public, anon;
 grant execute on function public.froid_envoi_terminer(uuid, boolean, text, text, text) to authenticated;
 
+create or replace function public.relance_envoi_reserver(p_id uuid, p_destinataire text, p_valide_le timestamptz)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare a public.scheduled_actions;
+begin
+  if (select auth.uid()) is null then raise exception 'Connexion requise' using errcode = '42501'; end if;
+  select * into a from public.scheduled_actions where id = p_id for update;
+  if not found or a.company_id not in (select app.societes_avec_droit('formation.convocations.envoyer'))
+     or a.company_id not in (select app.societes_ecriture()) then
+    raise exception 'Relance introuvable, ou droit d''envoyer aux stagiaires et aux clients requis' using errcode = '42501';
+  end if;
+  if a.status <> 'valide' then
+    raise exception 'Cette relance n''est plus à envoyer : la liste est mise à jour' using errcode = '22023';
+  end if;
+  if not a.envoi_possible then
+    raise exception 'Cette relance ne s''envoie pas depuis l''outil : faites l''action indiquée, puis marquez-la' using errcode = '22023';
+  end if;
+  if a.blocked_reason is not null then
+    raise exception 'Relance bloquée : %', a.blocked_reason using errcode = '22023';
+  end if;
+  if a.envoi_reserve_at is not null then
+    if a.envoi_reserve_at > now() - interval '10 minutes' then
+      raise exception 'Envoi déjà en cours pour cette relance' using errcode = '22023';
+    end if;
+    raise exception 'Envoi précédent sans suite : vérifiez dans votre boîte d''envoi s''il est parti, puis marquez la relance envoyée ou remettez-la à valider' using errcode = '22023';
+  end if;
+  if not app.financeur_email_valide(a.payload->>'destinataire') then
+    raise exception 'Adresse du destinataire absente ou invalide' using errcode = '22023';
+  end if;
+  if lower(btrim(a.payload->>'destinataire')) is distinct from lower(btrim(p_destinataire)) then
+    raise exception 'Le destinataire a changé depuis l''aperçu : la liste est mise à jour' using errcode = '22023';
+  end if;
+  -- Validée de nouveau depuis l'aperçu (texte peut-être changé entre-temps) : nouvel aperçu
+  if a.validated_at is distinct from p_valide_le then
+    raise exception 'La relance a été modifiée depuis l''aperçu : ouvrez de nouveau « Voir le mail »' using errcode = '22023';
+  end if;
+  if coalesce(btrim(a.payload->>'texte'), '') = '' then
+    raise exception 'Texte vide : rien à envoyer' using errcode = '22023';
+  end if;
+  perform set_config('app.relance_envoi', 'on', true);
+  update public.scheduled_actions set envoi_reserve_at = now(), envoi_reserve_par = (select auth.uid()), error = null where id = a.id;
+  perform set_config('app.relance_envoi', '', true);
+  return jsonb_build_object('id', a.id, 'company_id', a.company_id, 'kind', a.kind,
+    'destinataire', btrim(a.payload->>'destinataire'),
+    'objet', coalesce(nullif(btrim(a.payload->>'objet'), ''), a.title),
+    'texte', a.payload->>'texte');
+end
+$$;
+revoke all on function public.relance_envoi_reserver(uuid, text, timestamptz) from public, anon;
+grant execute on function public.relance_envoi_reserver(uuid, text, timestamptz) to authenticated;
+
 drop function if exists public.relance_auto_reserver(uuid);
 drop function if exists public.relances_auto_a_envoyer(integer);
+drop function if exists app.relance_auto_eligible(public.scheduled_actions);
+drop function if exists app.circuit_relance_utile(uuid, text);
 drop function if exists public.circuit_relances_ecarter();
 drop function if exists public.circuit_relance_preparer(uuid, text, text, text, text);
 drop function if exists public.envois_reglages(uuid);
