@@ -168,7 +168,7 @@ export default function ReglesGestion() {
     <div className="grid gap-4">
       {companyId && ['superadmin', 'admin'].includes(role) && (
         <Card>
-          <CardHeader title="Envois automatiques" subtitle="Ce qui part tout seul aux clients et aux stagiaires. En cas de problème, un administrateur peut suspendre un envoi pendant 24 heures." />
+          <CardHeader title="Envois aux clients et aux stagiaires" subtitle="Pour chaque type : fermé, à valider (préparé, puis envoyé depuis l'outil) ou automatique. En cas de problème, un administrateur peut suspendre un envoi pendant 24 heures." />
           <CardBody><EnvoisAutomatiques companyId={companyId} /></CardBody>
         </Card>
       )}

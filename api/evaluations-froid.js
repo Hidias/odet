@@ -16,7 +16,8 @@
 //   POST /api/evaluations-froid { ids: [id], test: true }      → un exemple à l'adresse de la personne connectée
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, finirParCordialement } from './_lib/mailer.js'
+import { getSupabaseAdmin, getMailer, sendWithRetry, getOrg, getSender, buildSignatureHTML, finirParCordialement, isTestEnvironment } from './_lib/mailer.js'
+import { envoiRedirige, MESSAGE_TEST, MESSAGE_REDIRIGE } from './relance-envoi.js'
 import { requireRight, clientDeLAppelant, OFFICE_WRITE } from './_lib/auth.js'
 import { appUrl } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
@@ -180,22 +181,26 @@ async function handler(req, res) {
     if (error) return res.status(400).json({ error: error.message })
     if (grouper(lignes || []).length > MAILS_PAR_APPEL) return res.status(400).json({ error: `Au plus ${MAILS_PAR_APPEL} mails à la fois` })
   }
+  // Boîte d'envoi d'abord : sans elle, rien n'est réservé. Mode démonstration ou préversion : le mail irait à
+  // l'adresse de test, pas au destinataire ; refusé plutôt que de marquer « envoyé » un questionnaire jamais arrivé
+  // (seul l'envoi réel du super administrateur part pour de vrai, même règle que api/relance-envoi.js)
+  const mailer = await getMailer(admin, ctx.user.id, { envoiReel: true })
+  if (mailer.error) return res.status(400).json({ error: mailer.error })
+  if (envoiRedirige(mailer, org)) {
+    try { mailer.transporter.close() } catch { /* rien */ }
+    return res.status(409).json({ error: isTestEnvironment() ? MESSAGE_TEST : MESSAGE_REDIRIGE })
+  }
   // Réservation par la base au nom de l'appelant
   const { data: reserve, error: rErr } = await appelant.rpc('froid_envois_reserver', { p_ids: ids })
-  if (rErr) return res.status(403).json({ error: rErr.message })
+  if (rErr) { try { mailer.transporter.close() } catch { /* rien */ } return res.status(403).json({ error: rErr.message }) }
   const refus = reserve?.refus || []
   // Client de chaque envoi (absent de la réservation) pour proposer l'espace par lien de l'entreprise (0509)
   const reserves = reserve?.envois || []
   const { data: clientsEnvois } = reserves.length ? await admin.from('froid_envois').select('id, client_id').in('id', reserves.map((e) => e.id)) : { data: [] }
   const clientDe = new Map((clientsEnvois || []).map((x) => [x.id, x.client_id]))
   const envois = reserves.map((e) => ({ ...e, client_id: clientDe.get(e.id) || null }))
-  if (!envois.length) return res.status(200).json({ envoyes: 0, erreurs: 0, refus })
+  if (!envois.length) { try { mailer.transporter.close() } catch { /* rien */ } return res.status(200).json({ envoyes: 0, erreurs: 0, refus }) }
   const jetons = await jetonsDesClients(admin, envois.filter((e) => e.cible !== 'stagiaire').map((e) => e.client_id))
-  const mailer = await getMailer(admin, ctx.user.id, { envoiReel: true })
-  if (mailer.error) {
-    for (const e of envois) await appelant.rpc('froid_envoi_terminer', { p_id: e.id, p_ok: false, p_erreur: mailer.error })
-    return res.status(400).json({ error: mailer.error })
-  }
   const sender = await getSender(admin, mailer.emailConfig.email)
   let envoyes = 0
   let erreurs = 0
@@ -203,7 +208,7 @@ async function handler(req, res) {
   try {
     for (const groupe of grouper(envois)) {
       if (Date.now() - debut > BUDGET_MS) {
-        for (const e of groupe) await appelant.rpc('froid_envoi_terminer', { p_id: e.id, p_ok: false, p_erreur: 'Non envoyé : messagerie trop lente, à reprendre' })
+        for (const e of groupe) await admin.rpc('froid_envoi_terminer', { p_id: e.id, p_auteur: ctx.user.id, p_ok: false, p_erreur: 'Non envoyé : messagerie trop lente, à reprendre' })
         erreurs += 1
         continue
       }
@@ -217,10 +222,10 @@ async function handler(req, res) {
           text: t.corps,
           html: `${htmlDe(t.corps)}${finirParCordialement(t.corps) ? '' : '<br><br><p style="margin: 0;">Bien cordialement,</p>'}${buildSignatureHTML(sender, org)}`,
         }, 1)
-        for (const e of groupe) await appelant.rpc('froid_envoi_terminer', { p_id: e.id, p_ok: true, p_message_id: info?.messageId || null, p_boite: mailer.emailConfig.email })
+        for (const e of groupe) await admin.rpc('froid_envoi_terminer', { p_id: e.id, p_auteur: ctx.user.id, p_ok: true, p_message_id: info?.messageId || null, p_boite: mailer.emailConfig.email })
         envoyes += 1
       } catch (err) {
-        for (const e of groupe) await appelant.rpc('froid_envoi_terminer', { p_id: e.id, p_ok: false, p_erreur: String(err?.message || 'Échec').slice(0, 300) })
+        for (const e of groupe) await admin.rpc('froid_envoi_terminer', { p_id: e.id, p_auteur: ctx.user.id, p_ok: false, p_erreur: String(err?.message || 'Échec').slice(0, 300) })
         erreurs += 1
       }
     }

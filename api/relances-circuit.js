@@ -3,24 +3,24 @@
 // Relances du client pendant le circuit devis signé → session (0437, décision de H du 22/10) :
 //   - participants non saisis à 10 jours de la formation ;
 //   - convention non signée à 7 jours.
-// Une relance par session et par objet (table circuit_relances). Message au contact du client, organisme en copie
-// cachée, sans lien (le client retrouve son espace avec son adresse et son code habituels). Le mode démonstration
-// de l'organisme redirige les envois vers l'adresse de test.
+// Depuis 0519 (décision de H du 16/11) : la relance est préparée dans la file « Relances à valider » (une par session
+// et par objet), puis validée et envoyée depuis l'outil ; écartée par la base si la situation se règle avant. Réglage
+// « fermé » : rien n'est préparé. Réglage « automatique » : elle part seule, avec les autres relances de la file
+// passées en automatique (envoyerRelancesAuto, boîte par défaut de l'organisme, jamais en mode démonstration).
 //
 //   GET  /api/relances-circuit        → tâche planifiée (CRON_SECRET) ou administrateur
-//   GET  /api/relances-circuit?dry=1  → simulation, n'envoie rien
+//   GET  /api/relances-circuit?dry=1  → simulation, ne prépare ni n'envoie rien
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { getSupabaseAdmin, buildSignatureHTML } from './_lib/mailer.js'
+import { getSupabaseAdmin, getOrgForCompany } from './_lib/mailer.js'
 import { requireCronOrRole, ADMINS } from './_lib/auth.js'
-import { internalMailer } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
 import { withJobLog } from './_lib/taches.js'
+import { envoyerRelancesAuto } from './_lib/envoisAuto.js'
 import { nomPourAppel } from '../src/core/nomPersonne.js'
 
 export const config = { maxDuration: 60 }
 
-const esc = (s) => String(s ?? '').replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
 const dateFr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '')
 
 export function texteRelance(r, orgName) {
@@ -46,34 +46,29 @@ async function handler(req, res) {
     const { data, error } = await supabase.rpc('circuit_relances_dues')
     if (error) throw error
     const liste = Array.isArray(data) ? data : []
-    if (!liste.length) return res.status(200).json({ ok: true, envoyes: 0 })
-    let mailer = null
-    const resultats = []
+    const preparees = []
+    const noms = new Map()
     for (const r of liste) {
       try {
-        if (!mailer) {
-          mailer = await internalMailer(supabase)
-          if (mailer.error) throw new Error(mailer.error)
-        }
-        const { sujet, corps } = texteRelance(r, mailer.org.name || '')
-        if (dry) { resultats.push({ session: r.reference, kind: r.kind, destinataire: r.email, sujet, simulation: true }); continue }
-        await mailer.transporter.sendMail({
-          from: mailer.from,
-          to: r.email,
-          bcc: mailer.org.email_bcc || undefined,
-          subject: sujet,
-          text: corps,
-          html: `${esc(corps).replace(/\n/g, '<br>')}<br><br><p style="margin:0;">Bien cordialement,</p>${buildSignatureHTML({ name: mailer.org.name || '', email: mailer.cfg.email }, mailer.org)}`,
-        })
-        await supabase.rpc('circuit_relance_marquer', { p_session: r.session_id, p_kind: r.kind, p_to: r.email })
-        resultats.push({ session: r.reference, kind: r.kind, envoye: true })
+        if (!noms.has(r.company_id)) noms.set(r.company_id, (await getOrgForCompany(supabase, r.company_id))?.name || '')
+        const { sujet, corps } = texteRelance(r, noms.get(r.company_id))
+        if (dry) { preparees.push({ session: r.reference, kind: r.kind, destinataire: r.email, sujet, simulation: true }); continue }
+        const { data: id, error: pErr } = await supabase.rpc('circuit_relance_preparer', { p_session: r.session_id, p_kind: r.kind, p_destinataire: r.email, p_objet: sujet, p_texte: corps })
+        if (pErr) throw pErr
+        preparees.push({ session: r.reference, kind: r.kind, preparee: !!id })
       } catch (e) {
         console.error('[relances-circuit]', r.reference, e.message)
-        resultats.push({ session: r.reference, kind: r.kind, erreur: e.message })
+        preparees.push({ session: r.reference, kind: r.kind, erreur: e.message })
       }
     }
-    try { mailer?.transporter?.close() } catch { /* rien */ }
-    return res.status(200).json({ ok: true, envoyes: resultats.filter((x) => x.envoye).length, resultats })
+    let ecartees = 0
+    if (!dry) {
+      const { data: n, error: eErr } = await supabase.rpc('circuit_relances_ecarter')
+      if (eErr) throw eErr
+      ecartees = n || 0
+    }
+    const auto = await envoyerRelancesAuto(supabase, { dry })
+    return res.status(200).json({ ok: true, preparees: preparees.filter((x) => x.preparee).length, ecartees, auto, resultats: preparees })
   } catch (e) {
     console.error('[relances-circuit] erreur globale :', e)
     return res.status(500).json({ error: e.message })

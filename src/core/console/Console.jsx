@@ -192,7 +192,7 @@ export default function Console() {
         <p className="text-ui-sm text-gray-400">Les tâches sont déclenchées par Vercel avec le secret CRON_SECRET. Un appel sans ce secret est refusé, et noté ici.</p>
       </Section>
 
-      <Section icon={Mail} title="Envois automatiques">
+      <Section icon={Mail} title="Envois : à valider ou automatiques">
         <EnvoisAutomatiquesSociete />
       </Section>
 
