@@ -41,6 +41,8 @@ begin
   -- Règle déclenchée par une autre écriture (comme le règlement d'une facture) : table d'essai, annulée à la fin
   create table public.essai_0518_t (id int primary key, relance uuid);
   grant select, update on public.essai_0518_t to authenticated;
+  -- En production, toute table créée dans public reçoit la sécurité par ligne (ensure_rls) : règle d'essai ouverte
+  create policy essai_0518_p on public.essai_0518_t for all to authenticated using (true) with check (true);
   create function public.essai_0518_f() returns trigger language plpgsql security definer set search_path = '' as $f$
   begin update public.scheduled_actions set status = 'ignore' where id = new.relance; return null; end $f$;
   create trigger essai_0518_tr after update on public.essai_0518_t for each row execute function public.essai_0518_f();
