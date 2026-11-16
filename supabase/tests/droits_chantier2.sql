@@ -4148,7 +4148,51 @@ begin
 
   -- Journal des tâches et interrupteurs des envois automatiques (0382) : seul le super administrateur ouvre un envoi ;
   -- un administrateur suspend 24 h avec la confirmation recopiée ; le journal des tâches n'est lu que par la plateforme
-  if to_regprocedure('public.envoi_auto_regler(uuid,text,boolean)') is not null then
+  -- Depuis 0519 : réglage à trois modes ; l'automatique par le super administrateur seul ; à valider par défaut
+  if to_regprocedure('public.envoi_regler(uuid,text,text)') is not null then
+    execute 'reset role';
+    perform set_config('request.jwt.claims', '', true);
+    v_total := v_total + 6;
+    declare
+      z_co uuid := app.company_default(); z_ok boolean := false; z_ok2 boolean := false; z_n int;
+    begin
+      insert into public.job_runs (job, status) values ('essai-0382', 'ok');
+      perform set_config('request.jwt.claims', json_build_object('sub', u_dir, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.envoi_regler(z_co, 'rappel', 'auto'); exception when insufficient_privilege then z_ok := true; end;
+      select count(*) into z_n from public.job_runs where job = 'essai-0382';
+      execute 'reset role';
+      if z_ok then v_lines := v_lines || 'OK      dir   0519 : la direction ne passe pas un envoi en automatique'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0519 : automatique par la direction'::text; end if;
+      if z_n = 0 then v_lines := v_lines || 'OK      dir   0382 : journal des tâches invisible hors plateforme'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   dir   0382 : journal des tâches visible'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_sa, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      perform public.envoi_regler(z_co, 'rappel', 'auto');
+      execute 'reset role';
+      if app.envoi_auto_autorise(z_co, 'rappel') then v_lines := v_lines || 'OK      sa    0519 : envoi passé en automatique par le super administrateur'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   sa    0519 : passage en automatique'::text; end if;
+      perform set_config('request.jwt.claims', json_build_object('sub', u_ad, 'role', 'authenticated')::text, true);
+      execute 'set local role authenticated';
+      begin perform public.envoi_auto_suspendre(z_co, 'rappel', 'oui'); exception when invalid_parameter_value then z_ok2 := true; end;
+      perform public.envoi_auto_suspendre(z_co, 'rappel', 'suspendre 24 h', 'essai');
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      if z_ok2 then v_lines := v_lines || 'OK      ad    0382 : suspension refusée sans la confirmation recopiée'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0382 : confirmation de suspension'::text; end if;
+      if not app.envoi_auto_autorise(z_co, 'rappel') and not app.envoi_ouvert(z_co, 'rappel') then
+        v_lines := v_lines || 'OK      ad    0382 : envoi suspendu 24 h par un administrateur'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   ad    0382 : suspension d''un envoi'::text; end if;
+      delete from public.auto_send_switches where company_id = z_co and kind = 'autre';
+      if app.envoi_mode(z_co, 'autre') = 'a_valider' and not app.envoi_auto_autorise(z_co, 'autre') then
+        v_lines := v_lines || 'OK      base  0519 : à valider par défaut, jamais automatique'::text;
+      else v_fail := v_fail + 1; v_lines := v_lines || 'ÉCHEC   base  0519 : réglage par défaut'::text; end if;
+    exception when others then
+      execute 'reset role';
+      perform set_config('request.jwt.claims', '', true);
+      v_fail := v_fail + 6; v_lines := v_lines || ('ÉCHEC   base  0519 : erreur ' || sqlerrm)::text;
+    end;
+  elsif to_regprocedure('public.envoi_auto_regler(uuid,text,boolean)') is not null then
     execute 'reset role';
     perform set_config('request.jwt.claims', '', true);
     v_total := v_total + 6;
@@ -6401,10 +6445,17 @@ begin
       update public.sessions set start_date = current_date + 5, end_date = current_date + 5 where id = w_s2;
       insert into public.client_contacts (client_id, name, email) values (w_c, 'Contact Essai', 'contact@test.invalid') returning id into w_t;
       update public.sessions set contact_id = w_t where id = w_s2;
-      -- Interrupteur fermé : rien n'est dû ; ouvert : la relance est due
+      -- Réglage fermé : rien n'est dû ; ouvert (à valider depuis 0519) : la relance est due
+      if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'auto_send_switches' and column_name = 'mode') then
+        execute format('insert into public.auto_send_switches (company_id, kind, enabled, mode) values (%L, ''relance_circuit'', false, ''ferme'')
+          on conflict (company_id, kind) do update set mode = ''ferme'', suspended_until = null', (select company_id from public.sessions where id = w_s2));
+      end if;
       if exists (select 1 from jsonb_array_elements(public.circuit_relances_dues()) e where e ->> 'session_id' = w_s2::text) then w_ok := false; else w_ok := true; end if;
       insert into public.auto_send_switches (company_id, kind, enabled) values ((select company_id from public.sessions where id = w_s2), 'relance_circuit', true)
         on conflict (company_id, kind) do update set enabled = true, suspended_until = null;
+      if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'auto_send_switches' and column_name = 'mode') then
+        execute format('update public.auto_send_switches set mode = ''a_valider'' where company_id = %L and kind = ''relance_circuit''', (select company_id from public.sessions where id = w_s2));
+      end if;
       w_r := (select e from jsonb_array_elements(public.circuit_relances_dues()) e where e ->> 'session_id' = w_s2::text);
       perform public.circuit_relance_marquer(w_s2, 'participants', 'contact@test.invalid');
       if w_ok and w_r ->> 'kind' = 'participants' and w_r ->> 'email' = 'contact@test.invalid'

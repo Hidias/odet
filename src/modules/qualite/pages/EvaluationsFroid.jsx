@@ -1,6 +1,6 @@
 // Évaluations à froid (0482, option C validée par H le 04/11) : page unique des non-répondants.
 // La nuit prépare les premiers envois et les relances dus ; ici on relit, on coche, on valide en un clic.
-// Rien ne part seul : l'interrupteur « Questionnaires à froid » de la Console reste le verrou général.
+// Rien ne part seul : le réglage « Questionnaires à froid » de la Console (fermé ou à valider) reste le verrou général.
 import { useEffect, useMemo, useState } from 'react'
 import { Eye, Loader2, Mail, RefreshCw, Send, Settings2, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'

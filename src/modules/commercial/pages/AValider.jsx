@@ -16,6 +16,7 @@ import PiloteReglages from '../../pilote/PiloteReglages'
 import { Kanban, CLASSE_ITEM_MENU } from '../../../ui/Kanban'
 import { ChoixVue, useVue } from '../../../ui/ChoixVue'
 import { colonnesRelances, passagesRelance, depotRelancePossible, MESSAGES_RELANCE } from '../lib/relances'
+import { propositions } from '../../../core/console/TachesEtEnvois'
 
 // Relances à valider (lot 2, 0043) : actions préparées chaque nuit par la base (recyclages à prévoir, puis
 // justificatifs des prestataires, rappels…). Rien ne part tout seul : on valide, on corrige ou on ignore ; une action validée
@@ -23,7 +24,7 @@ import { colonnesRelances, passagesRelance, depotRelancePossible, MESSAGES_RELAN
 // Téléphone d'abord.
 // Deux affichages : liste par onglet, ou colonnes par état (Kanban, règles dans `lib/relances.js`).
 
-const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', renouvellement_contrat: 'Renouvellement de contrat', visite_hors_contrat: 'Visite hors contrat', convocation: 'Convocation', rappel: 'Rappel', emargement_manquant: 'Émargement', eval_chaud: 'Évaluation à chaud', attestations: 'Attestations', evaluation_froid: 'Évaluation à froid', facture_brouillon: 'Facture', relance_impaye: 'Impayé', avis_financeur: 'Avis du financeur', autre: 'Autre' }
+const KINDS = { relance_recyclage: 'Recyclage', justificatif_prestataire: 'Justificatif', renouvellement_contrat: 'Renouvellement de contrat', visite_hors_contrat: 'Visite hors contrat', convocation: 'Convocation', rappel: 'Rappel', emargement_manquant: 'Émargement', eval_chaud: 'Évaluation à chaud', attestations: 'Attestations', evaluation_froid: 'Évaluation à froid', facture_brouillon: 'Facture', relance_impaye: 'Impayé', avis_financeur: 'Avis du financeur', relance_circuit: 'Relance du circuit', autre: 'Autre' }
 const STATUTS = { a_valider: ['warning', 'À valider'], valide: ['info', 'Validée'], envoye: ['success', 'Envoyée'], ignore: ['neutral', 'Ignorée'], erreur: ['danger', 'Erreur'] }
 const ONGLETS = [['a_valider', 'À valider'], ['valide', 'À envoyer'], ['envoye', 'Envoyées'], ['ignore', 'Ignorées']]
 
@@ -58,6 +59,11 @@ export default function AValider() {
     setItems(data || [])
   }
   useEffect(() => { load() }, [])
+  // Proposition de l'automatique (0519) : lue seulement par qui a le droit de régler l'organisme, silencieuse sinon
+  const [proposes, setProposes] = useState([])
+  useEffect(() => {
+    supabase.rpc('envois_reglages', { p_company: null }).then(({ data, error }) => { if (!error) setProposes(propositions(data)) })
+  }, [])
 
   const [type, setType] = useState('')
   const compte = useMemo(() => Object.fromEntries(ONGLETS.map(([k]) => [k, (items || []).filter((i) => i.status === k).length])), [items])
@@ -156,10 +162,15 @@ export default function AValider() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Relances à valider" meta={<span>Préparées chaque nuit par l'application ; rien n'est envoyé sans vous.</span>}
+      <PageHeader title="Relances à valider" meta={<span>Préparées chaque nuit par l'application ; rien n'est envoyé sans vous, sauf les types passés en automatique dans la Console.</span>}
         actions={peutRegler ? <button type="button" className="btn btn-secondary" onClick={() => setReglages(true)}>Pilote des sessions</button> : null} />
       {reglages && <PiloteReglages onClose={() => { setReglages(false); load() }} />}
       {indispo && <Banner tone="warning">Les relances ne sont pas encore disponibles. Prévenez le support.</Banner>}
+      {proposes.length > 0 && (
+        <Banner tone="info">
+          {proposes.map((p) => `« ${p.type.label} »`).join(', ')} : au moins 5 envois validés sans retouche. Le passage en automatique est possible (Console, rubrique « Envois : à valider ou automatiques », super administrateur). Rien ne change sans vous.
+        </Banner>
+      )}
       {vue === 'liste' && <Tabs tabs={ONGLETS.map(([k, l]) => ({ id: k, label: l, count: compte[k] || 0 }))} value={onglet} onChange={setOnglet} />}
       <div className="flex flex-wrap items-center gap-2">
         <div className="order-last ml-auto"><ChoixVue vue={vue} onChange={setVue} /></div>
@@ -262,7 +273,8 @@ export default function AValider() {
               onChange={(e) => setOuvert({ ...ouvert, payload: { ...ouvert.payload, texte: e.target.value } })} />
           </div>
           {ouvert.status === 'valide' && ouvert.error && <Banner tone="danger">Dernier envoi échoué : {ouvert.error}. Vous pouvez réessayer.</Banner>}
-          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? `, par ${ouvert.envoiPar || 'une autre personne'},` : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti, puis marquez la relance envoyée ou remettez-la à valider pour la renvoyer. Les deux sont possibles 10 minutes après le début de l'envoi.</Banner>}
+          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && !ouvert.envoi_reserve_par && <Banner tone="warning">Un envoi automatique a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })} sans suite connue. Vérifiez dans la boîte d'envoi par défaut de l'organisme s'il est parti : si oui, marquez la relance envoyée ; sinon, remettez-la à valider pour l'envoyer vous-même (elle ne repartira plus seule).</Banner>}
+          {ouvert.status === 'valide' && ouvert.envoi_reserve_at && ouvert.envoi_reserve_par && <Banner tone="warning">Un envoi depuis l'outil a commencé le {new Date(ouvert.envoi_reserve_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}{ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? `, par ${ouvert.envoiPar || 'une autre personne'},` : ''} sans suite connue. Vérifiez dans {ouvert.envoi_reserve_par && ouvert.envoi_reserve_par !== moiId ? 'sa boîte d\'envoi' : 'votre boîte d\'envoi'} s'il est parti, puis marquez la relance envoyée ou remettez-la à valider pour la renvoyer. Les deux sont possibles 10 minutes après le début de l'envoi.</Banner>}
           {ouvert.status === 'valide' && ouvert.envoi_possible === false && <p className="text-ui-sm text-gray-500">Cette relance ne s'envoie pas depuis l'outil (consigne pour l'équipe, ou courrier à faire relire) : faites l'action indiquée, puis « Marquer envoyée ».</p>}
           {ouvert.status === 'valide' && ouvert.envoi_possible && ouvert.payload.destinataire && !ouvert.envoi_reserve_at && (
             <div className="flex flex-wrap gap-2">

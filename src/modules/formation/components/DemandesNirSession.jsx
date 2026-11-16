@@ -9,8 +9,8 @@ import { generatePasseportPreventionPDF } from '../../prevention/pdf/pdfPassepor
 import { donneesDecharge } from '../../prevention/lib/dechargeNir'
 
 // Session : salariés qui ne retrouvent pas leur n° de sécurité sociale (0440, décision de H du 22/10). Autorisation
-// signée dans le portail ; demande envoyée à l'entreprise (automatiquement si l'interrupteur « demande_nir » est
-// ouvert, sinon ici), numéro saisi par l'entreprise dans son espace. Rien d'affiché sans demande.
+// signée dans le portail ; demande envoyée à l'entreprise (automatiquement si le réglage « demande_nir » est
+// en automatique, sinon ici), numéro saisi par l'entreprise dans son espace. Rien d'affiché sans demande.
 
 const quand = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) : '')
 
