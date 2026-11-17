@@ -255,9 +255,9 @@ export default function NonConformites() {
     const heuresDepuisReception = differenceInHours(now, reception)
     const arEnRetard = !recl.date_accuse && heuresDepuisReception > 48
     
-    // Délai clôture (5 jours ouvrés)
+    // Délai de réponse (10 jours ouvrés, procédure réclamations)
     const joursOuvres = differenceInBusinessDays(now, reception)
-    const clotureEnRetard = recl.status !== 'closed' && joursOuvres > 5
+    const clotureEnRetard = recl.status !== 'closed' && joursOuvres > 10
     
     return { arEnRetard, clotureEnRetard, heuresDepuisReception, joursOuvres }
   }
@@ -382,7 +382,7 @@ export default function NonConformites() {
           
           {/* Délais de référence */}
           <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-info))]">
-            <strong>Délais Qualiopi :</strong> Accusé réception sous 48h • Clôture sous 5 jours ouvrés
+            <strong>Délais de la procédure :</strong> accusé de réception sous 48 h ouvrées • réponse sous 10 jours ouvrés
           </div>
           
           {/* Filtres Réclamations */}
