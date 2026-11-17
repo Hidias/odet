@@ -9,7 +9,7 @@ import {
   Target, BookOpen, Users, Shield, Filter, Download, 
   ExternalLink, Loader2, TrendingUp
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, differenceInBusinessDays } from 'date-fns'
 import { PageHeader } from '../../../ui/PageHeader'
 import { pluriel } from '../../../core/genre'
 import { fr } from 'date-fns/locale'
@@ -527,22 +527,20 @@ export default function Completude() {
         })
       }
       
-      // Réclamations >5j
-      const fiveDaysAgo = new Date()
-      fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
-      
-      const { data: oldReclamations } = await supabase
+      // Réclamations sans réponse après 10 jours ouvrés (procédure réclamations)
+      const { data: reclamationsOuvertes } = await supabase
         .from('reclamations')
-        .select('id, reference, created_at')
+        .select('id, reference, created_at, date_reception')
         .not('status', 'in', '(closed,resolved)')
-        .lt('created_at', fiveDaysAgo.toISOString())
+      const oldReclamations = (reclamationsOuvertes || []).filter(r =>
+        differenceInBusinessDays(new Date(), new Date(r.date_reception || r.created_at)) > 10)
       
-      oldReclamations?.forEach(r => {
+      oldReclamations.forEach(r => {
         allIssues.push({
           category: 'qualite',
           priority: 'bloquant',
           element: r.reference,
-          detail: 'Réclamation non clôturée (>5 jours)',
+          detail: 'Réclamation sans réponse (plus de 10 jours ouvrés)',
           link: '/qualite',
           entityId: r.id,
           since: r.created_at

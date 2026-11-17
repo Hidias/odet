@@ -130,7 +130,7 @@ const DEFAULT_DATA = {
   'des-rgpd': { personne: '{{role.referent_rgpd}}', role: 'Référent données personnelles', date: format(new Date(), 'yyyy-MM-dd'), missions: ['Conformité RGPD', 'Registre des traitements', 'Répondre aux demandes de droits', 'Sensibiliser le personnel', 'Gérer les violations'] },
   'proc-recl': { 
     objectif: 'Définir les modalités de traitement des réclamations pour garantir la satisfaction des parties prenantes.',
-    responsable: P(0), delaiAccuse: '48 h ouvrées', delaiCloture: '10 jours ouvrés (réponse)',
+    responsable: P(0), delaiAccuse: '48 h ouvrées', delaiTraitement: '10 jours ouvrés après réception (réponse)', delaiCloture: 'Dès l\'action faite',
     indicateurs: ['Nombre de réclamations', 'Délai moyen de traitement', 'Taux de clôture'],
     swimlanes: [
       { acteur: 'Client/Stagiaire', etape: 'Émet une réclamation', delai: '-', output: 'Réclamation reçue' },
