@@ -92,9 +92,9 @@ export const supprimerContrat = async (id) => must(await supabase.from('hr_emplo
 
 /** Rémunérations d'un contrat : lecture journalisée par la base */
 export const voirRemuneration = async (employmentId) => must(await supabase.rpc('hr_remuneration', { p_employment: employmentId }))
-export async function ajouterRemuneration(employmentId, { amount, period, effective_on, note }) {
+export async function ajouterRemuneration(employmentId, { amount, period, effective_on, note, components }) {
   // Pas de lecture en retour : la table n'est lue que par hr_remuneration (consultation journalisée)
-  must(await supabase.from('hr_compensation').insert({ employment_id: employmentId, amount: Number(amount), period, effective_on, note: note || null }))
+  must(await supabase.from('hr_compensation').insert({ employment_id: employmentId, amount: Number(amount), period, effective_on, note: note || null, components: components?.trim() || null }))
 }
 
 export async function enregistrerEquipe(e) {

@@ -3473,7 +3473,7 @@ begin
     perform set_config('request.jwt.claims', '', true);
     v_total := v_total + 5;
     declare
-      d_co uuid := app.company_default(); d_p uuid; d_norm uuid; d_res uuid; d_ok boolean; d_ok2 boolean; d_n int; d_m int; d_q int;
+      d_co uuid := app.company_default(); d_p uuid; d_norm uuid; d_res uuid; d_ctr uuid; d_ok boolean; d_ok2 boolean; d_n int; d_m int; d_q int;
       d_chemin text; d_avant int;
     begin
       insert into public.hr_people (first_name, last_name, profile_id) values ('Essai', 'Documents', u_lec) on conflict do nothing;
@@ -3485,7 +3485,10 @@ begin
       select m.id, 'rh' from public.company_members m where m.profile_id = u_ges and m.company_id = d_co
       on conflict do nothing;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
-      values (d_co, d_p, 'contrat', 'normal', 'Contrat essai', d_co || '/' || d_p || '/contrat.pdf') returning id into d_norm;
+      values (d_co, d_p, 'fiche_poste', 'normal', 'Fiche de poste essai', d_co || '/' || d_p || '/contrat.pdf') returning id into d_norm;
+      -- Contrat : toujours restreint depuis 0525 (choix de H du 18/11), lu par RH, direction et super administrateur
+      insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (d_co, d_p, 'contrat', 'restreint', 'Contrat essai', d_co || '/' || d_p || '/contrat-signe.pdf') returning id into d_ctr;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
       values (d_co, d_p, 'sante', 'restreint', 'Avis essai', d_co || '/' || d_p || '/avis.pdf') returning id into d_res;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
@@ -3503,11 +3506,11 @@ begin
       d_ok := false;
       begin
         insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
-        values (d_co, d_p, 'contrat', 'normal', 'Faux contrat', d_co || '/' || d_p || '/faux.pdf');
+        values (d_co, d_p, 'fiche_poste', 'normal', 'Faux document', d_co || '/' || d_p || '/faux.pdf');
       exception when insufficient_privilege then d_ok := true; end;
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
-      if d_n = 3 and d_m = 1 and d_ok then
+      if d_n = 4 and d_m = 1 and d_ok then
         v_lines := v_lines || 'OK      lec   0301 : la personne voit ses documents (dont restreint et bulletin) et son suivi, dépose un justificatif, pas un contrat'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   lec   0301 : documents de la personne (' || d_n || ', ' || d_m || ', ' || d_ok || ')')::text; end if;
 
@@ -3519,10 +3522,16 @@ begin
       d_chemin := public.hr_document_ouvrir(d_norm);
       d_ok := false;
       begin perform public.hr_document_ouvrir(d_res); exception when insufficient_privilege then d_ok := true; end;
+      -- Avant 0525 la direction ne lit pas un contrat restreint ; après, si (droit « Voir les contrats de travail »)
+      if to_regprocedure('public.hr_document_protege(uuid)') is not null then
+        d_ok2 := public.hr_document_ouvrir(d_ctr) like '%/contrat-signe.pdf' and d_n = 2;
+      else
+        d_ok2 := d_n = 1;
+      end if;
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
-      if d_n = 1 and d_m = 0 and d_q = 1 and d_chemin like '%/contrat.pdf' and d_ok then
-        v_lines := v_lines || 'OK      dir   0301 : la direction voit le contrat et les habilitations, ni restreint, ni bulletin, ni suivi de santé'::text;
+      if d_m = 0 and d_q = 1 and d_chemin like '%/contrat.pdf' and d_ok and d_ok2 then
+        v_lines := v_lines || 'OK      dir   0301 : la direction voit la fiche de poste, le contrat (0525) et les habilitations, ni santé, ni bulletin, ni suivi de santé'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0301 : documents pour la direction (' || d_n || ', ' || d_m || ', ' || d_q || ', ' || d_ok || ')')::text; end if;
 
       d_avant := (select count(*) from public.audit_logs where entity_type = 'document_rh' and action = 'view' and entity_id = d_res);
@@ -3533,7 +3542,7 @@ begin
       d_chemin := public.hr_document_ouvrir(d_res);
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
-      if d_n = 4 and d_m = 1 and d_chemin like '%/avis.pdf'
+      if d_n = 5 and d_m = 1 and d_chemin like '%/avis.pdf'
          and (select count(*) from public.audit_logs where entity_type = 'document_rh' and action = 'view' and entity_id = d_res) = d_avant + 1 then
         v_lines := v_lines || 'OK      rh    0301 : la RH voit les documents restreints et le suivi de santé, chaque consultation est journalisée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   rh    0301 : documents restreints pour la RH (' || d_n || ', ' || d_m || ')')::text; end if;

@@ -35,6 +35,9 @@ import RegistrePaie from './RegistrePaie'
 import Postes from './Postes'
 import Affichages from './Affichages'
 import AccueilSecuriteFiche from './AccueilSecurite'
+import ContratEcrit from './ContratEcrit'
+import ModelesContrats from './ModelesContrats'
+import { MOTIFS_CDD, estRemplacement, sansTermePermis } from '../lib/rhContrats'
 import { chargerPostes, emploiDuContrat } from '../lib/rhPostes'
 import { EntretiensFiche, ListesFiche } from './EntretiensListes'
 import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
@@ -233,6 +236,7 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
     contract_type: 'cdi', start_on: new Date().toISOString().slice(0, 10), end_on: '', trial_end_on: '', end_reason: '',
     job_title: '', job_id: '', qualification: '', team_id: '', manager_person_id: '', weekly_hours: '35', days_per_year: '',
     schedule_id: '', establishment_id: '', job_description: '', agency_name: '', agency_address: '', authorization_on: '',
+    work_places: '', cdd_reason: '', cdd_replaced_name: '', cdd_replaced_qualification: '', cdd_min_end_on: '', cdd_renewable: false, risky_post: false,
     ...Object.fromEntries(Object.entries(contrat || {}).map(([k, x]) => [k, x ?? ''])),
   }))
   const [listes, setListes] = useState({ equipes: [], horaires: [], etablissements: [], personnes: [], postes: [] })
@@ -248,6 +252,7 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
     setBusy(true)
     try {
       const nul = (x) => (x === '' ? null : x)
+      const cdd = v.contract_type === 'cdd'
       await enregistrerContrat({
         ...(contrat?.id ? { id: contrat.id } : {}), person_id: personId, contract_type: v.contract_type, start_on: v.start_on,
         end_on: nul(v.end_on), trial_end_on: nul(v.trial_end_on), end_reason: v.end_reason, job_title: v.job_title, job_id: nul(v.job_id),
@@ -255,6 +260,13 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
         weekly_hours: v.weekly_hours, days_per_year: v.days_per_year, schedule_id: nul(v.schedule_id),
         establishment_id: nul(v.establishment_id), job_description: v.job_description,
         agency_name: v.agency_name, agency_address: v.agency_address, authorization_on: nul(v.authorization_on),
+        // Mentions du contrat écrit (0525) : les champs du CDD n'existent que pour un CDD
+        work_places: v.work_places, risky_post: !!v.risky_post,
+        cdd_reason: cdd ? nul(v.cdd_reason) : null,
+        cdd_replaced_name: cdd && estRemplacement(v.cdd_reason) ? v.cdd_replaced_name : null,
+        cdd_replaced_qualification: cdd && estRemplacement(v.cdd_reason) ? v.cdd_replaced_qualification : null,
+        cdd_min_end_on: cdd && !v.end_on && sansTermePermis(v.cdd_reason) ? nul(v.cdd_min_end_on) : null,
+        cdd_renewable: cdd && !!v.cdd_renewable,
       })
       toast.success('Contrat enregistré')
       onSaved()
@@ -311,6 +323,30 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
           </div>
         )}
         <Champ label="Fiche de poste (résumé)"><textarea className="input" rows={2} value={v.job_description} onChange={m('job_description')} /></Champ>
+        <Champ label="Lieux de travail (repris dans le contrat écrit)"><input className="input" maxLength={500} value={v.work_places} onChange={m('work_places')} placeholder="Siège de Plomelin et chantiers des clients en Bretagne…" /></Champ>
+        {v.contract_type === 'cdd' && (
+          <div className="rounded-ui-sm border border-gray-200 p-3 space-y-3">
+            <div className="text-ui-sm font-semibold">CDD : mentions obligatoires (L1242-12)</div>
+            <Champ label="Motif du recours (L1242-2)">
+              <select className="select" value={v.cdd_reason} onChange={m('cdd_reason')}>
+                <option value="">À choisir</option>
+                {Object.entries(MOTIFS_CDD).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+            </Champ>
+            {estRemplacement(v.cdd_reason) && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Champ label="Nom de la personne remplacée"><input className="input" maxLength={200} value={v.cdd_replaced_name} onChange={m('cdd_replaced_name')} /></Champ>
+                <Champ label="Sa qualification"><input className="input" maxLength={200} value={v.cdd_replaced_qualification} onChange={m('cdd_replaced_qualification')} /></Champ>
+              </div>
+            )}
+            {!v.end_on && sansTermePermis(v.cdd_reason) && (
+              <Champ label="Sans terme précis : fin de la durée minimale (L1242-7)"><input className="input" type="date" value={v.cdd_min_end_on} onChange={m('cdd_min_end_on')} /></Champ>
+            )}
+            {!v.end_on && !sansTermePermis(v.cdd_reason) && v.cdd_reason && <p className="text-ui-sm text-amber-700">Ce motif impose une date de fin précise.</p>}
+            <label className="flex items-center gap-2 text-ui-sm min-h-[44px]"><input type="checkbox" checked={!!v.cdd_renewable} onChange={(e) => setV({ ...v, cdd_renewable: e.target.checked })} />Renouvelable (clause reprise dans le contrat)</label>
+          </div>
+        )}
+        <label className="flex items-center gap-2 text-ui-sm min-h-[44px]"><input type="checkbox" checked={!!v.risky_post} onChange={(e) => setV({ ...v, risky_post: e.target.checked })} />Poste sur la liste des postes à risques particuliers (L4154-2)</label>
       </form>
     </Sheet>
   )
@@ -319,7 +355,7 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
 function Remuneration({ contrat, peutSaisir, peutVoir }) {
   const [lignes, setLignes] = useState(null)
   const [saisie, setSaisie] = useState(false)
-  const [v, setV] = useState({ amount: '', period: 'mensuel', effective_on: new Date().toISOString().slice(0, 10), note: '' })
+  const [v, setV] = useState({ amount: '', period: 'mensuel', effective_on: new Date().toISOString().slice(0, 10), note: '', components: '' })
   const voir = async () => { try { setLignes(await voirRemuneration(contrat.id)) } catch (e) { toast.error(e.message) } }
   const ajouter = async (e) => {
     e.preventDefault()
@@ -335,13 +371,14 @@ function Remuneration({ contrat, peutSaisir, peutVoir }) {
       </div>
       {lignes && (lignes.length === 0
         ? <p className="text-ui-sm muted">Aucune rémunération saisie.</p>
-        : <ul className="text-ui-sm space-y-1">{lignes.map((l) => <li key={l.id}>{euros(l.amount)} {PERIODES[l.period]}, depuis le {fr(l.effective_on)}{l.note ? ` (${l.note})` : ''}</li>)}</ul>)}
+        : <ul className="text-ui-sm space-y-1">{lignes.map((l) => <li key={l.id}>{euros(l.amount)} {PERIODES[l.period]}, depuis le {fr(l.effective_on)}{l.components ? `, primes et accessoires : ${l.components}` : ''}{l.note ? ` (${l.note})` : ''}</li>)}</ul>)}
       {saisie && (
         <form onSubmit={ajouter} className="grid gap-2 sm:grid-cols-[8rem_9rem_10rem_1fr_auto] items-end">
           <Champ label="Montant brut"><input className="input" inputMode="decimal" required value={v.amount} onChange={(e) => setV({ ...v, amount: e.target.value.replace(',', '.') })} /></Champ>
           <Champ label="Période"><select className="select" value={v.period} onChange={(e) => setV({ ...v, period: e.target.value })}>{Object.entries(PERIODES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Champ>
           <Champ label="À partir du"><input className="input" type="date" required value={v.effective_on} onChange={(e) => setV({ ...v, effective_on: e.target.value })} /></Champ>
           <Champ label="Note"><input className="input" value={v.note} onChange={(e) => setV({ ...v, note: e.target.value })} /></Champ>
+          <Champ label="Primes et accessoires (ou « néant »)" className="sm:col-span-4"><input className="input" maxLength={1000} value={v.components} onChange={(e) => setV({ ...v, components: e.target.value })} placeholder="Prime de panier, indemnité de trajet… repris dans le contrat écrit" /></Champ>
           <div className="flex gap-1"><button type="submit" className="btn btn-primary btn-sm">Enregistrer</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaisie(false)}>Annuler</button></div>
         </form>
       )}
@@ -405,7 +442,7 @@ function SoldesFiche({ personId, peutGerer }) {
   )
 }
 
-function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
+function FichePersonne({ peutGerer, peutSalaires, peutRestreints, peutContratsVoir }) {
   const { id } = useParams()
   const { user } = useAuthStore()
   const navigate = useNavigate()
@@ -498,6 +535,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
               </div>
               <EtatDpae contrat={c} peutGerer={peutGerer} onOuvrir={() => setDpae(c)} />
               <Remuneration contrat={c} peutVoir={peutSalaires} peutSaisir={peutSalaires && peutGerer} />
+              <ContratEcrit personne={p} contrat={c} peutGerer={peutGerer} peutContratsVoir={peutContratsVoir} onChange={charger} />
             </div>
           )
         })}
@@ -513,7 +551,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
       <SanteFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer && peutRestreints} />
       <ConsignesFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
       {peutGerer && p.profile_id && <AffichageAdapteFiche profileId={p.profile_id} />}
-      <DocumentsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} peutRestreints={peutRestreints} estMoi={!!user?.id && p.profile_id === user.id} />
+      <DocumentsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} peutRestreints={peutRestreints} peutContratsVoir={peutContratsVoir} estMoi={!!user?.id && p.profile_id === user.id} />
 
       {edition && <FichePersonneSheet personne={p} onClose={() => setEdition(false)} onSaved={() => { setEdition(false); charger() }} />}
       {dpae && <DpaeSheet personne={p} contrat={dpae} onClose={() => setDpae(null)} onSaved={() => { setDpae(null); charger() }} />}
@@ -694,6 +732,8 @@ export default function Personnel() {
   const peutValider = can('rh.absences.valider') === true
   const peutVoirTout = can('rh.dossiers.voir') === true
   const peutRestreints = can('rh.documents.restreints') === true
+  // Contrats et avenants (0525) : RH, Super administrateur, Direction
+  const peutContratsVoir = can('rh.contrats.voir') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
   const [responsable, setResponsable] = useState(false)
   const [responsableConnu, setResponsableConnu] = useState(false)
@@ -702,7 +742,7 @@ export default function Personnel() {
   const peutValiderAbs = peutValider || responsable
   const peutValiderHeures = can('rh.heures.valider') === true || responsable
   const peutTableau = peutVoirTout || peutValiderAbs || peutValiderHeures
-  const ONGLETS = ['tableau', 'mon-espace', 'annuaire', 'absences', 'heures', 'equipes', 'postes', 'affichages', 'horaires', 'registre']
+  const ONGLETS = ['tableau', 'mon-espace', 'annuaire', 'absences', 'heures', 'equipes', 'postes', 'affichages', 'contrats', 'horaires', 'registre']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
   // Technicien de terrain : seulement « Mon espace » (les autres onglets lui sont fermés)
@@ -712,7 +752,7 @@ export default function Personnel() {
     { id: 'mon-espace', label: 'Mon espace' },
     { id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'heures', label: 'Heures' },
     { id: 'equipes', label: 'Équipes' },
-    ...(peutVoirTout || peutConfigurer ? [{ id: 'postes', label: 'Postes et titres' }, { id: 'affichages', label: 'Affichages' }] : []),
+    ...(peutVoirTout || peutConfigurer ? [{ id: 'postes', label: 'Postes et titres' }, { id: 'affichages', label: 'Affichages' }, { id: 'contrats', label: 'Contrats' }] : []),
     { id: 'horaires', label: 'Horaires' },
     ...(peutVoirTout ? [{ id: 'registre', label: 'Registre et paie' }] : []),
   ]
@@ -739,9 +779,10 @@ export default function Personnel() {
         <Route path="heures" element={<Heures peutValider={peutValiderHeures} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
         {(peutVoirTout || peutConfigurer) && <Route path="postes" element={<Postes peutConfigurer={peutConfigurer} />} />}
+        {(peutVoirTout || peutConfigurer) && <Route path="contrats" element={<ModelesContrats peutConfigurer={peutConfigurer} />} />}
         {(peutVoirTout || peutConfigurer) && <Route path="affichages" element={<Affichages peutGerer={peutGerer} peutConfigurer={peutConfigurer} />} />}
         <Route path="horaires" element={<div className="space-y-6"><Horaires peutConfigurer={peutConfigurer} /><JoursFeries peutConfigurer={peutConfigurer} /></div>} />
-        <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} />} />
+        <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} peutContratsVoir={peutContratsVoir} />} />
       </Routes>
     </div>
   )
