@@ -1,4 +1,5 @@
 import { societeEnCours, enVueGroupe } from '../company/societes'
+import { ROLES_EXTERIEURS } from '../org/currentOrg'
 import { useState, useEffect, useMemo } from 'react'
 import { CHOIX_CIVILITE_GENRE } from '../genre'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -649,7 +650,7 @@ function UsersSection({ isSuperadmin }) {
       supabase.from('profiles').select('*').order('created_at'),
       supabase.from('trainers').select('id, first_name, last_name').order('last_name'),
     ])
-    setProfiles(data || [])
+    setProfiles((data || []).filter((p) => !ROLES_EXTERIEURS.includes(p.role)))
     setTrainers(tr || [])
     if (isSuperadmin) {
       try { const r = await callApi('/api/admin-users', { action: 'activite' }); setActivite(r.activite || {}) } catch { setActivite({}) }
@@ -706,6 +707,7 @@ function UsersSection({ isSuperadmin }) {
   return (
     <>
       <h2 className="section-title">Utilisateurs et rôles</h2>
+      <p className="text-ui-sm text-gray-500 mb-2">Comptes de l'équipe seulement. Les accès des clients, des formateurs externes et des stagiaires se gèrent depuis leur fiche.</p>
       <div className="overflow-x-auto">
         <table>
           <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Fiche formateur</th><th>Agenda Google</th>{dest && <th>Point et bilan</th>}<th>Actif</th><th></th></tr></thead>
