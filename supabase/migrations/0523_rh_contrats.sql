@@ -587,9 +587,39 @@ as $$
           or (not exists (select 1 from public.hr_documents d where d.file_path = p_path and d.confidentiality <> 'normal'
                           and d.category not in ('contrat', 'avenant'))
               and split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.contrats.voir') x)))
+     -- Scan signé d'un avenant : jamais effacé du stockage (relecture du 18/11, tour 3)
+     and not exists (select 1 from public.hr_documents d join public.hr_contract_amendments a on a.signed_document_id = d.id
+                     where d.file_path = p_path)
 $$;
 revoke all on function app.hr_fichier_supprimable(text) from public, anon;
 grant execute on function app.hr_fichier_supprimable(text) to authenticated;
+
+-- Contrats et avenants toujours restreints (relecture du 18/11, tour 3 : aucun en production le 18/11, reclassés
+-- par sécurité) ; un document ne sort pas des catégories contrat et avenant sans « Documents restreints »
+update public.hr_documents set confidentiality = 'restreint' where category in ('contrat', 'avenant') and confidentiality = 'normal';
+alter table public.hr_documents drop constraint if exists hr_documents_contrat_restreint;
+alter table public.hr_documents add constraint hr_documents_contrat_restreint
+  check (category not in ('contrat', 'avenant') or confidentiality <> 'normal');
+
+create or replace function app.hr_document_contrat_garde()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if old.category in ('contrat', 'avenant') and new.category not in ('contrat', 'avenant')
+     and (select auth.uid()) is not null
+     and old.company_id not in (select app.societes_avec_droit('rh.documents.restreints')) then
+    raise exception 'Un contrat ou un avenant ne change pas de catégorie sans le droit « Documents restreints »' using errcode = '42501';
+  end if;
+  return new;
+end
+$$;
+revoke all on function app.hr_document_contrat_garde() from public, anon, authenticated;
+drop trigger if exists hr_documents_contrat_garde on public.hr_documents;
+create trigger hr_documents_contrat_garde before update on public.hr_documents
+  for each row execute function app.hr_document_contrat_garde();
 
 -- ── 8. Primes et accessoires gardés avec la rémunération (choix de H du 18/11, 16 h 25 ; lus par hr_remuneration) ──
 alter table public.hr_compensation add column if not exists components text;

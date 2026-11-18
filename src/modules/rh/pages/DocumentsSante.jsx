@@ -46,8 +46,10 @@ function Echeance({ iso }) {
 
 /** Catégories qu'on peut déposer : la personne seulement ses justificatifs ; sans « restreints », pas de
  *  justificatif, santé ni bulletin */
-function categoriesPermises({ peutGerer, peutRestreints, estMoi }) {
-  if (peutGerer) return Object.keys(CATEGORIES_DOC).filter((k) => peutRestreints || CATEGORIES_DOC[k].conf === 'normal' || CATEGORIES_DOC[k].conf === null)
+// Contrat et avenant (0523) : aussi avec « Voir les contrats de travail » (Direction)
+const CONTRATS_DOC = ['contrat', 'avenant']
+function categoriesPermises({ peutGerer, peutRestreints, peutContratsVoir = false, estMoi }) {
+  if (peutGerer) return Object.keys(CATEGORIES_DOC).filter((k) => peutRestreints || CATEGORIES_DOC[k].conf === 'normal' || CATEGORIES_DOC[k].conf === null || (peutContratsVoir && CONTRATS_DOC.includes(k)))
   if (estMoi) return ['justificatif']
   return []
 }
@@ -107,12 +109,12 @@ function DepotSheet({ companyId, personId, categories, peutRestreints, onClose, 
   )
 }
 
-export function DocumentsFiche({ companyId, personId, peutGerer = false, peutRestreints = false, estMoi = false, titre = 'Documents' }) {
+export function DocumentsFiche({ companyId, personId, peutGerer = false, peutRestreints = false, peutContratsVoir = false, estMoi = false, titre = 'Documents' }) {
   const [docs, setDocs] = useState(null)
   const [depot, setDepot] = useState(false)
   const charger = useCallback(() => { chargerDocuments(personId).then(setDocs).catch(() => setDocs([])) }, [personId])
   useEffect(() => { charger() }, [charger])
-  const categories = categoriesPermises({ peutGerer, peutRestreints, estMoi })
+  const categories = categoriesPermises({ peutGerer, peutRestreints, peutContratsVoir, estMoi })
 
   const ouvrir = async (d) => { try { await ouvrirDocument(d.id) } catch (e) { toast.error(e.message) } }
   const supprimer = async (d) => {
@@ -147,7 +149,7 @@ export function DocumentsFiche({ companyId, personId, peutGerer = false, peutRes
               </button>
               {d.confidentiality !== 'normal' && <span className={`badge ${c.badge} flex-none`} title={c.aide}><Lock className="w-3 h-3" aria-hidden="true" />{c.label}</span>}
               <button type="button" className="btn btn-ghost btn-icon" aria-label={`Ouvrir ${d.title}`} onClick={() => ouvrir(d)}><ExternalLink className="w-4 h-4" /></button>
-              {peutGerer && (d.confidentiality === 'normal' || peutRestreints) && (
+              {peutGerer && (d.confidentiality === 'normal' || peutRestreints || (peutContratsVoir && CONTRATS_DOC.includes(d.category))) && (
                 <button type="button" className="btn btn-ghost btn-icon" aria-label={`Supprimer ${d.title}`} onClick={() => supprimer(d)}><Trash2 className="w-4 h-4" /></button>
               )}
             </li>

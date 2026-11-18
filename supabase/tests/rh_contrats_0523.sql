@@ -159,6 +159,9 @@ begin
   exception when foreign_key_violation then null;
   end;
   if not public.hr_document_protege(v_d) is not null then raise exception 'Essai 0523 : protection du document signé illisible'; end if;
+  if app.hr_fichier_supprimable((select file_path from public.hr_documents where id = v_d)) then
+    raise exception 'Essai 0523 : scan signé d''un avenant effaçable du stockage';
+  end if;
 
   -- 7. Document généré : traçabilité contrôlée
   begin
@@ -171,6 +174,14 @@ begin
   -- Contrat supprimé : ses avenants partent avec lui, même signés
   delete from public.hr_employments where id = v_e;
   if exists (select 1 from public.hr_contract_amendments where id = v_a) then raise exception 'Essai 0523 : avenant resté après la suppression du contrat'; end if;
+
+  -- 10. Contrat et avenant jamais « normal » ; scan signé d'avenant jamais effaçable du stockage
+  begin
+    insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (v_cie, v_p, 'contrat', 'normal', 'Contrat normal essai', v_cie || '/' || v_p || '/essai-0523-n.pdf');
+    raise exception 'Essai 0523 : contrat rangé en « normal » accepté';
+  exception when check_violation then null;
+  end;
 
   -- 9. Droit « Voir les contrats de travail » : RH, Super administrateur, Direction ; pas l'administrateur
   select count(distinct p.key) into v_n from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id

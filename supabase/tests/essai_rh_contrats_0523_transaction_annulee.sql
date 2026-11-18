@@ -593,9 +593,39 @@ as $$
           or (not exists (select 1 from public.hr_documents d where d.file_path = p_path and d.confidentiality <> 'normal'
                           and d.category not in ('contrat', 'avenant'))
               and split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.contrats.voir') x)))
+     -- Scan signé d'un avenant : jamais effacé du stockage (relecture du 18/11, tour 3)
+     and not exists (select 1 from public.hr_documents d join public.hr_contract_amendments a on a.signed_document_id = d.id
+                     where d.file_path = p_path)
 $$;
 revoke all on function app.hr_fichier_supprimable(text) from public, anon;
 grant execute on function app.hr_fichier_supprimable(text) to authenticated;
+
+-- Contrats et avenants toujours restreints (relecture du 18/11, tour 3 : aucun en production le 18/11, reclassés
+-- par sécurité) ; un document ne sort pas des catégories contrat et avenant sans « Documents restreints »
+update public.hr_documents set confidentiality = 'restreint' where category in ('contrat', 'avenant') and confidentiality = 'normal';
+alter table public.hr_documents drop constraint if exists hr_documents_contrat_restreint;
+alter table public.hr_documents add constraint hr_documents_contrat_restreint
+  check (category not in ('contrat', 'avenant') or confidentiality <> 'normal');
+
+create or replace function app.hr_document_contrat_garde()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if old.category in ('contrat', 'avenant') and new.category not in ('contrat', 'avenant')
+     and (select auth.uid()) is not null
+     and old.company_id not in (select app.societes_avec_droit('rh.documents.restreints')) then
+    raise exception 'Un contrat ou un avenant ne change pas de catégorie sans le droit « Documents restreints »' using errcode = '42501';
+  end if;
+  return new;
+end
+$$;
+revoke all on function app.hr_document_contrat_garde() from public, anon, authenticated;
+drop trigger if exists hr_documents_contrat_garde on public.hr_documents;
+create trigger hr_documents_contrat_garde before update on public.hr_documents
+  for each row execute function app.hr_document_contrat_garde();
 
 -- ── 8. Primes et accessoires gardés avec la rémunération (choix de H du 18/11, 16 h 25 ; lus par hr_remuneration) ──
 alter table public.hr_compensation add column if not exists components text;
@@ -767,6 +797,9 @@ begin
   exception when foreign_key_violation then null;
   end;
   if not public.hr_document_protege(v_d) is not null then raise exception 'Essai 0523 : protection du document signé illisible'; end if;
+  if app.hr_fichier_supprimable((select file_path from public.hr_documents where id = v_d)) then
+    raise exception 'Essai 0523 : scan signé d''un avenant effaçable du stockage';
+  end if;
 
   -- 7. Document généré : traçabilité contrôlée
   begin
@@ -779,6 +812,14 @@ begin
   -- Contrat supprimé : ses avenants partent avec lui, même signés
   delete from public.hr_employments where id = v_e;
   if exists (select 1 from public.hr_contract_amendments where id = v_a) then raise exception 'Essai 0523 : avenant resté après la suppression du contrat'; end if;
+
+  -- 10. Contrat et avenant jamais « normal » ; scan signé d'avenant jamais effaçable du stockage
+  begin
+    insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (v_cie, v_p, 'contrat', 'normal', 'Contrat normal essai', v_cie || '/' || v_p || '/essai-0523-n.pdf');
+    raise exception 'Essai 0523 : contrat rangé en « normal » accepté';
+  exception when check_violation then null;
+  end;
 
   -- 9. Droit « Voir les contrats de travail » : RH, Super administrateur, Direction ; pas l'administrateur
   select count(distinct p.key) into v_n from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id
@@ -4279,7 +4320,7 @@ begin
     perform set_config('request.jwt.claims', '', true);
     v_total := v_total + 5;
     declare
-      d_co uuid := app.company_default(); d_p uuid; d_norm uuid; d_res uuid; d_ok boolean; d_ok2 boolean; d_n int; d_m int; d_q int;
+      d_co uuid := app.company_default(); d_p uuid; d_norm uuid; d_res uuid; d_ctr uuid; d_ok boolean; d_ok2 boolean; d_n int; d_m int; d_q int;
       d_chemin text; d_avant int;
     begin
       insert into public.hr_people (first_name, last_name, profile_id) values ('Essai', 'Documents', u_lec) on conflict do nothing;
@@ -4291,7 +4332,10 @@ begin
       select m.id, 'rh' from public.company_members m where m.profile_id = u_ges and m.company_id = d_co
       on conflict do nothing;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
-      values (d_co, d_p, 'contrat', 'normal', 'Contrat essai', d_co || '/' || d_p || '/contrat.pdf') returning id into d_norm;
+      values (d_co, d_p, 'fiche_poste', 'normal', 'Fiche de poste essai', d_co || '/' || d_p || '/contrat.pdf') returning id into d_norm;
+      -- Contrat : toujours restreint depuis 0523 (choix de H du 18/11), lu par RH, direction et super administrateur
+      insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (d_co, d_p, 'contrat', 'restreint', 'Contrat essai', d_co || '/' || d_p || '/contrat-signe.pdf') returning id into d_ctr;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
       values (d_co, d_p, 'sante', 'restreint', 'Avis essai', d_co || '/' || d_p || '/avis.pdf') returning id into d_res;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
@@ -4309,11 +4353,11 @@ begin
       d_ok := false;
       begin
         insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
-        values (d_co, d_p, 'contrat', 'normal', 'Faux contrat', d_co || '/' || d_p || '/faux.pdf');
+        values (d_co, d_p, 'fiche_poste', 'normal', 'Faux document', d_co || '/' || d_p || '/faux.pdf');
       exception when insufficient_privilege then d_ok := true; end;
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
-      if d_n = 3 and d_m = 1 and d_ok then
+      if d_n = 4 and d_m = 1 and d_ok then
         v_lines := v_lines || 'OK      lec   0301 : la personne voit ses documents (dont restreint et bulletin) et son suivi, dépose un justificatif, pas un contrat'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   lec   0301 : documents de la personne (' || d_n || ', ' || d_m || ', ' || d_ok || ')')::text; end if;
 
@@ -4325,10 +4369,16 @@ begin
       d_chemin := public.hr_document_ouvrir(d_norm);
       d_ok := false;
       begin perform public.hr_document_ouvrir(d_res); exception when insufficient_privilege then d_ok := true; end;
+      -- Avant 0523 la direction ne lit pas un contrat restreint ; après, si (droit « Voir les contrats de travail »)
+      if to_regprocedure('public.hr_document_protege(uuid)') is not null then
+        d_ok2 := public.hr_document_ouvrir(d_ctr) like '%/contrat-signe.pdf' and d_n = 2;
+      else
+        d_ok2 := d_n = 1;
+      end if;
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
-      if d_n = 1 and d_m = 0 and d_q = 1 and d_chemin like '%/contrat.pdf' and d_ok then
-        v_lines := v_lines || 'OK      dir   0301 : la direction voit le contrat et les habilitations, ni restreint, ni bulletin, ni suivi de santé'::text;
+      if d_m = 0 and d_q = 1 and d_chemin like '%/contrat.pdf' and d_ok and d_ok2 then
+        v_lines := v_lines || 'OK      dir   0301 : la direction voit la fiche de poste, le contrat (0523) et les habilitations, ni santé, ni bulletin, ni suivi de santé'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0301 : documents pour la direction (' || d_n || ', ' || d_m || ', ' || d_q || ', ' || d_ok || ')')::text; end if;
 
       d_avant := (select count(*) from public.audit_logs where entity_type = 'document_rh' and action = 'view' and entity_id = d_res);
@@ -4339,7 +4389,7 @@ begin
       d_chemin := public.hr_document_ouvrir(d_res);
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
-      if d_n = 4 and d_m = 1 and d_chemin like '%/avis.pdf'
+      if d_n = 5 and d_m = 1 and d_chemin like '%/avis.pdf'
          and (select count(*) from public.audit_logs where entity_type = 'document_rh' and action = 'view' and entity_id = d_res) = d_avant + 1 then
         v_lines := v_lines || 'OK      rh    0301 : la RH voit les documents restreints et le suivi de santé, chaque consultation est journalisée'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   rh    0301 : documents restreints pour la RH (' || d_n || ', ' || d_m || ')')::text; end if;

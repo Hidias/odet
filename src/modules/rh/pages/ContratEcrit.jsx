@@ -162,7 +162,7 @@ export default function ContratEcrit({ personne, contrat, peutGerer, peutContrat
       <div className="flex items-center gap-2 flex-wrap text-ui-sm">
         <span className="font-semibold">Contrat écrit</span>
         {contrat.signed_document_id
-          ? <button type="button" className="btn btn-ghost btn-sm min-h-[44px]" onClick={() => ouvrirDocument(contrat.signed_document_id).catch((e) => toast.error(e.message))}><FileText className="w-4 h-4" aria-hidden="true" />Contrat signé</button>
+          ? ((peutContratsVoir || !peutGerer) ? <button type="button" className="btn btn-ghost btn-sm min-h-[44px]" onClick={() => ouvrirDocument(contrat.signed_document_id).catch((e) => toast.error(e.message))}><FileText className="w-4 h-4" aria-hidden="true" />Contrat signé</button> : <span className="badge badge-success">Signé</span>)
           : <span className="badge badge-warning">Signé : à déposer</span>}
         <RemisLe valeur={contrat.contract_handed_on} peutGerer={peutGerer}
           aide={contrat.contract_type === 'cdd' ? 'CDD : à remettre au plus tard dans les deux jours ouvrables suivant l\'embauche (L1242-13)' : 'Informations principales à remettre au plus tard le 7e jour suivant l\'embauche (R1221-35)'}

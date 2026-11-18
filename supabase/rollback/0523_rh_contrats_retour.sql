@@ -62,6 +62,11 @@ $$;
 revoke all on function app.hr_fichier_supprimable(text) from public, anon;
 grant execute on function app.hr_fichier_supprimable(text) to authenticated;
 
+-- Contrats reclassés en « restreint » : laissés tels quels (aucun en production le 18/11)
+drop trigger if exists hr_documents_contrat_garde on public.hr_documents;
+drop function if exists app.hr_document_contrat_garde();
+alter table public.hr_documents drop constraint if exists hr_documents_contrat_restreint;
+
 delete from public.permission_profile_rights where right_code = 'rh.contrats.voir';
 delete from public.permissions where code = 'rh.contrats.voir';
 

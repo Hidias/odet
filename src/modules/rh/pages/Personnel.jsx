@@ -551,7 +551,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints, peutContratsVo
       <SanteFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer && peutRestreints} />
       <ConsignesFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
       {peutGerer && p.profile_id && <AffichageAdapteFiche profileId={p.profile_id} />}
-      <DocumentsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} peutRestreints={peutRestreints} estMoi={!!user?.id && p.profile_id === user.id} />
+      <DocumentsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} peutRestreints={peutRestreints} peutContratsVoir={peutContratsVoir} estMoi={!!user?.id && p.profile_id === user.id} />
 
       {edition && <FichePersonneSheet personne={p} onClose={() => setEdition(false)} onSaved={() => { setEdition(false); charger() }} />}
       {dpae && <DpaeSheet personne={p} contrat={dpae} onClose={() => setDpae(null)} onSaved={() => { setDpae(null); charger() }} />}
