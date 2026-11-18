@@ -40,7 +40,9 @@ export default function ActionsEquipe() {
   const [form, setForm] = useState(VIDE)
   const [erreur, setErreur] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [vue, setVue] = useVue('actions')
+  // Colonnes par défaut (demande d'Anthony du 09/11, choix de H du 18/11) : nouvelle clé, pour que tout le monde reparte
+  // sur les colonnes ; la liste reste à un clic (téléphone)
+  const [vue, setVue] = useVue('actions_v2', 'colonnes')
   const [types, setTypes] = useState(null)
   const [suite, setSuite] = useState(null)
   const [busySuite, setBusySuite] = useState(false)
@@ -56,6 +58,8 @@ export default function ActionsEquipe() {
     setActions(data || [])
   }
   useEffect(() => { charger(); chargerEquipe().then(setEquipe); chargerTypes().then(setTypes) }, [])
+  // Action créée depuis « Appel entrant » (en-tête) pendant que la page est ouverte
+  useEffect(() => { const f = () => charger(); window.addEventListener('odet:actions-maj', f); return () => window.removeEventListener('odet:actions-maj', f) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (moi?.id && !form.owner_id) setForm((f) => ({ ...f, owner_id: moi.id })) }, [moi?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const typesActifs = useMemo(() => (types || []).filter((t) => t.active !== false), [types])
