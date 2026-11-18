@@ -9,13 +9,17 @@ import { Banner } from '../../ui/Banner'
 import { StatusBadge } from '../../ui/StatusBadge'
 import { chargerEquipe, nomProfil } from './actions'
 import { iso } from './pointSemaine'
-import { chercherFiches, creerFicheProspect, creerActionAppel, statutFiche, SUITES } from './appelEntrant'
+import { chercherFiches, creerFicheProspect, creerActionAppel, statutFiche, SUITES, LIMITE } from './appelEntrant'
 
 export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
   const moi = useAuthStore((s) => s.profile)
   const [texte, setTexte] = useState('')
   const [resultats, setResultats] = useState([])
   const [erreurLecture, setErreurLecture] = useState(false)
+  // Texte dont les résultats sont affichés : tant qu'il diffère de la saisie, la recherche est en cours (rien ne dit
+  // « nouveau prospect » avant la réponse, sinon un clic rapide crée un doublon)
+  const [cherche, setCherche] = useState('')
+  const [ficheCreee, setFicheCreee] = useState(false)
   const [fiche, setFiche] = useState(null)
   const [nouvelle, setNouvelle] = useState(null) // { nom, telephone, contact } quand aucune fiche ne convient
   const [form, setForm] = useState({ suite: 'rappeler', motif: '', contact: '', telephone: '', owner_id: '', due_on: iso(new Date()), urgent: false })
@@ -35,29 +39,32 @@ export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
       if (n !== demande.current) return
       setErreurLecture(r === null)
       setResultats(r || [])
+      setCherche(texte)
     }, 250)
     return () => clearTimeout(t)
   }, [texte, fiche, nouvelle])
 
   const choisir = (c) => {
     setFiche(c)
-    setForm((f) => ({ ...f, contact: f.contact || c.contact_name || '', telephone: f.telephone || c.contact_phone || c.mobile || '' }))
+    // Contact et numéro de la fiche choisie (jamais ceux d'une fiche choisie avant « Changer »)
+    setForm((f) => ({ ...f, contact: c.contact_name || '', telephone: c.contact_phone || c.mobile || '' }))
   }
   const ouvrirCreation = () => {
     const chiffres = texte.replace(/\D/g, '')
     setNouvelle({ nom: chiffres.length >= 6 ? '' : texte.trim(), telephone: chiffres.length >= 6 ? texte.trim() : '', contact: '' })
   }
-  const recommencer = () => { setFiche(null); setNouvelle(null) }
+  const recommencer = () => { setFiche(null); setNouvelle(null); setCherche(''); setForm((f) => ({ ...f, contact: '', telephone: '' })) }
 
   const valider = async (e) => {
     e.preventDefault()
     setBusy(true)
+    let f = fiche
     try {
-      let f = fiche
       if (!f) {
         f = await creerFicheProspect(nouvelle)
         // Si l'action échoue ensuite, la fiche reste choisie : un nouvel essai ne recrée pas de doublon
         setFiche(f)
+        setFicheCreee(true)
         setForm((x) => ({ ...x, contact: x.contact || nouvelle.contact, telephone: x.telephone || nouvelle.telephone }))
         setNouvelle(null)
       }
@@ -70,10 +77,13 @@ export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
       toast.success(fiche ? 'Action créée et reliée à la fiche' : 'Fiche prospect et action créées')
       onClose?.()
     } catch (err) {
-      toast.error(err?.code === '42501' ? 'Enregistrement refusé : vos accès ne le permettent pas.' : err?.message || 'Enregistrement impossible.')
+      const msg = err?.code === '42501' ? 'Enregistrement refusé : vos accès ne le permettent pas.' : err?.message || 'Enregistrement impossible.'
+      // La fiche a pu être créée avant le refus de l'action : le dire, pour ne pas laisser un prospect sans suite
+      toast.error(ficheCreee || (!fiche && f) ? `${msg} La fiche prospect, elle, est créée.` : msg)
     } finally { setBusy(false) }
   }
 
+  const aJour = cherche === texte
   const pret = (fiche || (nouvelle && nouvelle.nom.trim().length >= 2)) && !busy
   const footer = (fiche || nouvelle) ? (
     <>
@@ -97,30 +107,40 @@ export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
             </div>
           </div>
           {erreurLecture && <Banner tone="warning">La recherche n'a pas abouti. Réessayez dans un instant.</Banner>}
-          {texte.trim().length >= 2 && !erreurLecture && (
-            <ul className="grid gap-1" aria-label="Fiches trouvées">
-              {resultats.map((c) => (
-                <li key={c.id}>
-                  <button type="button" onClick={() => choisir(c)}
-                    className="w-full text-left rounded-ui-sm border border-gray-200 hover:bg-gray-50 px-3 py-2 flex items-center gap-2">
-                    <span className="flex-1 min-w-0">
-                      <span className="block font-medium text-gray-900 truncate">{c.name}</span>
-                      <span className="block text-ui-sm text-gray-600 truncate">{[c.city, c.contact_name, c.contact_phone || c.mobile].filter(Boolean).join(' · ')}</span>
-                    </span>
-                    <StatusBadge tone={c.type === 'client' ? 'success' : 'warning'}>{statutFiche(c)}</StatusBadge>
-                  </button>
-                </li>
-              ))}
-              {resultats.length === 0 && <li className="text-ui text-gray-600">Aucune fiche ne correspond : c'est un nouveau prospect.</li>}
-            </ul>
+          {texte.trim().length >= 2 && !erreurLecture && !aJour && (
+            <p className="text-ui text-gray-600" role="status">Recherche en cours…</p>
           )}
-          {texte.trim().length >= 2 && !erreurLecture && peutCreerFiche && (
-            <button type="button" className="btn btn-secondary justify-self-start" onClick={ouvrirCreation}>
-              <UserPlus className="w-4 h-4" />{resultats.length ? 'Aucune de ces fiches : nouveau prospect' : 'Créer la fiche du nouveau prospect'}
-            </button>
-          )}
-          {texte.trim().length >= 2 && !erreurLecture && !peutCreerFiche && resultats.length === 0 && (
-            <Banner tone="info">La création de fiche ne fait pas partie de vos accès : demandez-la à un collègue.</Banner>
+          {texte.trim().length >= 2 && !erreurLecture && aJour && (
+            <>
+              <p className="sr-only" role="status">{resultats.length ? `${Math.min(resultats.length, LIMITE)} fiche(s) trouvée(s)` : 'Aucune fiche trouvée'}</p>
+              <ul className="grid gap-1" aria-label="Fiches trouvées">
+                {resultats.slice(0, LIMITE).map((c) => (
+                  <li key={c.id}>
+                    <button type="button" onClick={() => choisir(c)}
+                      className="w-full text-left rounded-ui-sm border border-gray-200 hover:bg-gray-50 px-3 py-2 flex items-center gap-2">
+                      <span className="flex-1 min-w-0">
+                        <span className="block font-medium text-gray-900 truncate">{c.name}</span>
+                        <span className="block text-ui-sm text-gray-600 truncate">{[c.city, c.contact_name, c.contact_phone || c.mobile].filter(Boolean).join(' · ')}</span>
+                      </span>
+                      {['archive', 'inactif'].includes(c.status) && <StatusBadge tone="neutral">{c.status === 'archive' ? 'Archivée' : 'Inactive'}</StatusBadge>}
+                      <StatusBadge tone={c.type === 'client' ? 'success' : 'warning'}>{statutFiche(c)}</StatusBadge>
+                    </button>
+                  </li>
+                ))}
+                {resultats.length === 0 && <li className="text-ui text-gray-600">Aucune fiche ne correspond : c'est un nouveau prospect.</li>}
+              </ul>
+              {resultats.length > LIMITE && (
+                <Banner tone="info">Plus de {LIMITE} fiches correspondent : précisez le nom ou le numéro avant de créer une fiche.</Banner>
+              )}
+              {peutCreerFiche && resultats.length <= LIMITE && (
+                <button type="button" className="btn btn-secondary justify-self-start" onClick={ouvrirCreation}>
+                  <UserPlus className="w-4 h-4" />{resultats.length ? 'Aucune de ces fiches : nouveau prospect' : 'Créer la fiche du nouveau prospect'}
+                </button>
+              )}
+              {!peutCreerFiche && resultats.length === 0 && (
+                <Banner tone="info">La création de fiche ne fait pas partie de vos accès : demandez-la à un collègue.</Banner>
+              )}
+            </>
           )}
         </>
       )}

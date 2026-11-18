@@ -149,9 +149,12 @@ export default function Layout() {
     return visibleSections(modules, userRole, can, { simple: true })
   }, [simple, fieldOnly, sectionsCompletes, modules, userRole, rights, can])
   const creations = useMemo(() => (fieldOnly ? [] : creationsVisibles(modules, userRole, can)), [fieldOnly, modules, userRole, rights, can])
-  // Appel entrant (B110) : pour qui a la page Actions ; la fiche prospect se crée seulement avec le droit sur les clients
+  // Appel entrant (B110) : pour qui a la page Actions et lit les fiches clients (sinon chaque recherche dirait à tort
+  // « nouveau prospect ») ; la fiche prospect se crée seulement avec le droit de modifier les clients.
+  // Droits encore inconnus (null) : même convention que le menu « Nouveau », la base tranche
   const [appelOuvert, setAppelOuvert] = useState(false)
-  const appelEntrant = useMemo(() => !fieldOnly && accesPage('/actions', userRole, can), [fieldOnly, userRole, rights, can])
+  const appelEntrant = useMemo(() => !fieldOnly && (modules || []).includes('commercial') && accesPage('/actions', userRole, can)
+    && accesPage('/clients', userRole, can) && can?.('clients.fiches.voir') !== false, [fieldOnly, modules, userRole, rights, can])
   const appelCreeFiche = useMemo(() => (modules || []).includes('commercial') && can?.('clients.fiches.modifier') !== false && accesPage('/clients', userRole, can),
     [modules, userRole, rights, can])
   // Bandeau d'information et « Quoi de neuf » (chantier A) : état lu par la base, relu toutes les 15 minutes

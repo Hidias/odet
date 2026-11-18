@@ -12,7 +12,7 @@ vi.mock('../src/core/supabase.js', () => ({
     }),
   },
 }))
-const { filtreRecherche, statutFiche, titreAction, detailAction, chercherFiches, creerFicheProspect, creerActionAppel } = await import('../src/core/point/appelEntrant.js')
+const { filtreRecherche, chiffresTelephone, societeAction, statutFiche, titreAction, detailAction, chercherFiches, creerFicheProspect, creerActionAppel } = await import('../src/core/point/appelEntrant.js')
 
 beforeEach(() => { appels.length = 0; lecture = { data: [], error: null } })
 
@@ -21,19 +21,23 @@ describe('Recherche de la fiche', () => {
     expect(filtreRecherche('')).toBeNull()
     expect(filtreRecherche(' a ')).toBeNull()
   })
-  it('nom : raison sociale ou nom, caractères du filtre neutralisés', () => {
-    const f = filtreRecherche('Hôtel (Port), Concarneau')
-    expect(f).toContain('name.ilike.*Hôtel Port Concarneau*')
-    expect(f).toContain('legal_name.ilike.*Hôtel Port Concarneau*')
-    expect(f).not.toMatch(/[()]/)
+  it('nom : caractères du filtre remplacés par un joker (la fiche enregistrée avec eux est retrouvée)', () => {
+    const f = filtreRecherche('Garage (Brest), Nord')
+    expect(f).toContain('name.ilike.*Garage *Brest* Nord*')
+    expect(f).toContain('legal_name.ilike.*Garage *Brest* Nord*')
+    expect(f).not.toMatch(/[()"]/)
+    expect(filtreRecherche('(,)')).toBeNull()
   })
   it('téléphone : chiffres dans l\'ordre, quel que soit le format de la fiche', () => {
     const f = filtreRecherche('06 35 20 04 28')
-    expect(f).toContain('contact_phone.ilike.*0*6*3*5*2*0*0*4*2*8*')
-    expect(f).toContain('mobile.ilike.*0*6*3*5*2*0*0*4*2*8*')
+    expect(f).toContain('contact_phone.ilike.*6*3*5*2*0*0*4*2*8*')
+    expect(f).toContain('mobile.ilike.*6*3*5*2*0*0*4*2*8*')
   })
-  it('téléphone international ramené au format national', () => {
-    expect(filtreRecherche('+33 6 35 20 04 28')).toContain('contact_phone.ilike.*0*6*3*5*2*0*0*4*2*8*')
+  it('téléphone : même motif pour 06…, +33 6… et 0033 6… (fiche enregistrée dans un autre format retrouvée)', () => {
+    expect(chiffresTelephone('06 35 20 04 28')).toBe('635200428')
+    expect(chiffresTelephone('+33 6 35 20 04 28')).toBe('635200428')
+    expect(chiffresTelephone('0033 6 35 20 04 28')).toBe('635200428')
+    expect(chiffresTelephone('35 20 04')).toBe('352004')
   })
   it('SIRET et SIREN exacts', () => {
     expect(filtreRecherche('830 695 649 00020')).toContain('siret.eq.83069564900020')
@@ -46,6 +50,18 @@ describe('Recherche de la fiche', () => {
   it('texte trop court : aucune lecture', async () => {
     expect(await chercherFiches('a')).toEqual([])
     expect(appels).toHaveLength(0)
+  })
+})
+
+describe('Société de l\'action', () => {
+  it('société où l\'on travaille quand la fiche lui est partagée', () => {
+    expect(societeAction({ company_id: 'A', company_ids: ['A', 'C'] }, 'C')).toBe('C')
+    expect(societeAction({ company_id: 'A', company_ids: ['A'] }, 'A')).toBe('A')
+  })
+  it('sinon société de la fiche ; aucune : base', () => {
+    expect(societeAction({ company_id: 'A', company_ids: ['A'] }, 'C')).toBe('A')
+    expect(societeAction({ company_id: 'A' }, null)).toBe('A')
+    expect(societeAction({}, null)).toBeNull()
   })
 })
 

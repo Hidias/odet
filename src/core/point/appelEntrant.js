@@ -6,8 +6,21 @@
 // Rien de nouveau en base : team_actions.client_id existe depuis 0407, source « manuel ».
 import { supabase } from '../supabase'
 import { creerAction } from './actions'
+import { societeEnCours, enVueGroupe, MESSAGE_VUE_GROUPE } from '../company/societes'
 
 const chiffres = (s) => String(s || '').replace(/\D/g, '')
+
+/**
+ * Chiffres d'un téléphone sans le préfixe : un numéro français complet (06…, +33 6…, 0033 6…) est réduit à ses 9 derniers
+ * chiffres, pour retrouver la fiche quel que soit le format enregistré ; un numéro partiel est cherché tel quel.
+ */
+export function chiffresTelephone(n) {
+  const d = chiffres(n)
+  if (d.length === 10 && d.startsWith('0')) return d.slice(1)
+  if (d.length === 11 && d.startsWith('33')) return d.slice(2)
+  if (d.length === 13 && d.startsWith('0033')) return d.slice(4)
+  return d
+}
 
 /**
  * Filtre PostgREST de la recherche (null si le texte est trop court).
@@ -18,9 +31,10 @@ export function filtreRecherche(texte) {
   const t = String(texte || '').trim()
   if (t.length < 2) return null
   const parts = []
-  // Caractères qui casseraient le filtre PostgREST (virgule, parenthèses) ou joker : remplacés par un joker simple
-  const nom = t.replace(/[,()%*\\"]/g, ' ').replace(/\s+/g, ' ').trim()
-  if (nom.length >= 2) {
+  // Caractères qui casseraient le filtre PostgREST (virgule, parenthèses, guillemet) : remplacés par un joker, pour que
+  // « Garage (Brest) » retrouve la fiche enregistrée avec ses parenthèses
+  const nom = t.replace(/[,()%*\\"]/g, '*').replace(/\s+/g, ' ').replace(/\*+/g, '*').replace(/^[\s*]+|[\s*]+$/g, '')
+  if (nom.replace(/[\s*]/g, '').length >= 2) {
     parts.push(`name.ilike.*${nom}*`)
     parts.push(`legal_name.ilike.*${nom}*`)
   }
@@ -28,9 +42,7 @@ export function filtreRecherche(texte) {
   if (n.length === 14) parts.push(`siret.eq.${n}`)
   if (n.length === 9) parts.push(`siren.eq.${n}`)
   if (n.length >= 6) {
-    // Numéro international (+33 6…) ramené au format national (06…)
-    const national = n.startsWith('33') && n.length === 11 ? `0${n.slice(2)}` : n
-    const motif = `*${national.split('').join('*')}*`
+    const motif = `*${chiffresTelephone(n).split('').join('*')}*`
     parts.push(`contact_phone.ilike.${motif}`, `mobile.ilike.${motif}`)
   }
   return parts.length ? parts.join(',') : null
@@ -62,18 +74,21 @@ export function detailAction({ contact, telephone, motif }) {
   return t ? t.slice(0, 2000) : null
 }
 
-/** Fiches qui correspondent (8 au plus) ; null si la lecture a échoué (jamais une liste vide inventée) */
+export const LIMITE = 8
+
+/** Fiches qui correspondent (LIMITE + 1 lues : au-delà de LIMITE, l'écran demande de préciser) ; null si la lecture a échoué (jamais une liste vide inventée) */
 export async function chercherFiches(texte) {
   const filtre = filtreRecherche(texte)
   if (!filtre) return []
   const { data, error } = await supabase.from('clients')
-    .select('id, name, legal_name, city, type, status, contact_name, contact_phone, mobile, company_id')
-    .or(filtre).order('name').limit(8)
+    .select('id, name, legal_name, city, type, status, contact_name, contact_phone, mobile, company_id, company_ids')
+    .or(filtre).order('name').limit(LIMITE + 1)
   return error ? null : data || []
 }
 
 /** Fiche prospect créée depuis l'appel (le type n'est jamais écrit à la main : « prospect » par défaut en base) */
 export async function creerFicheProspect({ nom, telephone, contact }) {
+  if (enVueGroupe()) throw new Error(MESSAGE_VUE_GROUPE)
   const name = String(nom || '').trim()
   if (name.length < 2) throw new Error('Nom de l\'entreprise ou de la personne trop court')
   const { data, error } = await supabase.from('clients').insert({
@@ -87,7 +102,17 @@ export async function creerFicheProspect({ nom, telephone, contact }) {
   return data
 }
 
-/** Action de l'équipe reliée à la fiche (dans la société de la fiche) */
+/**
+ * Société de l'action : celle où l'on travaille quand la fiche lui est partagée (une fiche d'une autre société partagée
+ * avec elle serait refusée par la règle d'accès des actions), sinon la société de la fiche.
+ */
+export function societeAction(fiche, enCours = societeEnCours()) {
+  const partagees = Array.isArray(fiche?.company_ids) ? fiche.company_ids : []
+  if (enCours && (fiche?.company_id === enCours || partagees.includes(enCours))) return enCours
+  return fiche?.company_id || null
+}
+
+/** Action de l'équipe reliée à la fiche */
 export async function creerActionAppel({ fiche, suite, motif, contact, telephone, owner_id, due_on, urgent }) {
   if (!fiche?.id) throw new Error('Choisissez ou créez d\'abord la fiche')
   return creerAction({
@@ -97,6 +122,6 @@ export async function creerActionAppel({ fiche, suite, motif, contact, telephone
     due_on: due_on || null,
     urgent: !!urgent,
     client_id: fiche.id,
-    company_id: fiche.company_id || null,
+    company_id: societeAction(fiche),
   })
 }
