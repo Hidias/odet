@@ -46,6 +46,12 @@ export const estRefusVueGroupe = (err) => String(err?.message || '').startsWith(
 export const societeEnCours = () => { const c = getCurrentCompanyId(); return c && c !== VUE_GROUPE ? c : null }
 /** Vue groupe choisie dans cet onglet (plusieurs sociétés à la fois) */
 export const enVueGroupe = () => getCurrentCompanyId() === VUE_GROUPE
+/** Société sur laquelle on travaille : celle choisie dans l'onglet, sinon la société par défaut du compte (une seule
+ *  société, aucun choix fait : aucun en-tête n'est envoyé et la base retombe sur cette société). null en vue groupe. */
+export const societeActive = (ctx) => {
+  if (enVueGroupe()) return null
+  return societeEnCours() || (ctx && !ctx.vue_groupe ? ctx.current || null : null)
+}
 
 export function societeChoisie() {
   return getCurrentCompanyId()
