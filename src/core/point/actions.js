@@ -19,6 +19,17 @@ export async function chargerEquipe() {
   return (data || []).filter((p) => p.email)
 }
 
+/**
+ * Filtre « Personne » de la page Actions. « Mes actions » montre aussi les actions sans responsable (à attribuer, par
+ * exemple un appel pris par l'accueil, B111) pour qu'elles ne restent pas invisibles ; « À attribuer » ne montre qu'elles.
+ */
+export function pourPersonne(a, qui, moiId) {
+  if (qui === 'tous') return true
+  if (qui === 'a_attribuer') return !a.owner_id
+  if (qui === 'moi') return a.owner_id === moiId || !a.owner_id
+  return a.owner_id === qui
+}
+
 export const nomProfil = (p) => (p ? (p.display_name || [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email) : '')
 
 export async function creerAction(a) {
