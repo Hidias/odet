@@ -146,6 +146,11 @@ function Assistant({ modules, personnes, onClose, onCree }) {
   )
 }
 
+// IDCC : code de 4 chiffres, zéros compris (0016, 3248), ou vide
+const idccValide = (v) => !(v || '').trim() || /^\d{4}$/.test((v || '').trim())
+const MESSAGE_IDCC = "L'IDCC s'écrit avec 4 chiffres, zéros compris (exemple : 0016 ou 3248)"
+const MESSAGE_REFUS = "Modification refusée : réservée à l'administrateur de la société"
+
 function FicheSociete({ societe, modules, personnes, membres, onChange }) {
   const [f, setF] = useState(societe)
   const [enCours, setEnCours] = useState(false)
@@ -154,17 +159,31 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }))
 
   const enregistrer = async () => {
+    if ((f.idcc || '').trim() !== (societe.idcc || '') && !idccValide(f.idcc)) return toast.error(MESSAGE_IDCC)
     setEnCours(true)
     const patch = Object.fromEntries(CHAMPS.map(([k]) => [k, (f[k] ?? '') === '' ? null : f[k]]))
     patch.legal_name = (f.legal_name || '').trim() || societe.legal_name
+    patch.idcc = (f.idcc || '').trim() || null
     patch.vat_applicable = !!f.vat_applicable
     patch.is_training_org = !!f.is_training_org
     patch.fiscal_year_start_month = Number(f.fiscal_year_start_month) || 1
     patch.status = f.status
-    const { error } = await supabase.from('companies').update(patch).eq('id', societe.id)
+    const { data, error } = await supabase.from('companies').update(patch).eq('id', societe.id).select('id')
     setEnCours(false)
     if (error) return toast.error(error.message)
+    if (!data?.length) return toast.error(MESSAGE_REFUS)
     toast.success('Société enregistrée'); onChange()
+  }
+  // Société de l'instance : son identité vient de Paramètres › Identité, sauf l'IDCC (aucun champ là-bas, jamais recopié)
+  const enregistrerIdcc = async () => {
+    const idcc = (f.idcc || '').trim()
+    if (!idccValide(idcc)) return toast.error(MESSAGE_IDCC)
+    setEnCours(true)
+    const { data, error } = await supabase.from('companies').update({ idcc: idcc || null }).eq('id', societe.id).select('id')
+    setEnCours(false)
+    if (error) return toast.error(error.message)
+    if (!data?.length) return toast.error(MESSAGE_REFUS)
+    toast.success('Convention collective enregistrée'); onChange()
   }
   const module = async (key, enabled) => {
     const { error } = await supabase.rpc('company_module_set', { p_company: societe.id, p_key: key, p_enabled: enabled })
@@ -181,11 +200,11 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
     <div className="grid gap-5">
       <div>
         <h2 className="section-title">{societe.legal_name}</h2>
-        {instance && <p className="muted">Société qui porte l'instance : son identité se saisit dans Paramètres › Identité et Banque (recopiée ici), ses modules dans la Console.</p>}
+        {instance && <p className="muted">Société qui porte l'instance : son identité se saisit dans Paramètres › Identité et Banque (recopiée ici), ses modules dans la Console. Seule la convention collective (IDCC) se saisit ici.</p>}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {CHAMPS.map(([k, l]) => (
-          <Field key={k} label={l}><input className="input" value={f[k] || ''} disabled={instance} onChange={(e) => set(k, e.target.value)} /></Field>
+          <Field key={k} label={l}><input className="input" value={f[k] || ''} disabled={instance && (k !== 'idcc' || enCours)} {...(k === 'idcc' ? { inputMode: 'numeric', maxLength: 4, 'aria-label': l } : {})} onChange={(e) => set(k, e.target.value)} /></Field>
         ))}
         <Field label="Début de l'exercice comptable">
           <select className="select" value={f.fiscal_year_start_month || 1} disabled={instance} onChange={(e) => set('fiscal_year_start_month', e.target.value)}>
@@ -201,6 +220,7 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
         <Toggle checked={!!f.is_training_org} onChange={(v) => set('is_training_org', v)} label="Organisme de formation" disabled={instance} />
       </div>
       {!instance && <div><button type="button" className="btn btn-primary" disabled={enCours} onClick={enregistrer}><Save className="w-4 h-4" />Enregistrer la société</button></div>}
+      {instance && <div><button type="button" className="btn btn-primary" disabled={enCours || (f.idcc || '') === (societe.idcc || '')} onClick={enregistrerIdcc}><Save className="w-4 h-4" />Enregistrer la convention collective</button></div>}
 
       <div className="grid gap-2">
         <h3 className="font-semibold">Établissements</h3>
