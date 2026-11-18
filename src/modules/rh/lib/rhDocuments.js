@@ -110,7 +110,7 @@ export const chargerDocuments = async (personId) => must(await supabase.from('hr
   .eq('person_id', personId).order('doc_date', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }))
 
 /** Dépose le fichier puis enregistre le document ; en cas de refus de la base, le fichier est retiré */
-export async function deposerDocument({ companyId, personId, file, category, confidentiality, title, docDate = null, employmentId = null }) {
+export async function deposerDocument({ companyId, personId, file, category, confidentiality, title, docDate = null, employmentId = null, generatedFrom = null, contentSha256 = null }) {
   if (!file) throw new Error('Choisissez un fichier')
   if (file.size > TAILLE_MAX) throw new Error('Fichier trop lourd (15 Mo au plus)')
   const id = crypto.randomUUID()
@@ -120,6 +120,8 @@ export async function deposerDocument({ companyId, personId, file, category, con
     id, company_id: companyId, person_id: personId, employment_id: employmentId, category, confidentiality,
     title: title?.trim() || CATEGORIES_DOC[category]?.label || file.name, doc_date: docDate || null,
     file_path: path, file_name: file.name, mime_type: file.type || null, size_bytes: file.size,
+    // Contrat ou avenant généré (0523) : modèle d'origine et empreinte du PDF
+    ...(generatedFrom ? { generated_from: generatedFrom, content_sha256: contentSha256 } : {}),
   }).select('id').single()
   if (error) {
     await supabase.storage.from(BUCKET).remove([path]).catch(() => {})

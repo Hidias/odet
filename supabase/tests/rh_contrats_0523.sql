@@ -1,0 +1,148 @@
+-- Essai de 0523 : contrats de travail et avenants.
+-- Rouge sans 0523 (tables et colonnes absentes). Données d'essai créées ici (une société existante seulement), tout est annulé.
+begin;
+set local client_min_messages = warning;
+
+do $$
+declare
+  v_cie uuid; v_p uuid; v_q uuid; v_e uuid; v_e2 uuid; v_d uuid; v_dq uuid; v_a uuid; v_m uuid; v_n int; v_jour date; v_lab text;
+begin
+  select id into v_cie from public.companies order by created_at limit 1;
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'CONTRAT 0523') returning id into v_p;
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'AUTRE 0523') returning id into v_q;
+
+  -- 1. Modèles de départ : trois types en « projet » ; validation sans validateur refusée ; validé, texte figé
+  select count(*) into v_n from public.hr_contract_models where company_id = v_cie and version = 1 and status = 'projet' and kind in ('cdi', 'cdd', 'avenant');
+  if v_n <> 3 then raise exception 'Essai 0523 : 3 modèles de départ attendus (% trouvés)', v_n; end if;
+  perform app.hr_modeles_contrat_depart(v_cie);
+  select count(*) into v_n from public.hr_contract_models where company_id = v_cie;
+  if v_n <> 3 then raise exception 'Essai 0523 : modèles de départ posés deux fois (%)', v_n; end if;
+  select id into v_m from public.hr_contract_models where company_id = v_cie and kind = 'cdi';
+  begin
+    update public.hr_contract_models set status = 'valide' where id = v_m;
+    raise exception 'Essai 0523 : validation sans date ni validateur acceptée';
+  exception when check_violation then null;
+  end;
+  update public.hr_contract_models set status = 'valide', validated_on = current_date, validated_by_name = 'Avocat essai' where id = v_m;
+  begin
+    update public.hr_contract_models set articles = '[{"titre":"x","texte":"y"}]' where id = v_m;
+    raise exception 'Essai 0523 : texte d''un modèle validé modifié';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    update public.hr_contract_models set status = 'projet', validated_on = null, validated_by_name = null where id = v_m;
+    raise exception 'Essai 0523 : modèle validé repassé en projet';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    delete from public.hr_contract_models where id = v_m;
+    raise exception 'Essai 0523 : modèle validé supprimé';
+  exception when invalid_parameter_value then null;
+  end;
+  update public.hr_contract_models set note = 'note modifiable' where id = v_m;
+
+  -- 2. Motif de CDD : seulement sur un CDD ; sans terme précis refusé pour un accroissement
+  begin
+    insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason) values (v_cie, v_p, 'cdi', current_date, 'accroissement');
+    raise exception 'Essai 0523 : motif de CDD accepté sur un CDI';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason, cdd_min_end_on)
+      values (v_cie, v_p, 'cdd', current_date, 'accroissement', current_date + 30);
+    raise exception 'Essai 0523 : CDD sans terme précis accepté pour un accroissement';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason) values (v_cie, v_p, 'cdd', current_date, 'inconnu');
+    raise exception 'Essai 0523 : motif de CDD inconnu accepté';
+  exception when check_violation then null;
+  end;
+
+  -- 3. Jours ouvrables : dimanche et jour férié chômé exclus, samedi compté
+  v_jour := date_trunc('week', current_date + 14)::date + 4;  -- un vendredi
+  insert into public.hr_public_holidays (company_id, day, label, is_worked) values (v_cie, v_jour + 3, 'Férié essai 0523', false)
+    on conflict (company_id, day) do update set is_worked = false;
+  if app.hr_jour_ouvrable_apres(v_cie, v_jour, 2) <> v_jour + 4 then
+    raise exception 'Essai 0523 : 2 jours ouvrables après un vendredi suivi d''un lundi férié : % attendu, % obtenu', v_jour + 4, app.hr_jour_ouvrable_apres(v_cie, v_jour, 2);
+  end if;
+  if app.hr_jour_ouvrable_apres(v_cie, v_jour, 1) <> v_jour + 1 then raise exception 'Essai 0523 : le samedi n''est pas compté comme ouvrable'; end if;
+
+  -- 4. Échéance « contrat à remettre » : CDD sous 2 jours ouvrables, CDI sous 7 jours ; levée une fois remis
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, end_on, cdd_reason)
+    values (v_cie, v_p, 'cdd', v_jour, v_jour + 60, 'accroissement') returning id into v_e;
+  select count(*) into v_n from public.v_hr_echeances where kind = 'contrat_remis' and source_id = v_e and due_on = v_jour + 4;
+  if v_n <> 1 then raise exception 'Essai 0523 : échéance du CDD attendue au % (% trouvée)', v_jour + 4, v_n; end if;
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on)
+    values (v_cie, v_q, 'cdi', current_date - 2) returning id into v_e2;
+  select count(*) into v_n from public.v_hr_echeances where kind = 'contrat_remis' and source_id = v_e2 and due_on = current_date + 5;
+  if v_n <> 1 then raise exception 'Essai 0523 : échéance du CDI attendue à début + 7 jours (% trouvée)', v_n; end if;
+  update public.hr_employments set contract_handed_on = current_date where id = v_e2;
+  if exists (select 1 from public.v_hr_echeances where kind = 'contrat_remis' and source_id = v_e2) then
+    raise exception 'Essai 0523 : échéance encore là après la remise';
+  end if;
+
+  -- 5. Contrat signé : document de la personne seulement ; déposé, la ligne de la liste d'arrivée se coche
+  insert into public.hr_documents (company_id, person_id, employment_id, category, confidentiality, title, file_path)
+    values (v_cie, v_p, v_e, 'contrat', 'restreint', 'Contrat signé essai', v_cie || '/' || v_p || '/essai-0523.pdf') returning id into v_d;
+  insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+    values (v_cie, v_q, 'contrat', 'restreint', 'Autre contrat essai', v_cie || '/' || v_q || '/essai-0523-q.pdf') returning id into v_dq;
+  begin
+    update public.hr_employments set signed_document_id = v_dq where id = v_e;
+    raise exception 'Essai 0523 : document d''une autre personne accepté comme contrat signé';
+  exception when invalid_parameter_value then null;
+  end;
+  insert into public.hr_checklists (company_id, person_id, kind, items)
+    values (v_cie, v_p, 'arrivee', '[{"label":"Contrat signé et rangé dans les documents","done_on":null,"done_by":null},{"label":"Accueil sécurité fait","done_on":null,"done_by":null}]');
+  update public.hr_employments set signed_document_id = v_d where id = v_e;
+  select x->>'done_on' into v_lab from public.hr_checklists l, jsonb_array_elements(l.items) x
+   where l.person_id = v_p and l.kind = 'arrivee' and x->>'label' = 'Contrat signé et rangé dans les documents';
+  if v_lab is null then raise exception 'Essai 0523 : ligne « Contrat signé » non cochée'; end if;
+  select x->>'done_on' into v_lab from public.hr_checklists l, jsonb_array_elements(l.items) x
+   where l.person_id = v_p and l.kind = 'arrivee' and x->>'label' = 'Accueil sécurité fait';
+  if v_lab is not null then raise exception 'Essai 0523 : une autre ligne de la liste a été cochée'; end if;
+  -- Document supprimé : le contrat reste, sans document signé
+  delete from public.hr_documents where id = v_d;
+  if (select signed_document_id from public.hr_employments where id = v_e) is not null then raise exception 'Essai 0523 : lien au document supprimé resté'; end if;
+
+  -- 6. Avenant : société et personne reprises du contrat ; ligne sans nouvelle valeur refusée ; signé, figé
+  begin
+    insert into public.hr_contract_amendments (employment_id, effective_on, subject, changes)
+      values (v_e, current_date, 'Essai', '[{"label":"Horaire","before":"35 h","after":""}]');
+    raise exception 'Essai 0523 : modification sans nouvelle valeur acceptée';
+  exception when invalid_parameter_value then null;
+  end;
+  insert into public.hr_contract_amendments (company_id, employment_id, effective_on, subject, changes)
+    values (v_cie, v_e, current_date, 'Changement d''horaire', '[{"label":"Durée du travail","before":"35 h","after":"39 h"}]') returning id into v_a;
+  if (select person_id from public.hr_contract_amendments where id = v_a) <> v_p then raise exception 'Essai 0523 : personne non reprise du contrat'; end if;
+  begin
+    update public.hr_contract_amendments set signed_document_id = v_dq where id = v_a;
+    raise exception 'Essai 0523 : document d''une autre personne accepté sur l''avenant';
+  exception when invalid_parameter_value then null;
+  end;
+  insert into public.hr_documents (company_id, person_id, employment_id, category, confidentiality, title, file_path)
+    values (v_cie, v_p, v_e, 'avenant', 'restreint', 'Avenant signé essai', v_cie || '/' || v_p || '/essai-0523-a.pdf') returning id into v_d;
+  update public.hr_contract_amendments set signed_document_id = v_d, handed_on = current_date where id = v_a;
+  begin
+    update public.hr_contract_amendments set subject = 'Autre objet' where id = v_a;
+    raise exception 'Essai 0523 : avenant signé modifié';
+  exception when invalid_parameter_value then null;
+  end;
+
+  -- 7. Document généré : traçabilité contrôlée
+  begin
+    update public.hr_documents set generated_from = 'cdi1projet' where id = v_d;
+    raise exception 'Essai 0523 : origine de document mal formée acceptée';
+  exception when check_violation then null;
+  end;
+  update public.hr_documents set generated_from = 'avenant@1:projet', content_sha256 = repeat('a', 64) where id = v_d;
+
+  -- 8. Poser les modèles : droit « Configurer les RH » exigé
+  begin
+    perform public.hr_modeles_contrat_poser(v_cie);
+    raise exception 'Essai 0523 : modèles posés sans droit';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+rollback;
