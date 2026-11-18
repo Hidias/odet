@@ -80,20 +80,28 @@ begin
     raise exception 'Ce contrat n''est pas celui de cette personne' using errcode = '22023';
   end if;
   if tg_op = 'UPDATE' and old.signed_at is not null then
-    -- Fiche signée : figée, sauf les notes
+    -- Fiche signée : figée, sauf les notes. Exceptions (relecture du 18/11, tour 3) :
+    --   - contrat ou poste supprimé : la clé passe à vide (on delete set null) ;
+    --   - fiche signée avant la saisie du contrat : rattachée une fois au contrat et à son poste par app.hr_contrat_accueil.
     if new.done_on is distinct from old.done_on or new.reason is distinct from old.reason or new.topics is distinct from old.topics
        or new.conducted_by is distinct from old.conducted_by or new.employee_signature is distinct from old.employee_signature
-       or new.person_id is distinct from old.person_id or new.employment_id is distinct from old.employment_id then
+       or new.person_id is distinct from old.person_id
+       or (new.employment_id is distinct from old.employment_id
+           and not (new.employment_id is null and not exists (select 1 from public.hr_employments e where e.id = old.employment_id))
+           and not (old.employment_id is null and old.job_id is null and current_setting('app.accueil_rattache', true) = '1')) then
       raise exception 'Accueil sécurité signé : il ne se modifie plus (supprimez-le s''il a été saisi par erreur)' using errcode = '22023';
     end if;
     new.signed_at := old.signed_at;
-    new.job_id := old.job_id;
+    if not (new.job_id is null and old.job_id is not null and not exists (select 1 from public.hr_jobs j where j.id = old.job_id))
+       and not (old.employment_id is null and old.job_id is null and current_setting('app.accueil_rattache', true) = '1') then
+      new.job_id := old.job_id;
+    end if;
   elsif new.employee_signature is not null then
     -- Contrôles de l'écran repris par la base à la signature (relecture du 18/11, tour 2)
-    if new.done_on > current_date then
+    if new.done_on > (now() at time zone 'Europe/Paris')::date then
       raise exception 'L''accueil sécurité ne peut pas être daté dans le futur' using errcode = '22023';
     end if;
-    if not exists (select 1 from jsonb_array_elements(new.topics) t where (t->>'done')::boolean) then
+    if not exists (select 1 from jsonb_array_elements(new.topics) t where coalesce(t->>'done', '') = 'true') then
       raise exception 'Cochez au moins un point abordé' using errcode = '22023';
     end if;
     new.signed_at := now();
@@ -145,6 +153,28 @@ revoke all on function app.hr_accueil_liste() from public, anon, authenticated;
 drop trigger if exists hr_safety_inductions_liste on public.hr_safety_inductions;
 create trigger hr_safety_inductions_liste after insert or update on public.hr_safety_inductions
   for each row execute function app.hr_accueil_liste();
+
+-- Contrat saisi après la signature de l'accueil : la fiche sans contrat ni poste, datée d'au plus 30 jours avant le
+-- début, est rattachée à ce contrat et à son poste (relecture du 18/11, tour 3 : un accueil sans poste ne vaut pas pour
+-- tout poste)
+create or replace function app.hr_contrat_accueil()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform set_config('app.accueil_rattache', '1', true);
+  update public.hr_safety_inductions i set employment_id = new.id, job_id = new.job_id
+   where i.person_id = new.person_id and i.signed_at is not null and i.employment_id is null and i.job_id is null
+     and i.done_on >= new.start_on - 30 and (new.end_on is null or i.done_on <= new.end_on);
+  perform set_config('app.accueil_rattache', '', true);
+  return null;
+end
+$$;
+revoke all on function app.hr_contrat_accueil() from public, anon, authenticated;
+drop trigger if exists hr_employments_accueil on public.hr_employments;
+create trigger hr_employments_accueil after insert on public.hr_employments for each row execute function app.hr_contrat_accueil();
 
 -- Liste d'arrivée ouverte après la signature : la ligne naît cochée (relecture du 18/11)
 create or replace function app.hr_liste_accueil()
@@ -410,7 +440,7 @@ create or replace view public.v_hr_echeances with (security_invoker = true) as
   where c.contract_type <> 'mandataire'
     and not exists (select 1 from public.hr_safety_inductions i
                     where i.person_id = c.person_id and i.signed_at is not null
-                      and (i.job_id is null or i.job_id is not distinct from c.job_id)  -- accueil signé avant la saisie du contrat
+                      and i.job_id is not distinct from c.job_id
                       and i.done_on >= app.hr_debut_continu(c.id) - 30)
   union all
   -- Poste « seul » sans mesure, ou mesure DATI sans DATI remis et non rendu ; daté du début du contrat

@@ -191,6 +191,21 @@ begin
   exception when invalid_parameter_value then null;
   end;
 
+
+  -- 10. Tour 3 : l'accueil rattaché au poste A ne vaut pas pour le poste B ; suppression du contrat et du poste possibles
+  update public.hr_employments set job_id = v_job2 where person_id = v_s;
+  if not exists (select 1 from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_s) then
+    raise exception 'Essai 0522 : changement de poste après un accueil signé avant le contrat non repéré';
+  end if;
+  delete from public.hr_employments where person_id = v_s;
+  if exists (select 1 from public.hr_safety_inductions where person_id = v_s and employment_id is not null) then
+    raise exception 'Essai 0522 : contrat supprimé encore rattaché';
+  end if;
+  delete from public.hr_jobs where id = v_job;
+  if exists (select 1 from public.hr_safety_inductions where job_id = v_job) then
+    raise exception 'Essai 0522 : poste supprimé encore rattaché';
+  end if;
+
   -- 7. Droits posés, vue aux droits du lecteur
   if (select count(*) from pg_policies where schemaname = 'public' and tablename in ('hr_safety_inductions', 'hr_postings')) <> 8 then
     raise exception 'Essai 0522 : règles d''accès inattendues';

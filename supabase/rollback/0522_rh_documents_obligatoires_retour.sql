@@ -66,6 +66,8 @@ revoke all on function app.hr_listes_depart(uuid) from public, anon, authenticat
 delete from public.hr_checklist_templates where kind = 'arrivee' and label = 'Accueil sécurité fait';
 
 drop trigger if exists hr_checklists_accueil on public.hr_checklists;
+drop trigger if exists hr_employments_accueil on public.hr_employments;
+drop function if exists app.hr_contrat_accueil();
 drop function if exists app.hr_liste_accueil();
 drop table if exists public.hr_safety_inductions;
 drop function if exists app.hr_debut_continu(uuid);
