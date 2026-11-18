@@ -56,7 +56,7 @@ fi
 # aussi : éphémères, hors de l'empreinte comparée, et leur table change avec la version d'Auth de la production
 # (colonne link_token_hash ajoutée en production, absente du Supabase local de la CLI : échec du 17/11/2026).
 awk '
-  /^COPY auth\.one_time_tokens / { saute = 1; next }
+  /^COPY "?auth"?\."?one_time_tokens"? / { saute = 1; next }
   saute && /^\\\.$/ { saute = 0; next }
   saute { next }
   /^COPY / { bloc = $0; n = 0; dedans = 1; next }
