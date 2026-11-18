@@ -172,6 +172,19 @@ begin
   delete from public.hr_employments where id = v_e;
   if exists (select 1 from public.hr_contract_amendments where id = v_a) then raise exception 'Essai 0523 : avenant resté après la suppression du contrat'; end if;
 
+  -- 9. Droit « Voir les contrats de travail » : RH, Super administrateur, Direction ; pas l'administrateur
+  select count(distinct p.key) into v_n from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id
+   where r.right_code = 'rh.contrats.voir' and p.company_id is null and p.key in ('rh', 'superadmin', 'direction');
+  if v_n <> 3 then raise exception 'Essai 0523 : droit des contrats attendu sur 3 modèles de profil (%)', v_n; end if;
+  if exists (select 1 from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id
+             where r.right_code = 'rh.contrats.voir' and p.key = 'admin') then
+    raise exception 'Essai 0523 : droit des contrats donné à l''administrateur';
+  end if;
+  -- Primes et accessoires gardés avec la rémunération
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on) values (v_cie, v_q, 'cdi', current_date - 400) returning id into v_e2;
+  insert into public.hr_compensation (company_id, employment_id, amount, period, effective_on, components)
+    values (v_cie, v_e2, 2000, 'mensuel', current_date - 400, 'néant');
+
   -- 8. Poser les modèles : droit « Configurer les RH » exigé
   begin
     perform public.hr_modeles_contrat_poser(v_cie);

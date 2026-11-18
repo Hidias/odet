@@ -3,6 +3,71 @@
 -- La vue lit hr_employments.* : supprimée d'abord, recréée comme en 0522 après le retrait des colonnes
 drop view if exists public.v_hr_echeances;
 
+-- Documents RH : règles et fonctions remises comme en 0301 ; droit « Voir les contrats de travail » retiré
+drop policy if exists hr_documents_lire on public.hr_documents;
+drop policy if exists hr_documents_creer on public.hr_documents;
+drop policy if exists hr_documents_modifier on public.hr_documents;
+drop policy if exists hr_documents_supprimer on public.hr_documents;
+create policy hr_documents_lire on public.hr_documents for select to authenticated
+  using ((person_id in (select app.hr_mes_personnes()) or (confidentiality = 'normal' and company_id in (select app.societes_avec_droit('rh.dossiers.voir'))) or (confidentiality <> 'normal' and company_id in (select app.societes_avec_droit('rh.documents.restreints')))));
+create policy hr_documents_creer on public.hr_documents for insert to authenticated
+  with check (((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or company_id in (select app.societes_avec_droit('rh.documents.restreints')))) or (person_id in (select app.hr_mes_personnes()) and category = 'justificatif' and confidentiality = 'restreint')));
+create policy hr_documents_modifier on public.hr_documents for update to authenticated
+  using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or company_id in (select app.societes_avec_droit('rh.documents.restreints')))))
+  with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or company_id in (select app.societes_avec_droit('rh.documents.restreints')))));
+create policy hr_documents_supprimer on public.hr_documents for delete to authenticated
+  using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or company_id in (select app.societes_avec_droit('rh.documents.restreints')))));
+
+create or replace function public.hr_document_ouvrir(p_doc uuid)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_d public.hr_documents;
+  v_moi boolean;
+begin
+  select * into v_d from public.hr_documents d where d.id = p_doc;
+  if v_d.id is null then raise exception 'Document introuvable' using errcode = 'P0002'; end if;
+  v_moi := v_d.person_id in (select app.hr_mes_personnes());
+  if not (v_moi
+          or (v_d.confidentiality = 'normal' and v_d.company_id in (select app.societes_avec_droit('rh.dossiers.voir')))
+          or (v_d.confidentiality <> 'normal' and v_d.company_id in (select app.societes_avec_droit('rh.documents.restreints')))) then
+    raise exception 'Accès refusé' using errcode = '42501';
+  end if;
+  if v_d.confidentiality <> 'normal' and not v_moi then
+    insert into public.audit_logs (action, entity_type, entity_id, entity_name, details, company_id, source)
+    values ('view', 'document_rh', v_d.id, null,
+            jsonb_build_object('table', 'hr_documents', 'confidentialite', v_d.confidentiality, 'categorie', v_d.category),
+            v_d.company_id, 'base');
+  end if;
+  return v_d.file_path;
+end
+$$;
+revoke all on function public.hr_document_ouvrir(uuid) from public, anon;
+grant execute on function public.hr_document_ouvrir(uuid) to authenticated;
+
+create or replace function app.hr_fichier_supprimable(p_path text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.dossiers.gerer') x)
+     and (not exists (select 1 from public.hr_documents d where d.file_path = p_path and d.confidentiality <> 'normal')
+          or split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.documents.restreints') x))
+$$;
+revoke all on function app.hr_fichier_supprimable(text) from public, anon;
+grant execute on function app.hr_fichier_supprimable(text) to authenticated;
+
+delete from public.permission_profile_rights where right_code = 'rh.contrats.voir';
+delete from public.permissions where code = 'rh.contrats.voir';
+
+alter table public.hr_compensation drop constraint if exists hr_compensation_components_longueur;
+alter table public.hr_compensation drop column if exists components;
+
 drop function if exists app.hr_jour_ouvrable_apres(uuid, date, int);
 
 drop function if exists public.hr_document_protege(uuid);

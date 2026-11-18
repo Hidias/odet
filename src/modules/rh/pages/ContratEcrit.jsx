@@ -118,32 +118,29 @@ function AvenantSheet({ contrat, avenant = null, onClose, onSaved }) {
   )
 }
 
-export default function ContratEcrit({ personne, contrat, peutGerer, peutRestreints, peutSalaires, onChange }) {
+export default function ContratEcrit({ personne, contrat, peutGerer, peutContratsVoir, onChange }) {
   const [manque, setManque] = useState(null)
   const [busy, setBusy] = useState(false)
   const [avenants, setAvenants] = useState([])
   const [edite, setEdite] = useState(null)
-  // Primes et accessoires (L1242-12, R1221-34) : saisis au moment de générer, repris dans le PDF seulement
-  const [composantes, setComposantes] = useState(null)
-  // Générer et tenir les avenants : rémunération possible, donc « Documents restreints » et « Voir les salaires »
-  const peutContrats = peutGerer && peutRestreints && peutSalaires
+  // Générer, déposer, tenir les avenants : « Voir les contrats de travail » (RH, Super administrateur, Direction)
+  const peutContrats = peutGerer && peutContratsVoir
   const avecModele = !!modelePour(contrat.contract_type)
   const charger = useCallback(() => {
-    if (!peutRestreints || !peutSalaires) return
+    if (!peutContratsVoir) return
     chargerAvenants(contrat.id).then(setAvenants).catch(() => setAvenants([]))
-  }, [contrat.id, peutRestreints, peutSalaires])
+  }, [contrat.id, peutContratsVoir])
   useEffect(() => { charger() }, [charger])
   if (!peutGerer && !contrat.signed_document_id && !contrat.contract_handed_on) return null
 
   const lancer = async (avenant = null) => {
     setBusy(true)
     try {
-      const prep = await preparer({ personne, contrat, avenant, composantes: avenant ? '' : composantes, societeEcran: societeEnCours() })
+      const prep = await preparer({ personne, contrat, avenant, societeEcran: societeEnCours() })
       if (prep.erreur) toast.error(prep.erreur)
       else if (prep.manque.length) setManque(prep.manque)
       else {
         const r = await generer({ personne, contrat, avenant, prep })
-        if (!avenant) setComposantes(null)
         toast.success(r.range ? 'PDF rangé dans les documents, à faire signer' : 'PDF « PROJET » téléchargé : modèle non validé par l\'avocat, ne pas le remettre au salarié')
         if (r.range) { onChange?.(); charger() }
       }
@@ -170,27 +167,18 @@ export default function ContratEcrit({ personne, contrat, peutGerer, peutRestrei
         <RemisLe valeur={contrat.contract_handed_on} peutGerer={peutGerer}
           aide={contrat.contract_type === 'cdd' ? 'CDD : à remettre au plus tard dans les deux jours ouvrables suivant l\'embauche (L1242-13)' : 'Informations principales à remettre au plus tard le 7e jour suivant l\'embauche (R1221-35)'}
           onEnregistrer={async (jour) => { await marquerContratRemis(contrat.id, jour); onChange?.() }} />
-        {peutContrats && avecModele && composantes === null && (
-          <button type="button" className="btn btn-secondary btn-sm min-h-[44px]" disabled={busy} onClick={() => setComposantes('')}>
+        {peutContrats && avecModele && (
+          <button type="button" className="btn btn-secondary btn-sm min-h-[44px]" disabled={busy} onClick={() => lancer()}>
             <FileText className="w-4 h-4" aria-hidden="true" />Générer le contrat
           </button>
         )}
-        {peutGerer && peutRestreints && <DeposerSigne label="Déposer le contrat signé" onFichier={deposer()} />}
+        {peutContrats && <DeposerSigne label="Déposer le contrat signé" onFichier={deposer()} />}
         {peutContrats && (
           <button type="button" className="btn btn-ghost btn-sm min-h-[44px]" onClick={() => setEdite({})}><Plus className="w-4 h-4" aria-hidden="true" />Avenant</button>
         )}
       </div>
-      {composantes !== null && (
-        <form className="flex items-end gap-2 flex-wrap" onSubmit={(e) => { e.preventDefault(); lancer() }}>
-          <label className="block flex-1 min-w-[14rem]"><span className="label">Primes et accessoires de la rémunération (ou « néant »)</span>
-            <input className="input" maxLength={500} autoFocus value={composantes} onChange={(e) => setComposantes(e.target.value)} placeholder="Prime de panier, indemnité de trajet… ou néant" />
-          </label>
-          <button type="submit" className="btn btn-primary btn-sm min-h-[44px]" disabled={busy}>Générer</button>
-          <button type="button" className="btn btn-ghost btn-sm min-h-[44px]" onClick={() => setComposantes(null)}>Annuler</button>
-        </form>
-      )}
       {peutGerer && !avecModele && <p className="text-ui-sm muted">Pas de modèle pour ce type de contrat : déposez le contrat signé.</p>}
-      {peutGerer && !(peutRestreints && peutSalaires) && <p className="text-ui-sm muted">Générer un contrat et tenir les avenants demande les droits « Documents restreints » et « Voir les salaires » (ils contiennent la rémunération).</p>}
+      {peutGerer && !peutContratsVoir && <p className="text-ui-sm muted">Générer, déposer un contrat et tenir les avenants demande le droit « Voir les contrats de travail » (ils contiennent la rémunération).</p>}
       {manque && <Manques liste={manque} onClose={() => setManque(null)} />}
       {avenants.length > 0 && (
         <ul className="space-y-1">

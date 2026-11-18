@@ -28,9 +28,12 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      « projet » pour chaque société (app.hr_modeles_contrat_depart, rejouable par public.hr_modeles_contrat_poser).
 --      Texte : seulement les mentions imposées, renvois aux textes permis par R1221-35 ; aucune clause facultative.
 --   4. hr_contract_amendments : avenant rattaché au contrat (date d'effet, objet, lignes avant et après), document
---      généré et document signé, remis le. Lu par la personne ou avec « Documents restreints » et « Voir les salaires »
---      (un avenant peut changer la rémunération), tenu avec ces deux droits et « Tenir les dossiers ». Signé : figé,
---      non supprimable (sauf avec son contrat).
+--      généré et document signé, remis le. Lu par la personne ou avec « Voir les contrats de travail » (un avenant peut
+--      changer la rémunération), tenu avec ce droit et « Tenir les dossiers ». Signé : figé, non supprimable (sauf avec
+--      son contrat).
+--   8. Droit « Voir les contrats de travail » (RH, Super administrateur, Direction ; choix de H du 18/11) : contrats et
+--      avenants restreints lisibles et tenus avec lui (règles de hr_documents de 0301 reprises, une branche ajoutée).
+--   9. hr_compensation.components : primes et accessoires, gardés avec la rémunération.
 --   5. hr_documents : generated_from (type@version:statut) et content_sha256 (empreinte du PDF généré).
 --   6. Contrat signé déposé : la ligne « Contrat signé et rangé dans les documents » de la liste d'arrivée se coche seule.
 --   7. v_hr_echeances : « contrat_remis » (contrat écrit à remettre) : CDD à début + 2 jours ouvrables (dimanches et jours
@@ -381,26 +384,21 @@ begin
     with check (company_id in (select app.societes_avec_droit('rh.parametres.gerer')));
   create policy hr_contract_models_supprimer on public.hr_contract_models for delete to authenticated
     using (company_id in (select app.societes_avec_droit('rh.parametres.gerer')));
-  -- Avenants : la personne, ou « Documents restreints » et « Voir les salaires » (rémunération possible) ; tenus avec
-  -- « Tenir les dossiers », « Documents restreints » et « Voir les salaires » (relecture du 18/11)
+  -- Avenants : la personne, ou « Voir les contrats de travail » (rémunération possible, choix de H du 18/11) ; tenus
+  -- avec « Tenir les dossiers » et « Voir les contrats de travail »
   drop policy if exists hr_contract_amendments_lire on public.hr_contract_amendments;
   drop policy if exists hr_contract_amendments_creer on public.hr_contract_amendments;
   drop policy if exists hr_contract_amendments_modifier on public.hr_contract_amendments;
   drop policy if exists hr_contract_amendments_supprimer on public.hr_contract_amendments;
   create policy hr_contract_amendments_lire on public.hr_contract_amendments for select to authenticated
-    using (((company_id in (select app.societes_avec_droit('rh.documents.restreints')) and company_id in (select app.societes_avec_droit('rh.salaires.voir')))
-            or person_id in (select app.hr_mes_personnes())));
+    using ((company_id in (select app.societes_avec_droit('rh.contrats.voir')) or person_id in (select app.hr_mes_personnes())));
   create policy hr_contract_amendments_creer on public.hr_contract_amendments for insert to authenticated
-    with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))
-      and company_id in (select app.societes_avec_droit('rh.salaires.voir'))));
+    with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.contrats.voir'))));
   create policy hr_contract_amendments_modifier on public.hr_contract_amendments for update to authenticated
-    using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))
-      and company_id in (select app.societes_avec_droit('rh.salaires.voir'))))
-    with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))
-      and company_id in (select app.societes_avec_droit('rh.salaires.voir'))));
+    using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.contrats.voir'))))
+    with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.contrats.voir'))));
   create policy hr_contract_amendments_supprimer on public.hr_contract_amendments for delete to authenticated
-    using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))
-      and company_id in (select app.societes_avec_droit('rh.salaires.voir'))));
+    using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.contrats.voir'))));
 end $$;
 
 -- Vue groupe en lecture seule (0516) : verrou posé sur les nouvelles tables
@@ -521,6 +519,90 @@ create or replace view public.v_hr_echeances with (security_invoker = true) as
 comment on view public.v_hr_echeances is 'Échéances RH (habilitations, visites, fins de CDD et d''essai, entretiens, DPAE, accueil sécurité, travail isolé, contrat écrit à remettre), aux droits du lecteur';
 revoke all on public.v_hr_echeances from public, anon;
 grant select on public.v_hr_echeances to authenticated;
+
+-- ── 7. Droit « Voir les contrats de travail » (choix de H du 18/11, 16 h 25 : RH, Super administrateur et Direction) ──
+-- Les contrats et avenants contiennent la rémunération : rangés en « restreint », ils se lisent avec « Documents
+-- restreints » (RH, Super administrateur) ou avec ce droit (donné aussi à la Direction, qui n'a pas les autres
+-- documents restreints : santé, justificatifs, bulletins). L'administrateur ne l'a pas.
+insert into public.permissions (code, module, label, description, data_scope, own_scope, shows_prices,
+  full_license_only, platform_only, position) values
+  ('rh.contrats.voir', 'rh', 'Voir les contrats de travail', 'Contrats et avenants du personnel, avec la rémunération : générer, déposer le signé, lire', 'hr_documents (contrat, avenant), hr_contract_amendments', false, true, false, false, 1135)
+on conflict (code) do update set module = excluded.module, label = excluded.label,
+  description = excluded.description, data_scope = excluded.data_scope, updated_at = now();
+insert into public.permission_profile_rights (profile_id, right_code)
+select p.id, 'rh.contrats.voir' from public.permission_profiles p where p.key in ('rh', 'superadmin', 'direction')
+on conflict do nothing;
+
+-- Documents RH : contrat et avenant restreints lisibles et tenus aussi avec « Voir les contrats de travail »
+-- (règles de 0301 reprises, une branche ajoutée)
+drop policy if exists hr_documents_lire on public.hr_documents;
+drop policy if exists hr_documents_creer on public.hr_documents;
+drop policy if exists hr_documents_modifier on public.hr_documents;
+drop policy if exists hr_documents_supprimer on public.hr_documents;
+create policy hr_documents_lire on public.hr_documents for select to authenticated
+  using ((person_id in (select app.hr_mes_personnes()) or (confidentiality = 'normal' and company_id in (select app.societes_avec_droit('rh.dossiers.voir'))) or (confidentiality <> 'normal' and (company_id in (select app.societes_avec_droit('rh.documents.restreints')) or (category in ('contrat', 'avenant') and company_id in (select app.societes_avec_droit('rh.contrats.voir')))))));
+create policy hr_documents_creer on public.hr_documents for insert to authenticated
+  with check (((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or (company_id in (select app.societes_avec_droit('rh.documents.restreints')) or (category in ('contrat', 'avenant') and company_id in (select app.societes_avec_droit('rh.contrats.voir')))))) or (person_id in (select app.hr_mes_personnes()) and category = 'justificatif' and confidentiality = 'restreint')));
+create policy hr_documents_modifier on public.hr_documents for update to authenticated
+  using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or (company_id in (select app.societes_avec_droit('rh.documents.restreints')) or (category in ('contrat', 'avenant') and company_id in (select app.societes_avec_droit('rh.contrats.voir')))))))
+  with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or (company_id in (select app.societes_avec_droit('rh.documents.restreints')) or (category in ('contrat', 'avenant') and company_id in (select app.societes_avec_droit('rh.contrats.voir')))))));
+create policy hr_documents_supprimer on public.hr_documents for delete to authenticated
+  using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or (company_id in (select app.societes_avec_droit('rh.documents.restreints')) or (category in ('contrat', 'avenant') and company_id in (select app.societes_avec_droit('rh.contrats.voir')))))));
+
+create or replace function public.hr_document_ouvrir(p_doc uuid)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_d public.hr_documents;
+  v_moi boolean;
+begin
+  select * into v_d from public.hr_documents d where d.id = p_doc;
+  if v_d.id is null then raise exception 'Document introuvable' using errcode = 'P0002'; end if;
+  v_moi := v_d.person_id in (select app.hr_mes_personnes());
+  if not (v_moi
+          or (v_d.confidentiality = 'normal' and v_d.company_id in (select app.societes_avec_droit('rh.dossiers.voir')))
+          or (v_d.confidentiality <> 'normal' and v_d.company_id in (select app.societes_avec_droit('rh.documents.restreints')))
+          or (v_d.confidentiality <> 'normal' and v_d.category in ('contrat', 'avenant') and v_d.company_id in (select app.societes_avec_droit('rh.contrats.voir')))) then
+    raise exception 'Accès refusé' using errcode = '42501';
+  end if;
+  if v_d.confidentiality <> 'normal' and not v_moi then
+    insert into public.audit_logs (action, entity_type, entity_id, entity_name, details, company_id, source)
+    values ('view', 'document_rh', v_d.id, null,
+            jsonb_build_object('table', 'hr_documents', 'confidentialite', v_d.confidentiality, 'categorie', v_d.category),
+            v_d.company_id, 'base');
+  end if;
+  return v_d.file_path;
+end
+$$;
+revoke all on function public.hr_document_ouvrir(uuid) from public, anon;
+grant execute on function public.hr_document_ouvrir(uuid) to authenticated;
+
+create or replace function app.hr_fichier_supprimable(p_path text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.dossiers.gerer') x)
+     and (not exists (select 1 from public.hr_documents d where d.file_path = p_path and d.confidentiality <> 'normal')
+          or split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.documents.restreints') x)
+          or (not exists (select 1 from public.hr_documents d where d.file_path = p_path and d.confidentiality <> 'normal'
+                          and d.category not in ('contrat', 'avenant'))
+              and split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.contrats.voir') x)))
+$$;
+revoke all on function app.hr_fichier_supprimable(text) from public, anon;
+grant execute on function app.hr_fichier_supprimable(text) to authenticated;
+
+-- ── 8. Primes et accessoires gardés avec la rémunération (choix de H du 18/11, 16 h 25 ; lus par hr_remuneration) ──
+alter table public.hr_compensation add column if not exists components text;
+alter table public.hr_compensation drop constraint if exists hr_compensation_components_longueur;
+alter table public.hr_compensation add constraint hr_compensation_components_longueur
+  check (components is null or length(components) <= 1000);
+comment on column public.hr_compensation.components is 'Primes et accessoires de la rémunération, ou « néant » (L1242-12, R1221-34), repris dans le contrat écrit';
 
 insert into public.schema_migrations (version) values ('0523_rh_contrats') on conflict (version) do nothing;
 
@@ -697,6 +779,19 @@ begin
   -- Contrat supprimé : ses avenants partent avec lui, même signés
   delete from public.hr_employments where id = v_e;
   if exists (select 1 from public.hr_contract_amendments where id = v_a) then raise exception 'Essai 0523 : avenant resté après la suppression du contrat'; end if;
+
+  -- 9. Droit « Voir les contrats de travail » : RH, Super administrateur, Direction ; pas l'administrateur
+  select count(distinct p.key) into v_n from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id
+   where r.right_code = 'rh.contrats.voir' and p.company_id is null and p.key in ('rh', 'superadmin', 'direction');
+  if v_n <> 3 then raise exception 'Essai 0523 : droit des contrats attendu sur 3 modèles de profil (%)', v_n; end if;
+  if exists (select 1 from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id
+             where r.right_code = 'rh.contrats.voir' and p.key = 'admin') then
+    raise exception 'Essai 0523 : droit des contrats donné à l''administrateur';
+  end if;
+  -- Primes et accessoires gardés avec la rémunération
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on) values (v_cie, v_q, 'cdi', current_date - 400) returning id into v_e2;
+  insert into public.hr_compensation (company_id, employment_id, amount, period, effective_on, components)
+    values (v_cie, v_e2, 2000, 'mensuel', current_date - 400, 'néant');
 
   -- 8. Poser les modèles : droit « Configurer les RH » exigé
   begin

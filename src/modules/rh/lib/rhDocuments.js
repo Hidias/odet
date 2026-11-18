@@ -11,8 +11,9 @@ const BUCKET = 'rh'
 
 // Catégorie : libellé et confidentialité imposée (null = au choix, « normal » ou « restreint »)
 export const CATEGORIES_DOC = {
-  contrat: { label: 'Contrat de travail', conf: 'normal' },
-  avenant: { label: 'Avenant', conf: 'normal' },
+  // Contrat et avenant : rémunération, donc restreints (« Voir les contrats de travail », choix de H du 18/11, 0523)
+  contrat: { label: 'Contrat de travail', conf: 'restreint' },
+  avenant: { label: 'Avenant', conf: 'restreint' },
   fiche_poste: { label: 'Fiche de poste', conf: 'normal' },
   attestation: { label: 'Attestation', conf: 'normal' },
   titre: { label: 'Titre, diplôme, permis', conf: 'normal' },

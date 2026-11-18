@@ -355,7 +355,7 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
 function Remuneration({ contrat, peutSaisir, peutVoir }) {
   const [lignes, setLignes] = useState(null)
   const [saisie, setSaisie] = useState(false)
-  const [v, setV] = useState({ amount: '', period: 'mensuel', effective_on: new Date().toISOString().slice(0, 10), note: '' })
+  const [v, setV] = useState({ amount: '', period: 'mensuel', effective_on: new Date().toISOString().slice(0, 10), note: '', components: '' })
   const voir = async () => { try { setLignes(await voirRemuneration(contrat.id)) } catch (e) { toast.error(e.message) } }
   const ajouter = async (e) => {
     e.preventDefault()
@@ -371,13 +371,14 @@ function Remuneration({ contrat, peutSaisir, peutVoir }) {
       </div>
       {lignes && (lignes.length === 0
         ? <p className="text-ui-sm muted">Aucune rémunération saisie.</p>
-        : <ul className="text-ui-sm space-y-1">{lignes.map((l) => <li key={l.id}>{euros(l.amount)} {PERIODES[l.period]}, depuis le {fr(l.effective_on)}{l.note ? ` (${l.note})` : ''}</li>)}</ul>)}
+        : <ul className="text-ui-sm space-y-1">{lignes.map((l) => <li key={l.id}>{euros(l.amount)} {PERIODES[l.period]}, depuis le {fr(l.effective_on)}{l.components ? `, primes et accessoires : ${l.components}` : ''}{l.note ? ` (${l.note})` : ''}</li>)}</ul>)}
       {saisie && (
         <form onSubmit={ajouter} className="grid gap-2 sm:grid-cols-[8rem_9rem_10rem_1fr_auto] items-end">
           <Champ label="Montant brut"><input className="input" inputMode="decimal" required value={v.amount} onChange={(e) => setV({ ...v, amount: e.target.value.replace(',', '.') })} /></Champ>
           <Champ label="Période"><select className="select" value={v.period} onChange={(e) => setV({ ...v, period: e.target.value })}>{Object.entries(PERIODES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Champ>
           <Champ label="À partir du"><input className="input" type="date" required value={v.effective_on} onChange={(e) => setV({ ...v, effective_on: e.target.value })} /></Champ>
           <Champ label="Note"><input className="input" value={v.note} onChange={(e) => setV({ ...v, note: e.target.value })} /></Champ>
+          <Champ label="Primes et accessoires (ou « néant »)" className="sm:col-span-4"><input className="input" maxLength={1000} value={v.components} onChange={(e) => setV({ ...v, components: e.target.value })} placeholder="Prime de panier, indemnité de trajet… repris dans le contrat écrit" /></Champ>
           <div className="flex gap-1"><button type="submit" className="btn btn-primary btn-sm">Enregistrer</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setSaisie(false)}>Annuler</button></div>
         </form>
       )}
@@ -441,7 +442,7 @@ function SoldesFiche({ personId, peutGerer }) {
   )
 }
 
-function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
+function FichePersonne({ peutGerer, peutSalaires, peutRestreints, peutContratsVoir }) {
   const { id } = useParams()
   const { user } = useAuthStore()
   const navigate = useNavigate()
@@ -534,7 +535,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
               </div>
               <EtatDpae contrat={c} peutGerer={peutGerer} onOuvrir={() => setDpae(c)} />
               <Remuneration contrat={c} peutVoir={peutSalaires} peutSaisir={peutSalaires && peutGerer} />
-              <ContratEcrit personne={p} contrat={c} peutGerer={peutGerer} peutRestreints={peutRestreints} peutSalaires={peutSalaires} onChange={charger} />
+              <ContratEcrit personne={p} contrat={c} peutGerer={peutGerer} peutContratsVoir={peutContratsVoir} onChange={charger} />
             </div>
           )
         })}
@@ -731,6 +732,8 @@ export default function Personnel() {
   const peutValider = can('rh.absences.valider') === true
   const peutVoirTout = can('rh.dossiers.voir') === true
   const peutRestreints = can('rh.documents.restreints') === true
+  // Contrats et avenants (0523) : RH, Super administrateur, Direction
+  const peutContratsVoir = can('rh.contrats.voir') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
   const [responsable, setResponsable] = useState(false)
   const [responsableConnu, setResponsableConnu] = useState(false)
@@ -779,7 +782,7 @@ export default function Personnel() {
         {(peutVoirTout || peutConfigurer) && <Route path="contrats" element={<ModelesContrats peutConfigurer={peutConfigurer} />} />}
         {(peutVoirTout || peutConfigurer) && <Route path="affichages" element={<Affichages peutGerer={peutGerer} peutConfigurer={peutConfigurer} />} />}
         <Route path="horaires" element={<div className="space-y-6"><Horaires peutConfigurer={peutConfigurer} /><JoursFeries peutConfigurer={peutConfigurer} /></div>} />
-        <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} />} />
+        <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} peutContratsVoir={peutContratsVoir} />} />
       </Routes>
     </div>
   )

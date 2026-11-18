@@ -15,6 +15,7 @@ const reglages = { collective_agreement_name: 'Métallurgie', retirement_fund: '
 const personne = { first_name: 'Jean', last_name: 'Essai', personal_address: '2 rue Y', personal_postal_code: '29000', personal_city: 'Quimper' }
 const cdi = { contract_type: 'cdi', start_on: '2026-12-01', job_title: 'Technicien', qualification: 'Technicien niveau 3', work_places: 'Plomelin', weekly_hours: 35 }
 const remu = { amount: 2100, period: 'mensuel', effective_on: '2026-12-01' }
+// Primes et accessoires gardés avec la rémunération (choix de H du 18/11)
 
 describe('Contrats de travail (0523)', () => {
   it('les trois modèles de départ sont lisibles et chaque champ a un libellé', () => {
@@ -62,7 +63,7 @@ describe('Contrats de travail (0523)', () => {
     expect(texteDureeTravail({})).toBe('')
   })
   it('CDI complet : aucune mention manquante, texte rempli', () => {
-    const v = valeurs({ societe, personne, contrat: cdi, reglages, remuneration: remu, composantes: 'néant' })
+    const v = valeurs({ societe, personne, contrat: cdi, reglages, remuneration: { ...remu, components: 'néant' } })
     const art = articlesRetenus(modeles.cdi, conditions(cdi, reglages))
     expect(manquants(art, v)).toEqual([])
     expect(art.some((a) => a.si === 'prevoyance')).toBe(false)
@@ -84,21 +85,21 @@ describe('Contrats de travail (0523)', () => {
   })
   it('CDD de remplacement sans le nom du remplacé : bloqué', () => {
     const cdd = { ...cdi, contract_type: 'cdd', cdd_reason: 'remplacement_absence', end_on: '2027-03-01' }
-    const v = valeurs({ societe, personne, contrat: cdd, reglages, remuneration: remu, composantes: 'néant' })
+    const v = valeurs({ societe, personne, contrat: cdd, reglages, remuneration: { ...remu, components: 'néant' } })
     const m = manquants(articlesRetenus(modeles.cdd, conditions(cdd, reglages)), v)
     expect(m).toEqual([CHAMPS.remplace_nom, CHAMPS.remplace_qualification])
     expect(v.motif_cdd).toBe('remplacement d\'un salarié absent')
   })
   it('CDD sans motif ni fin : bloqué', () => {
     const cdd = { ...cdi, contract_type: 'cdd' }
-    const m = manquants(articlesRetenus(modeles.cdd, conditions(cdd, reglages)), valeurs({ societe, personne, contrat: cdd, reglages, remuneration: remu, composantes: 'néant' }))
+    const m = manquants(articlesRetenus(modeles.cdd, conditions(cdd, reglages)), valeurs({ societe, personne, contrat: cdd, reglages, remuneration: { ...remu, components: 'néant' } }))
     expect(m).toContain(CHAMPS.motif_cdd)
     expect(m).toContain(CHAMPS.date_fin)
   })
   it('forfait jours : pas de phrase sur les heures supplémentaires', () => {
     const c = { ...cdi, weekly_hours: null, days_per_year: 218 }
     const art = articlesRetenus(modeles.cdi, conditions(c, reglages))
-    const texte = art.map((a) => remplir(a.texte, valeurs({ societe, personne, contrat: c, reglages, remuneration: remu, composantes: 'néant' }))).join(' ')
+    const texte = art.map((a) => remplir(a.texte, valeurs({ societe, personne, contrat: c, reglages, remuneration: { ...remu, components: 'néant' } }))).join(' ')
     expect(texte).toContain('218 jours')
     expect(texte).not.toContain('L3121-28')
   })

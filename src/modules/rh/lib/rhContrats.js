@@ -3,7 +3,8 @@
 //     documents, donc jamais visible du salarié) ;
 //   - « validé » : PDF rangé dans les documents RH (restreint : il contient la rémunération), origine et empreinte notées.
 // Contrôle avant génération : chaque champ du texte retenu doit être rempli (mentions de L1242-12, R1221-34).
-// La rémunération est lue par hr_remuneration (droit « Voir les salaires », consultation journalisée).
+// La rémunération (et ses primes et accessoires) est lue par hr_remuneration (« Voir les salaires », journalisée).
+// Générer, déposer et lire : « Voir les contrats de travail » (RH, Super administrateur, Direction ; choix de H du 18/11).
 
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
@@ -60,7 +61,7 @@ export const CHAMPS = {
   essai_fin: 'Fin de la période d\'essai',
   duree_travail: 'Heures par semaine ou forfait jours',
   remuneration: 'Rémunération en vigueur au début du contrat (saisie dans le contrat, droit « Voir les salaires »)',
-  remuneration_composantes: 'Primes et accessoires (ou « néant »)',
+  remuneration_composantes: 'Primes et accessoires de la rémunération, ou « néant » (saisis avec la rémunération)',
   paie_modalites: 'Modalités de paie (Personnel › Contrats › Réglages)',
   convention_nom: 'Intitulé de la convention collective (Personnel › Contrats › Réglages)',
   convention_idcc: 'IDCC de la société (Paramètres › Sociétés)',
@@ -105,7 +106,7 @@ export function texteDureeTravail(contrat = {}) {
 }
 
 /** Valeurs des champs du texte, depuis la société, la personne, le contrat, les réglages et la rémunération */
-export function valeurs({ societe = {}, personne = {}, contrat = {}, reglages = {}, remuneration = null, composantes = '', avenant = null } = {}) {
+export function valeurs({ societe = {}, personne = {}, contrat = {}, reglages = {}, remuneration = null, avenant = null } = {}) {
   const adresse = (a, cp, ville) => [a, [cp, ville].filter(Boolean).join(' ')].filter((x) => !vide(x)).join(', ')
   return {
     employeur_nom: societe.legal_name || '',
@@ -127,7 +128,7 @@ export function valeurs({ societe = {}, personne = {}, contrat = {}, reglages = 
     essai_fin: frDate(contrat.trial_end_on),
     duree_travail: texteDureeTravail(contrat),
     remuneration: texteRemuneration(remuneration),
-    remuneration_composantes: String(composantes || '').trim(),
+    remuneration_composantes: String(remuneration?.components || '').trim(),
     paie_modalites: reglages.pay_terms || '',
     convention_nom: reglages.collective_agreement_name || '',
     convention_idcc: societe.idcc || '',
@@ -271,7 +272,7 @@ export async function deposerSigne({ companyId, personId, contrat, avenant = nul
  * Prépare la génération : modèle, articles retenus, valeurs, mentions manquantes.
  * Lit la rémunération (journalisée) seulement si le texte en a besoin.
  */
-export async function preparer({ personne, contrat, avenant = null, modeles = null, composantes = '', societeEcran = null }) {
+export async function preparer({ personne, contrat, avenant = null, modeles = null, societeEcran = null }) {
   // En-tête du PDF : celui de la société choisie à l'écran ; elle doit être celle du salarié (relecture du 18/11)
   if (societeEcran !== personne.company_id) return { erreur: 'Choisissez dans l\'en-tête la société de ce salarié avant de générer' }
   const kind = avenant ? 'avenant' : modelePour(contrat.contract_type)
@@ -285,7 +286,7 @@ export async function preparer({ personne, contrat, avenant = null, modeles = nu
   if (articles.some((a) => champsDe(a.texte).includes('remuneration'))) {
     try { remuneration = remunerationAuDebut(await voirRemuneration(contrat.id), contrat.start_on) } catch { remuneration = null }
   }
-  const v = valeurs({ societe, personne, contrat, reglages, remuneration, composantes, avenant })
+  const v = valeurs({ societe, personne, contrat, reglages, remuneration, avenant })
   return { modele, articles, v, manque: manquants(articles, v), ville: societe.city || '' }
 }
 
