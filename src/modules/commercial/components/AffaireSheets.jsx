@@ -39,12 +39,14 @@ export function AffaireSheet({ affaire = null, clientId = null, listes, onClose,
     next_action: affaire?.next_action || '',
     source: affaire?.source || '',
     lost_reason: affaire?.lost_reason || '',
+    quote_id: affaire?.quote_id || '',
     // Qui a apporté quoi (0409) : origine propre à l'affaire (sinon celle du client) et idée
     origine: valeurOrigine(affaire?.introduced_by_profile, affaire?.introduced_by_contributor),
     idea_by: affaire?.idea_by ? `p:${affaire.idea_by}` : '',
   }))
   const origines = useOrigines()
   const [clients, setClients] = useState(null)
+  const [devis, setDevis] = useState([])
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e?.target ? e.target.value : e }))
 
@@ -53,6 +55,22 @@ export function AffaireSheet({ affaire = null, clientId = null, listes, onClose,
     supabase.from('clients').select('id, name, city, postal_code, siret, siren, status, contact_name, group_name').order('name').limit(2000)
       .then(({ data }) => setClients(data || []))
   }, [clientId, neuve])
+
+  // Devis du client que l'affaire peut reprendre (retour de H du 09/11 : affaire gagnée créée à côté du devis accepté,
+  // le chiffre comptait deux fois). Un devis déjà relié à une autre affaire n'est pas proposé.
+  useEffect(() => {
+    if (!f.client_id) { setDevis([]); return }
+    let vivant = true
+    Promise.all([
+      supabase.from('quotes').select('id, reference, object, total_ht, status').eq('client_id', f.client_id).neq('status', 'draft').order('quote_date', { ascending: false }).limit(50),
+      supabase.from('opportunities').select('id, quote_id').eq('client_id', f.client_id).not('quote_id', 'is', null),
+    ]).then(([q, o]) => {
+      if (!vivant) return
+      const pris = new Set((o.data || []).filter((x) => x.id !== affaire?.id).map((x) => x.quote_id))
+      setDevis((q.data || []).filter((x) => !pris.has(x.id)))
+    })
+    return () => { vivant = false }
+  }, [f.client_id, affaire?.id])
 
   const etapes = (listes?.etape || ETAPES_DEPART).filter((e) => e.is_active !== false)
   const fermee = FERMEES.includes(f.stage)
@@ -67,6 +85,7 @@ export function AffaireSheet({ affaire = null, clientId = null, listes, onClose,
       amount_ht: f.amount_ht === '' ? null : Number(String(f.amount_ht).replace(',', '.')),
       expected_on: f.expected_on || null, next_action_on: f.next_action_on || null, next_action: f.next_action.trim() || null,
       source: f.source || null, lost_reason: f.stage === 'perdue' ? f.lost_reason : null,
+      quote_id: f.quote_id || null,
     }
     // Colonnes d'origine seulement si la base les connaît (0409) : sinon l'enregistrement reste comme avant
     if (origines.disponible) Object.assign(ligne, lireOrigine(f.origine), { idea_by: lireOrigine(f.idea_by).introduced_by_profile })
@@ -111,6 +130,16 @@ export function AffaireSheet({ affaire = null, clientId = null, listes, onClose,
           <input id="af-montant" className="input" inputMode="decimal" value={f.amount_ht} onChange={set('amount_ht')} placeholder="€" />
         </div>
       </div>
+      {devis.length > 0 && (
+        <div>
+          <label className="label" htmlFor="af-devis">Devis lié</label>
+          <select id="af-devis" className="select" value={f.quote_id} onChange={set('quote_id')}>
+            <option value="">Aucun</option>
+            {devis.map((q) => <option key={q.id} value={q.id}>{[q.reference, q.object, q.total_ht != null ? `${Number(q.total_ht).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € HT` : null].filter(Boolean).join(' · ')}</option>)}
+          </select>
+          {!f.quote_id && <p className="text-ui-sm text-gray-500 mt-1">Ce client a déjà {devis.length > 1 ? `${devis.length} devis` : 'un devis'} : reliez-le si l'affaire porte dessus, pour ne pas compter le montant deux fois.</p>}
+        </div>
+      )}
       {f.stage === 'perdue' && (
         <div>
           <label className="label" htmlFor="af-motif">Motif de perte</label>
@@ -179,21 +208,25 @@ export function EchangeSheet({ clientId, clientName, affaire = null, typeDepart 
   const enregistrer = async () => {
     if (!f.content.trim()) return toast.error('Notez en une phrase ce qui s\'est dit')
     setBusy(true)
+    let avertissement = null
     const { error } = await supabase.from('client_interactions').insert({
       client_id: clientId, type: f.type, title: `${ECHANGES[f.type]}${affaire ? ` · ${affaire.title}` : ''}`,
       content: f.content.trim(), author: currentUserFirstName(), interaction_date: new Date().toISOString(),
       metadata: affaire ? { opportunity_id: affaire.id } : {},
     })
     if (!error && affaire?.id && affaire.origine !== 'devis') {
-      const r = await supabase.from('opportunities').update({ next_action_on: f.next_action_on || null, next_action: f.next_action.trim() || null }).eq('id', affaire.id)
+      const r = await supabase.from('opportunities').update({ next_action_on: f.next_action_on || null, next_action: f.next_action.trim() || null }).eq('id', affaire.id).select('id')
       if (r.error) { setBusy(false); return toast.error(r.error.message.includes('opportunities_prochaine_action') ? 'La date de la prochaine action est obligatoire' : r.error.message) }
+      if (!r.data?.length) avertissement = 'Échange noté, mais prochaine action non changée : vous n\'avez pas le droit de modifier cette affaire.'
     }
     if (!error && affaire?.origine === 'devis' && f.next_action_on) {
-      await supabase.from('quotes').update({ next_followup_date: f.next_action_on }).eq('id', affaire.id)
+      const r = await supabase.from('quotes').update({ next_followup_date: f.next_action_on }).eq('id', affaire.id).select('id')
+      if (r.error || !r.data?.length) avertissement = 'Échange noté, mais date de relance du devis non changée.'
     }
     setBusy(false)
     if (error) return toast.error(error.message)
-    toast.success('Échange noté')
+    if (avertissement) toast.error(avertissement)
+    else toast.success('Échange noté')
     onSaved?.()
     onClose()
   }

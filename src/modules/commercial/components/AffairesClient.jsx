@@ -7,7 +7,7 @@ import { KanbanSquare, Plus, MessageSquare, Pencil } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { AffaireSheet, EchangeSheet, useListesCommerciales } from './AffaireSheets'
-import { urgence, URGENCES, FERMEES, CANAUX, euros } from '../lib/affaires'
+import { urgence, URGENCES, FERMEES, CANAUX, TONS_FERMEES, euros } from '../lib/affaires'
 import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
 
 // Fiche client, bloc « Commercial » (chantier 10, 0380) : ce que le client achète déjà (calculé), ses affaires,
@@ -89,10 +89,14 @@ export default function AffairesClient({ client, peutModifierFiche, peutAffaires
                 <li key={a.id} className="py-2 flex items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{a.title}</div>
-                    <div className="text-ui-sm text-gray-500">{etape(a.stage)}{a.amount_ht != null ? ` · ${euros(a.amount_ht)}` : ''}
-                      {u ? ` · ${a.next_action || 'prochaine action'} le ${fr(a.next_action_on)}` : a.stage === 'perdue' && a.lost_reason ? ` · ${a.lost_reason}` : ''}</div>
+                    <div className="text-ui-sm text-gray-500">{[
+                      FERMEES.includes(a.stage) ? null : etape(a.stage),
+                      a.amount_ht != null ? euros(a.amount_ht) : null,
+                      u ? `${a.next_action || 'prochaine action'} le ${fr(a.next_action_on)}` : a.stage === 'perdue' && a.lost_reason ? a.lost_reason : null,
+                    ].filter(Boolean).join(' · ')}</div>
                   </div>
                   {u && <StatusBadge tone={URGENCES[u][0]}>{URGENCES[u][1]}</StatusBadge>}
+                  {FERMEES.includes(a.stage) && <StatusBadge tone={TONS_FERMEES[a.stage]}>{etape(a.stage)}{a.closed_at ? ` le ${fr(a.closed_at)}` : ''}</StatusBadge>}
                   {peutAffaires && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdition({ affaire: a })} aria-label={`Ouvrir ${a.title}`}><Pencil className="w-4 h-4" /></button>}
                 </li>
               )

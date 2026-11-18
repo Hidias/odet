@@ -128,3 +128,19 @@ export function dansJours(n, base = new Date()) {
   const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + n)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
+
+// Affaires gagnées et perdues récentes (retour de H du 09/11 : « une affaire gagnée n'apparaît nulle part ») :
+// fermées depuis au plus `jours` jours, la plus récente d'abord, avec le total des gagnées.
+export const JOURS_FERMEES = 90
+export function fermeesRecentes(affaires, jours = JOURS_FERMEES, aujourdhui = new Date()) {
+  const limite = jour(aujourdhui)
+  limite.setDate(limite.getDate() - jours)
+  const lignes = (affaires || [])
+    .filter((a) => FERMEES.includes(a.stage) && a.closed_at && jour(a.closed_at) >= limite)
+    .sort((a, b) => String(b.closed_at).localeCompare(String(a.closed_at)))
+  const gagnees = lignes.filter((a) => a.stage === 'gagnee')
+  return { lignes, nbGagnees: gagnees.length, montantGagne: arrondi(gagnees.reduce((s, a) => s + Number(a.amount_ht || 0), 0)) }
+}
+
+// Pastille d'une affaire fermée : Gagnée en vert, Perdue en neutre
+export const TONS_FERMEES = { gagnee: 'success', perdue: 'neutral' }

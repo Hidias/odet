@@ -18,12 +18,14 @@ import { KanbanAffaires } from '../components/KanbanAffaires'
 import { BadgeTest } from '../../../core/demo/BadgeTest'
 import {
   urgence, URGENCES, trierAFaire, colonnesPipeline, totauxPipeline, cadence, CADENCE, euros, kEuros, ligneAEtape, METIERS,
+  FERMEES, fermeesRecentes, JOURS_FERMEES, TONS_FERMEES,
 } from '../lib/affaires'
 
 // Suivi des affaires (chantier 10, 0380). Trois vues, rien de plus :
 //  - À faire : les affaires et devis à relancer, la plus ancienne action d'abord, et la cadence de la semaine ;
 //  - Par étape : Kanban des affaires ouvertes et des devis envoyés (KanbanAffaires), totaux en K€ ;
-//  - À appeler : les clients qui ont une échéance dans les 90 jours (formations, matériel, contrats, exercices).
+//  - À appeler : les clients qui ont une échéance dans les 90 jours (formations, matériel, contrats, exercices) ;
+//  - Gagnées et perdues : les affaires fermées depuis 90 jours (retour de H du 09/11).
 // Une affaire ouverte a toujours une prochaine action (la base le garantit).
 
 const fr = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—')
@@ -35,9 +37,10 @@ export default function Affaires() {
   const peutNoter = can('clients.historique.ecrire') !== false || can('clients.fiches.modifier') !== false
   const listes = useListesCommerciales()
   const location = useLocation()
-  const [onglet, setOnglet] = useState(['a_faire', 'pipeline', 'appeler'].includes(location.state?.onglet) ? location.state.onglet : 'a_faire')
+  const [onglet, setOnglet] = useState(['a_faire', 'pipeline', 'appeler', 'fermees'].includes(location.state?.onglet) ? location.state.onglet : 'a_faire')
   const [pipeline, setPipeline] = useState(null)
   const [appeler, setAppeler] = useState(null)
+  const [fermees, setFermees] = useState(null)
   const [cad, setCad] = useState({ reel: [], obj: [] })
   const [erreur, setErreur] = useState(null)
   const [mes, setMes] = useState(false)
@@ -48,17 +51,21 @@ export default function Affaires() {
   const demande = useRef(0)
   const charger = useCallback(async () => {
     const n = ++demande.current
-    const [p, a, r, o] = await Promise.all([
+    const depuis = new Date(Date.now() - (JOURS_FERMEES + 1) * 86400000).toISOString()
+    const [p, a, r, o, f] = await Promise.all([
       supabase.from('v_pipeline').select('*').order('next_action_on', { ascending: true, nullsFirst: false }).limit(1000),
       supabase.from('v_clients_a_appeler').select('*').order('premiere_echeance').limit(500),
       supabase.from('v_cadence_semaine').select('*'),
       supabase.from('activity_targets').select('*'),
+      supabase.from('opportunities').select('id, client_id, title, stage, amount_ht, closed_at, lost_reason, owner_id, quote_id, metier, source, next_action_on, next_action, expected_on, introduced_by_profile, introduced_by_contributor, idea_by, clients!opportunities_client_id_fkey(name)')
+        .in('stage', FERMEES).gte('closed_at', depuis).order('closed_at', { ascending: false }).limit(300),
     ])
     if (n !== demande.current) return // une demande plus récente est partie (changements d'étape rapprochés)
     if (p.error) { setErreur('Le suivi des affaires n\'est pas encore disponible. Prévenez le support.'); setPipeline([]); setAppeler([]); return }
     setPipeline(p.data || [])
     setAppeler(a.error ? [] : a.data || [])
     setCad({ reel: r.data || [], obj: o.data || [] })
+    setFermees(f.error ? [] : (f.data || []).map((x) => ({ ...x, client_name: x.clients?.name || 'Client' })))
   }, [])
   useEffect(() => { charger() }, [charger])
   // « + Nouveau › Affaire » (barre du haut)
@@ -66,6 +73,7 @@ export default function Affaires() {
 
   const lignes = useMemo(() => (pipeline || []).filter((l) => !mes || !l.owner_id || l.owner_id === user?.id), [pipeline, mes, user?.id])
   const aFaire = useMemo(() => trierAFaire(lignes), [lignes])
+  const closes = useMemo(() => fermeesRecentes((fermees || []).filter((l) => !mes || !l.owner_id || l.owner_id === user?.id)), [fermees, mes, user?.id])
   const colonnes = useMemo(() => colonnesPipeline(lignes, listes.etape), [lignes, listes.etape])
   const totaux = useMemo(() => totauxPipeline(lignes), [lignes])
   const maCadence = useMemo(() => cadence(cad.reel, cad.obj, user?.id), [cad, user?.id])
@@ -74,10 +82,11 @@ export default function Affaires() {
   const fermer = async (l, stage) => {
     if (l.origine === 'devis') return toast('Changez le statut du devis dans Devis : l\'affaire suit')
     if (stage === 'perdue') return setEdition({ affaire: { ...l, stage: 'perdue' } })
-    if (stage === 'gagnee' && !(await confirmer({ title: 'Affaire gagnée ?', message: `« ${l.title || l.client_name} » sort du suivi des affaires ouvertes. Elle reste visible sur la fiche du client.`, confirmLabel: 'Gagnée' }))) return
-    const { error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id)
+    if (stage === 'gagnee' && !(await confirmer({ title: 'Affaire gagnée ?', message: `« ${l.title || l.client_name} » sort du suivi des affaires ouvertes. Elle reste visible dans l'onglet « Gagnées et perdues » et sur la fiche du client.`, confirmLabel: 'Gagnée' }))) return
+    const { data, error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id).select('id')
     if (error) return toast.error(error.message)
-    toast.success('Affaire gagnée')
+    if (!data?.length) return toast.error('Affaire non modifiée : vous n\'avez pas le droit de la modifier.')
+    toast.success('Affaire gagnée : elle est dans l\'onglet « Gagnées et perdues »')
     charger()
   }
 
@@ -134,6 +143,7 @@ export default function Affaires() {
           { id: 'a_faire', label: 'À faire', count: aFaire.length },
           { id: 'pipeline', label: 'Par étape', count: totaux.nb },
           { id: 'appeler', label: 'À appeler', count: appeler?.length ?? null },
+          { id: 'fermees', label: 'Gagnées et perdues', count: fermees === null ? null : closes.lignes.length },
         ]} />
         <label className="ml-auto inline-flex items-center gap-2 text-ui-sm text-gray-600">
           <input type="checkbox" checked={mes} onChange={(e) => setMes(e.target.checked)} />Mes affaires seulement
@@ -183,6 +193,38 @@ export default function Affaires() {
                 return toast('Vous pouvez consulter cette affaire, pas la modifier ni y noter un échange.')
               }} />
           )}
+        </div>
+      )}
+
+      {onglet === 'fermees' && (
+        <div className="card p-4">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 mb-2">
+            <p className="text-ui-sm text-gray-500">Affaires gagnées ou perdues depuis {JOURS_FERMEES} jours. Elles restent aussi sur la fiche du client.</p>
+            {closes.nbGagnees > 0 && <span className="text-ui"><span className="text-gray-500">Gagné </span><b className="tabular-nums">{euros(closes.montantGagne)}</b><span className="text-gray-500"> HT ({closes.nbGagnees})</span></span>}
+          </div>
+          {fermees === null ? <div className="text-gray-500 text-ui-sm">Chargement…</div>
+            : closes.lignes.length === 0 ? <EmptyState icon={Check} title="Aucune affaire fermée récemment" compact>Une affaire passée à « Gagnée » ou « Perdue » apparaît ici.</EmptyState>
+              : (
+                <ul className="divide-y divide-gray-100">
+                  {closes.lignes.map((l) => (
+                    <li key={l.id} className="py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <StatusBadge tone={TONS_FERMEES[l.stage]}>{nomEtape(l.stage)}</StatusBadge>
+                          <Link to={`/clients/${l.client_id}`} className="font-semibold text-gray-900 hover:underline truncate">{l.client_name}</Link>
+                          <BadgeTest tbl="clients" id={l.client_id} />
+                        </div>
+                        <div className="text-ui-sm text-gray-600 truncate">{l.title}</div>
+                        <div className="text-ui-sm text-gray-400">Le {fr(l.closed_at)}{l.amount_ht != null ? ` · ${euros(l.amount_ht)}` : ''}{l.stage === 'perdue' && l.lost_reason ? ` · ${l.lost_reason}` : ''}</div>
+                      </div>
+                      <div className="flex gap-2 flex-none">
+                        {l.quote_id && <Link to={`/devis?open=${l.quote_id}`} className="btn btn-ghost btn-sm">Devis</Link>}
+                        {peutModifier && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdition({ affaire: l })}>Ouvrir</button>}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
         </div>
       )}
 

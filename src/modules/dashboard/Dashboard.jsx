@@ -1,7 +1,7 @@
 import { pluriel } from '../../core/genre'
 import { apiFetch } from '../../core/api'
 import { estAVenir, stagiairesPresents, pipelineDevis, tauxConversion, etatBpf, froidARappeler, cleStagiaire } from './lib/accueil'
-import { isQuoteSleeping, todayStr } from '../prospection/components/suivi/suiviUtils'
+import { etatRelanceDevis, todayStr } from '../prospection/components/suivi/suiviUtils'
 import { exerciceBpfSuivi } from '../formation/lib/bpf'
 import { conventionEnvoyee, groupesParSession } from '../formation/lib/etatConvention'
 import { confirmer } from '../../ui/Confirm'
@@ -425,16 +425,11 @@ export default function Dashboard() {
 
   // Devis envoyés sans réponse > 7j
   const quotesRelance = useMemo(() => {
-    const now = Date.now()
     const auj = todayStr()
     return (dashData.quotes || [])
-      .filter(q => (q.status === 'sent' || q.status === 'pending') && !isQuoteSleeping(q, auj))
-      .map(q => {
-        const sentDate = q.updated_at || q.quote_date || q.created_at
-        const days = sentDate ? Math.floor((now - new Date(sentDate).getTime()) / 86400000) : 0
-        return { ...q, daysSinceSent: days }
-      })
-      .filter(q => q.daysSinceSent >= 7)
+      .map(q => ({ q, etat: etatRelanceDevis(q, auj) }))
+      .filter(({ etat }) => etat?.type === 'sans_reponse')
+      .map(({ q, etat }) => ({ ...q, daysSinceSent: etat.jours }))
       .sort((a, b) => b.daysSinceSent - a.daysSinceSent)
   }, [dashData.quotes])
 

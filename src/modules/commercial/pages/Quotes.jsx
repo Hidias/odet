@@ -57,7 +57,7 @@ import { ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import { chargerTarifs, prixFormation, prixFrais, ligneAuTarif, appliquerTarifs } from '../../../core/tarifs/tarifsClient'
 import { FRAIS_CATALOGUE } from '../lib/fraisCatalogue'
 import BadgeTarifClient from '../components/BadgeTarifClient'
-import { isQuoteSleeping, todayStr } from '../../prospection/components/suivi/suiviUtils'
+import { etatRelanceDevis, todayStr } from '../../prospection/components/suivi/suiviUtils'
 import { adressesProposees as adressesProposeesDevis } from '../lib/adressesEnvoi'
 
 // Statuts d'un devis déjà accepté (contrat et livraison déjà préparés par la base)
@@ -1255,17 +1255,12 @@ export default function Quotes() {
 
   // Devis envoyés > 7j sans réponse
   const quotesRelance = useMemo(() => {
-    const now = Date.now()
     const auj = todayStr()
     // Devis mis en veille dans le Suivi commercial : ni rappel ni bandeau avant la date de réveil (A6)
     return quotes
-      .filter(q => (q.status === 'sent' || q.status === 'pending') && !isQuoteSleeping(q, auj))
-      .map(q => {
-        const sentDate = q.updated_at || q.quote_date || q.created_at
-        const days = sentDate ? Math.floor((now - new Date(sentDate).getTime()) / 86400000) : 0
-        return { ...q, daysSinceSent: days }
-      })
-      .filter(q => q.daysSinceSent >= 7)
+      .map(q => ({ q, etat: etatRelanceDevis(q, auj) }))
+      .filter(({ etat }) => etat?.type === 'sans_reponse')
+      .map(({ q, etat }) => ({ ...q, daysSinceSent: etat.jours }))
       .sort((a, b) => b.daysSinceSent - a.daysSinceSent)
   }, [quotes])
 
@@ -1378,14 +1373,14 @@ export default function Quotes() {
       { key: 'client', label: 'Client', mobile: 'title', render: (q) => <span className="font-semibold text-gray-900">{q.clients?.name || 'Client inconnu'}</span> },
       { key: 'object', label: 'Objet', hideBelow: 'lg', className: 'max-w-[16rem] truncate', render: (q) => q.object || '' },
       { key: 'status', label: 'Statut', render: (q) => {
-        const sentDate = q.updated_at || q.quote_date || q.created_at
-        const days = (q.status === 'sent' || q.status === 'pending') && sentDate ? Math.floor((Date.now() - new Date(sentDate).getTime()) / 86400000) : 0
+        const etat = etatRelanceDevis(q)
         return (
           <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className={`px-2 py-0.5 rounded text-ui-sm font-medium whitespace-nowrap ${STATUS_CONFIG[q.status]?.class || 'bg-gray-100'}`}>
               {STATUS_CONFIG[q.status]?.icon} {STATUS_CONFIG[q.status]?.label || q.status}
             </span>
-            {days >= 7 && <span className={`px-2 py-0.5 rounded-full text-ui-sm font-medium whitespace-nowrap ${days >= 15 ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}> {days}j sans réponse</span>}
+            {etat?.type === 'relance' && <span className="px-2 py-0.5 rounded-full text-ui-sm font-medium whitespace-nowrap bg-gray-100 text-gray-600">Relance le {format(new Date(`${etat.date}T12:00:00`), 'dd/MM')}</span>}
+            {etat?.type === 'sans_reponse' && <span className={`px-2 py-0.5 rounded-full text-ui-sm font-medium whitespace-nowrap ${etat.ton === 'danger' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>{etat.jours} j sans réponse</span>}
           </span>
         )
       } },
