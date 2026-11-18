@@ -6,7 +6,7 @@
 // Rien de nouveau en base : team_actions.client_id existe depuis 0407, source « manuel ».
 import { supabase } from '../supabase'
 import { creerAction } from './actions'
-import { societeEnCours, enVueGroupe, MESSAGE_VUE_GROUPE } from '../company/societes'
+import { societeActive, enVueGroupe, MESSAGE_VUE_GROUPE } from '../company/societes'
 
 const chiffres = (s) => String(s || '').replace(/\D/g, '')
 
@@ -106,14 +106,14 @@ export async function creerFicheProspect({ nom, telephone, contact }) {
  * Société de l'action : celle où l'on travaille quand la fiche lui est partagée (une fiche d'une autre société partagée
  * avec elle serait refusée par la règle d'accès des actions), sinon la société de la fiche.
  */
-export function societeAction(fiche, enCours = societeEnCours()) {
+export function societeAction(fiche, enCours = societeActive()) {
   const partagees = Array.isArray(fiche?.company_ids) ? fiche.company_ids : []
   if (enCours && (fiche?.company_id === enCours || partagees.includes(enCours))) return enCours
   return fiche?.company_id || null
 }
 
 /** Action de l'équipe reliée à la fiche */
-export async function creerActionAppel({ fiche, suite, motif, contact, telephone, owner_id, due_on, urgent }) {
+export async function creerActionAppel({ fiche, suite, motif, contact, telephone, owner_id, due_on, urgent, ctxSocietes = null }) {
   if (!fiche?.id) throw new Error('Choisissez ou créez d\'abord la fiche')
   return creerAction({
     title: titreAction(suite, fiche.name, motif),
@@ -122,6 +122,7 @@ export async function creerActionAppel({ fiche, suite, motif, contact, telephone
     due_on: due_on || null,
     urgent: !!urgent,
     client_id: fiche.id,
-    company_id: societeAction(fiche),
+    // Société choisie dans l'onglet, sinon société par défaut du compte (contexte des sociétés du compte)
+    company_id: societeAction(fiche, societeActive(ctxSocietes)),
   })
 }

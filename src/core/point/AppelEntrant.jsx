@@ -13,6 +13,7 @@ import { chercherFiches, creerFicheProspect, creerActionAppel, statutFiche, SUIT
 
 export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
   const moi = useAuthStore((s) => s.profile)
+  const ctxSocietes = useAuthStore((s) => s.societes)
   const [texte, setTexte] = useState('')
   const [resultats, setResultats] = useState([])
   const [erreurLecture, setErreurLecture] = useState(false)
@@ -53,7 +54,7 @@ export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
     const chiffres = texte.replace(/\D/g, '')
     setNouvelle({ nom: chiffres.length >= 6 ? '' : texte.trim(), telephone: chiffres.length >= 6 ? texte.trim() : '', contact: '' })
   }
-  const recommencer = () => { setFiche(null); setNouvelle(null); setCherche(''); setForm((f) => ({ ...f, contact: '', telephone: '' })) }
+  const recommencer = () => { setFiche(null); setNouvelle(null); setFicheCreee(false); setCherche(''); setForm((f) => ({ ...f, contact: '', telephone: '' })) }
 
   const valider = async (e) => {
     e.preventDefault()
@@ -71,7 +72,7 @@ export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
       await creerActionAppel({
         fiche: f, suite: form.suite, motif: form.motif,
         contact: form.contact || nouvelle?.contact, telephone: form.telephone || nouvelle?.telephone,
-        owner_id: form.owner_id || null, due_on: form.due_on || null, urgent: form.urgent,
+        owner_id: form.owner_id || null, due_on: form.due_on || null, urgent: form.urgent, ctxSocietes,
       })
       try { window.dispatchEvent(new Event('odet:actions-maj')) } catch { /* page Actions fermée : rien à rafraîchir */ }
       toast.success(fiche ? 'Action créée et reliée à la fiche' : 'Fiche prospect et action créées')
