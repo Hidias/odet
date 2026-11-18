@@ -11,7 +11,8 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 -- Règles :
 --   1. hr_employments : date d'envoi de la DPAE et référence de l'accusé de réception. Le numéro de sécurité sociale
 --      n'est jamais stocké : il se saisit sur le site de l'Urssaf.
---   2. hr_documents : catégorie « dpae » pour ranger l'accusé de réception.
+--   2. hr_documents : catégorie « dpae » pour ranger l'accusé de réception, jamais en confidentialité « normal »
+--      (contrainte hr_documents_confidentialite de 0301 reprise, « dpae » ajoutée ; relecture du 18/11).
 --   3. v_hr_echeances : échéance « DPAE » pour un contrat de salarié (CDI, CDD, apprentissage, professionnalisation)
 --      sans DPAE notée, à la date de début du contrat ; plus montrée 30 jours après le début (même fenêtre que les fins
 --      de contrat). Stage, intérim (déclaré par l'agence), mandataire et autre : pas d'échéance.
@@ -29,6 +30,11 @@ comment on column public.hr_employments.dpae_reference is 'Référence de l''acc
 alter table public.hr_documents drop constraint if exists hr_documents_category_check;
 alter table public.hr_documents add constraint hr_documents_category_check
   check (category = any (array['contrat', 'avenant', 'fiche_poste', 'attestation', 'titre', 'justificatif', 'sante', 'bulletin', 'dpae', 'autre']));
+-- Accusé de réception de la DPAE jamais « normal », comme les justificatifs et la santé (contrainte de 0301 reprise)
+alter table public.hr_documents drop constraint if exists hr_documents_confidentialite;
+alter table public.hr_documents add constraint hr_documents_confidentialite check (
+  (category not in ('justificatif', 'sante', 'dpae') or confidentiality <> 'normal')
+  and (category <> 'bulletin' or confidentiality = 'prive'));
 
 create or replace view public.v_hr_echeances with (security_invoker = true) as
   select q.company_id, q.person_id, 'habilitation'::text as kind, q.label, q.expires_on as due_on, q.id as source_id
@@ -119,11 +125,27 @@ begin
   exception when check_violation then null;
   end;
 
-  -- 4. Catégorie « dpae » acceptée pour un document RH ; catégorie inconnue toujours refusée
-  if not exists (select 1 from pg_constraint where conname = 'hr_documents_category_check'
-                 and pg_get_constraintdef(oid) like '%''dpae''%') then
-    raise exception 'Essai 0521 : catégorie dpae absente des documents RH';
-  end if;
+  -- 4. Catégorie « dpae » acceptée pour un document RH (restreint) ; jamais « normal » ; catégorie inconnue refusée
+  insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+    values (v_cie, v_p, 'dpae', 'restreint', 'Accusé DPAE essai 0521', v_cie || '/' || v_p || '/essai-0521.pdf');
+  begin
+    insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (v_cie, v_p, 'dpae', 'normal', 'Accusé DPAE essai 0521', v_cie || '/' || v_p || '/essai-0521-b.pdf');
+    raise exception 'Essai 0521 : accusé DPAE accepté en confidentialité normale';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (v_cie, v_p, 'inconnue', 'restreint', 'Essai 0521', v_cie || '/' || v_p || '/essai-0521-c.pdf');
+    raise exception 'Essai 0521 : catégorie inconnue acceptée';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (v_cie, v_p, 'sante', 'normal', 'Essai 0521', v_cie || '/' || v_p || '/essai-0521-d.pdf');
+    raise exception 'Essai 0521 : document de santé accepté en confidentialité normale (contrainte de 0301 perdue)';
+  exception when check_violation then null;
+  end;
 
   -- 5. Aucun numéro de sécurité sociale stocké sur le contrat ni sur la fiche
   if exists (select 1 from information_schema.columns where table_schema = 'public'

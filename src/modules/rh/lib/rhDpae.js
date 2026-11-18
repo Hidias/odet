@@ -1,6 +1,7 @@
 // Déclaration préalable à l'embauche (DPAE), 0521 : règles communes à l'écran et aux tests.
 // Sources (Légifrance, lues le 18/11/2026) : Code du travail R1221-1 (mentions), R1221-4 (au plus tôt dans les huit
-// jours précédant la date prévisible de l'embauche), R1221-5 (voie électronique), R1221-7 (accusé de réception).
+// jours précédant la date prévisible de l'embauche), R1221-5 (voie électronique), R1221-7 (accusé de réception) ;
+// L1221-10 (déclaration avant l'embauche, donc au plus tard avant la prise de poste le jour même).
 // Le numéro de sécurité sociale n'est jamais stocké : il se saisit sur le site de l'Urssaf.
 
 export const LIEN_DPAE_URSSAF = 'https://www.urssaf.fr/accueil/employeur/embaucher-gerer-salaries/embaucher/declaration-prealable-embauche.html'
@@ -22,24 +23,45 @@ export function dpaeOuvreLe(debut) {
   return iso(d)
 }
 
+/** Même limite que la vue v_hr_echeances : au-delà de 30 jours après l'embauche, la DPAE n'est plus suivie. */
+export const SUIVI_DPAE_JOURS = 30
+
 /**
  * État de la DPAE d'un contrat.
- * 'sans_objet' | 'faite' | 'trop_tot' (avant la fenêtre de 8 jours) | 'a_faire' (dans la fenêtre) | 'en_retard' (embauche passée)
+ * 'sans_objet' | 'faite' | 'trop_tot' (avant la fenêtre de 8 jours) | 'a_faire' (dans la fenêtre) | 'jour_j' (le jour
+ * de l'embauche, avant la prise de poste) | 'en_retard' (embauche passée depuis 30 jours au plus) | 'non_suivie'
+ * (embauche de plus de 30 jours sans DPAE notée, comme la vue : salarié déjà en poste, rien d'alarmant)
  */
 export function etatDpae(contrat, aujourdhui = new Date().toISOString().slice(0, 10)) {
   if (!dpaeConcernee(contrat) || !contrat.start_on) return { etat: 'sans_objet' }
   if (contrat.dpae_sent_on) return { etat: 'faite', le: contrat.dpae_sent_on }
   const ouvre = dpaeOuvreLe(contrat.start_on)
-  if (ecart(contrat.start_on, aujourdhui) <= 0) return { etat: 'en_retard', ouvre }
+  const depuis = ecart(aujourdhui, contrat.start_on)
+  if (depuis > SUIVI_DPAE_JOURS) return { etat: 'non_suivie', ouvre }
+  if (depuis > 0) return { etat: 'en_retard', ouvre }
+  if (depuis === 0) return { etat: 'jour_j', ouvre }
   if (ecart(ouvre, aujourdhui) > 0) return { etat: 'trop_tot', ouvre }
   return { etat: 'a_faire', ouvre }
+}
+
+/**
+ * Contrôle de la date d'envoi saisie : null si elle convient, sinon le message à afficher.
+ * Pas dans le futur ; pas plus de 8 jours avant l'embauche (R1221-4).
+ */
+export function erreurDateEnvoi(envoi, debut, aujourdhui = new Date().toISOString().slice(0, 10)) {
+  if (!envoi) return null
+  if (ecart(envoi, aujourdhui) > 0) return 'La date d\'envoi ne peut pas être dans le futur'
+  if (debut && ecart(dpaeOuvreLe(debut), envoi) > 0) return 'Une DPAE ne peut pas partir plus de 8 jours avant l\'embauche (article R1221-4) : vérifiez la date'
+  return null
 }
 
 export const LIBELLES_ETAT_DPAE = {
   faite: { label: 'DPAE faite', badge: 'badge-success' },
   trop_tot: { label: 'DPAE à faire', badge: 'badge-neutral' },
   a_faire: { label: 'DPAE à faire maintenant', badge: 'badge-warning' },
+  jour_j: { label: 'DPAE à faire aujourd\'hui', badge: 'badge-warning' },
   en_retard: { label: 'DPAE non notée', badge: 'badge-danger' },
+  non_suivie: { label: 'DPAE non notée', badge: 'badge-neutral' },
 }
 
 const NATURES = { cdi: 'Contrat à durée indéterminée', cdd: 'Contrat à durée déterminée', apprentissage: 'Contrat d\'apprentissage', professionnalisation: 'Contrat de professionnalisation' }
@@ -52,7 +74,9 @@ const joindre = (...x) => x.filter((v) => v != null && String(v).trim() !== '').
  */
 export function recapitulatifDpae({ societe = {}, etablissement = null, personne = {}, contrat = {} }) {
   const lieu = etablissement || {}
-  const adresse = joindre(lieu.address || societe.address, [lieu.postal_code || societe.postal_code, lieu.city || societe.city].filter(Boolean).join(' '))
+  // Adresse prise en entier sur l'établissement s'il en a une, sinon en entier sur le siège (jamais un mélange des deux)
+  const a = [lieu.address, lieu.postal_code, lieu.city].some((x) => x && String(x).trim()) ? lieu : societe
+  const adresse = joindre(a.address, [a.postal_code, a.city].filter(Boolean).join(' '))
   return [
     { groupe: 'Employeur', label: 'Dénomination', valeur: societe.legal_name || null },
     { groupe: 'Employeur', label: 'SIRET de l\'établissement', valeur: lieu.siret || null, aide: 'à saisir (absent de la fiche de l\'établissement)' },
@@ -69,7 +93,7 @@ export function recapitulatifDpae({ societe = {}, etablissement = null, personne
     { groupe: 'Embauche', label: 'Heure d\'embauche', valeur: null, aide: 'à saisir sur le site' },
     { groupe: 'Embauche', label: 'Nature du contrat', valeur: NATURES[contrat.contract_type] || null },
     { groupe: 'Embauche', label: 'Fin du contrat', valeur: contrat.contract_type === 'cdi' ? 'Sans objet' : frDate(contrat.end_on) },
-    { groupe: 'Embauche', label: 'Fin de la période d\'essai', valeur: frDate(contrat.trial_end_on), aide: 'à saisir si une période d\'essai est prévue' },
+    { groupe: 'Embauche', label: 'Période d\'essai', valeur: contrat.trial_end_on ? `fin prévue le ${frDate(contrat.trial_end_on)} (indiquez la durée sur le site)` : null, aide: 'durée à saisir sur le site si une période d\'essai est prévue (CDI, CDD de plus de 6 mois)' },
   ].map((l) => ({ ...l, aide: l.valeur ? null : (l.aide || 'à saisir sur le site') }))
 }
 

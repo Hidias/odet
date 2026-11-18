@@ -32,6 +32,10 @@ comment on view public.v_hr_echeances is 'Échéances RH (habilitations, visites
 revoke all on public.v_hr_echeances from public, anon;
 grant select on public.v_hr_echeances to authenticated;
 
+alter table public.hr_documents drop constraint if exists hr_documents_confidentialite;
+alter table public.hr_documents add constraint hr_documents_confidentialite check (
+  (category not in ('justificatif', 'sante') or confidentiality <> 'normal')
+  and (category <> 'bulletin' or confidentiality = 'prive'));
 update public.hr_documents set category = 'attestation' where category = 'dpae';
 alter table public.hr_documents drop constraint if exists hr_documents_category_check;
 alter table public.hr_documents add constraint hr_documents_category_check

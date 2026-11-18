@@ -49,11 +49,27 @@ begin
   exception when check_violation then null;
   end;
 
-  -- 4. Catégorie « dpae » acceptée pour un document RH ; catégorie inconnue toujours refusée
-  if not exists (select 1 from pg_constraint where conname = 'hr_documents_category_check'
-                 and pg_get_constraintdef(oid) like '%''dpae''%') then
-    raise exception 'Essai 0521 : catégorie dpae absente des documents RH';
-  end if;
+  -- 4. Catégorie « dpae » acceptée pour un document RH (restreint) ; jamais « normal » ; catégorie inconnue refusée
+  insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+    values (v_cie, v_p, 'dpae', 'restreint', 'Accusé DPAE essai 0521', v_cie || '/' || v_p || '/essai-0521.pdf');
+  begin
+    insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (v_cie, v_p, 'dpae', 'normal', 'Accusé DPAE essai 0521', v_cie || '/' || v_p || '/essai-0521-b.pdf');
+    raise exception 'Essai 0521 : accusé DPAE accepté en confidentialité normale';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (v_cie, v_p, 'inconnue', 'restreint', 'Essai 0521', v_cie || '/' || v_p || '/essai-0521-c.pdf');
+    raise exception 'Essai 0521 : catégorie inconnue acceptée';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
+      values (v_cie, v_p, 'sante', 'normal', 'Essai 0521', v_cie || '/' || v_p || '/essai-0521-d.pdf');
+    raise exception 'Essai 0521 : document de santé accepté en confidentialité normale (contrainte de 0301 perdue)';
+  exception when check_violation then null;
+  end;
 
   -- 5. Aucun numéro de sécurité sociale stocké sur le contrat ni sur la fiche
   if exists (select 1 from information_schema.columns where table_schema = 'public'

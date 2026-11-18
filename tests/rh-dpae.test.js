@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { etatDpae, dpaeOuvreLe, dpaeConcernee, recapitulatifDpae, texteRecapitulatif } from '../src/modules/rh/lib/rhDpae'
+import { etatDpae, dpaeOuvreLe, dpaeConcernee, recapitulatifDpae, texteRecapitulatif, erreurDateEnvoi } from '../src/modules/rh/lib/rhDpae'
 
 describe('DPAE (0521)', () => {
   it('fenêtre de 8 jours avant l\'embauche (R1221-4)', () => {
@@ -11,7 +11,10 @@ describe('DPAE (0521)', () => {
     expect(etatDpae(c, '2026-11-18').etat).toBe('trop_tot')
     expect(etatDpae(c, '2026-11-23').etat).toBe('a_faire')
     expect(etatDpae(c, '2026-11-30').etat).toBe('a_faire')
-    expect(etatDpae(c, '2026-12-01').etat).toBe('en_retard')
+    expect(etatDpae(c, '2026-12-01').etat).toBe('jour_j')
+    expect(etatDpae(c, '2026-12-02').etat).toBe('en_retard')
+    expect(etatDpae(c, '2026-12-31').etat).toBe('en_retard')
+    expect(etatDpae(c, '2027-01-01').etat).toBe('non_suivie')
     expect(etatDpae({ ...c, dpae_sent_on: '2026-11-24' }, '2026-12-05').etat).toBe('faite')
   })
   it('stage, intérim, mandataire et autre : sans objet', () => {
@@ -42,5 +45,28 @@ describe('DPAE (0521)', () => {
     expect(lignes.find((l) => l.label === 'SIRET de l\'établissement').valeur).toBe('12345678900011')
     expect(lignes.find((l) => l.label === 'Adresse').valeur).toBe('Agence B')
     expect(lignes.find((l) => l.label === 'Fin du contrat').valeur).toBe('Sans objet')
+  })
+  it('contrat ancien sans DPAE notée : pas d\'alerte rouge', () => {
+    expect(etatDpae({ contract_type: 'cdi', start_on: '2024-03-01' }, '2026-11-18').etat).toBe('non_suivie')
+    expect(etatDpae({ contract_type: 'cdd', start_on: '2025-01-06', end_on: '2025-06-30' }, '2026-11-18').etat).toBe('non_suivie')
+  })
+  it('adresse jamais mélangée entre l\'établissement et le siège', () => {
+    const adr = (etablissement) => recapitulatifDpae({ societe: { address: '1 rue X', postal_code: '29000', city: 'Quimper' }, etablissement, contrat: { contract_type: 'cdi' } })
+      .find((l) => l.label === 'Adresse').valeur
+    expect(adr({ address: 'Agence' })).toBe('Agence')
+    expect(adr({ siret: '12345678900011' })).toBe('1 rue X 29000 Quimper')
+    expect(adr(null)).toBe('1 rue X 29000 Quimper')
+  })
+  it('période d\'essai : la durée reste à saisir sur le site', () => {
+    const l = recapitulatifDpae({ contrat: { contract_type: 'cdi', trial_end_on: '2027-03-31' } }).find((x) => x.label === 'Période d\'essai')
+    expect(l.valeur).toContain('31/03/2027')
+    expect(l.valeur).toContain('durée')
+  })
+  it('date d\'envoi contrôlée (R1221-4)', () => {
+    expect(erreurDateEnvoi('', '2026-12-01', '2026-11-25')).toBeNull()
+    expect(erreurDateEnvoi('2026-11-24', '2026-12-01', '2026-11-25')).toBeNull()
+    expect(erreurDateEnvoi('2026-11-23', '2026-12-01', '2026-11-25')).toBeNull()
+    expect(erreurDateEnvoi('2026-11-22', '2026-12-01', '2026-11-25')).toMatch(/8 jours/)
+    expect(erreurDateEnvoi('2026-11-26', '2026-12-01', '2026-11-25')).toMatch(/futur/)
   })
 })
