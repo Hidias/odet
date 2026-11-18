@@ -255,11 +255,11 @@ export default function NonConformites() {
     const heuresDepuisReception = differenceInHours(now, reception)
     const arEnRetard = !recl.date_accuse && heuresDepuisReception > 48
     
-    // Délai clôture (5 jours ouvrés)
+    // Délai de réponse (10 jours ouvrés, procédure réclamations)
     const joursOuvres = differenceInBusinessDays(now, reception)
-    const clotureEnRetard = recl.status !== 'closed' && joursOuvres > 5
+    const reponseEnRetard = !['resolved', 'closed'].includes(recl.status) && joursOuvres > 10
     
-    return { arEnRetard, clotureEnRetard, heuresDepuisReception, joursOuvres }
+    return { arEnRetard, reponseEnRetard, heuresDepuisReception, joursOuvres }
   }
   
   // ===== STATS =====
@@ -274,7 +274,7 @@ export default function NonConformites() {
     total: reclamations.length,
     open: reclamations.filter(r => r.status === 'open').length,
     enRetardAR: reclamations.filter(r => getDelaiStatus(r)?.arEnRetard).length,
-    enRetardCloture: reclamations.filter(r => getDelaiStatus(r)?.clotureEnRetard).length,
+    enRetardReponse: reclamations.filter(r => getDelaiStatus(r)?.reponseEnRetard).length,
     closed: reclamations.filter(r => r.status === 'closed').length,
   }
   
@@ -376,13 +376,13 @@ export default function NonConformites() {
             <div className="card p-4 text-center"><p className="text-2xl font-bold text-gray-900">{statsRecl.total}</p><p className="text-ui text-gray-500">Total</p></div>
             <div className="card p-4 text-center bg-[rgb(var(--c-danger-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-danger))]">{statsRecl.open}</p><p className="text-ui text-[rgb(var(--c-danger))]">Ouvertes</p></div>
             <div className="card p-4 text-center bg-[rgb(var(--c-warning-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{statsRecl.enRetardAR}</p><p className="text-ui text-[rgb(var(--c-warning))]">AR en retard</p></div>
-            <div className="card p-4 text-center bg-[rgb(var(--c-warning-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{statsRecl.enRetardCloture}</p><p className="text-ui text-[rgb(var(--c-warning))]">Clôture en retard</p></div>
+            <div className="card p-4 text-center bg-[rgb(var(--c-warning-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-warning))]">{statsRecl.enRetardReponse}</p><p className="text-ui text-[rgb(var(--c-warning))]">Réponse en retard</p></div>
             <div className="card p-4 text-center bg-[rgb(var(--c-success-bg))]"><p className="text-2xl font-bold text-[rgb(var(--c-success))]">{statsRecl.closed}</p><p className="text-ui text-[rgb(var(--c-success))]">Clôturées</p></div>
           </div>
           
           {/* Délais de référence */}
           <div className="bg-[rgb(var(--c-info-bg))] border border-[rgb(var(--c-info)/0.3)] rounded-ui-sm p-3 text-ui text-[rgb(var(--c-info))]">
-            <strong>Délais Qualiopi :</strong> Accusé réception sous 48h • Clôture sous 5 jours ouvrés
+            <strong>Délais de la procédure :</strong> accusé de réception sous 48 h ouvrées • réponse sous 10 jours ouvrés
           </div>
           
           {/* Filtres Réclamations */}
@@ -422,7 +422,7 @@ export default function NonConformites() {
                   const delais = getDelaiStatus(recl)
                   
                   return (
-                    <div key={recl.id} className={`p-4 hover:bg-gray-50 ${delais?.clotureEnRetard ? 'bg-[rgb(var(--c-danger-bg))]' : delais?.arEnRetard ? 'bg-[rgb(var(--c-warning-bg))]' : ''}`}>
+                    <div key={recl.id} className={`p-4 hover:bg-gray-50 ${delais?.reponseEnRetard ? 'bg-[rgb(var(--c-danger-bg))]' : delais?.arEnRetard ? 'bg-[rgb(var(--c-warning-bg))]' : ''}`}>
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -430,7 +430,7 @@ export default function NonConformites() {
                             <span className="font-medium">{recl.subject}</span>
                             <span className={`badge ${status.class}`}>{status.label}</span>
                             {delais?.arEnRetard && <span className="badge badge-orange">AR en retard!</span>}
-                            {delais?.clotureEnRetard && <span className="badge badge-red">Clôture en retard!</span>}
+                            {delais?.reponseEnRetard && <span className="badge badge-red">Réponse en retard</span>}
                           </div>
                           {recl.description && <p className="text-ui text-gray-600 mb-2">{recl.description.substring(0, 100)}...</p>}
                           <div className="flex items-center gap-4 text-ui-sm text-gray-500">
