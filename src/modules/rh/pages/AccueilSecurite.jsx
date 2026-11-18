@@ -112,12 +112,12 @@ export default function AccueilSecuriteFiche({ personId, contrats = [], peutGere
   }, [personId])
   useEffect(() => { charger() }, [charger])
   useEffect(() => { chargerPostes().then(setPostes).catch(() => setPostes([])) }, [])
-  const contrat = useMemo(() => (contrats || []).filter((c) => statutContrat(c) !== 'termine').sort((a, b) => (a.start_on < b.start_on ? 1 : -1))[0] || null, [contrats])
+  const contrat = useMemo(() => (contrats || []).filter((c) => statutContrat(c) !== 'termine' && c.start_on <= dansJours(30)).sort((a, b) => (a.start_on < b.start_on ? 1 : -1))[0] || null, [contrats])
   const poste = useMemo(() => postes.find((p) => p.id === contrat?.job_id) || null, [postes, contrat])
   if (liste === null) return null
   if (!peutGerer && !liste.length && !echeance) return null
   const dernier = liste.find((a) => a.signed_at) || null
-  const motif = dernier && contrat && (dernier.job_id || null) !== (contrat.job_id || null) ? 'changement_poste' : 'embauche'
+  const motif = dernier?.job_id && contrat && dernier.job_id !== (contrat.job_id || null) ? 'changement_poste' : 'embauche'
 
   const supprimer = async (a) => {
     if (!(await confirmer(`Supprimer l'accueil sécurité du ${fr(a.done_on)} saisi par erreur ?`))) return
@@ -153,4 +153,11 @@ export default function AccueilSecuriteFiche({ personId, contrats = [], peutGere
       {saisie && <AccueilSheet personId={personId} contrat={contrat} poste={poste} motif={motif} onClose={() => setSaisie(false)} onSaved={() => { setSaisie(false); charger() }} />}
     </section>
   )
+}
+
+// Même fenêtre que les échéances de la base : contrats qui commencent dans les 30 jours au plus
+function dansJours(n) {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }

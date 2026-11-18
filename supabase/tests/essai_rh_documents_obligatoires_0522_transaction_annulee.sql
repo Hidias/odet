@@ -89,13 +89,19 @@ begin
     -- Fiche signée : figée, sauf les notes
     if new.done_on is distinct from old.done_on or new.reason is distinct from old.reason or new.topics is distinct from old.topics
        or new.conducted_by is distinct from old.conducted_by or new.employee_signature is distinct from old.employee_signature
-       or new.person_id is distinct from old.person_id or new.employment_id is distinct from old.employment_id
-       or new.created_by is distinct from old.created_by then
+       or new.person_id is distinct from old.person_id or new.employment_id is distinct from old.employment_id then
       raise exception 'Accueil sécurité signé : il ne se modifie plus (supprimez-le s''il a été saisi par erreur)' using errcode = '22023';
     end if;
     new.signed_at := old.signed_at;
     new.job_id := old.job_id;
   elsif new.employee_signature is not null then
+    -- Contrôles de l'écran repris par la base à la signature (relecture du 18/11, tour 2)
+    if new.done_on > current_date then
+      raise exception 'L''accueil sécurité ne peut pas être daté dans le futur' using errcode = '22023';
+    end if;
+    if not exists (select 1 from jsonb_array_elements(new.topics) t where (t->>'done')::boolean) then
+      raise exception 'Cochez au moins un point abordé' using errcode = '22023';
+    end if;
     new.signed_at := now();
     -- Poste de la personne au moment de la signature (pour repérer un changement de poste)
     new.job_id := coalesce(
@@ -106,7 +112,12 @@ begin
   else
     new.signed_at := null;
   end if;
-  if tg_op = 'INSERT' then new.created_at := now(); else new.created_at := old.created_at; new.company_id := old.company_id; end if;
+  if tg_op = 'INSERT' then
+    new.created_at := now();
+    new.created_by := coalesce(auth.uid(), new.created_by);
+  else
+    new.created_at := old.created_at; new.company_id := old.company_id; new.created_by := old.created_by;
+  end if;
   new.updated_at := now();
   return new;
 end
@@ -150,10 +161,18 @@ set search_path = ''
 as $$
 declare
   v record;
+  v_e uuid;
+  v_debut date;
 begin
   if new.kind = 'arrivee' then
+    -- Seulement un accueil du contrat le plus récent (ou des contrats enchaînés), comme les échéances : pas celui
+    -- d'un ancien contrat en cas de réembauche (relecture du 18/11, tour 2)
+    select e.id, e.start_on into v_e, v_debut from public.hr_employments e
+     where e.person_id = new.person_id order by e.start_on desc, e.created_at desc limit 1;
+    v_debut := coalesce(app.hr_debut_continu(v_e), v_debut, current_date);
     select i.done_on, i.created_by into v from public.hr_safety_inductions i
-     where i.person_id = new.person_id and i.signed_at is not null order by i.done_on desc limit 1;
+     where i.person_id = new.person_id and i.signed_at is not null and i.done_on >= v_debut - 30
+     order by i.done_on desc limit 1;
     if found then
       new.items := (select coalesce(jsonb_agg(case when x->>'label' = 'Accueil sécurité fait' and coalesce(x->>'done_on', '') = ''
                                               then x || jsonb_build_object('done_on', v.done_on, 'done_by', v.created_by)
@@ -295,7 +314,8 @@ begin
 end $$;
 
 -- ── 4. Échéances ──
--- Début du contrat, ou du premier contrat enchaîné sans interruption sur le même poste (relecture du 18/11 : un CDI
+-- Début du contrat, ou du premier contrat enchaîné sur le même poste (au plus 7 jours entre deux contrats, un week-end
+-- compris) (relecture du 18/11 : un CDI
 -- qui suit un CDD sur le même poste ne redemande pas l'accueil)
 create or replace function app.hr_debut_continu(p_employment uuid)
 returns date
@@ -318,7 +338,7 @@ begin
     exit when i > 50;
     select min(e.start_on) into v_prec from public.hr_employments e
      where e.person_id = v_person and e.job_id is not distinct from v_job and e.id <> p_employment
-       and e.start_on < v_debut and e.end_on is not null and e.end_on >= v_debut - 1;
+       and e.start_on < v_debut and e.end_on is not null and e.end_on >= v_debut - 7;
     exit when v_prec is null;
     v_debut := v_prec;
   end loop;
@@ -388,16 +408,16 @@ create or replace view public.v_hr_echeances with (security_invoker = true) as
   -- Contrat le plus récent de la personne (non archivée), sans accueil signé pour son poste depuis ce contrat ou les
   -- contrats enchaînés sur le même poste (app.hr_debut_continu) ; mandataire : sans objet
   select c.company_id, c.person_id, 'accueil_securite',
-         case when (select i.job_id from public.hr_safety_inductions i where i.person_id = c.person_id and i.signed_at is not null
-                    order by i.done_on desc, i.signed_at desc limit 1) is distinct from c.job_id
-                   and exists (select 1 from public.hr_safety_inductions i where i.person_id = c.person_id and i.signed_at is not null)
+         case when coalesce((select i.job_id from public.hr_safety_inductions i where i.person_id = c.person_id and i.signed_at is not null
+                             order by i.done_on desc, i.signed_at desc limit 1), c.job_id) is distinct from c.job_id
               then 'Accueil sécurité à refaire (changement de poste)' else 'Accueil sécurité' end,
          c.start_on, c.id
   from courant c
   where c.contract_type <> 'mandataire'
     and not exists (select 1 from public.hr_safety_inductions i
                     where i.person_id = c.person_id and i.signed_at is not null
-                      and i.job_id is not distinct from c.job_id and i.done_on >= app.hr_debut_continu(c.id) - 30)
+                      and (i.job_id is null or i.job_id is not distinct from c.job_id)  -- accueil signé avant la saisie du contrat
+                      and i.done_on >= app.hr_debut_continu(c.id) - 30)
   union all
   -- Poste « seul » sans mesure, ou mesure DATI sans DATI remis et non rendu ; daté du début du contrat
   select c.company_id, c.person_id, 'travail_isole',
@@ -423,7 +443,7 @@ set local client_min_messages = warning;
 do $$
 declare
   v_cie uuid; v_p uuid; v_q uuid; v_job uuid; v_job2 uuid; v_e uuid; v_eq uuid; v_i uuid; v_n int; v_lab text;
-  v_item uuid; v_loc uuid; v_r uuid; v_c1 uuid; v_c2 uuid;
+  v_item uuid; v_loc uuid; v_r uuid; v_c1 uuid; v_c2 uuid; v_s uuid; v_w uuid;
 begin
   select id into v_cie from public.companies order by created_at limit 1;
   insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'ACCUEIL 0522') returning id into v_p;
@@ -567,6 +587,46 @@ begin
       and tgrelid in ('public.hr_safety_inductions'::regclass, 'public.hr_postings'::regclass)) <> 2 then
     raise exception 'Essai 0522 : verrou de la vue groupe absent';
   end if;
+
+
+  -- 9. Tour 2 : accueil signé avant la saisie du contrat ; CDD puis CDI après un week-end ; réembauche ; contrôles
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'SANS CONTRAT 0522') returning id into v_s;
+  insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature)
+    values (v_s, current_date, '[{"label":"a","done":true}]', 'data:image/png;base64,AAAA');
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, job_id) values (v_cie, v_s, 'cdi', current_date, v_job);
+  if exists (select 1 from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_s) then
+    raise exception 'Essai 0522 : accueil signé avant la saisie du contrat non retenu';
+  end if;
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'WEEKEND 0522') returning id into v_w;
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, end_on, job_id)
+    values (v_cie, v_w, 'cdd', current_date - 100, current_date - 10, v_job) returning id into v_c1;
+  insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature, employment_id)
+    values (v_w, current_date - 100, '[{"label":"a","done":true}]', 'data:image/png;base64,AAAA', v_c1);
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, job_id) values (v_cie, v_w, 'cdi', current_date - 7, v_job);
+  if exists (select 1 from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_w) then
+    raise exception 'Essai 0522 : CDI après un week-end redemande l''accueil';
+  end if;
+  -- Réembauche après deux ans : la nouvelle liste ne reprend pas l'ancien accueil
+  update public.hr_employments set start_on = current_date - 900, end_on = current_date - 700 where id = v_c1;
+  update public.hr_safety_inductions set notes = 'ancien' where person_id = v_w;
+  delete from public.hr_checklists where person_id = v_w;
+  insert into public.hr_checklists (company_id, person_id, kind, items)
+    values (v_cie, v_w, 'arrivee', '[{"label":"Accueil sécurité fait","done_on":null,"done_by":null}]');
+  select x->>'done_on' into v_lab from public.hr_checklists l, jsonb_array_elements(l.items) x
+   where l.person_id = v_w and l.kind = 'arrivee' and x->>'label' = 'Accueil sécurité fait';
+  if v_lab is not null then raise exception 'Essai 0522 : liste de réembauche cochée avec un ancien accueil'; end if;
+  begin
+    insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature)
+      values (v_s, current_date + 1, '[{"label":"a","done":true}]', 'data:image/png;base64,AAAA');
+    raise exception 'Essai 0522 : accueil signé daté dans le futur accepté';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature)
+      values (v_s, current_date, '[]', 'data:image/png;base64,AAAA');
+    raise exception 'Essai 0522 : accueil signé sans point accepté';
+  exception when invalid_parameter_value then null;
+  end;
 
   -- 7. Droits posés, vue aux droits du lecteur
   if (select count(*) from pg_policies where schemaname = 'public' and tablename in ('hr_safety_inductions', 'hr_postings')) <> 8 then

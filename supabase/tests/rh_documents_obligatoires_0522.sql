@@ -6,7 +6,7 @@ set local client_min_messages = warning;
 do $$
 declare
   v_cie uuid; v_p uuid; v_q uuid; v_job uuid; v_job2 uuid; v_e uuid; v_eq uuid; v_i uuid; v_n int; v_lab text;
-  v_item uuid; v_loc uuid; v_r uuid; v_c1 uuid; v_c2 uuid;
+  v_item uuid; v_loc uuid; v_r uuid; v_c1 uuid; v_c2 uuid; v_s uuid; v_w uuid;
 begin
   select id into v_cie from public.companies order by created_at limit 1;
   insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'ACCUEIL 0522') returning id into v_p;
@@ -150,6 +150,46 @@ begin
       and tgrelid in ('public.hr_safety_inductions'::regclass, 'public.hr_postings'::regclass)) <> 2 then
     raise exception 'Essai 0522 : verrou de la vue groupe absent';
   end if;
+
+
+  -- 9. Tour 2 : accueil signé avant la saisie du contrat ; CDD puis CDI après un week-end ; réembauche ; contrôles
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'SANS CONTRAT 0522') returning id into v_s;
+  insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature)
+    values (v_s, current_date, '[{"label":"a","done":true}]', 'data:image/png;base64,AAAA');
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, job_id) values (v_cie, v_s, 'cdi', current_date, v_job);
+  if exists (select 1 from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_s) then
+    raise exception 'Essai 0522 : accueil signé avant la saisie du contrat non retenu';
+  end if;
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'WEEKEND 0522') returning id into v_w;
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, end_on, job_id)
+    values (v_cie, v_w, 'cdd', current_date - 100, current_date - 10, v_job) returning id into v_c1;
+  insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature, employment_id)
+    values (v_w, current_date - 100, '[{"label":"a","done":true}]', 'data:image/png;base64,AAAA', v_c1);
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, job_id) values (v_cie, v_w, 'cdi', current_date - 7, v_job);
+  if exists (select 1 from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_w) then
+    raise exception 'Essai 0522 : CDI après un week-end redemande l''accueil';
+  end if;
+  -- Réembauche après deux ans : la nouvelle liste ne reprend pas l'ancien accueil
+  update public.hr_employments set start_on = current_date - 900, end_on = current_date - 700 where id = v_c1;
+  update public.hr_safety_inductions set notes = 'ancien' where person_id = v_w;
+  delete from public.hr_checklists where person_id = v_w;
+  insert into public.hr_checklists (company_id, person_id, kind, items)
+    values (v_cie, v_w, 'arrivee', '[{"label":"Accueil sécurité fait","done_on":null,"done_by":null}]');
+  select x->>'done_on' into v_lab from public.hr_checklists l, jsonb_array_elements(l.items) x
+   where l.person_id = v_w and l.kind = 'arrivee' and x->>'label' = 'Accueil sécurité fait';
+  if v_lab is not null then raise exception 'Essai 0522 : liste de réembauche cochée avec un ancien accueil'; end if;
+  begin
+    insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature)
+      values (v_s, current_date + 1, '[{"label":"a","done":true}]', 'data:image/png;base64,AAAA');
+    raise exception 'Essai 0522 : accueil signé daté dans le futur accepté';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature)
+      values (v_s, current_date, '[]', 'data:image/png;base64,AAAA');
+    raise exception 'Essai 0522 : accueil signé sans point accepté';
+  exception when invalid_parameter_value then null;
+  end;
 
   -- 7. Droits posés, vue aux droits du lecteur
   if (select count(*) from pg_policies where schemaname = 'public' and tablename in ('hr_safety_inductions', 'hr_postings')) <> 8 then
