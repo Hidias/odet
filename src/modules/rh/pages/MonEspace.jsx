@@ -59,7 +59,7 @@ export default function MonEspace() {
   const nomType = useMemo(() => Object.fromEntries(types.map((t) => [t.id, t.label])), [types])
   const aVenir = demandes.filter((r) => (r.status === 'demandee' || r.status === 'validee') && r.end_on >= aujourdhui)
     .sort((a, b) => a.start_on.localeCompare(b.start_on)).slice(0, 5)
-  const prochainesEcheances = echeances.filter((e) => e.kind !== 'dpae' && (e.kind !== 'fin_essai' || e.due_on >= aujourdhui)).slice(0, 6)
+  const prochainesEcheances = echeances.filter((e) => !['dpae', 'accueil_securite', 'travail_isole'].includes(e.kind) && (e.kind !== 'fin_essai' || e.due_on >= aujourdhui)).slice(0, 6)
 
   if (fiche === undefined) return <Spinner />
   if (!fiche) {
