@@ -1,4 +1,11 @@
--- 0523 : contrats de travail et avenants (CDI, CDD, avenant) générés en PDF depuis la fiche du personnel.
+-- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (rh_contrats_0525) : ne pas modifier à la main.
+-- APPLICATION RÉELLE sur l'instance : 0525_rh_contrats.sql. Une seule transaction : si une instruction échoue,
+-- rien n'est appliqué. Retour arrière : supabase/rollback/0525_rh_contrats_retour.sql
+select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);
+
+-- ===== supabase/migrations/0525_rh_contrats.sql =====
+-- 0525 : contrats de travail et avenants (CDI, CDD, avenant) générés en PDF depuis la fiche du personnel.
+-- Renumérotée 0525 le 18/11 (0523 et 0524 pris par les comptes extérieurs, #374) ; le plan garde son nom d'origine.
 -- Conception validée par H : claude/odet-rh-contrats-conception-2026-11-18.md ; plan : claude/odet-rh-contrats-plan-0523.md.
 -- Choix de H (18/11) : signature papier scannée d'abord ; aucun modèle existant, la base proposée attend l'avocat ;
 -- convention collective : Métallurgie, IDCC 3248 (saisie par la société, rien n'est posé ici).
@@ -34,7 +41,7 @@
 --      fériés chômés de la société exclus), CDI, apprentissage et professionnalisation à début + 7 jours (R1221-35) ;
 --      tant que « remis le » est vide, pour les contrats commencés depuis 30 jours au plus. Corps des huit autres
 --      branches repris de 0522 à l'identique.
--- Additive. Idempotente. Retour arrière : supabase/rollback/0523_rh_contrats_retour.sql
+-- Additive. Idempotente. Retour arrière : supabase/rollback/0525_rh_contrats_retour.sql
 
 -- ── 1. Paramètres RH ──
 alter table public.hr_settings add column if not exists collective_agreement_name text;
@@ -116,8 +123,8 @@ alter table public.hr_documents drop constraint if exists hr_documents_genere;
 alter table public.hr_documents add constraint hr_documents_genere check (
   (generated_from is null or generated_from ~ '^(cdi|cdd|avenant)@[0-9]+:(projet|valide)$')
   and (content_sha256 is null or content_sha256 ~ '^[0-9a-f]{64}$'));
-comment on column public.hr_documents.generated_from is 'Modèle qui a produit le document : type@version:statut (0523)';
-comment on column public.hr_documents.content_sha256 is 'Empreinte SHA-256 du PDF généré (0523)';
+comment on column public.hr_documents.generated_from is 'Modèle qui a produit le document : type@version:statut (0525)';
+comment on column public.hr_documents.content_sha256 is 'Empreinte SHA-256 du PDF généré (0525)';
 
 -- ── 4. Modèles ──
 create table if not exists public.hr_contract_models (
@@ -183,7 +190,7 @@ security definer
 set search_path = ''
 as $$
   insert into public.hr_contract_models (company_id, kind, version, title, articles, status, note)
-  select p_company, m.kind, 1, m.title, m.articles, 'projet', 'Base proposée le 18/11/2026 (0523) : mentions imposées par le Code du travail, à valider par l''avocat avant tout usage'
+  select p_company, m.kind, 1, m.title, m.articles, 'projet', 'Base proposée le 18/11/2026 (0525) : mentions imposées par le Code du travail, à valider par l''avocat avant tout usage'
   from (values
     ('cdi', 'Contrat de travail à durée indéterminée', $j$[
       {"titre": "Engagement", "texte": "{{employeur_nom}}, {{employeur_forme}}, SIREN {{employeur_siren}}, dont le siège est situé {{employeur_adresse}}, ci-après l'employeur, engage {{salarie_nom}}, demeurant {{salarie_adresse}}, ci-après le salarié, par contrat de travail à durée indéterminée à compter du {{date_debut}}."},
@@ -235,7 +242,7 @@ $$;
 revoke all on function app.hr_modeles_contrat_depart(uuid) from public, anon, authenticated;
 select app.hr_modeles_contrat_depart(c.id) from public.companies c;
 
--- Rejouable par qui règle les RH (société créée après 0523, ou modèle d'un type absent)
+-- Rejouable par qui règle les RH (société créée après 0525, ou modèle d'un type absent)
 create or replace function public.hr_modeles_contrat_poser(p_company uuid)
 returns void
 language plpgsql
@@ -628,4 +635,4 @@ alter table public.hr_compensation add constraint hr_compensation_components_lon
   check (components is null or length(components) <= 1000);
 comment on column public.hr_compensation.components is 'Primes et accessoires de la rémunération, ou « néant » (L1242-12, R1221-34), repris dans le contrat écrit';
 
-insert into public.schema_migrations (version) values ('0523_rh_contrats') on conflict (version) do nothing;
+insert into public.schema_migrations (version) values ('0525_rh_contrats') on conflict (version) do nothing;

@@ -1,4 +1,4 @@
-// Contrats de travail (0523) : réglages des mentions communes (convention collective, caisses, modalités de paie) et
+// Contrats de travail (0525) : réglages des mentions communes (convention collective, caisses, modalités de paie) et
 // modèles de la société (CDI, CDD, avenant). Un modèle reste « projet » tant que l'avocat ne l'a pas validé ; validé,
 // son texte est figé. Aucune clause facultative (mobilité, non-concurrence, exclusivité, astreinte) avant l'avocat.
 

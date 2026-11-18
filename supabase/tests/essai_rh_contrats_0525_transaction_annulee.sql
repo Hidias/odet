@@ -1,10 +1,11 @@
--- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (rh_contrats_0523) : ne pas modifier à la main.
--- Essai en transaction annulée : 0523_rh_contrats.sql, essai propre, puis tous les tests de droits. Se termine
+-- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (rh_contrats_0525) : ne pas modifier à la main.
+-- Essai en transaction annulée : 0525_rh_contrats.sql, essai propre, puis tous les tests de droits. Se termine
 -- TOUJOURS par l'erreur volontaire « RÉSULTAT DES TESTS DE DROITS » : tout est annulé.
 select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);
 
--- ===== supabase/migrations/0523_rh_contrats.sql =====
--- 0523 : contrats de travail et avenants (CDI, CDD, avenant) générés en PDF depuis la fiche du personnel.
+-- ===== supabase/migrations/0525_rh_contrats.sql =====
+-- 0525 : contrats de travail et avenants (CDI, CDD, avenant) générés en PDF depuis la fiche du personnel.
+-- Renumérotée 0525 le 18/11 (0523 et 0524 pris par les comptes extérieurs, #374) ; le plan garde son nom d'origine.
 -- Conception validée par H : claude/odet-rh-contrats-conception-2026-11-18.md ; plan : claude/odet-rh-contrats-plan-0523.md.
 -- Choix de H (18/11) : signature papier scannée d'abord ; aucun modèle existant, la base proposée attend l'avocat ;
 -- convention collective : Métallurgie, IDCC 3248 (saisie par la société, rien n'est posé ici).
@@ -40,7 +41,7 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      fériés chômés de la société exclus), CDI, apprentissage et professionnalisation à début + 7 jours (R1221-35) ;
 --      tant que « remis le » est vide, pour les contrats commencés depuis 30 jours au plus. Corps des huit autres
 --      branches repris de 0522 à l'identique.
--- Additive. Idempotente. Retour arrière : supabase/rollback/0523_rh_contrats_retour.sql
+-- Additive. Idempotente. Retour arrière : supabase/rollback/0525_rh_contrats_retour.sql
 
 -- ── 1. Paramètres RH ──
 alter table public.hr_settings add column if not exists collective_agreement_name text;
@@ -122,8 +123,8 @@ alter table public.hr_documents drop constraint if exists hr_documents_genere;
 alter table public.hr_documents add constraint hr_documents_genere check (
   (generated_from is null or generated_from ~ '^(cdi|cdd|avenant)@[0-9]+:(projet|valide)$')
   and (content_sha256 is null or content_sha256 ~ '^[0-9a-f]{64}$'));
-comment on column public.hr_documents.generated_from is 'Modèle qui a produit le document : type@version:statut (0523)';
-comment on column public.hr_documents.content_sha256 is 'Empreinte SHA-256 du PDF généré (0523)';
+comment on column public.hr_documents.generated_from is 'Modèle qui a produit le document : type@version:statut (0525)';
+comment on column public.hr_documents.content_sha256 is 'Empreinte SHA-256 du PDF généré (0525)';
 
 -- ── 4. Modèles ──
 create table if not exists public.hr_contract_models (
@@ -189,7 +190,7 @@ security definer
 set search_path = ''
 as $$
   insert into public.hr_contract_models (company_id, kind, version, title, articles, status, note)
-  select p_company, m.kind, 1, m.title, m.articles, 'projet', 'Base proposée le 18/11/2026 (0523) : mentions imposées par le Code du travail, à valider par l''avocat avant tout usage'
+  select p_company, m.kind, 1, m.title, m.articles, 'projet', 'Base proposée le 18/11/2026 (0525) : mentions imposées par le Code du travail, à valider par l''avocat avant tout usage'
   from (values
     ('cdi', 'Contrat de travail à durée indéterminée', $j$[
       {"titre": "Engagement", "texte": "{{employeur_nom}}, {{employeur_forme}}, SIREN {{employeur_siren}}, dont le siège est situé {{employeur_adresse}}, ci-après l'employeur, engage {{salarie_nom}}, demeurant {{salarie_adresse}}, ci-après le salarié, par contrat de travail à durée indéterminée à compter du {{date_debut}}."},
@@ -241,7 +242,7 @@ $$;
 revoke all on function app.hr_modeles_contrat_depart(uuid) from public, anon, authenticated;
 select app.hr_modeles_contrat_depart(c.id) from public.companies c;
 
--- Rejouable par qui règle les RH (société créée après 0523, ou modèle d'un type absent)
+-- Rejouable par qui règle les RH (société créée après 0525, ou modèle d'un type absent)
 create or replace function public.hr_modeles_contrat_poser(p_company uuid)
 returns void
 language plpgsql
@@ -634,9 +635,9 @@ alter table public.hr_compensation add constraint hr_compensation_components_lon
   check (components is null or length(components) <= 1000);
 comment on column public.hr_compensation.components is 'Primes et accessoires de la rémunération, ou « néant » (L1242-12, R1221-34), repris dans le contrat écrit';
 
-insert into public.schema_migrations (version) values ('0523_rh_contrats') on conflict (version) do nothing;
+insert into public.schema_migrations (version) values ('0525_rh_contrats') on conflict (version) do nothing;
 
--- ===== essai propre supabase/tests/rh_contrats_0523.sql (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====
+-- ===== essai propre supabase/tests/rh_contrats_0525.sql (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====
 savepoint essai_propre;
 
 set local client_min_messages = warning;
@@ -646,103 +647,103 @@ declare
   v_cie uuid; v_p uuid; v_q uuid; v_e uuid; v_e2 uuid; v_d uuid; v_dq uuid; v_a uuid; v_m uuid; v_n int; v_jour date; v_lab text;
 begin
   select id into v_cie from public.companies order by created_at limit 1;
-  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'CONTRAT 0523') returning id into v_p;
-  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'AUTRE 0523') returning id into v_q;
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'CONTRAT 0525') returning id into v_p;
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'AUTRE 0525') returning id into v_q;
 
   -- 1. Modèles de départ : trois types en « projet » ; validation sans validateur refusée ; validé, texte figé
   select count(*) into v_n from public.hr_contract_models where company_id = v_cie and version = 1 and status = 'projet' and kind in ('cdi', 'cdd', 'avenant');
-  if v_n <> 3 then raise exception 'Essai 0523 : 3 modèles de départ attendus (% trouvés)', v_n; end if;
+  if v_n <> 3 then raise exception 'Essai 0525 : 3 modèles de départ attendus (% trouvés)', v_n; end if;
   perform app.hr_modeles_contrat_depart(v_cie);
   select count(*) into v_n from public.hr_contract_models where company_id = v_cie;
-  if v_n <> 3 then raise exception 'Essai 0523 : modèles de départ posés deux fois (%)', v_n; end if;
+  if v_n <> 3 then raise exception 'Essai 0525 : modèles de départ posés deux fois (%)', v_n; end if;
   select id into v_m from public.hr_contract_models where company_id = v_cie and kind = 'cdi';
   begin
     update public.hr_contract_models set status = 'valide' where id = v_m;
-    raise exception 'Essai 0523 : validation sans date ni validateur acceptée';
+    raise exception 'Essai 0525 : validation sans date ni validateur acceptée';
   exception when check_violation then null;
   end;
   update public.hr_contract_models set status = 'valide', validated_on = current_date, validated_by_name = 'Avocat essai' where id = v_m;
   begin
     update public.hr_contract_models set articles = '[{"titre":"x","texte":"y"}]' where id = v_m;
-    raise exception 'Essai 0523 : texte d''un modèle validé modifié';
+    raise exception 'Essai 0525 : texte d''un modèle validé modifié';
   exception when invalid_parameter_value then null;
   end;
   begin
     update public.hr_contract_models set status = 'projet', validated_on = null, validated_by_name = null where id = v_m;
-    raise exception 'Essai 0523 : modèle validé repassé en projet';
+    raise exception 'Essai 0525 : modèle validé repassé en projet';
   exception when invalid_parameter_value then null;
   end;
   begin
     delete from public.hr_contract_models where id = v_m;
-    raise exception 'Essai 0523 : modèle validé supprimé';
+    raise exception 'Essai 0525 : modèle validé supprimé';
   exception when invalid_parameter_value then null;
   end;
   update public.hr_contract_models set note = 'note modifiable' where id = v_m;
   -- Un modèle naît « projet », même inséré « validé »
   insert into public.hr_contract_models (company_id, kind, version, title, articles, status, validated_on, validated_by_name)
     values (v_cie, 'cdi', 2, 'Essai v2', '[{"titre":"x","texte":"y"}]', 'valide', current_date, 'X') returning id into v_m;
-  if (select status from public.hr_contract_models where id = v_m) <> 'projet' then raise exception 'Essai 0523 : modèle inséré directement validé'; end if;
+  if (select status from public.hr_contract_models where id = v_m) <> 'projet' then raise exception 'Essai 0525 : modèle inséré directement validé'; end if;
 
   -- 2. Motif de CDD : seulement sur un CDD ; sans terme précis refusé pour un accroissement
   begin
     insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason) values (v_cie, v_p, 'cdi', current_date, 'accroissement');
-    raise exception 'Essai 0523 : motif de CDD accepté sur un CDI';
+    raise exception 'Essai 0525 : motif de CDD accepté sur un CDI';
   exception when check_violation then null;
   end;
   begin
     insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason, cdd_min_end_on)
       values (v_cie, v_p, 'cdd', current_date, 'accroissement', current_date + 30);
-    raise exception 'Essai 0523 : CDD sans terme précis accepté pour un accroissement';
+    raise exception 'Essai 0525 : CDD sans terme précis accepté pour un accroissement';
   exception when check_violation then null;
   end;
   begin
     insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason, cdd_min_end_on)
       values (v_cie, v_p, 'cdd', current_date, 'remplacement_temps_partiel', current_date + 30);
-    raise exception 'Essai 0523 : CDD sans terme précis accepté pour un passage à temps partiel (hors L1242-7)';
+    raise exception 'Essai 0525 : CDD sans terme précis accepté pour un passage à temps partiel (hors L1242-7)';
   exception when check_violation then null;
   end;
   begin
     insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_min_end_on) values (v_cie, v_p, 'cdd', current_date, current_date + 30);
-    raise exception 'Essai 0523 : CDD sans terme précis accepté sans motif';
+    raise exception 'Essai 0525 : CDD sans terme précis accepté sans motif';
   exception when check_violation then null;
   end;
   begin
     insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason) values (v_cie, v_p, 'cdd', current_date, 'inconnu');
-    raise exception 'Essai 0523 : motif de CDD inconnu accepté';
+    raise exception 'Essai 0525 : motif de CDD inconnu accepté';
   exception when check_violation then null;
   end;
 
   -- 3. Jours ouvrables : dimanche et jour férié chômé exclus, samedi compté
   v_jour := date_trunc('week', current_date + 14)::date + 4;  -- un vendredi
-  insert into public.hr_public_holidays (company_id, day, label, is_worked) values (v_cie, v_jour + 3, 'Férié essai 0523', false)
+  insert into public.hr_public_holidays (company_id, day, label, is_worked) values (v_cie, v_jour + 3, 'Férié essai 0525', false)
     on conflict (company_id, day) do update set is_worked = false;
   if app.hr_jour_ouvrable_apres(v_cie, v_jour, 2) <> v_jour + 4 then
-    raise exception 'Essai 0523 : 2 jours ouvrables après un vendredi suivi d''un lundi férié : % attendu, % obtenu', v_jour + 4, app.hr_jour_ouvrable_apres(v_cie, v_jour, 2);
+    raise exception 'Essai 0525 : 2 jours ouvrables après un vendredi suivi d''un lundi férié : % attendu, % obtenu', v_jour + 4, app.hr_jour_ouvrable_apres(v_cie, v_jour, 2);
   end if;
-  if app.hr_jour_ouvrable_apres(v_cie, v_jour, 1) <> v_jour + 1 then raise exception 'Essai 0523 : le samedi n''est pas compté comme ouvrable'; end if;
+  if app.hr_jour_ouvrable_apres(v_cie, v_jour, 1) <> v_jour + 1 then raise exception 'Essai 0525 : le samedi n''est pas compté comme ouvrable'; end if;
 
   -- 4. Échéance « contrat à remettre » : CDD sous 2 jours ouvrables, CDI sous 7 jours ; levée une fois remis
   insert into public.hr_employments (company_id, person_id, contract_type, start_on, end_on, cdd_reason)
     values (v_cie, v_p, 'cdd', v_jour, v_jour + 60, 'accroissement') returning id into v_e;
   select count(*) into v_n from public.v_hr_echeances where kind = 'contrat_remis' and source_id = v_e and due_on = v_jour + 4;
-  if v_n <> 1 then raise exception 'Essai 0523 : échéance du CDD attendue au % (% trouvée)', v_jour + 4, v_n; end if;
+  if v_n <> 1 then raise exception 'Essai 0525 : échéance du CDD attendue au % (% trouvée)', v_jour + 4, v_n; end if;
   insert into public.hr_employments (company_id, person_id, contract_type, start_on)
     values (v_cie, v_q, 'cdi', current_date - 2) returning id into v_e2;
   select count(*) into v_n from public.v_hr_echeances where kind = 'contrat_remis' and source_id = v_e2 and due_on = current_date + 5;
-  if v_n <> 1 then raise exception 'Essai 0523 : échéance du CDI attendue à début + 7 jours (% trouvée)', v_n; end if;
+  if v_n <> 1 then raise exception 'Essai 0525 : échéance du CDI attendue à début + 7 jours (% trouvée)', v_n; end if;
   update public.hr_employments set contract_handed_on = current_date where id = v_e2;
   if exists (select 1 from public.v_hr_echeances where kind = 'contrat_remis' and source_id = v_e2) then
-    raise exception 'Essai 0523 : échéance encore là après la remise';
+    raise exception 'Essai 0525 : échéance encore là après la remise';
   end if;
 
   -- 5. Contrat signé : document de la personne seulement ; déposé, la ligne de la liste d'arrivée se coche
   insert into public.hr_documents (company_id, person_id, employment_id, category, confidentiality, title, file_path)
-    values (v_cie, v_p, v_e, 'contrat', 'restreint', 'Contrat signé essai', v_cie || '/' || v_p || '/essai-0523.pdf') returning id into v_d;
+    values (v_cie, v_p, v_e, 'contrat', 'restreint', 'Contrat signé essai', v_cie || '/' || v_p || '/essai-0525.pdf') returning id into v_d;
   insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
-    values (v_cie, v_q, 'contrat', 'restreint', 'Autre contrat essai', v_cie || '/' || v_q || '/essai-0523-q.pdf') returning id into v_dq;
+    values (v_cie, v_q, 'contrat', 'restreint', 'Autre contrat essai', v_cie || '/' || v_q || '/essai-0525-q.pdf') returning id into v_dq;
   begin
     update public.hr_employments set signed_document_id = v_dq where id = v_e;
-    raise exception 'Essai 0523 : document d''une autre personne accepté comme contrat signé';
+    raise exception 'Essai 0525 : document d''une autre personne accepté comme contrat signé';
   exception when invalid_parameter_value then null;
   end;
   insert into public.hr_checklists (company_id, person_id, kind, items)
@@ -750,84 +751,84 @@ begin
   update public.hr_employments set signed_document_id = v_d where id = v_e;
   select x->>'done_on' into v_lab from public.hr_checklists l, jsonb_array_elements(l.items) x
    where l.person_id = v_p and l.kind = 'arrivee' and x->>'label' = 'Contrat signé et rangé dans les documents';
-  if v_lab is null then raise exception 'Essai 0523 : ligne « Contrat signé » non cochée'; end if;
+  if v_lab is null then raise exception 'Essai 0525 : ligne « Contrat signé » non cochée'; end if;
   select x->>'done_on' into v_lab from public.hr_checklists l, jsonb_array_elements(l.items) x
    where l.person_id = v_p and l.kind = 'arrivee' and x->>'label' = 'Accueil sécurité fait';
-  if v_lab is not null then raise exception 'Essai 0523 : une autre ligne de la liste a été cochée'; end if;
+  if v_lab is not null then raise exception 'Essai 0525 : une autre ligne de la liste a été cochée'; end if;
   -- Document supprimé : le contrat reste, sans document signé
   delete from public.hr_documents where id = v_d;
-  if (select signed_document_id from public.hr_employments where id = v_e) is not null then raise exception 'Essai 0523 : lien au document supprimé resté'; end if;
+  if (select signed_document_id from public.hr_employments where id = v_e) is not null then raise exception 'Essai 0525 : lien au document supprimé resté'; end if;
 
   -- 6. Avenant : société et personne reprises du contrat ; ligne sans nouvelle valeur refusée ; signé, figé
   begin
     insert into public.hr_contract_amendments (employment_id, effective_on, subject, changes)
       values (v_e, current_date, 'Essai', '[{"label":"Horaire","before":"35 h","after":""}]');
-    raise exception 'Essai 0523 : modification sans nouvelle valeur acceptée';
+    raise exception 'Essai 0525 : modification sans nouvelle valeur acceptée';
   exception when invalid_parameter_value then null;
   end;
   insert into public.hr_contract_amendments (company_id, employment_id, effective_on, subject, changes)
     values (v_cie, v_e, current_date, 'Changement d''horaire', '[{"label":"Durée du travail","before":"35 h","after":"39 h"}]') returning id into v_a;
-  if (select person_id from public.hr_contract_amendments where id = v_a) <> v_p then raise exception 'Essai 0523 : personne non reprise du contrat'; end if;
+  if (select person_id from public.hr_contract_amendments where id = v_a) <> v_p then raise exception 'Essai 0525 : personne non reprise du contrat'; end if;
   begin
     update public.hr_contract_amendments set signed_document_id = v_dq where id = v_a;
-    raise exception 'Essai 0523 : document d''une autre personne accepté sur l''avenant';
+    raise exception 'Essai 0525 : document d''une autre personne accepté sur l''avenant';
   exception when invalid_parameter_value then null;
   end;
   insert into public.hr_documents (company_id, person_id, employment_id, category, confidentiality, title, file_path)
-    values (v_cie, v_p, v_e, 'avenant', 'restreint', 'Avenant signé essai', v_cie || '/' || v_p || '/essai-0523-a.pdf') returning id into v_d;
+    values (v_cie, v_p, v_e, 'avenant', 'restreint', 'Avenant signé essai', v_cie || '/' || v_p || '/essai-0525-a.pdf') returning id into v_d;
   update public.hr_contract_amendments set signed_document_id = v_d, handed_on = current_date where id = v_a;
   begin
     update public.hr_contract_amendments set subject = 'Autre objet' where id = v_a;
-    raise exception 'Essai 0523 : avenant signé modifié';
+    raise exception 'Essai 0525 : avenant signé modifié';
   exception when invalid_parameter_value then null;
   end;
   begin
     update public.hr_contract_amendments set signed_document_id = null where id = v_a;
-    raise exception 'Essai 0523 : signature d''un avenant retirée';
+    raise exception 'Essai 0525 : signature d''un avenant retirée';
   exception when invalid_parameter_value then null;
   end;
   begin
     delete from public.hr_contract_amendments where id = v_a;
-    raise exception 'Essai 0523 : avenant signé supprimé';
+    raise exception 'Essai 0525 : avenant signé supprimé';
   exception when invalid_parameter_value then null;
   end;
   begin
     delete from public.hr_documents where id = v_d;
-    raise exception 'Essai 0523 : document signé d''un avenant supprimé';
+    raise exception 'Essai 0525 : document signé d''un avenant supprimé';
   exception when foreign_key_violation then null;
   end;
-  if not public.hr_document_protege(v_d) is not null then raise exception 'Essai 0523 : protection du document signé illisible'; end if;
+  if not public.hr_document_protege(v_d) is not null then raise exception 'Essai 0525 : protection du document signé illisible'; end if;
   if app.hr_fichier_supprimable((select file_path from public.hr_documents where id = v_d)) then
-    raise exception 'Essai 0523 : scan signé d''un avenant effaçable du stockage';
+    raise exception 'Essai 0525 : scan signé d''un avenant effaçable du stockage';
   end if;
 
   -- 7. Document généré : traçabilité contrôlée
   begin
     update public.hr_documents set generated_from = 'cdi1projet' where id = v_d;
-    raise exception 'Essai 0523 : origine de document mal formée acceptée';
+    raise exception 'Essai 0525 : origine de document mal formée acceptée';
   exception when check_violation then null;
   end;
   update public.hr_documents set generated_from = 'avenant@1:projet', content_sha256 = repeat('a', 64) where id = v_d;
 
   -- Contrat supprimé : ses avenants partent avec lui, même signés
   delete from public.hr_employments where id = v_e;
-  if exists (select 1 from public.hr_contract_amendments where id = v_a) then raise exception 'Essai 0523 : avenant resté après la suppression du contrat'; end if;
+  if exists (select 1 from public.hr_contract_amendments where id = v_a) then raise exception 'Essai 0525 : avenant resté après la suppression du contrat'; end if;
 
   -- 10. Contrat et avenant jamais « normal » ; scan signé d'avenant jamais effaçable du stockage
   begin
     insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
-      values (v_cie, v_p, 'contrat', 'normal', 'Contrat normal essai', v_cie || '/' || v_p || '/essai-0523-n.pdf');
-    raise exception 'Essai 0523 : contrat rangé en « normal » accepté';
+      values (v_cie, v_p, 'contrat', 'normal', 'Contrat normal essai', v_cie || '/' || v_p || '/essai-0525-n.pdf');
+    raise exception 'Essai 0525 : contrat rangé en « normal » accepté';
   exception when check_violation then null;
   end;
 
   -- 9. Droit « Voir les contrats de travail » : RH, Super administrateur, Direction ; pas l'administrateur
   select count(distinct p.key) into v_n from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id
    where r.right_code = 'rh.contrats.voir' and p.company_id is null and p.key in ('rh', 'superadmin', 'direction');
-  if v_n <> 3 then raise exception 'Essai 0523 : droit des contrats attendu sur 3 modèles de profil (%)', v_n; end if;
+  if v_n <> 3 then raise exception 'Essai 0525 : droit des contrats attendu sur 3 modèles de profil (%)', v_n; end if;
   if exists (select 1 from public.permission_profile_rights r join public.permission_profiles p on p.id = r.profile_id
              where r.right_code = 'rh.contrats.voir' and p.key = 'admin') then
-    raise exception 'Essai 0523 : droit des contrats donné à l''administrateur';
+    raise exception 'Essai 0525 : droit des contrats donné à l''administrateur';
   end if;
   -- Primes et accessoires gardés avec la rémunération
   insert into public.hr_employments (company_id, person_id, contract_type, start_on) values (v_cie, v_q, 'cdi', current_date - 400) returning id into v_e2;
@@ -837,11 +838,11 @@ begin
   -- 8. Poser les modèles : droit « Configurer les RH » exigé
   begin
     perform public.hr_modeles_contrat_poser(v_cie);
-    raise exception 'Essai 0523 : modèles posés sans droit';
+    raise exception 'Essai 0525 : modèles posés sans droit';
   exception when insufficient_privilege then null;
   end;
 end $$;
-select 'ESSAI PROPRE VERT : supabase/tests/rh_contrats_0523.sql' as resultat;
+select 'ESSAI PROPRE VERT : supabase/tests/rh_contrats_0525.sql' as resultat;
 rollback to savepoint essai_propre;
 
 -- ===== supabase/tests/droits_chantier2.sql =====
@@ -4333,7 +4334,7 @@ begin
       on conflict do nothing;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
       values (d_co, d_p, 'fiche_poste', 'normal', 'Fiche de poste essai', d_co || '/' || d_p || '/contrat.pdf') returning id into d_norm;
-      -- Contrat : toujours restreint depuis 0523 (choix de H du 18/11), lu par RH, direction et super administrateur
+      -- Contrat : toujours restreint depuis 0525 (choix de H du 18/11), lu par RH, direction et super administrateur
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
       values (d_co, d_p, 'contrat', 'restreint', 'Contrat essai', d_co || '/' || d_p || '/contrat-signe.pdf') returning id into d_ctr;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
@@ -4369,7 +4370,7 @@ begin
       d_chemin := public.hr_document_ouvrir(d_norm);
       d_ok := false;
       begin perform public.hr_document_ouvrir(d_res); exception when insufficient_privilege then d_ok := true; end;
-      -- Avant 0523 la direction ne lit pas un contrat restreint ; après, si (droit « Voir les contrats de travail »)
+      -- Avant 0525 la direction ne lit pas un contrat restreint ; après, si (droit « Voir les contrats de travail »)
       if to_regprocedure('public.hr_document_protege(uuid)') is not null then
         d_ok2 := public.hr_document_ouvrir(d_ctr) like '%/contrat-signe.pdf' and d_n = 2;
       else
@@ -4378,7 +4379,7 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
       if d_m = 0 and d_q = 1 and d_chemin like '%/contrat.pdf' and d_ok and d_ok2 then
-        v_lines := v_lines || 'OK      dir   0301 : la direction voit la fiche de poste, le contrat (0523) et les habilitations, ni santé, ni bulletin, ni suivi de santé'::text;
+        v_lines := v_lines || 'OK      dir   0301 : la direction voit la fiche de poste, le contrat (0525) et les habilitations, ni santé, ni bulletin, ni suivi de santé'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0301 : documents pour la direction (' || d_n || ', ' || d_m || ', ' || d_q || ', ' || d_ok || ')')::text; end if;
 
       d_avant := (select count(*) from public.audit_logs where entity_type = 'document_rh' and action = 'view' and entity_id = d_res);

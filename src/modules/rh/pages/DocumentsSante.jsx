@@ -46,7 +46,7 @@ function Echeance({ iso }) {
 
 /** Catégories qu'on peut déposer : la personne seulement ses justificatifs ; sans « restreints », pas de
  *  justificatif, santé ni bulletin */
-// Contrat et avenant (0523) : aussi avec « Voir les contrats de travail » (Direction)
+// Contrat et avenant (0525) : aussi avec « Voir les contrats de travail » (Direction)
 const CONTRATS_DOC = ['contrat', 'avenant']
 function categoriesPermises({ peutGerer, peutRestreints, peutContratsVoir = false, estMoi }) {
   if (peutGerer) return Object.keys(CATEGORIES_DOC).filter((k) => peutRestreints || CATEGORIES_DOC[k].conf === 'normal' || CATEGORIES_DOC[k].conf === null || (peutContratsVoir && CONTRATS_DOC.includes(k)))

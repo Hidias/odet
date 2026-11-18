@@ -1,4 +1,4 @@
-// Contrat écrit et avenants (0523), dans la carte d'un contrat de la fiche du personnel : générer le PDF depuis le
+// Contrat écrit et avenants (0525), dans la carte d'un contrat de la fiche du personnel : générer le PDF depuis le
 // modèle de la société, déposer le signé (scan, choix de H du 18/11), noter la remise au salarié.
 // Modèle « projet » : PDF marqué PROJET, téléchargé seulement. Modèle validé par l'avocat : PDF rangé dans les documents.
 

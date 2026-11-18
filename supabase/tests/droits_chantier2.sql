@@ -3486,7 +3486,7 @@ begin
       on conflict do nothing;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
       values (d_co, d_p, 'fiche_poste', 'normal', 'Fiche de poste essai', d_co || '/' || d_p || '/contrat.pdf') returning id into d_norm;
-      -- Contrat : toujours restreint depuis 0523 (choix de H du 18/11), lu par RH, direction et super administrateur
+      -- Contrat : toujours restreint depuis 0525 (choix de H du 18/11), lu par RH, direction et super administrateur
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
       values (d_co, d_p, 'contrat', 'restreint', 'Contrat essai', d_co || '/' || d_p || '/contrat-signe.pdf') returning id into d_ctr;
       insert into public.hr_documents (company_id, person_id, category, confidentiality, title, file_path)
@@ -3522,7 +3522,7 @@ begin
       d_chemin := public.hr_document_ouvrir(d_norm);
       d_ok := false;
       begin perform public.hr_document_ouvrir(d_res); exception when insufficient_privilege then d_ok := true; end;
-      -- Avant 0523 la direction ne lit pas un contrat restreint ; après, si (droit « Voir les contrats de travail »)
+      -- Avant 0525 la direction ne lit pas un contrat restreint ; après, si (droit « Voir les contrats de travail »)
       if to_regprocedure('public.hr_document_protege(uuid)') is not null then
         d_ok2 := public.hr_document_ouvrir(d_ctr) like '%/contrat-signe.pdf' and d_n = 2;
       else
@@ -3531,7 +3531,7 @@ begin
       execute 'reset role';
       perform set_config('request.jwt.claims', '', true);
       if d_m = 0 and d_q = 1 and d_chemin like '%/contrat.pdf' and d_ok and d_ok2 then
-        v_lines := v_lines || 'OK      dir   0301 : la direction voit la fiche de poste, le contrat (0523) et les habilitations, ni santé, ni bulletin, ni suivi de santé'::text;
+        v_lines := v_lines || 'OK      dir   0301 : la direction voit la fiche de poste, le contrat (0525) et les habilitations, ni santé, ni bulletin, ni suivi de santé'::text;
       else v_fail := v_fail + 1; v_lines := v_lines || ('ÉCHEC   dir   0301 : documents pour la direction (' || d_n || ', ' || d_m || ', ' || d_q || ', ' || d_ok || ')')::text; end if;
 
       d_avant := (select count(*) from public.audit_logs where entity_type = 'document_rh' and action = 'view' and entity_id = d_res);

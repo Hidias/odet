@@ -20,7 +20,7 @@ describe('RH documents : noms de fichier', () => {
 })
 
 describe('RH documents : confidentialité imposée', () => {
-  it('bulletin privé, justificatif, santé, contrat et avenant restreints (contrats : choix de H du 18/11, 0523)', () => {
+  it('bulletin privé, justificatif, santé, contrat et avenant restreints (contrats : choix de H du 18/11, 0525)', () => {
     expect(CATEGORIES_DOC.bulletin.conf).toBe('prive')
     expect(CATEGORIES_DOC.justificatif.conf).toBe('restreint')
     expect(CATEGORIES_DOC.sante.conf).toBe('restreint')

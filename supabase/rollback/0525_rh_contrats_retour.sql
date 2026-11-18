@@ -1,4 +1,4 @@
--- Retour arrière de 0523 : échéances remises comme en 0522, tables, fonctions, déclencheurs, contraintes et colonnes
+-- Retour arrière de 0525 : échéances remises comme en 0522, tables, fonctions, déclencheurs, contraintes et colonnes
 -- supprimés (les contrats et avenants générés restent dans les documents RH, sans leur origine ni leur empreinte).
 -- La vue lit hr_employments.* : supprimée d'abord, recréée comme en 0522 après le retrait des colonnes
 drop view if exists public.v_hr_echeances;
@@ -176,4 +176,4 @@ comment on view public.v_hr_echeances is 'Échéances RH (habilitations, visites
 revoke all on public.v_hr_echeances from public, anon;
 grant select on public.v_hr_echeances to authenticated;
 
-delete from public.schema_migrations where version = '0523_rh_contrats';
+delete from public.schema_migrations where version = '0525_rh_contrats';

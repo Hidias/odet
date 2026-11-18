@@ -260,7 +260,7 @@ function ContratSheet({ personId, contrat = null, onClose, onSaved }) {
         weekly_hours: v.weekly_hours, days_per_year: v.days_per_year, schedule_id: nul(v.schedule_id),
         establishment_id: nul(v.establishment_id), job_description: v.job_description,
         agency_name: v.agency_name, agency_address: v.agency_address, authorization_on: nul(v.authorization_on),
-        // Mentions du contrat écrit (0523) : les champs du CDD n'existent que pour un CDD
+        // Mentions du contrat écrit (0525) : les champs du CDD n'existent que pour un CDD
         work_places: v.work_places, risky_post: !!v.risky_post,
         cdd_reason: cdd ? nul(v.cdd_reason) : null,
         cdd_replaced_name: cdd && estRemplacement(v.cdd_reason) ? v.cdd_replaced_name : null,
@@ -732,7 +732,7 @@ export default function Personnel() {
   const peutValider = can('rh.absences.valider') === true
   const peutVoirTout = can('rh.dossiers.voir') === true
   const peutRestreints = can('rh.documents.restreints') === true
-  // Contrats et avenants (0523) : RH, Super administrateur, Direction
+  // Contrats et avenants (0525) : RH, Super administrateur, Direction
   const peutContratsVoir = can('rh.contrats.voir') === true
   const chemin = location.pathname.replace(/^\/collaborateurs\/?/, '').split('/')[0]
   const [responsable, setResponsable] = useState(false)

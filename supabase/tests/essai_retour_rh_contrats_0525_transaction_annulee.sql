@@ -1,10 +1,58 @@
--- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (rh_contrats_0523) : ne pas modifier à la main.
--- APPLICATION RÉELLE sur l'instance : 0523_rh_contrats.sql. Une seule transaction : si une instruction échoue,
--- rien n'est appliqué. Retour arrière : supabase/rollback/0523_rh_contrats_retour.sql
+-- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (rh_contrats_0525) : ne pas modifier à la main.
+-- Essai du retour arrière en transaction annulée : photographie, 0525_rh_contrats.sql, retour arrière,
+-- comparaison. Se termine TOUJOURS par l'erreur volontaire « RÉSULTAT DE L'ESSAI DU RETOUR ARRIÈRE » : tout est annulé.
 select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);
 
--- ===== supabase/migrations/0523_rh_contrats.sql =====
--- 0523 : contrats de travail et avenants (CDI, CDD, avenant) générés en PDF depuis la fiche du personnel.
+create temp view etat_essai as
+  select 'règle' as kind, schemaname || '.' || tablename || '.' || policyname as name,
+         md5(concat_ws('|', permissive, roles::text, cmd, qual, with_check)) as v
+  from pg_policies where schemaname in ('public', 'storage')
+  union all
+  select 'fonction', p.oid::regprocedure::text,
+         md5(concat_ws('|', pg_get_functiondef(p.oid), p.prosecdef::text, p.proconfig::text,
+             (select string_agg(a.grantee::regrole::text || ':' || a.privilege_type, ',' order by a.grantee::regrole::text, a.privilege_type)
+              from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a)))
+  from pg_proc p where p.pronamespace in ('public'::regnamespace, 'app'::regnamespace) and p.prokind in ('f', 'p')
+  union all
+  select 'droits table', c.oid::regclass::text,
+         md5(coalesce((select string_agg(a.grantee::regrole::text || ':' || a.privilege_type || ':' || a.is_grantable::text, ','
+                               order by a.grantee::regrole::text, a.privilege_type)
+                       from aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a), '') || c.relrowsecurity::text)
+  from pg_class c where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'v', 'm', 'p')
+  union all
+  select 'vue', c.oid::regclass::text, md5(pg_get_viewdef(c.oid) || coalesce(c.reloptions::text, ''))
+  from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'v'
+  union all
+  select 'colonne', table_schema || '.' || table_name || '.' || column_name, md5(data_type || is_nullable || coalesce(column_default, ''))
+  from information_schema.columns where table_schema in ('public', 'app')
+  union all
+  select 'contrainte', conrelid::regclass::text || '.' || conname, md5(pg_get_constraintdef(oid))
+  from pg_constraint where connamespace in ('public'::regnamespace, 'app'::regnamespace)
+  union all
+  select 'index', indexrelid::regclass::text, md5(pg_get_indexdef(indexrelid))
+  from pg_index where indrelid in (select oid from pg_class where relnamespace in ('public'::regnamespace, 'app'::regnamespace))
+  union all
+  select 'déclencheur', tgrelid::regclass::text || '.' || tgname, md5(tgfoid::regprocedure::text || tgenabled::text)
+  from pg_trigger where not tgisinternal
+    and tgrelid in (select oid from pg_class where relnamespace in ('public'::regnamespace, 'app'::regnamespace))
+  union all
+  select 'migrations', 'public.schema_migrations', md5(coalesce(string_agg(version, ',' order by version), ''))
+  from public.schema_migrations
+  union all
+  select 'données', 'organization_settings', md5(coalesce(string_agg(t::text, ',' order by t.id), '')) from public.organization_settings t
+  union all
+  select 'données', 'profiles', md5(coalesce(string_agg(t::text, ',' order by t.id), '')) from public.profiles t
+  union all
+  select 'données', 'org_modules', md5(coalesce(string_agg(t::text, ',' order by t.key), '')) from public.org_modules t
+  union all
+  select 'données', 'company_members', md5(coalesce(string_agg(t::text, ',' order by t.id), '')) from public.company_members t
+  union all
+  select 'données', 'company_member_roles', md5(coalesce(string_agg(t::text, ',' order by t.id), '')) from public.company_member_roles t;
+create temp table etat_essai_avant as select * from etat_essai;
+
+-- ===== supabase/migrations/0525_rh_contrats.sql =====
+-- 0525 : contrats de travail et avenants (CDI, CDD, avenant) générés en PDF depuis la fiche du personnel.
+-- Renumérotée 0525 le 18/11 (0523 et 0524 pris par les comptes extérieurs, #374) ; le plan garde son nom d'origine.
 -- Conception validée par H : claude/odet-rh-contrats-conception-2026-11-18.md ; plan : claude/odet-rh-contrats-plan-0523.md.
 -- Choix de H (18/11) : signature papier scannée d'abord ; aucun modèle existant, la base proposée attend l'avocat ;
 -- convention collective : Métallurgie, IDCC 3248 (saisie par la société, rien n'est posé ici).
@@ -40,7 +88,7 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --      fériés chômés de la société exclus), CDI, apprentissage et professionnalisation à début + 7 jours (R1221-35) ;
 --      tant que « remis le » est vide, pour les contrats commencés depuis 30 jours au plus. Corps des huit autres
 --      branches repris de 0522 à l'identique.
--- Additive. Idempotente. Retour arrière : supabase/rollback/0523_rh_contrats_retour.sql
+-- Additive. Idempotente. Retour arrière : supabase/rollback/0525_rh_contrats_retour.sql
 
 -- ── 1. Paramètres RH ──
 alter table public.hr_settings add column if not exists collective_agreement_name text;
@@ -122,8 +170,8 @@ alter table public.hr_documents drop constraint if exists hr_documents_genere;
 alter table public.hr_documents add constraint hr_documents_genere check (
   (generated_from is null or generated_from ~ '^(cdi|cdd|avenant)@[0-9]+:(projet|valide)$')
   and (content_sha256 is null or content_sha256 ~ '^[0-9a-f]{64}$'));
-comment on column public.hr_documents.generated_from is 'Modèle qui a produit le document : type@version:statut (0523)';
-comment on column public.hr_documents.content_sha256 is 'Empreinte SHA-256 du PDF généré (0523)';
+comment on column public.hr_documents.generated_from is 'Modèle qui a produit le document : type@version:statut (0525)';
+comment on column public.hr_documents.content_sha256 is 'Empreinte SHA-256 du PDF généré (0525)';
 
 -- ── 4. Modèles ──
 create table if not exists public.hr_contract_models (
@@ -189,7 +237,7 @@ security definer
 set search_path = ''
 as $$
   insert into public.hr_contract_models (company_id, kind, version, title, articles, status, note)
-  select p_company, m.kind, 1, m.title, m.articles, 'projet', 'Base proposée le 18/11/2026 (0523) : mentions imposées par le Code du travail, à valider par l''avocat avant tout usage'
+  select p_company, m.kind, 1, m.title, m.articles, 'projet', 'Base proposée le 18/11/2026 (0525) : mentions imposées par le Code du travail, à valider par l''avocat avant tout usage'
   from (values
     ('cdi', 'Contrat de travail à durée indéterminée', $j$[
       {"titre": "Engagement", "texte": "{{employeur_nom}}, {{employeur_forme}}, SIREN {{employeur_siren}}, dont le siège est situé {{employeur_adresse}}, ci-après l'employeur, engage {{salarie_nom}}, demeurant {{salarie_adresse}}, ci-après le salarié, par contrat de travail à durée indéterminée à compter du {{date_debut}}."},
@@ -241,7 +289,7 @@ $$;
 revoke all on function app.hr_modeles_contrat_depart(uuid) from public, anon, authenticated;
 select app.hr_modeles_contrat_depart(c.id) from public.companies c;
 
--- Rejouable par qui règle les RH (société créée après 0523, ou modèle d'un type absent)
+-- Rejouable par qui règle les RH (société créée après 0525, ou modèle d'un type absent)
 create or replace function public.hr_modeles_contrat_poser(p_company uuid)
 returns void
 language plpgsql
@@ -634,4 +682,206 @@ alter table public.hr_compensation add constraint hr_compensation_components_lon
   check (components is null or length(components) <= 1000);
 comment on column public.hr_compensation.components is 'Primes et accessoires de la rémunération, ou « néant » (L1242-12, R1221-34), repris dans le contrat écrit';
 
-insert into public.schema_migrations (version) values ('0523_rh_contrats') on conflict (version) do nothing;
+insert into public.schema_migrations (version) values ('0525_rh_contrats') on conflict (version) do nothing;
+
+-- ===== supabase/rollback/0525_rh_contrats_retour.sql =====
+-- Retour arrière de 0525 : échéances remises comme en 0522, tables, fonctions, déclencheurs, contraintes et colonnes
+-- supprimés (les contrats et avenants générés restent dans les documents RH, sans leur origine ni leur empreinte).
+-- La vue lit hr_employments.* : supprimée d'abord, recréée comme en 0522 après le retrait des colonnes
+drop view if exists public.v_hr_echeances;
+
+-- Documents RH : règles et fonctions remises comme en 0301 ; droit « Voir les contrats de travail » retiré
+drop policy if exists hr_documents_lire on public.hr_documents;
+drop policy if exists hr_documents_creer on public.hr_documents;
+drop policy if exists hr_documents_modifier on public.hr_documents;
+drop policy if exists hr_documents_supprimer on public.hr_documents;
+create policy hr_documents_lire on public.hr_documents for select to authenticated
+  using ((person_id in (select app.hr_mes_personnes()) or (confidentiality = 'normal' and company_id in (select app.societes_avec_droit('rh.dossiers.voir'))) or (confidentiality <> 'normal' and company_id in (select app.societes_avec_droit('rh.documents.restreints')))));
+create policy hr_documents_creer on public.hr_documents for insert to authenticated
+  with check (((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or company_id in (select app.societes_avec_droit('rh.documents.restreints')))) or (person_id in (select app.hr_mes_personnes()) and category = 'justificatif' and confidentiality = 'restreint')));
+create policy hr_documents_modifier on public.hr_documents for update to authenticated
+  using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or company_id in (select app.societes_avec_droit('rh.documents.restreints')))))
+  with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or company_id in (select app.societes_avec_droit('rh.documents.restreints')))));
+create policy hr_documents_supprimer on public.hr_documents for delete to authenticated
+  using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and (confidentiality = 'normal' or company_id in (select app.societes_avec_droit('rh.documents.restreints')))));
+
+create or replace function public.hr_document_ouvrir(p_doc uuid)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_d public.hr_documents;
+  v_moi boolean;
+begin
+  select * into v_d from public.hr_documents d where d.id = p_doc;
+  if v_d.id is null then raise exception 'Document introuvable' using errcode = 'P0002'; end if;
+  v_moi := v_d.person_id in (select app.hr_mes_personnes());
+  if not (v_moi
+          or (v_d.confidentiality = 'normal' and v_d.company_id in (select app.societes_avec_droit('rh.dossiers.voir')))
+          or (v_d.confidentiality <> 'normal' and v_d.company_id in (select app.societes_avec_droit('rh.documents.restreints')))) then
+    raise exception 'Accès refusé' using errcode = '42501';
+  end if;
+  if v_d.confidentiality <> 'normal' and not v_moi then
+    insert into public.audit_logs (action, entity_type, entity_id, entity_name, details, company_id, source)
+    values ('view', 'document_rh', v_d.id, null,
+            jsonb_build_object('table', 'hr_documents', 'confidentialite', v_d.confidentiality, 'categorie', v_d.category),
+            v_d.company_id, 'base');
+  end if;
+  return v_d.file_path;
+end
+$$;
+revoke all on function public.hr_document_ouvrir(uuid) from public, anon;
+grant execute on function public.hr_document_ouvrir(uuid) to authenticated;
+
+create or replace function app.hr_fichier_supprimable(p_path text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.dossiers.gerer') x)
+     and (not exists (select 1 from public.hr_documents d where d.file_path = p_path and d.confidentiality <> 'normal')
+          or split_part(p_path, '/', 1) in (select x::text from app.societes_avec_droit('rh.documents.restreints') x))
+$$;
+revoke all on function app.hr_fichier_supprimable(text) from public, anon;
+grant execute on function app.hr_fichier_supprimable(text) to authenticated;
+
+-- Contrats reclassés en « restreint » : laissés tels quels (aucun en production le 18/11)
+drop trigger if exists hr_documents_contrat_garde on public.hr_documents;
+drop function if exists app.hr_document_contrat_garde();
+alter table public.hr_documents drop constraint if exists hr_documents_contrat_restreint;
+
+delete from public.permission_profile_rights where right_code = 'rh.contrats.voir';
+delete from public.permissions where code = 'rh.contrats.voir';
+
+alter table public.hr_compensation drop constraint if exists hr_compensation_components_longueur;
+alter table public.hr_compensation drop column if exists components;
+
+drop function if exists app.hr_jour_ouvrable_apres(uuid, date, int);
+
+drop function if exists public.hr_document_protege(uuid);
+drop table if exists public.hr_contract_amendments;
+drop function if exists app.hr_avenant_avant();
+drop function if exists app.hr_avenant_suppression();
+drop table if exists public.hr_contract_models;
+drop function if exists public.hr_modeles_contrat_poser(uuid);
+drop function if exists app.hr_modeles_contrat_depart(uuid);
+drop function if exists app.hr_modele_avant();
+
+alter table public.hr_documents drop constraint if exists hr_documents_genere;
+alter table public.hr_documents drop column if exists generated_from;
+alter table public.hr_documents drop column if exists content_sha256;
+
+drop trigger if exists hr_employments_document on public.hr_employments;
+drop function if exists app.hr_contrat_document();
+alter table public.hr_employments drop constraint if exists hr_employments_contrat_ecrit;
+alter table public.hr_employments drop column if exists work_places;
+alter table public.hr_employments drop column if exists cdd_reason;
+alter table public.hr_employments drop column if exists cdd_replaced_name;
+alter table public.hr_employments drop column if exists cdd_replaced_qualification;
+alter table public.hr_employments drop column if exists cdd_min_end_on;
+alter table public.hr_employments drop column if exists cdd_renewable;
+alter table public.hr_employments drop column if exists risky_post;
+alter table public.hr_employments drop column if exists contract_handed_on;
+alter table public.hr_employments drop column if exists signed_document_id;
+
+alter table public.hr_settings drop constraint if exists hr_settings_contrats_longueurs;
+alter table public.hr_settings drop column if exists collective_agreement_name;
+alter table public.hr_settings drop column if exists retirement_fund;
+alter table public.hr_settings drop column if exists prevoyance_org;
+alter table public.hr_settings drop column if exists pay_terms;
+
+create or replace view public.v_hr_echeances with (security_invoker = true) as
+  -- Contrat le plus récent par personne non archivée, en cours ou qui commence dans les 30 jours
+  with courant as (
+    select distinct on (e.person_id) e.*
+    from public.hr_employments e
+    join public.hr_people p on p.id = e.person_id and p.archived_at is null
+    where (e.end_on is null or e.end_on >= current_date) and e.start_on <= current_date + 30
+    order by e.person_id, e.start_on desc, e.created_at desc)
+  select q.company_id, q.person_id, 'habilitation'::text as kind, q.label, q.expires_on as due_on, q.id as source_id
+  from public.hr_qualifications q
+  where q.archived_at is null and q.expires_on is not null
+  union all
+  select m.company_id, m.person_id, 'visite', 'Visite de santé au travail', m.next_due_on, m.id
+  from public.hr_medical_followups m
+  where m.next_due_on is not null
+    and not exists (select 1 from public.hr_medical_followups m2
+                    where m2.person_id = m.person_id and m2.visit_on is not null and m2.visit_on >= m.next_due_on)
+  union all
+  select e.company_id, e.person_id, 'fin_contrat', 'Fin de contrat', e.end_on, e.id
+  from public.hr_employments e
+  where e.end_on is not null and e.end_on >= current_date - 30
+  union all
+  select e.company_id, e.person_id, 'fin_essai', 'Fin de la période d''essai', e.trial_end_on, e.id
+  from public.hr_employments e
+  where e.trial_end_on is not null and e.trial_end_on >= current_date - 30
+  union all
+  select r.company_id, r.person_id, 'entretien',
+         case r.kind when 'parcours' then 'Entretien de parcours professionnel' when 'bilan' then 'Bilan du parcours professionnel'
+                     when 'annuel' then 'Entretien annuel' else 'Entretien' end,
+         coalesce(case when r.done_on is null then r.planned_on end, r.next_due_on), r.id
+  from public.hr_reviews r
+  where coalesce(case when r.done_on is null then r.planned_on end, r.next_due_on) is not null
+    and not exists (select 1 from public.hr_reviews r2 where r2.person_id = r.person_id and r2.kind = r.kind
+                    and r2.done_on is not null and r2.done_on > coalesce(r.done_on, r.planned_on, r.next_due_on))
+  union all
+  select e.company_id, e.person_id, 'dpae', 'Déclaration préalable à l''embauche (DPAE)', e.start_on, e.id
+  from public.hr_employments e
+  where e.dpae_sent_on is null
+    and e.contract_type in ('cdi', 'cdd', 'apprentissage', 'professionnalisation')
+    and e.start_on >= current_date - 30
+  union all
+  -- Contrat le plus récent de la personne (non archivée), sans accueil signé pour son poste depuis ce contrat ou les
+  -- contrats enchaînés sur le même poste (app.hr_debut_continu) ; mandataire : sans objet
+  select c.company_id, c.person_id, 'accueil_securite',
+         case when coalesce((select i.job_id from public.hr_safety_inductions i where i.person_id = c.person_id and i.signed_at is not null
+                             order by i.done_on desc, i.signed_at desc limit 1), c.job_id) is distinct from c.job_id
+              then 'Accueil sécurité à refaire (changement de poste)' else 'Accueil sécurité' end,
+         c.start_on, c.id
+  from courant c
+  where c.contract_type <> 'mandataire'
+    and not exists (select 1 from public.hr_safety_inductions i
+                    where i.person_id = c.person_id and i.signed_at is not null
+                      and i.job_id is not distinct from c.job_id
+                      and i.done_on >= app.hr_debut_continu(c.id) - 30)
+  union all
+  -- Poste « seul » sans mesure, ou mesure DATI sans DATI remis et non rendu ; daté du début du contrat
+  select c.company_id, c.person_id, 'travail_isole',
+         case when cardinality(j.lone_work_measures) = 0 then 'Travail isolé : aucune mesure sur le poste ' || j.name
+              else 'Travail isolé : DATI à remettre' end,
+         c.start_on, c.id
+  from courant c
+  join public.hr_jobs j on j.id = c.job_id and j.lone_work
+  where cardinality(j.lone_work_measures) = 0
+     or ('dati' = any (j.lone_work_measures) and not app.hr_dati_remis(c.person_id))
+;
+comment on view public.v_hr_echeances is 'Échéances RH (habilitations, visites, fins de CDD et d''essai, entretiens, DPAE, accueil sécurité, travail isolé), aux droits du lecteur';
+revoke all on public.v_hr_echeances from public, anon;
+grant select on public.v_hr_echeances to authenticated;
+
+delete from public.schema_migrations where version = '0525_rh_contrats';
+
+do $verif$
+declare
+  v_diff text[];
+  v_n int;
+  v_par text;
+begin
+  select count(*), (array_agg(coalesce(a.kind, b.kind) || ' ' || coalesce(a.name, b.name) || case
+           when a.name is null then ' (en trop après retour)' when b.name is null then ' (manquant après retour)'
+           else ' (différent)' end order by coalesce(a.kind, b.kind) desc, coalesce(a.name, b.name)))[1:40]
+    into v_n, v_diff
+  from etat_essai_avant a full join etat_essai b on a.kind = b.kind and a.name = b.name
+  where a.v is distinct from b.v;
+  select string_agg(k || ' ' || n, ', ') into v_par from (
+    select coalesce(a.kind, b.kind) k, count(*) n
+    from etat_essai_avant a full join etat_essai b on a.kind = b.kind and a.name = b.name
+    where a.v is distinct from b.v group by 1) z;
+  raise exception E'RÉSULTAT DE L''ESSAI DU RETOUR ARRIÈRE rh_contrats_0525 (tout est annulé)\n% écart(s) avec l''état d''avant (%)\n%',
+    v_n, coalesce(v_par, 'aucun'), coalesce(array_to_string(v_diff, E'\n'), '');
+end
+$verif$;

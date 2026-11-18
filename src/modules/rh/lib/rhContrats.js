@@ -1,4 +1,4 @@
-// Module RH, contrats de travail et avenants (0523). Le texte vient des modèles de la société (hr_contract_models) :
+// Module RH, contrats de travail et avenants (0525). Le texte vient des modèles de la société (hr_contract_models) :
 //   - « projet » tant que l'avocat n'a pas validé : PDF marqué PROJET, téléchargé seulement (jamais rangé dans les
 //     documents, donc jamais visible du salarié) ;
 //   - « validé » : PDF rangé dans les documents RH (restreint : il contient la rémunération), origine et empreinte notées.

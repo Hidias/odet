@@ -5,7 +5,7 @@ import {
   texteDureeTravail, valeurs, articlesRetenus, champsDe, remplir, manquants, erreurAvenant, modeleCourant, origine, CHAMPS,
 } from '../src/modules/rh/lib/rhContrats'
 
-const migration = readFileSync(new URL('../supabase/migrations/0523_rh_contrats.sql', import.meta.url), 'utf8')
+const migration = readFileSync(new URL('../supabase/migrations/0525_rh_contrats.sql', import.meta.url), 'utf8')
 // Modèles de départ tels que posés par la migration
 const modeles = Object.fromEntries([...migration.matchAll(/\('(cdi|cdd|avenant)', '[^']+', \$j\$(\[[\s\S]*?\])\$j\$::jsonb\)/g)]
   .map((m) => [m[1], { kind: m[1], version: 1, status: 'projet', articles: JSON.parse(m[2]) }]))
@@ -17,7 +17,7 @@ const cdi = { contract_type: 'cdi', start_on: '2026-12-01', job_title: 'Technici
 const remu = { amount: 2100, period: 'mensuel', effective_on: '2026-12-01' }
 // Primes et accessoires gardés avec la rémunération (choix de H du 18/11)
 
-describe('Contrats de travail (0523)', () => {
+describe('Contrats de travail (0525)', () => {
   it('les trois modèles de départ sont lisibles et chaque champ a un libellé', () => {
     expect(Object.keys(modeles).sort()).toEqual(['avenant', 'cdd', 'cdi'])
     for (const m of Object.values(modeles)) for (const a of m.articles) for (const k of champsDe(a.texte)) expect(CHAMPS[k], k).toBeTruthy()

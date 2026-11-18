@@ -314,7 +314,7 @@ CATALOGUE = [
      'hr_timesheets, approval_requests', ''),
     ('rh.documents.restreints', 'rh', 'Voir les documents restreints du personnel',
      'Justificatifs d\'absence, santé au travail administrative, bulletins', 'hr_documents (restreint, privé)', ''),
-    # 0523 (choix de H du 18/11) : RH, Super administrateur, Direction ; posé en base par la migration 0523
+    # 0525 (choix de H du 18/11) : RH, Super administrateur, Direction ; posé en base par la migration 0525
     ('rh.contrats.voir', 'rh', 'Voir les contrats de travail',
      'Contrats et avenants du personnel, avec la rémunération : générer, déposer le signé, lire',
      'hr_documents (contrat, avenant), hr_contract_amendments', 'prix'),

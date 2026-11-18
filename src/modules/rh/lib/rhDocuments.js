@@ -11,7 +11,7 @@ const BUCKET = 'rh'
 
 // Catégorie : libellé et confidentialité imposée (null = au choix, « normal » ou « restreint »)
 export const CATEGORIES_DOC = {
-  // Contrat et avenant : rémunération, donc restreints (« Voir les contrats de travail », choix de H du 18/11, 0523)
+  // Contrat et avenant : rémunération, donc restreints (« Voir les contrats de travail », choix de H du 18/11, 0525)
   contrat: { label: 'Contrat de travail', conf: 'restreint' },
   avenant: { label: 'Avenant', conf: 'restreint' },
   fiche_poste: { label: 'Fiche de poste', conf: 'normal' },
@@ -121,7 +121,7 @@ export async function deposerDocument({ companyId, personId, file, category, con
     id, company_id: companyId, person_id: personId, employment_id: employmentId, category, confidentiality,
     title: title?.trim() || CATEGORIES_DOC[category]?.label || file.name, doc_date: docDate || null,
     file_path: path, file_name: file.name, mime_type: file.type || null, size_bytes: file.size,
-    // Contrat ou avenant généré (0523) : modèle d'origine et empreinte du PDF
+    // Contrat ou avenant généré (0525) : modèle d'origine et empreinte du PDF
     ...(generatedFrom ? { generated_from: generatedFrom, content_sha256: contentSha256 } : {}),
   }).select('id').single()
   if (error) {
@@ -148,7 +148,7 @@ export async function ouvrirDocument(id) {
 /** Efface le fichier puis la ligne : le stockage ne laisse effacer un fichier que tant que sa ligne est lisible (0303) */
 export async function supprimerDocument(doc) {
   const path = must(await supabase.from('hr_documents').select('file_path').eq('id', doc.id).single()).file_path
-  // Avenant signé (0523) : son scan ne s'efface pas (vérifié avant de toucher au fichier)
+  // Avenant signé (0525) : son scan ne s'efface pas (vérifié avant de toucher au fichier)
   if (must(await supabase.rpc('hr_document_protege', { p_doc: doc.id }))) throw new Error('Ce document est l\'avenant signé : il ne se supprime pas')
   const { data: effaces, error } = await supabase.storage.from(BUCKET).remove([path])
   if (error) throw error
