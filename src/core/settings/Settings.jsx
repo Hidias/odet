@@ -458,7 +458,7 @@ function QualiteSection({ onReferentHandicap }) {
     if (r.error) toast.error(r.error.message)
     setRoles(r.data || [])
     supabase.rpc('quality_demo_names_active').then(({ data }) => setDemoNames(!!data), () => setDemoNames(false))
-    setProfiles((p.data || []).filter((x) => x.is_active !== false && !['entreprise', 'formateur_externe'].includes(x.role)))
+    setProfiles((p.data || []).filter((x) => x.is_active !== false && !ROLES_EXTERIEURS.includes(x.role)))
   }
   useEffect(() => { load() }, [])
 
@@ -614,6 +614,8 @@ function GcalCell({ profile, onSave }) {
 
 function UsersSection({ isSuperadmin }) {
   const [profiles, setProfiles] = useState([])
+  // Toutes les fiches (comptes extérieurs compris) : sert à ne pas proposer une fiche formateur déjà reliée
+  const [tousProfils, setTousProfils] = useState([])
   // Compte relié à sa fiche formateur : nom et téléphone identiques des deux côtés (migration 0038)
   const [trainers, setTrainers] = useState([])
   const INVITE_VIDE = { email: '', first_name: '', last_name: '', fonction: '', phone: '', role: 'gestionnaire' }
@@ -650,6 +652,7 @@ function UsersSection({ isSuperadmin }) {
       supabase.from('profiles').select('*').order('created_at'),
       supabase.from('trainers').select('id, first_name, last_name').order('last_name'),
     ])
+    setTousProfils(data || [])
     setProfiles((data || []).filter((p) => !ROLES_EXTERIEURS.includes(p.role)))
     setTrainers(tr || [])
     if (isSuperadmin) {
@@ -725,7 +728,7 @@ function UsersSection({ isSuperadmin }) {
                   <select className="select" style={{ minHeight: 32, width: 190 }} aria-label={`Fiche formateur de ${p.display_name || p.email}`} value={p.trainer_id || ''}
                     onChange={(e) => update(p.id, { trainer_id: e.target.value || null })}>
                     <option value="">Aucune</option>
-                    {trainers.filter((t) => t.id === p.trainer_id || !profiles.some((x) => x.trainer_id === t.id)).map((t) => <option key={t.id} value={t.id}>{[t.first_name, t.last_name].filter(Boolean).join(' ')}</option>)}
+                    {trainers.filter((t) => t.id === p.trainer_id || !tousProfils.some((x) => x.trainer_id === t.id)).map((t) => <option key={t.id} value={t.id}>{[t.first_name, t.last_name].filter(Boolean).join(' ')}</option>)}
                   </select>
                 </td>
                 <td><GcalCell profile={p} onSave={(patch) => update(p.id, patch)} /></td>
