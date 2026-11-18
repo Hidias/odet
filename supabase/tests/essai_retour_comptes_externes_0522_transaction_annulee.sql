@@ -64,7 +64,24 @@ create temp table etat_essai_avant as select * from etat_essai;
 --      (aucune ligne supprimée). En production le 18/11 : 1 profil (jamais connecté).
 -- Idempotente. Retour arrière : supabase/rollback/0522_comptes_externes_role_retour.sql
 
--- 2. Reprise d'abord (le déclencheur de garde refuserait la correction : il est mis de côté le temps de la mise à jour)
+-- 2. Reprise d'abord (le déclencheur de garde refuserait la correction : il est mis de côté le temps de la mise à jour).
+-- Valeurs d'avant gardées dans app.reprise_0522 pour un retour arrière à l'identique (table supprimée par le retour).
+create table if not exists app.reprise_0522 (
+  profile_id uuid primary key,
+  role text not null,
+  profile_updated_at timestamptz,
+  members jsonb not null default '[]'::jsonb
+);
+revoke all on app.reprise_0522 from public, anon, authenticated;
+insert into app.reprise_0522 (profile_id, role, profile_updated_at, members)
+select p.id, p.role, p.updated_at,
+       coalesce((select jsonb_agg(jsonb_build_object('id', m.id, 'is_active', m.is_active, 'role', m.role, 'updated_at', m.updated_at))
+                   from public.company_members m where m.profile_id = p.id), '[]'::jsonb)
+  from public.profiles p
+ where p.role is distinct from 'entreprise'
+   and p.role not in ('superadmin', 'formateur_externe', 'stagiaire')
+   and exists (select 1 from public.client_accounts a where a.profile_id = p.id)
+on conflict (profile_id) do nothing;
 alter table public.profiles disable trigger profiles_protect_role;
 update public.profiles p
    set role = 'entreprise', updated_at = now()
@@ -95,8 +112,24 @@ begin
 end $$;
 
 -- ===== supabase/rollback/0522_comptes_externes_role_retour.sql =====
--- Retour arrière de 0522 : garde de 0004 remise à l'identique. La reprise du rôle « entreprise » n'est pas défaite
--- (remettre un compte client dans l'équipe redonnerait des droits de lecture à un client).
+-- Retour arrière de 0522 : garde de 0004 remise à l'identique, profils et appartenances repris remis à leurs valeurs
+-- d'avant (app.reprise_0522), puis table de reprise supprimée. Déclencheurs mis de côté le temps de la remise en état
+-- (sinon updated_at serait réécrit et la garde refuserait le changement de rôle).
+do $$
+begin
+  if to_regclass('app.reprise_0522') is not null then
+    alter table public.profiles disable trigger profiles_protect_role;
+    alter table public.profiles disable trigger profiles_sync_company_member;
+    update public.profiles p set role = r.role, updated_at = r.profile_updated_at
+      from app.reprise_0522 r where p.id = r.profile_id;
+    update public.company_members m set is_active = (x->>'is_active')::boolean, role = x->>'role', updated_at = (x->>'updated_at')::timestamptz
+      from app.reprise_0522 r, jsonb_array_elements(r.members) x where m.id = (x->>'id')::uuid;
+    alter table public.profiles enable trigger profiles_sync_company_member;
+    alter table public.profiles enable trigger profiles_protect_role;
+    drop table app.reprise_0522;
+  end if;
+end $$;
+
 create or replace function public.protect_profile_role()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
