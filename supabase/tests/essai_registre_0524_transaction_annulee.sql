@@ -1,114 +1,29 @@
--- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (comptes_externes_0522) : ne pas modifier à la main.
--- Essai en transaction annulée : 0522_comptes_externes_role.sql, essai propre, puis tous les tests de droits. Se termine
+-- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (registre_0524) : ne pas modifier à la main.
+-- Essai en transaction annulée : 0524_registre_0523.sql, essai propre, puis tous les tests de droits. Se termine
 -- TOUJOURS par l'erreur volontaire « RÉSULTAT DES TESTS DE DROITS » : tout est annulé.
 select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);
 
--- ===== supabase/migrations/0522_comptes_externes_role.sql =====
--- 0522 : un compte extérieur (espace entreprise, formateur externe, stagiaire) ne devient jamais un compte de l'équipe,
--- et l'inverse (constat de H du 18/11 : le compte de l'espace client de M. Rolland, créé le 09/11 depuis la fiche du
--- client, figurait dans Paramètres › Utilisateurs ; son rôle y a été passé à « Lecture seule », ce qui lui donnait
--- une appartenance à la société et les droits de lecture de l'équipe, et cassait son espace client).
--- Règles :
---   1. protect_profile_role : un rôle extérieur ne se change pas en rôle de l'équipe, ni l'inverse, quel que soit
---      l'auteur (super administrateur compris). Il faut un autre compte, créé au bon endroit. Corps repris de 0004
---      (identique en production le 18/11), règle ajoutée.
---   2. Reprise : un profil relié à un compte de l'espace client (client_accounts) mais qui n'a plus le rôle
---      « entreprise » le retrouve ; le déclencheur sync_profile_member désactive alors son appartenance à la société
---      (aucune ligne supprimée). En production le 18/11 : 1 profil (jamais connecté).
--- Idempotente. Retour arrière : supabase/rollback/0522_comptes_externes_role_retour.sql
+-- ===== supabase/migrations/0524_registre_0523.sql =====
+-- 0524 : inscription au registre de 0523 (comptes extérieurs), appliquée le 18/11 sous le nom 0522 sans sa ligne de
+-- registre, puis renumérotée (0522 est pris par la branche RH). Rejouer 0523 n'est pas possible à l'identique : son
+-- retour arrière défait une reprise déjà faite. Rien d'autre ne change.
+-- Retour arrière : supabase/rollback/0524_registre_0523_retour.sql
+insert into public.schema_migrations (version) values ('0523_comptes_externes_role') on conflict (version) do nothing;
+insert into public.schema_migrations (version) values ('0524_registre_0523') on conflict (version) do nothing;
 
--- 2. Reprise d'abord (le déclencheur de garde refuserait la correction : il est mis de côté le temps de la mise à jour).
--- Valeurs d'avant gardées dans app.reprise_0522 pour un retour arrière à l'identique (table supprimée par le retour).
-create table if not exists app.reprise_0522 (
-  profile_id uuid primary key,
-  role text not null,
-  profile_updated_at timestamptz,
-  members jsonb not null default '[]'::jsonb
-);
-revoke all on app.reprise_0522 from public, anon, authenticated;
-insert into app.reprise_0522 (profile_id, role, profile_updated_at, members)
-select p.id, p.role, p.updated_at,
-       coalesce((select jsonb_agg(jsonb_build_object('id', m.id, 'is_active', m.is_active, 'role', m.role, 'updated_at', m.updated_at))
-                   from public.company_members m where m.profile_id = p.id), '[]'::jsonb)
-  from public.profiles p
- where p.role is distinct from 'entreprise'
-   and p.role not in ('superadmin', 'formateur_externe', 'stagiaire')
-   and exists (select 1 from public.client_accounts a where a.profile_id = p.id)
-on conflict (profile_id) do nothing;
-alter table public.profiles disable trigger profiles_protect_role;
-update public.profiles p
-   set role = 'entreprise', updated_at = now()
- where p.role is distinct from 'entreprise'
-   and p.role not in ('superadmin', 'formateur_externe', 'stagiaire')
-   and exists (select 1 from public.client_accounts a where a.profile_id = p.id);
-alter table public.profiles enable trigger profiles_protect_role;
-
--- 1. Garde
-create or replace function public.protect_profile_role()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare
-  v_externes constant text[] := array['entreprise', 'formateur_externe', 'stagiaire'];
-begin
-  if new.role is distinct from old.role then
-    if not public.is_admin() then
-      raise exception 'Seul un administrateur peut modifier un rôle';
-    end if;
-    if new.role = 'superadmin' and not public.is_superadmin() then
-      raise exception 'Seul un super administrateur peut attribuer le rôle super administrateur';
-    end if;
-    if coalesce(old.role = any (v_externes), false) <> coalesce(new.role = any (v_externes), false) then
-      raise exception 'Un compte extérieur (client, formateur externe, stagiaire) ne peut pas devenir un compte de l''équipe, ni l''inverse : créez un autre compte';
-    end if;
-  end if;
-  new.updated_at := now();
-  return new;
-end $$;
-
--- ===== essai propre supabase/tests/comptes_externes_role_0522.sql (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====
+-- ===== essai propre supabase/tests/registre_0523_0524.sql (point de sauvegarde, annulé s'il passe ; s'il échoue, tout s'arrête) =====
 savepoint essai_propre;
 
-set local client_min_messages = warning;
-
 do $$
-declare
-  v_sa uuid := 'e0522000-0000-4000-8000-000000000001';
-  v_ent uuid := 'e0522000-0000-4000-8000-000000000002';
-  v_eq uuid := 'e0522000-0000-4000-8000-000000000003';
-  v_ok boolean;
 begin
-  insert into auth.users (id, email, aud, role) values
-    (v_sa, 'sa-0522@exemple.invalid', 'authenticated', 'authenticated'),
-    (v_ent, 'ent-0522@exemple.invalid', 'authenticated', 'authenticated'),
-    (v_eq, 'eq-0522@exemple.invalid', 'authenticated', 'authenticated');
-  insert into public.profiles (id, email) values (v_sa, 'sa-0522@exemple.invalid'), (v_ent, 'ent-0522@exemple.invalid'),
-    (v_eq, 'eq-0522@exemple.invalid') on conflict (id) do nothing;
-  alter table public.profiles disable trigger profiles_protect_role;
-  update public.profiles set role = 'superadmin', is_active = true where id = v_sa;
-  update public.profiles set role = 'entreprise', is_active = true where id = v_ent;
-  update public.profiles set role = 'gestionnaire', is_active = true where id = v_eq;
-  alter table public.profiles enable trigger profiles_protect_role;
-
-  perform set_config('request.jwt.claims', json_build_object('sub', v_sa, 'role', 'authenticated')::text, true);
-
-  -- 1. Client vers équipe : refusé, même pour le super administrateur
-  v_ok := false;
-  begin update public.profiles set role = 'lecture' where id = v_ent; exception when others then v_ok := true; end;
-  if not v_ok then raise exception '1. un compte de l''espace client est passé en « Lecture seule »'; end if;
-  -- 2. Équipe vers extérieur : refusé
-  v_ok := false;
-  begin update public.profiles set role = 'stagiaire' where id = v_eq; exception when others then v_ok := true; end;
-  if not v_ok then raise exception '2. un compte de l''équipe est passé en stagiaire'; end if;
-  -- 3. Changement dans l'équipe : accepté
-  update public.profiles set role = 'direction' where id = v_eq;
-  if (select role from public.profiles where id = v_eq) <> 'direction' then raise exception '3. changement dans l''équipe bloqué'; end if;
-
-  -- 4. Reprise : aucun profil relié à un compte de l'espace client avec un autre rôle
+  if not exists (select 1 from public.schema_migrations where version = '0523_comptes_externes_role') then
+    raise exception '1. 0523 absente du registre'; end if;
+  if position('compte extérieur' in pg_get_functiondef('public.protect_profile_role'::regproc)) = 0 then
+    raise exception '2. garde de 0523 absente'; end if;
   if exists (select 1 from public.client_accounts a join public.profiles p on p.id = a.profile_id where p.role <> 'entreprise') then
-    raise exception '4. compte de l''espace client avec un rôle de l''équipe';
-  end if;
-  perform set_config('request.jwt.claims', '', true);
+    raise exception '3. compte de l''espace client avec un rôle de l''équipe'; end if;
 end $$;
-select 'ESSAI PROPRE VERT : supabase/tests/comptes_externes_role_0522.sql' as resultat;
+select 'ESSAI PROPRE VERT : supabase/tests/registre_0523_0524.sql' as resultat;
 rollback to savepoint essai_propre;
 
 -- ===== supabase/tests/droits_chantier2.sql =====

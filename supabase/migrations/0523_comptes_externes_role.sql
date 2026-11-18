@@ -1,10 +1,4 @@
--- FICHIER GÉNÉRÉ par scripts/migrations/fabriquer_lot.py (comptes_externes_0522) : ne pas modifier à la main.
--- APPLICATION RÉELLE sur l'instance : 0522_comptes_externes_role.sql. Une seule transaction : si une instruction échoue,
--- rien n'est appliqué. Retour arrière : supabase/rollback/0522_comptes_externes_role_retour.sql
-select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '300s', true);
-
--- ===== supabase/migrations/0522_comptes_externes_role.sql =====
--- 0522 : un compte extérieur (espace entreprise, formateur externe, stagiaire) ne devient jamais un compte de l'équipe,
+-- 0523 (appliquée le 18/11 sous le nom 0522, renumérotée : 0522 est pris par la branche RH) : un compte extérieur (espace entreprise, formateur externe, stagiaire) ne devient jamais un compte de l'équipe,
 -- et l'inverse (constat de H du 18/11 : le compte de l'espace client de M. Rolland, créé le 09/11 depuis la fiche du
 -- client, figurait dans Paramètres › Utilisateurs ; son rôle y a été passé à « Lecture seule », ce qui lui donnait
 -- une appartenance à la société et les droits de lecture de l'équipe, et cassait son espace client).
@@ -15,7 +9,7 @@ select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '
 --   2. Reprise : un profil relié à un compte de l'espace client (client_accounts) mais qui n'a plus le rôle
 --      « entreprise » le retrouve ; le déclencheur sync_profile_member désactive alors son appartenance à la société
 --      (aucune ligne supprimée). En production le 18/11 : 1 profil (jamais connecté).
--- Idempotente. Retour arrière : supabase/rollback/0522_comptes_externes_role_retour.sql
+-- Idempotente. Retour arrière : supabase/rollback/0523_comptes_externes_role_retour.sql
 
 -- 2. Reprise d'abord (le déclencheur de garde refuserait la correction : il est mis de côté le temps de la mise à jour).
 -- Valeurs d'avant gardées dans app.reprise_0522 pour un retour arrière à l'identique (table supprimée par le retour).
@@ -63,3 +57,5 @@ begin
   new.updated_at := now();
   return new;
 end $$;
+
+insert into public.schema_migrations (version) values ('0523_comptes_externes_role') on conflict (version) do nothing;

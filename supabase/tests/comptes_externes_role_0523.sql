@@ -1,4 +1,4 @@
--- Essai de 0522 : un compte extérieur ne devient pas un compte de l'équipe (ni l'inverse), même par un super
+-- Essai de 0523 : un compte extérieur ne devient pas un compte de l'équipe (ni l'inverse), même par un super
 -- administrateur ; un changement de rôle dans l'équipe reste possible ; aucun profil relié à un compte de l'espace
 -- client ne garde un autre rôle que « entreprise ». Rouge sans 0522. Données d'essai créées ici, tout est annulé.
 begin;

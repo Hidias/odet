@@ -1,4 +1,4 @@
--- Retour arrière de 0522 : garde de 0004 remise à l'identique, profils et appartenances repris remis à leurs valeurs
+-- Retour arrière de 0523 : garde de 0004 remise à l'identique, profils et appartenances repris remis à leurs valeurs
 -- d'avant (app.reprise_0522), puis table de reprise supprimée. Déclencheurs mis de côté le temps de la remise en état
 -- (sinon updated_at serait réécrit et la garde refuserait le changement de rôle).
 do $$
@@ -30,3 +30,5 @@ begin
   new.updated_at := now();
   return new;
 end $$;
+
+delete from public.schema_migrations where version = '0523_comptes_externes_role';
