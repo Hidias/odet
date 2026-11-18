@@ -351,7 +351,9 @@ begin
   if tg_op = 'UPDATE' and old.signed_document_id is not null
      and (new.effective_on <> old.effective_on or new.subject <> old.subject or new.changes is distinct from old.changes
           or new.employment_id <> old.employment_id or new.signed_document_id is distinct from old.signed_document_id
-          or new.generated_document_id is distinct from old.generated_document_id) then
+          or (new.generated_document_id is distinct from old.generated_document_id
+              -- document généré supprimé : la clé passe à vide (on delete set null), relecture du 18/11, tour 2
+              and not (new.generated_document_id is null and not exists (select 1 from public.hr_documents d where d.id = old.generated_document_id)))) then
     raise exception 'Avenant signé : il ne se modifie plus' using errcode = '22023';
   end if;
   if tg_op = 'INSERT' then
@@ -386,6 +388,22 @@ revoke all on function app.hr_avenant_suppression() from public, anon, authentic
 drop trigger if exists hr_contract_amendments_suppression on public.hr_contract_amendments;
 create trigger hr_contract_amendments_suppression before delete on public.hr_contract_amendments
   for each row execute function app.hr_avenant_suppression();
+
+-- Document signé d'un avenant : à vérifier AVANT d'effacer le fichier du stockage (l'écran efface le fichier puis la
+-- ligne ; la ligne est protégée par la clé étrangère, le fichier ne l'est pas), relecture du 18/11, tour 2
+create or replace function public.hr_document_protege(p_doc uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.hr_contract_amendments a join public.hr_documents d on d.id = p_doc
+                 where a.signed_document_id = p_doc
+                   and d.company_id in (select app.societes_avec_droit('rh.dossiers.gerer')))
+$$;
+revoke all on function public.hr_document_protege(uuid) from public, anon;
+grant execute on function public.hr_document_protege(uuid) to authenticated;
 
 -- ── Droits ──
 alter table public.hr_contract_models enable row level security;
@@ -561,6 +579,7 @@ drop view if exists public.v_hr_echeances;
 
 drop function if exists app.hr_jour_ouvrable_apres(uuid, date, int);
 
+drop function if exists public.hr_document_protege(uuid);
 drop table if exists public.hr_contract_amendments;
 drop function if exists app.hr_avenant_avant();
 drop function if exists app.hr_avenant_suppression();

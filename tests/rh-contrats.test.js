@@ -104,6 +104,7 @@ describe('Contrats de travail (0523)', () => {
   })
   it('champ inconnu ou mal écrit : bloqué, jamais imprimé tel quel', () => {
     expect(manquants([{ texte: 'Bonjour {{Salarie_nom}}' }], { salarie_nom: 'X' })[0]).toMatch(/Champ inconnu/)
+    expect(manquants([{ titre: 'T', texte: 'Bonjour {{salarie_nom' }], { salarie_nom: 'X' })[0]).toMatch(/non fermées/)
   })
   it('modèle d\'avenant : le tableau des modifications est repéré par une clé', () => {
     expect(modeles.avenant.articles.filter((a) => a.tableau)).toHaveLength(1)

@@ -149,6 +149,8 @@ export const remplir = (texte, v) => String(texte || '').replace(/\{\{([^}]*)\}\
 export function manquants(articles, v) {
   const m = new Set()
   for (const a of articles) {
+    // « {{ » sans accolades fermantes : s'imprimerait tel quel (relecture du 18/11, tour 2)
+    if (/\{\{(?![^{}]*\}\})/.test(String(a.texte || ''))) m.add(`Accolades non fermées dans l'article « ${a.titre || ''} » du modèle`)
     for (const k of champsDe(a.texte)) {
       if (!CHAMPS[k]) m.add(`Champ inconnu dans le modèle : {{${k}}}`)
       else if (vide(v[k])) m.add(CHAMPS[k])

@@ -5,6 +5,7 @@ drop view if exists public.v_hr_echeances;
 
 drop function if exists app.hr_jour_ouvrable_apres(uuid, date, int);
 
+drop function if exists public.hr_document_protege(uuid);
 drop table if exists public.hr_contract_amendments;
 drop function if exists app.hr_avenant_avant();
 drop function if exists app.hr_avenant_suppression();

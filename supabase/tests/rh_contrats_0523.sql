@@ -158,6 +158,7 @@ begin
     raise exception 'Essai 0523 : document signé d''un avenant supprimé';
   exception when foreign_key_violation then null;
   end;
+  if not public.hr_document_protege(v_d) is not null then raise exception 'Essai 0523 : protection du document signé illisible'; end if;
 
   -- 7. Document généré : traçabilité contrôlée
   begin
