@@ -33,6 +33,8 @@ import { EtatDpae, DpaeSheet } from './Dpae'
 import TableauRH from './TableauRH'
 import RegistrePaie from './RegistrePaie'
 import Postes from './Postes'
+import Affichages from './Affichages'
+import AccueilSecuriteFiche from './AccueilSecurite'
 import { chargerPostes, emploiDuContrat } from '../lib/rhPostes'
 import { EntretiensFiche, ListesFiche } from './EntretiensListes'
 import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
@@ -507,6 +509,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
       <ListesFiche personId={p.id} peutGerer={peutGerer} />
       <HabilitationsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
       <EpiFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
+      <AccueilSecuriteFiche personId={p.id} contrats={contrats} peutGerer={peutGerer} />
       <SanteFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer && peutRestreints} />
       <ConsignesFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} />
       {peutGerer && p.profile_id && <AffichageAdapteFiche profileId={p.profile_id} />}
@@ -699,7 +702,7 @@ export default function Personnel() {
   const peutValiderAbs = peutValider || responsable
   const peutValiderHeures = can('rh.heures.valider') === true || responsable
   const peutTableau = peutVoirTout || peutValiderAbs || peutValiderHeures
-  const ONGLETS = ['tableau', 'mon-espace', 'annuaire', 'absences', 'heures', 'equipes', 'postes', 'horaires', 'registre']
+  const ONGLETS = ['tableau', 'mon-espace', 'annuaire', 'absences', 'heures', 'equipes', 'postes', 'affichages', 'horaires', 'registre']
   const onglet = ONGLETS.includes(chemin) ? chemin : 'annuaire'
   const enFiche = chemin && !ONGLETS.includes(chemin)
   // Technicien de terrain : seulement « Mon espace » (les autres onglets lui sont fermés)
@@ -709,7 +712,7 @@ export default function Personnel() {
     { id: 'mon-espace', label: 'Mon espace' },
     { id: 'annuaire', label: 'Annuaire' }, { id: 'absences', label: 'Absences' }, { id: 'heures', label: 'Heures' },
     { id: 'equipes', label: 'Équipes' },
-    ...(peutVoirTout || peutConfigurer ? [{ id: 'postes', label: 'Postes et titres' }] : []),
+    ...(peutVoirTout || peutConfigurer ? [{ id: 'postes', label: 'Postes et titres' }, { id: 'affichages', label: 'Affichages' }] : []),
     { id: 'horaires', label: 'Horaires' },
     ...(peutVoirTout ? [{ id: 'registre', label: 'Registre et paie' }] : []),
   ]
@@ -736,6 +739,7 @@ export default function Personnel() {
         <Route path="heures" element={<Heures peutValider={peutValiderHeures} />} />
         <Route path="equipes" element={<Equipes peutGerer={peutGerer} />} />
         {(peutVoirTout || peutConfigurer) && <Route path="postes" element={<Postes peutConfigurer={peutConfigurer} />} />}
+        {(peutVoirTout || peutConfigurer) && <Route path="affichages" element={<Affichages peutGerer={peutGerer} peutConfigurer={peutConfigurer} />} />}
         <Route path="horaires" element={<div className="space-y-6"><Horaires peutConfigurer={peutConfigurer} /><JoursFeries peutConfigurer={peutConfigurer} /></div>} />
         <Route path=":id" element={<FichePersonne peutGerer={peutGerer} peutSalaires={peutSalaires} peutRestreints={peutRestreints} />} />
       </Routes>

@@ -159,7 +159,7 @@ function FichiersArticle({ v, setV }) {
 }
 
 function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, onSaved }) {
-  const [v, setV] = useState(() => ({ label: '', reference: '', supplier_reference: '', category_id: '', unit: 'unité', sale_price_ht: '', supplier_id: '', barcode: '', serialized: false, consumable: true, ppe: false, ppe_renew_months: '', ...(article || {}), achat: article?.achat ?? '' }))
+  const [v, setV] = useState(() => ({ label: '', reference: '', supplier_reference: '', category_id: '', unit: 'unité', sale_price_ht: '', supplier_id: '', barcode: '', serialized: false, consumable: true, ppe: false, ppe_renew_months: '', dati: false, ...(article || {}), achat: article?.achat ?? '' }))
   const [busy, setBusy] = useState(false)
   const [typesApp, setTypesApp] = useState([])
   useEffect(() => { supabase.from('itv_equipment_types').select('id, name').eq('is_active', true).order('name').then(({ data, error }) => setTypesApp(error ? [] : data || []), () => {}) }, [])
@@ -220,6 +220,9 @@ function ArticleSheet({ article, categories, fournisseurs, voirPrix, onClose, on
           <Champ label="Renouveler tous les (mois)" aide="Proposé à chaque remise ; laissez vide si l'usure décide">
             <input className="input" inputMode="numeric" value={v.ppe_renew_months ?? ''} onChange={(e) => setV({ ...v, ppe_renew_months: e.target.value.replace(/\D/g, '').slice(0, 3) })} />
           </Champ>
+        )}
+        {v.ppe && (
+          <label className="flex items-center gap-2 min-h-[44px]"><input type="checkbox" className="w-5 h-5" checked={!!v.dati} onChange={m('dati')} /><span className="text-ui">C'est un DATI (alarme pour travailleur isolé)</span></label>
         )}
       </form>
     </Sheet>

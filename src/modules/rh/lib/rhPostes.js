@@ -35,7 +35,7 @@ export function erreurNomPoste(nom, postes = [], idModifie = null) {
 }
 
 export const chargerPostes = async () => must(await supabase.from('hr_jobs')
-  .select('id, name, position, hr_job_requirements(id, required_kind, required_symbols, label)')
+  .select('id, name, position, lone_work, lone_work_measures, lone_work_note, lone_work_duerp_ref, hr_job_requirements(id, required_kind, required_symbols, label)')
   .order('position').order('name'))
 
 export async function enregistrerPoste({ id, name }) {
