@@ -29,6 +29,7 @@ import { DocumentsFiche, HabilitationsFiche, SanteFiche, ConsignesFiche, Afficha
 import EpiFiche from './EpiFiche'
 import { DepartSheet, BandeauDepart } from './Depart'
 import MonEspace from './MonEspace'
+import { EtatDpae, DpaeSheet } from './Dpae'
 import TableauRH from './TableauRH'
 import RegistrePaie from './RegistrePaie'
 import Postes from './Postes'
@@ -411,6 +412,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
   const [edition, setEdition] = useState(false)
   const [contratEdite, setContratEdite] = useState(null)
   const [depart, setDepart] = useState(false)
+  const [dpae, setDpae] = useState(null)
   const charger = useCallback(async () => {
     try {
       const [pp, cc] = await Promise.all([chargerPersonne(id), chargerContrats(id)])
@@ -492,6 +494,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
                 {peutGerer && <button type="button" className="btn btn-ghost btn-icon" aria-label="Modifier le contrat" onClick={() => setContratEdite(c)}><Pencil className="w-4 h-4" /></button>}
                 {peutGerer && <button type="button" className="btn btn-ghost btn-icon" aria-label="Supprimer le contrat" onClick={() => supprimerC(c)}><Trash2 className="w-4 h-4" /></button>}
               </div>
+              <EtatDpae contrat={c} peutGerer={peutGerer} onOuvrir={() => setDpae(c)} />
               <Remuneration contrat={c} peutVoir={peutSalaires} peutSaisir={peutSalaires && peutGerer} />
             </div>
           )
@@ -510,6 +513,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
       <DocumentsFiche companyId={p.company_id} personId={p.id} peutGerer={peutGerer} peutRestreints={peutRestreints} estMoi={!!user?.id && p.profile_id === user.id} />
 
       {edition && <FichePersonneSheet personne={p} onClose={() => setEdition(false)} onSaved={() => { setEdition(false); charger() }} />}
+      {dpae && <DpaeSheet personne={p} contrat={dpae} onClose={() => setDpae(null)} onSaved={() => { setDpae(null); charger() }} />}
       {contratEdite && <ContratSheet personId={p.id} contrat={contratEdite.id ? contratEdite : null} onClose={() => setContratEdite(null)} onSaved={() => { setContratEdite(null); charger() }} />}
       <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/collaborateurs/annuaire')}>Retour à l'annuaire</button>
     </div>
