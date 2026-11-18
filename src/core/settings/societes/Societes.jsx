@@ -166,6 +166,16 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
     if (error) return toast.error(error.message)
     toast.success('Société enregistrée'); onChange()
   }
+  // Société de l'instance : son identité vient de Paramètres › Identité, sauf l'IDCC (aucun champ là-bas, jamais recopié)
+  const enregistrerIdcc = async () => {
+    const idcc = (f.idcc || '').trim()
+    if (idcc && !/^\d{1,4}$/.test(idcc)) return toast.error("L'IDCC s'écrit avec 4 chiffres au plus (exemple : 3248)")
+    setEnCours(true)
+    const { error } = await supabase.from('companies').update({ idcc: idcc || null }).eq('id', societe.id)
+    setEnCours(false)
+    if (error) return toast.error(error.message)
+    toast.success('Convention collective enregistrée'); onChange()
+  }
   const module = async (key, enabled) => {
     const { error } = await supabase.rpc('company_module_set', { p_company: societe.id, p_key: key, p_enabled: enabled })
     if (error) return toast.error(error.message)
@@ -181,11 +191,11 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
     <div className="grid gap-5">
       <div>
         <h2 className="section-title">{societe.legal_name}</h2>
-        {instance && <p className="muted">Société qui porte l'instance : son identité se saisit dans Paramètres › Identité et Banque (recopiée ici), ses modules dans la Console.</p>}
+        {instance && <p className="muted">Société qui porte l'instance : son identité se saisit dans Paramètres › Identité et Banque (recopiée ici), ses modules dans la Console. Seule la convention collective (IDCC) se saisit ici.</p>}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {CHAMPS.map(([k, l]) => (
-          <Field key={k} label={l}><input className="input" value={f[k] || ''} disabled={instance} onChange={(e) => set(k, e.target.value)} /></Field>
+          <Field key={k} label={l}><input className="input" value={f[k] || ''} disabled={instance && k !== 'idcc'} onChange={(e) => set(k, e.target.value)} /></Field>
         ))}
         <Field label="Début de l'exercice comptable">
           <select className="select" value={f.fiscal_year_start_month || 1} disabled={instance} onChange={(e) => set('fiscal_year_start_month', e.target.value)}>
@@ -201,6 +211,7 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
         <Toggle checked={!!f.is_training_org} onChange={(v) => set('is_training_org', v)} label="Organisme de formation" disabled={instance} />
       </div>
       {!instance && <div><button type="button" className="btn btn-primary" disabled={enCours} onClick={enregistrer}><Save className="w-4 h-4" />Enregistrer la société</button></div>}
+      {instance && <div><button type="button" className="btn btn-primary" disabled={enCours || (f.idcc || '') === (societe.idcc || '')} onClick={enregistrerIdcc}><Save className="w-4 h-4" />Enregistrer la convention collective</button></div>}
 
       <div className="grid gap-2">
         <h3 className="font-semibold">Établissements</h3>
