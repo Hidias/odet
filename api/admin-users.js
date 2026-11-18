@@ -38,6 +38,10 @@ async function handler(req, res) {
     if (action === 'invite') {
       if (!email) return res.status(400).json({ error: 'Email requis' })
       const wanted = role || 'gestionnaire'
+      // Comptes de l'équipe seulement : clients, formateurs externes et stagiaires se créent depuis leur fiche (0523)
+      if (!['superadmin', 'admin', 'direction', 'gestionnaire', 'formateur', 'commercial', 'comptable', 'lecture', 'membre'].includes(wanted)) {
+        return res.status(400).json({ error: 'Rôle non autorisé ici : un compte client, formateur externe ou stagiaire se crée depuis sa fiche' })
+      }
       if (wanted === 'superadmin' && profile.role !== 'superadmin') {
         return res.status(403).json({ error: 'Seul un super administrateur peut créer un super administrateur' })
       }

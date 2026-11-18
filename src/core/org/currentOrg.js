@@ -26,6 +26,9 @@ export function setSocieteCache(identite) {
 export const ROLES_HORS_EQUIPE = ['entreprise', 'stagiaire']
 export const FILTRE_EQUIPE = `role.is.null,role.not.in.(${ROLES_HORS_EQUIPE.join(',')})`
 export const estEquipe = (p) => !ROLES_HORS_EQUIPE.includes(p?.role)
+// Comptes extérieurs (18/11 : un compte de l'espace client apparaissait dans Paramètres › Utilisateurs et y a été passé
+// en « Lecture seule ») : ils se gèrent depuis la fiche du client, du formateur ou du stagiaire, jamais dans Utilisateurs.
+export const ROLES_EXTERIEURS = ['entreprise', 'formateur_externe', 'stagiaire']
 
 export function setTeamCache(list) { teamCache = Array.isArray(list) ? list : [] }
 export function setCurrentProfile(p) { meCache = p || null }
