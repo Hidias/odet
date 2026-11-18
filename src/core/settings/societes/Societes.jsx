@@ -159,7 +159,7 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }))
 
   const enregistrer = async () => {
-    if (!idccValide(f.idcc)) return toast.error(MESSAGE_IDCC)
+    if ((f.idcc || '').trim() !== (societe.idcc || '') && !idccValide(f.idcc)) return toast.error(MESSAGE_IDCC)
     setEnCours(true)
     const patch = Object.fromEntries(CHAMPS.map(([k]) => [k, (f[k] ?? '') === '' ? null : f[k]]))
     patch.legal_name = (f.legal_name || '').trim() || societe.legal_name
