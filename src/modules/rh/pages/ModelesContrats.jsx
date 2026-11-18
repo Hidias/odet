@@ -7,7 +7,8 @@ import toast from 'react-hot-toast'
 import { FileText } from 'lucide-react'
 import { Spinner, EmptyState } from '../../../ui/EmptyState'
 import { confirmer } from '../../../ui/Confirm'
-import { enVueGroupe, societeEnCours } from '../../../core/company/societes'
+import { enVueGroupe, societeActive } from '../../../core/company/societes'
+import { useAuthStore } from '../../../core/store'
 import {
   TYPES_MODELE, chargerModeles, poserModeles, validerModele, chargerReglagesContrat, enregistrerReglagesContrat,
 } from '../lib/rhContrats'
@@ -116,7 +117,8 @@ function Modele({ modele, peutConfigurer, onChange }) {
 
 export default function ModelesContrats({ peutConfigurer }) {
   const [modeles, setModeles] = useState(null)
-  const companyId = societeEnCours()
+  const ctxSocietes = useAuthStore((st) => st.societes)
+  const companyId = societeActive(ctxSocietes)
   const charger = useCallback(() => { chargerModeles().then(setModeles).catch((e) => { toast.error(e.message); setModeles([]) }) }, [])
   useEffect(() => { charger() }, [charger])
   if (enVueGroupe() || !companyId) return <EmptyState icon={FileText} title="Choisissez une société" compact>Les contrats se règlent société par société.</EmptyState>

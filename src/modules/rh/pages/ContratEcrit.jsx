@@ -8,7 +8,8 @@ import { FileText, Upload, Plus, Trash2 } from 'lucide-react'
 import { Sheet } from '../../../ui/Sheet'
 import { confirmer } from '../../../ui/Confirm'
 import { ouvrirDocument, TYPES_FICHIER } from '../lib/rhDocuments'
-import { societeEnCours } from '../../../core/company/societes'
+import { societeActive } from '../../../core/company/societes'
+import { useAuthStore } from '../../../core/store'
 import {
   modelePour, preparer, generer, deposerSigne, marquerContratRemis, marquerAvenantRemis,
   chargerAvenants, enregistrerAvenant, supprimerAvenant, erreurAvenant,
@@ -136,7 +137,7 @@ export default function ContratEcrit({ personne, contrat, peutGerer, peutContrat
   const lancer = async (avenant = null) => {
     setBusy(true)
     try {
-      const prep = await preparer({ personne, contrat, avenant, societeEcran: societeEnCours() })
+      const prep = await preparer({ personne, contrat, avenant, societeEcran: societeActive(useAuthStore.getState().societes) })
       if (prep.erreur) toast.error(prep.erreur)
       else if (prep.manque.length) setManque(prep.manque)
       else {
