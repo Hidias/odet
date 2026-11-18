@@ -4,7 +4,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Spinner } from '../../../ui/EmptyState'
+import { Spinner, EmptyState } from '../../../ui/EmptyState'
+import { confirmer } from '../../../ui/Confirm'
+import { enVueGroupe } from '../../../core/company/societes'
+import { ClipboardList } from 'lucide-react'
 import {
   MODES_AFFICHAGE, ETATS_AFFICHAGE, etatAffichage, bilanAffichages, erreurAffichage,
   AFFICHAGES, chargerAffichages, enregistrerAffichage, effacerAffichage, chargerLieuPanneau, enregistrerLieuPanneau,
@@ -38,6 +41,7 @@ function Ligne({ item, ligne, peutGerer, onChange }) {
     setBusy(false)
   }
   const effacer = async () => {
+    if (!(await confirmer(`Remettre « ${item.label} » à faire ? Les dates notées sont effacées.`))) return
     try { await effacerAffichage(ligne.id); setV(null); onChange() } catch (er) { toast.error(er.message) }
   }
   return (
@@ -53,7 +57,7 @@ function Ligne({ item, ligne, peutGerer, onChange }) {
           </div>
         </div>
         <span className={`badge ${etat.badge}`}>{etat.label}</span>
-        {peutGerer && !v && <button type="button" className="btn btn-secondary btn-sm min-h-[44px]" onClick={ouvrir}>{ligne ? 'Mettre à jour' : 'Noter'}</button>}
+        {peutGerer && !v && <button type="button" className="btn btn-secondary btn-sm min-h-[44px]" aria-label={`${ligne ? 'Mettre à jour' : 'Noter'} : ${item.label}`} onClick={ouvrir}>{ligne ? 'Mettre à jour' : 'Noter'}</button>}
       </div>
       {v && (
         <form onSubmit={enregistrer} className="space-y-3 rounded-ui-sm border border-gray-200 p-3">
@@ -72,9 +76,9 @@ function Ligne({ item, ligne, peutGerer, onChange }) {
             <input className="input" maxLength={500} value={v.note} onChange={(e) => setV({ ...v, note: e.target.value })} />
           </Champ>
           <div className="flex gap-2 flex-wrap">
-            <button type="submit" className="btn btn-primary" disabled={busy}>Enregistrer</button>
-            <button type="button" className="btn btn-ghost" onClick={() => setV(null)}>Annuler</button>
-            {ligne && <button type="button" className="btn btn-ghost" onClick={effacer}>Remettre à faire</button>}
+            <button type="submit" className="btn btn-primary min-h-[44px]" disabled={busy}>Enregistrer</button>
+            <button type="button" className="btn btn-ghost min-h-[44px]" onClick={() => setV(null)}>Annuler</button>
+            {ligne && <button type="button" className="btn btn-ghost min-h-[44px]" onClick={effacer}>Remettre à faire</button>}
           </div>
         </form>
       )}
@@ -94,6 +98,7 @@ export default function Affichages({ peutGerer, peutConfigurer }) {
   }, [])
   useEffect(() => { charger(); chargerLieuPanneau().then(setLieu).catch(() => {}) }, [charger])
   const par = useMemo(() => Object.fromEntries(lignes.map((l) => [l.item_code, l])), [lignes])
+  if (enVueGroupe()) return <EmptyState icon={ClipboardList} title="Choisissez une société" compact>Les affichages se tiennent société par société.</EmptyState>
   if (!items) return <Spinner />
   const b = bilanAffichages(items, lignes)
   const enregistrerLieu = async (e) => {
@@ -105,19 +110,21 @@ export default function Affichages({ peutGerer, peutConfigurer }) {
       <p className="text-ui-sm text-gray-600">
         Informations que l'employeur affiche ou diffuse à ses salariés, pour une entreprise de moins de 11 salariés.
         Liste reprise de la <a href={SOURCE} target="_blank" rel="noreferrer">fiche officielle</a> (mise à jour du 08/07/2026). « Par tout moyen » : affichage, mail, intranet ou remise en main propre.
+        À partir de 11 salariés, d'autres affichages s'ajoutent : cette liste ne suffit plus.
+        « À vérifier » au bout d'un an est un repère de l'outil, pas une exigence de la fiche.
       </p>
       <section className="card space-y-2">
         <h2 className="section-title">Panneau d'affichage</h2>
         {lieuSaisi === null ? (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-ui flex-1 min-w-0">{lieu || 'Lieu du panneau non renseigné'}</span>
-            {peutConfigurer && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLieuSaisi(lieu)}>Modifier</button>}
+            {peutConfigurer && <button type="button" className="btn btn-ghost btn-sm min-h-[44px]" onClick={() => setLieuSaisi(lieu)}>Modifier le lieu</button>}
           </div>
         ) : (
           <form onSubmit={enregistrerLieu} className="flex flex-wrap items-end gap-2">
             <Champ label="Lieu du panneau"><input className="input" maxLength={200} value={lieuSaisi} onChange={(e) => setLieuSaisi(e.target.value)} placeholder="Site, pièce" /></Champ>
-            <button type="submit" className="btn btn-primary">Enregistrer</button>
-            <button type="button" className="btn btn-ghost" onClick={() => setLieuSaisi(null)}>Annuler</button>
+            <button type="submit" className="btn btn-primary min-h-[44px]">Enregistrer</button>
+            <button type="button" className="btn btn-ghost min-h-[44px]" onClick={() => setLieuSaisi(null)}>Annuler</button>
           </form>
         )}
         <p className="text-ui-sm text-gray-700">{b.fait} fait(s) · {b.a_verifier} à vérifier · {b.a_faire} à faire · {b.sans_objet} sans objet</p>

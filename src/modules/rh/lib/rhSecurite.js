@@ -6,6 +6,7 @@
 //   - fiche service-public reprise par code.travail.gouv.fr, mise à jour du 08/07/2026 (affichages, jusqu'à 10 salariés).
 
 import { supabase } from '../../../core/supabase'
+import { societeEnCours } from '../../../core/company/societes'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 const jour = () => {
@@ -61,9 +62,10 @@ export const MOTIFS_ACCUEIL = {
 
 // Trois domaines de R4141-3, puis les points pratiques proposés (modifiables à la saisie)
 export const POINTS_ACCUEIL = [
-  'Conditions de circulation dans l\'entreprise et sur les sites (R4141-3, 1°)',
-  'Conditions d\'exécution du travail : gestes sûrs, modes opératoires, dispositifs de protection (R4141-3, 2°)',
+  'Conditions de circulation dans l\'entreprise (R4141-3, 1°)',
+  'Conditions d\'exécution du travail (R4141-3, 2°)',
   'Conduite à tenir en cas d\'accident ou de sinistre (R4141-3, 3°)',
+  'Gestes sûrs, modes opératoires et dispositifs de protection du poste',
   'Consignes incendie et évacuation',
   'Équipements de protection individuelle et leur usage',
   'Risques du poste (document unique) et habilitations exigées',
@@ -116,12 +118,12 @@ export const AFFICHAGES = [
   { code: "duree_travail", label: "Durée du travail", content: "Répartition de la durée du travail en cas d'aménagement et ses modifications ; composition nominative des équipes en cas de travail par relais, roulement ou équipes successives.", mode: "affichage" },
   { code: "horaires_collectifs", label: "Horaires collectifs", content: "Heures de début et de fin du travail, durée des repos.", mode: "affichage" },
   { code: "repos_hebdomadaire", label: "Repos hebdomadaire", content: "Jours et heures du repos collectif s'il n'est pas donné le dimanche ; suspension pour travaux urgents.", mode: "tout_moyen" },
-  { code: "conges_payes", label: "Congés payés", content: "Période de prise des congés et ordre des départs.", mode: "tout_moyen" },
+  { code: "conges_payes", label: "Congés payés", content: "Période de prise des congés (2 mois avant l'ouverture de la période) et ordre des départs (1 mois avant le début des congés) ; caisse des congés payés pour les employeurs d'artistes du spectacle et du bâtiment et des travaux publics.", mode: "tout_moyen" },
   { code: "harcelement_moral", label: "Harcèlement moral", content: "Texte de l'article du Code pénal sur le harcèlement moral.", mode: "tout_moyen", reference: "Code pénal, 222-33-2" },
   { code: "harcelement_sexuel", label: "Harcèlement sexuel", content: "Texte de l'article du Code pénal sur le harcèlement sexuel, actions possibles, coordonnées du médecin du travail, de l'inspection du travail et du Défenseur des droits.", mode: "tout_moyen", reference: "Code pénal, 222-33" },
   { code: "discriminations", label: "Lutte contre les discriminations", content: "Texte des articles du Code pénal sur les discriminations.", mode: "tout_moyen", reference: "Code pénal, 225-1 à 225-4" },
   { code: "interdiction_fumer", label: "Interdiction de fumer", content: "Interdiction de fumer dans les locaux.", mode: "affichage" },
-  { code: "interdiction_vapoter", label: "Interdiction de vapoter", content: "Interdiction de vapoter dans les lieux fermés et couverts à usage collectif, sauf exceptions.", mode: "affichage" },
+  { code: "interdiction_vapoter", label: "Interdiction de vapoter", content: "Interdiction de vapoter dans les lieux de travail fermés ou couverts à usage collectif, sauf exceptions (lieux de travail accueillant du public, par exemple).", mode: "affichage" },
   { code: "acces_duerp", label: "Document unique d'évaluation des risques", content: "Conditions d'accès et de consultation du document unique.", mode: "affichage" },
   { code: "panneaux_syndicaux", label: "Panneaux syndicaux", content: "Panneaux pour les communications syndicales, selon accord avec l'employeur.", mode: "affichage" },
   { code: "organisations_syndicales", label: "Organisations syndicales de la branche", content: "Accès aux adresses des organisations syndicales représentatives de la branche (site du ministère du Travail).", mode: "tout_moyen" },
@@ -167,8 +169,13 @@ export function erreurAffichage({ status, done_on, checked_on, note }) {
   return null
 }
 
-export const chargerAffichages = async () => must(await supabase.from('hr_postings')
-  .select('id, item_code, status, done_on, checked_on, means, note, updated_at'))
+// Lignes de la société en cours seulement (un compte membre de plusieurs sociétés les lit toutes)
+export async function chargerAffichages() {
+  let q = supabase.from('hr_postings').select('id, company_id, item_code, status, done_on, checked_on, means, note, updated_at')
+  const c = societeEnCours()
+  if (c) q = q.eq('company_id', c)
+  return must(await q)
+}
 
 export async function enregistrerAffichage(code, v) {
   const err = erreurAffichage(v)

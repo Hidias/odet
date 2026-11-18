@@ -11,6 +11,7 @@ import { confirmer } from '../../../ui/Confirm'
 import { useAuthStore } from '../../../core/store'
 import { statutContrat } from '../lib/rhData'
 import { chargerPostes } from '../lib/rhPostes'
+import { chargerEcheances } from '../lib/rhDocuments'
 import {
   MOTIFS_ACCUEIL, pointsProposes, erreurAccueil, chargerAccueils, enregistrerAccueil, supprimerAccueil,
 } from '../lib/rhSecurite'
@@ -25,19 +26,20 @@ function Champ({ label, children }) {
   return <label className="block"><span className="label">{label}</span>{children}</label>
 }
 
-function AccueilSheet({ personId, contrat, poste, dejaFait, onClose, onSaved }) {
+function AccueilSheet({ personId, contrat, poste, motif, onClose, onSaved }) {
   const profile = useAuthStore((s) => s.profile)
   const [v, setV] = useState(() => ({
-    done_on: aujourdhui(), reason: dejaFait ? 'changement_poste' : 'embauche', topics: pointsProposes(poste),
+    done_on: aujourdhui(), reason: motif, topics: pointsProposes(poste),
     conducted_by: [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || profile?.display_name || '',
     notes: '', signature: null, ajout: '',
   }))
   const [busy, setBusy] = useState(false)
-  const basculer = (i) => setV({ ...v, topics: v.topics.map((t, j) => (j === i ? { ...t, done: !t.done } : t)) })
+  const basculer = (i) => setV((x) => ({ ...x, topics: x.topics.map((t, j) => (j === i ? { ...t, done: !t.done } : t)) }))
   const ajouter = () => {
-    const label = v.ajout.trim()
-    if (!label) return
-    setV({ ...v, topics: [...v.topics, { label, done: true }], ajout: '' })
+    setV((x) => {
+      const label = x.ajout.trim()
+      return label ? { ...x, topics: [...x.topics, { label, done: true }], ajout: '' } : x
+    })
   }
   const enregistrer = async (e) => {
     e.preventDefault()
@@ -83,7 +85,7 @@ function AccueilSheet({ personId, contrat, poste, dejaFait, onClose, onSaved }) 
           <div className="flex gap-2 mt-1">
             <input className="input flex-1" maxLength={200} value={v.ajout} placeholder="Autre point abordé" aria-label="Autre point abordé"
               onChange={(e) => setV({ ...v, ajout: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); ajouter() } }} />
-            <button type="button" className="btn btn-secondary" onClick={ajouter}>Ajouter</button>
+            <button type="button" className="btn btn-secondary min-h-[44px]" onClick={ajouter}>Ajouter</button>
           </div>
         </fieldset>
         <Champ label="Notes (facultatif)"><textarea className="input" rows={2} maxLength={1000} value={v.notes} onChange={(e) => setV({ ...v, notes: e.target.value })} /></Champ>
@@ -97,20 +99,25 @@ function AccueilSheet({ personId, contrat, poste, dejaFait, onClose, onSaved }) 
   )
 }
 
-/** Accueils sécurité d'une personne. contrats : ceux de la fiche (le contrat en cours donne le poste). */
+/** Accueils sécurité d'une personne. L'avertissement vient des échéances de la base (une seule règle, 0522). */
 export default function AccueilSecuriteFiche({ personId, contrats = [], peutGerer = false }) {
   const [liste, setListe] = useState(null)
+  const [erreur, setErreur] = useState(null)
+  const [echeance, setEcheance] = useState(null)
   const [postes, setPostes] = useState([])
   const [saisie, setSaisie] = useState(false)
-  const charger = useCallback(() => { chargerAccueils(personId).then(setListe).catch(() => setListe([])) }, [personId])
+  const charger = useCallback(() => {
+    chargerAccueils(personId).then((l) => { setListe(l); setErreur(null) }).catch((e) => { setListe([]); setErreur(e.message) })
+    chargerEcheances({ personId }).then((e) => setEcheance((e || []).find((x) => x.kind === 'accueil_securite') || null)).catch(() => setEcheance(null))
+  }, [personId])
   useEffect(() => { charger() }, [charger])
   useEffect(() => { chargerPostes().then(setPostes).catch(() => setPostes([])) }, [])
   const contrat = useMemo(() => (contrats || []).filter((c) => statutContrat(c) !== 'termine').sort((a, b) => (a.start_on < b.start_on ? 1 : -1))[0] || null, [contrats])
   const poste = useMemo(() => postes.find((p) => p.id === contrat?.job_id) || null, [postes, contrat])
   if (liste === null) return null
-  if (!peutGerer && !liste.length) return null
-  const signes = liste.filter((a) => a.signed_at)
-  const aJour = contrat && signes.some((a) => (a.job_id || null) === (contrat.job_id || null) && a.done_on >= addJours(contrat.start_on, -30))
+  if (!peutGerer && !liste.length && !echeance) return null
+  const dernier = liste.find((a) => a.signed_at) || null
+  const motif = dernier && contrat && (dernier.job_id || null) !== (contrat.job_id || null) ? 'changement_poste' : 'embauche'
 
   const supprimer = async (a) => {
     if (!(await confirmer(`Supprimer l'accueil sécurité du ${fr(a.done_on)} saisi par erreur ?`))) return
@@ -121,14 +128,11 @@ export default function AccueilSecuriteFiche({ personId, contrats = [], peutGere
     <section className="card space-y-2">
       <div className="flex items-center justify-between gap-2">
         <h2 className="section-title">Accueil sécurité</h2>
-        {peutGerer && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSaisie(true)}><Plus className="w-4 h-4" aria-hidden="true" />Faire l'accueil</button>}
+        {peutGerer && <button type="button" className="btn btn-secondary btn-sm min-h-[44px]" onClick={() => setSaisie(true)}><Plus className="w-4 h-4" aria-hidden="true" />Faire l'accueil</button>}
       </div>
-      {contrat && !aJour && (
-        <p className="text-ui-sm text-[rgb(var(--c-danger))] font-medium">
-          {signes.length ? 'À refaire : le poste a changé depuis le dernier accueil.' : 'Accueil sécurité à faire pour le contrat en cours.'}
-        </p>
-      )}
-      {!liste.length && <p className="text-ui-sm muted">Aucun accueil sécurité enregistré.</p>}
+      {echeance && <p className="text-ui-sm text-[rgb(var(--c-danger))] font-medium">{echeance.label} : prévu le {fr(echeance.due_on)}.</p>}
+      {erreur && <p className="text-ui-sm text-[rgb(var(--c-danger))]">Accueils non chargés : {erreur}</p>}
+      {!liste.length && !erreur && <p className="text-ui-sm muted">Aucun accueil sécurité enregistré.</p>}
       {liste.length > 0 && (
         <ul>
           {liste.map((a) => (
@@ -141,18 +145,12 @@ export default function AccueilSecuriteFiche({ personId, contrats = [], peutGere
                     `${(a.topics || []).filter((t) => t.done).length} point(s) abordé(s)`, a.signed_at ? 'signé' : 'non signé'].filter(Boolean).join(' · ')}
                 </div>
               </div>
-              {peutGerer && <button type="button" className="btn btn-ghost btn-icon" aria-label={`Supprimer l'accueil du ${fr(a.done_on)}`} onClick={() => supprimer(a)}><Trash2 className="w-4 h-4" /></button>}
+              {peutGerer && <button type="button" className="btn btn-ghost btn-icon min-h-[44px] min-w-[44px]" aria-label={`Supprimer l'accueil du ${fr(a.done_on)}`} onClick={() => supprimer(a)}><Trash2 className="w-4 h-4" /></button>}
             </li>
           ))}
         </ul>
       )}
-      {saisie && <AccueilSheet personId={personId} contrat={contrat} poste={poste} dejaFait={signes.length > 0} onClose={() => setSaisie(false)} onSaved={() => { setSaisie(false); charger() }} />}
+      {saisie && <AccueilSheet personId={personId} contrat={contrat} poste={poste} motif={motif} onClose={() => setSaisie(false)} onSaved={() => { setSaisie(false); charger() }} />}
     </section>
   )
-}
-
-function addJours(iso, n) {
-  const [a, m, j] = String(iso).slice(0, 10).split('-').map(Number)
-  const d = new Date(Date.UTC(a, m - 1, j + n))
-  return d.toISOString().slice(0, 10)
 }

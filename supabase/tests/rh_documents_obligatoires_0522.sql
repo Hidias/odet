@@ -6,7 +6,7 @@ set local client_min_messages = warning;
 do $$
 declare
   v_cie uuid; v_p uuid; v_q uuid; v_job uuid; v_job2 uuid; v_e uuid; v_eq uuid; v_i uuid; v_n int; v_lab text;
-  v_item uuid; v_loc uuid;
+  v_item uuid; v_loc uuid; v_r uuid; v_c1 uuid; v_c2 uuid;
 begin
   select id into v_cie from public.companies order by created_at limit 1;
   insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'ACCUEIL 0522') returning id into v_p;
@@ -117,6 +117,39 @@ begin
   exception when check_violation then null;
   end;
   insert into public.hr_postings (company_id, item_code, status, note) values (v_cie, 'rupture_conventionnelle_collective', 'sans_objet', 'Aucune rupture conventionnelle collective');
+
+
+  -- 8. Relecture du 18/11 : CDI qui suit un CDD sur le même poste (accueil gardé) ; un seul contrat compté par
+  --    personne ; personne archivée écartée ; liste d'arrivée ouverte après la signature
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'SUITE 0522') returning id into v_r;
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, end_on, job_id)
+    values (v_cie, v_r, 'cdd', current_date - 200, current_date - 20, v_job) returning id into v_c1;
+  insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature, employment_id)
+    values (v_r, current_date - 200, '[{"label":"a","done":true}]', 'data:image/png;base64,AAAA', v_c1);
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, job_id)
+    values (v_cie, v_r, 'cdi', current_date - 19, v_job) returning id into v_c2;
+  if exists (select 1 from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_r) then
+    raise exception 'Essai 0522 : accueil redemandé pour un CDI enchaîné sur le même poste';
+  end if;
+  insert into public.hr_checklists (company_id, person_id, kind, items)
+    values (v_cie, v_r, 'arrivee', '[{"label":"Accueil sécurité fait","done_on":null,"done_by":null}]');
+  select x->>'done_on' into v_lab from public.hr_checklists l, jsonb_array_elements(l.items) x
+   where l.person_id = v_r and l.kind = 'arrivee' and x->>'label' = 'Accueil sécurité fait';
+  if v_lab is distinct from (current_date - 200)::text then raise exception 'Essai 0522 : liste ouverte après la signature non cochée (%)', v_lab; end if;
+  -- Deux contrats à venir et en cours pour la même personne : une seule échéance
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, job_id)
+    values (v_cie, v_q, 'cdi', current_date + 2, v_job2);
+  select count(*) into v_n from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_q;
+  if v_n <> 1 then raise exception 'Essai 0522 : % échéances d''accueil pour une personne à deux contrats', v_n; end if;
+  update public.hr_people set archived_at = now() where id = v_q;
+  if exists (select 1 from public.v_hr_echeances where kind in ('accueil_securite', 'travail_isole') and person_id = v_q) then
+    raise exception 'Essai 0522 : personne archivée encore signalée';
+  end if;
+  -- Verrou de la vue groupe posé sur les nouvelles tables
+  if (select count(*) from pg_trigger where tgname = 'aa_vue_groupe_lecture'
+      and tgrelid in ('public.hr_safety_inductions'::regclass, 'public.hr_postings'::regclass)) <> 2 then
+    raise exception 'Essai 0522 : verrou de la vue groupe absent';
+  end if;
 
   -- 7. Droits posés, vue aux droits du lecteur
   if (select count(*) from pg_policies where schemaname = 'public' and tablename in ('hr_safety_inductions', 'hr_postings')) <> 8 then

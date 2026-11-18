@@ -79,6 +79,9 @@ set search_path = ''
 as $$
 begin
   new.company_id := coalesce((select p.company_id from public.hr_people p where p.id = new.person_id), new.company_id, app.company_default());
+  if tg_op = 'UPDATE' and new.person_id is distinct from old.person_id and not exists (select 1 from public.hr_people p where p.id = new.person_id and p.company_id = old.company_id) then
+    raise exception 'RH : la personne appartient à une autre société' using errcode = '23514';
+  end if;
   if new.employment_id is not null and not exists (select 1 from public.hr_employments e where e.id = new.employment_id and e.person_id = new.person_id) then
     raise exception 'Ce contrat n''est pas celui de cette personne' using errcode = '22023';
   end if;
@@ -86,7 +89,8 @@ begin
     -- Fiche signée : figée, sauf les notes
     if new.done_on is distinct from old.done_on or new.reason is distinct from old.reason or new.topics is distinct from old.topics
        or new.conducted_by is distinct from old.conducted_by or new.employee_signature is distinct from old.employee_signature
-       or new.person_id is distinct from old.person_id or new.employment_id is distinct from old.employment_id then
+       or new.person_id is distinct from old.person_id or new.employment_id is distinct from old.employment_id
+       or new.created_by is distinct from old.created_by then
       raise exception 'Accueil sécurité signé : il ne se modifie plus (supprimez-le s''il a été saisi par erreur)' using errcode = '22023';
     end if;
     new.signed_at := old.signed_at;
@@ -136,6 +140,33 @@ revoke all on function app.hr_accueil_liste() from public, anon, authenticated;
 drop trigger if exists hr_safety_inductions_liste on public.hr_safety_inductions;
 create trigger hr_safety_inductions_liste after insert or update on public.hr_safety_inductions
   for each row execute function app.hr_accueil_liste();
+
+-- Liste d'arrivée ouverte après la signature : la ligne naît cochée (relecture du 18/11)
+create or replace function app.hr_liste_accueil()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v record;
+begin
+  if new.kind = 'arrivee' then
+    select i.done_on, i.created_by into v from public.hr_safety_inductions i
+     where i.person_id = new.person_id and i.signed_at is not null order by i.done_on desc limit 1;
+    if found then
+      new.items := (select coalesce(jsonb_agg(case when x->>'label' = 'Accueil sécurité fait' and coalesce(x->>'done_on', '') = ''
+                                              then x || jsonb_build_object('done_on', v.done_on, 'done_by', v.created_by)
+                                              else x end order by o), '[]'::jsonb)
+                    from jsonb_array_elements(new.items) with ordinality as t(x, o));
+    end if;
+  end if;
+  return new;
+end
+$$;
+revoke all on function app.hr_liste_accueil() from public, anon, authenticated;
+drop trigger if exists hr_checklists_accueil on public.hr_checklists;
+create trigger hr_checklists_accueil before insert on public.hr_checklists for each row execute function app.hr_liste_accueil();
 
 -- Ligne du modèle de liste d'arrivée, pour chaque société et chaque nouvelle (corps de 0314 repris, une ligne ajoutée)
 create or replace function app.hr_listes_depart(p_company uuid)
@@ -238,7 +269,9 @@ begin
   drop policy if exists hr_postings_modifier on public.hr_postings;
   drop policy if exists hr_postings_supprimer on public.hr_postings;
   create policy hr_postings_lire on public.hr_postings for select to authenticated
-    using (company_id in (select app.societes_avec_droit('rh.personnel.voir')));
+    using ((company_id in (select app.societes_avec_droit('rh.personnel.voir'))
+            or company_id in (select app.societes_avec_droit('rh.dossiers.voir'))
+            or company_id in (select app.societes_avec_droit('rh.parametres.gerer'))));
   create policy hr_postings_creer on public.hr_postings for insert to authenticated
     with check (company_id in (select app.societes_avec_droit('rh.dossiers.gerer')));
   create policy hr_postings_modifier on public.hr_postings for update to authenticated
@@ -247,6 +280,9 @@ begin
   create policy hr_postings_supprimer on public.hr_postings for delete to authenticated
     using (company_id in (select app.societes_avec_droit('rh.dossiers.gerer')));
 end $$;
+
+-- Vue groupe en lecture seule (0516) : verrou posé sur les nouvelles tables
+select app.vue_groupe_poser();
 
 -- Journal
 do $$
@@ -259,7 +295,63 @@ begin
 end $$;
 
 -- ── 4. Échéances ──
+-- Début du contrat, ou du premier contrat enchaîné sans interruption sur le même poste (relecture du 18/11 : un CDI
+-- qui suit un CDD sur le même poste ne redemande pas l'accueil)
+create or replace function app.hr_debut_continu(p_employment uuid)
+returns date
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_person uuid; v_job uuid; v_debut date; v_prec date; i int := 0;
+begin
+  -- Seulement pour un contrat que le lecteur peut voir (dossiers du personnel, ou le sien)
+  select e.person_id, e.job_id, e.start_on into v_person, v_job, v_debut from public.hr_employments e
+   where e.id = p_employment
+     and ((select auth.uid()) is null  -- tâches du serveur et essais (aucun droit d'exécution pour anon)
+          or e.company_id in (select app.societes_avec_droit('rh.dossiers.voir')) or e.person_id in (select app.hr_mes_personnes()));
+  if v_debut is null then return null; end if;
+  loop
+    i := i + 1;
+    exit when i > 50;
+    select min(e.start_on) into v_prec from public.hr_employments e
+     where e.person_id = v_person and e.job_id is not distinct from v_job and e.id <> p_employment
+       and e.start_on < v_debut and e.end_on is not null and e.end_on >= v_debut - 1;
+    exit when v_prec is null;
+    v_debut := v_prec;
+  end loop;
+  return v_debut;
+end
+$$;
+revoke all on function app.hr_debut_continu(uuid) from public, anon;
+grant execute on function app.hr_debut_continu(uuid) to authenticated;
+
+-- DATI remis et non rendu, lu sans le droit du stock (relecture du 18/11 : le profil « rh » ne lit pas le stock)
+create or replace function app.hr_dati_remis(p_person uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (select 1 from public.hr_ppe_handovers h join public.stock_items s on s.id = h.item_id and s.dati
+                 where h.person_id = p_person and h.returned_on is null
+                   and ((select auth.uid()) is null
+                        or h.company_id in (select app.societes_avec_droit('rh.dossiers.voir')) or h.person_id in (select app.hr_mes_personnes())))
+$$;
+revoke all on function app.hr_dati_remis(uuid) from public, anon;
+grant execute on function app.hr_dati_remis(uuid) to authenticated;
+
 create or replace view public.v_hr_echeances with (security_invoker = true) as
+  -- Contrat le plus récent par personne non archivée, en cours ou qui commence dans les 30 jours
+  with courant as (
+    select distinct on (e.person_id) e.*
+    from public.hr_employments e
+    join public.hr_people p on p.id = e.person_id and p.archived_at is null
+    where (e.end_on is null or e.end_on >= current_date) and e.start_on <= current_date + 30
+    order by e.person_id, e.start_on desc, e.created_at desc)
   select q.company_id, q.person_id, 'habilitation'::text as kind, q.label, q.expires_on as due_on, q.id as source_id
   from public.hr_qualifications q
   where q.archived_at is null and q.expires_on is not null
@@ -293,31 +385,29 @@ create or replace view public.v_hr_echeances with (security_invoker = true) as
     and e.contract_type in ('cdi', 'cdd', 'apprentissage', 'professionnalisation')
     and e.start_on >= current_date - 30
   union all
-  -- Contrat en cours (ou qui commence) sans accueil sécurité signé pour son poste ; mandataire : sans objet
-  select e.company_id, e.person_id, 'accueil_securite',
-         case when exists (select 1 from public.hr_safety_inductions i where i.person_id = e.person_id and i.signed_at is not null)
+  -- Contrat le plus récent de la personne (non archivée), sans accueil signé pour son poste depuis ce contrat ou les
+  -- contrats enchaînés sur le même poste (app.hr_debut_continu) ; mandataire : sans objet
+  select c.company_id, c.person_id, 'accueil_securite',
+         case when (select i.job_id from public.hr_safety_inductions i where i.person_id = c.person_id and i.signed_at is not null
+                    order by i.done_on desc, i.signed_at desc limit 1) is distinct from c.job_id
+                   and exists (select 1 from public.hr_safety_inductions i where i.person_id = c.person_id and i.signed_at is not null)
               then 'Accueil sécurité à refaire (changement de poste)' else 'Accueil sécurité' end,
-         e.start_on, e.id
-  from public.hr_employments e
-  where e.contract_type <> 'mandataire'
-    and (e.end_on is null or e.end_on >= current_date)
-    and e.start_on <= current_date + 30
+         c.start_on, c.id
+  from courant c
+  where c.contract_type <> 'mandataire'
     and not exists (select 1 from public.hr_safety_inductions i
-                    where i.person_id = e.person_id and i.signed_at is not null
-                      and i.job_id is not distinct from e.job_id and i.done_on >= e.start_on - 30)
+                    where i.person_id = c.person_id and i.signed_at is not null
+                      and i.job_id is not distinct from c.job_id and i.done_on >= app.hr_debut_continu(c.id) - 30)
   union all
-  -- Poste « seul » sans mesure, ou mesure DATI sans DATI remis et non rendu
-  select e.company_id, e.person_id, 'travail_isole',
+  -- Poste « seul » sans mesure, ou mesure DATI sans DATI remis et non rendu ; daté du début du contrat
+  select c.company_id, c.person_id, 'travail_isole',
          case when cardinality(j.lone_work_measures) = 0 then 'Travail isolé : aucune mesure sur le poste ' || j.name
               else 'Travail isolé : DATI à remettre' end,
-         current_date, e.id
-  from public.hr_employments e
-  join public.hr_jobs j on j.id = e.job_id and j.lone_work
-  where (e.end_on is null or e.end_on >= current_date) and e.start_on <= current_date + 30
-    and (cardinality(j.lone_work_measures) = 0
-         or ('dati' = any (j.lone_work_measures)
-             and not exists (select 1 from public.hr_ppe_handovers h join public.stock_items s on s.id = h.item_id and s.dati
-                             where h.person_id = e.person_id and h.returned_on is null)))
+         c.start_on, c.id
+  from courant c
+  join public.hr_jobs j on j.id = c.job_id and j.lone_work
+  where cardinality(j.lone_work_measures) = 0
+     or ('dati' = any (j.lone_work_measures) and not app.hr_dati_remis(c.person_id))
 ;
 comment on view public.v_hr_echeances is 'Échéances RH (habilitations, visites, fins de CDD et d''essai, entretiens, DPAE, accueil sécurité, travail isolé), aux droits du lecteur';
 revoke all on public.v_hr_echeances from public, anon;
@@ -333,7 +423,7 @@ set local client_min_messages = warning;
 do $$
 declare
   v_cie uuid; v_p uuid; v_q uuid; v_job uuid; v_job2 uuid; v_e uuid; v_eq uuid; v_i uuid; v_n int; v_lab text;
-  v_item uuid; v_loc uuid;
+  v_item uuid; v_loc uuid; v_r uuid; v_c1 uuid; v_c2 uuid;
 begin
   select id into v_cie from public.companies order by created_at limit 1;
   insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'ACCUEIL 0522') returning id into v_p;
@@ -444,6 +534,39 @@ begin
   exception when check_violation then null;
   end;
   insert into public.hr_postings (company_id, item_code, status, note) values (v_cie, 'rupture_conventionnelle_collective', 'sans_objet', 'Aucune rupture conventionnelle collective');
+
+
+  -- 8. Relecture du 18/11 : CDI qui suit un CDD sur le même poste (accueil gardé) ; un seul contrat compté par
+  --    personne ; personne archivée écartée ; liste d'arrivée ouverte après la signature
+  insert into public.hr_people (company_id, first_name, last_name) values (v_cie, 'Essai', 'SUITE 0522') returning id into v_r;
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, end_on, job_id)
+    values (v_cie, v_r, 'cdd', current_date - 200, current_date - 20, v_job) returning id into v_c1;
+  insert into public.hr_safety_inductions (person_id, done_on, topics, employee_signature, employment_id)
+    values (v_r, current_date - 200, '[{"label":"a","done":true}]', 'data:image/png;base64,AAAA', v_c1);
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, job_id)
+    values (v_cie, v_r, 'cdi', current_date - 19, v_job) returning id into v_c2;
+  if exists (select 1 from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_r) then
+    raise exception 'Essai 0522 : accueil redemandé pour un CDI enchaîné sur le même poste';
+  end if;
+  insert into public.hr_checklists (company_id, person_id, kind, items)
+    values (v_cie, v_r, 'arrivee', '[{"label":"Accueil sécurité fait","done_on":null,"done_by":null}]');
+  select x->>'done_on' into v_lab from public.hr_checklists l, jsonb_array_elements(l.items) x
+   where l.person_id = v_r and l.kind = 'arrivee' and x->>'label' = 'Accueil sécurité fait';
+  if v_lab is distinct from (current_date - 200)::text then raise exception 'Essai 0522 : liste ouverte après la signature non cochée (%)', v_lab; end if;
+  -- Deux contrats à venir et en cours pour la même personne : une seule échéance
+  insert into public.hr_employments (company_id, person_id, contract_type, start_on, job_id)
+    values (v_cie, v_q, 'cdi', current_date + 2, v_job2);
+  select count(*) into v_n from public.v_hr_echeances where kind = 'accueil_securite' and person_id = v_q;
+  if v_n <> 1 then raise exception 'Essai 0522 : % échéances d''accueil pour une personne à deux contrats', v_n; end if;
+  update public.hr_people set archived_at = now() where id = v_q;
+  if exists (select 1 from public.v_hr_echeances where kind in ('accueil_securite', 'travail_isole') and person_id = v_q) then
+    raise exception 'Essai 0522 : personne archivée encore signalée';
+  end if;
+  -- Verrou de la vue groupe posé sur les nouvelles tables
+  if (select count(*) from pg_trigger where tgname = 'aa_vue_groupe_lecture'
+      and tgrelid in ('public.hr_safety_inductions'::regclass, 'public.hr_postings'::regclass)) <> 2 then
+    raise exception 'Essai 0522 : verrou de la vue groupe absent';
+  end if;
 
   -- 7. Droits posés, vue aux droits du lecteur
   if (select count(*) from pg_policies where schemaname = 'public' and tablename in ('hr_safety_inductions', 'hr_postings')) <> 8 then

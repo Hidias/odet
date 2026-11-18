@@ -1,5 +1,6 @@
 -- Retour arrière de 0522 : échéances remises comme en 0521, modèle de liste d'arrivée remis comme en 0314 (ligne
--- « Accueil sécurité fait » retirée des modèles ; les listes déjà ouvertes la gardent), tables et colonnes supprimées.
+-- « Accueil sécurité fait » retirée des modèles, y compris une ligne de même libellé ajoutée à la main ; les listes déjà
+-- ouvertes la gardent), tables, fonctions et colonnes supprimées.
 create or replace view public.v_hr_echeances with (security_invoker = true) as
   select q.company_id, q.person_id, 'habilitation'::text as kind, q.label, q.expires_on as due_on, q.id as source_id
   from public.hr_qualifications q
@@ -64,7 +65,11 @@ $$;
 revoke all on function app.hr_listes_depart(uuid) from public, anon, authenticated;
 delete from public.hr_checklist_templates where kind = 'arrivee' and label = 'Accueil sécurité fait';
 
+drop trigger if exists hr_checklists_accueil on public.hr_checklists;
+drop function if exists app.hr_liste_accueil();
 drop table if exists public.hr_safety_inductions;
+drop function if exists app.hr_debut_continu(uuid);
+drop function if exists app.hr_dati_remis(uuid);
 drop function if exists app.hr_accueil_avant();
 drop function if exists app.hr_accueil_liste();
 drop table if exists public.hr_postings;

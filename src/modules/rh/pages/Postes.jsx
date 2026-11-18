@@ -93,7 +93,7 @@ function TravailIsole({ poste, peutConfigurer, onChange }) {
           <span className={`text-ui-sm ${sansMesure ? 'text-[rgb(var(--c-danger))] font-medium' : 'text-gray-700'}`}>{resumeTravailIsole(poste)}</span>
           {poste.lone_work && poste.lone_work_duerp_ref && <span className="block text-ui-sm muted">Document unique : {poste.lone_work_duerp_ref}</span>}
         </div>
-        {peutConfigurer && <button type="button" className="btn btn-ghost btn-sm" onClick={ouvrir}>Travail isolé</button>}
+        {peutConfigurer && <button type="button" className="btn btn-ghost btn-sm min-h-[44px]" aria-label={`Travail isolé du poste ${poste.name}`} onClick={ouvrir}>Travail isolé</button>}
       </div>
     )
   }
@@ -124,8 +124,8 @@ function TravailIsole({ poste, peutConfigurer, onChange }) {
         </>
       )}
       <div className="flex gap-2">
-        <button type="submit" className="btn btn-primary" disabled={busy}>Enregistrer</button>
-        <button type="button" className="btn btn-ghost" onClick={() => setV(null)}>Annuler</button>
+        <button type="submit" className="btn btn-primary min-h-[44px]" disabled={busy}>Enregistrer</button>
+        <button type="button" className="btn btn-ghost min-h-[44px]" onClick={() => setV(null)}>Annuler</button>
       </div>
     </form>
   )
