@@ -19,6 +19,7 @@ export const CATEGORIES_DOC = {
   justificatif: { label: 'Justificatif d\'absence', conf: 'restreint' },
   sante: { label: 'Santé au travail (avis, convocation)', conf: 'restreint' },
   bulletin: { label: 'Bulletin de paie', conf: 'prive' },
+  dpae: { label: 'DPAE (accusé de réception)', conf: 'restreint' },
   autre: { label: 'Autre document', conf: null },
 }
 export const CONFIDENTIALITES = {
