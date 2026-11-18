@@ -87,3 +87,34 @@ describe('suivi des affaires (0380)', () => {
   })
 })
 
+
+describe('affaires gagnées et perdues récentes (retour du 09/11)', () => {
+  it('fermées depuis 90 jours au plus, la plus récente d\'abord, total des gagnées', async () => {
+    const { fermeesRecentes, TONS_FERMEES } = await import('../src/modules/commercial/lib/affaires')
+    const auj = new Date(2026, 10, 18, 18, 0)
+    const r = fermeesRecentes([
+      { id: 1, stage: 'gagnee', amount_ht: '208.00', closed_at: '2026-11-09 11:32:20+00' },
+      { id: 2, stage: 'perdue', amount_ht: 500, closed_at: '2026-11-15T09:00:00Z' },
+      { id: 3, stage: 'gagnee', amount_ht: 1000, closed_at: '2026-08-01T09:00:00Z' },
+      { id: 4, stage: 'negociation', amount_ht: 50, closed_at: null },
+      { id: 5, stage: 'gagnee', amount_ht: 10.5, closed_at: '2026-08-20T09:00:00Z' },
+    ], 90, auj)
+    expect(r.lignes.map((x) => x.id)).toEqual([2, 1, 5])
+    expect(r.nbGagnees).toBe(2)
+    expect(r.montantGagne).toBe(218.5)
+    expect(TONS_FERMEES).toEqual({ gagnee: 'success', perdue: 'neutral' })
+  })
+})
+
+describe('badge de relance des devis envoyés (retour du 09/11)', () => {
+  it('relance datée dans le futur : neutre ; sinon jours depuis la date du devis', async () => {
+    const { etatRelanceDevis } = await import('../src/modules/prospection/components/suivi/suiviUtils')
+    const auj = '2026-11-18'
+    expect(etatRelanceDevis({ status: 'sent', quote_date: '2026-10-19', next_followup_date: '2026-12-04' }, auj)).toEqual({ type: 'relance', date: '2026-12-04' })
+    expect(etatRelanceDevis({ status: 'sent', quote_date: '2026-10-19', next_followup_date: '2026-11-18', updated_at: '2026-11-17T10:00:00Z' }, auj)).toEqual({ type: 'sans_reponse', jours: 30, ton: 'danger' })
+    expect(etatRelanceDevis({ status: 'sent', quote_date: '2026-11-09' }, auj)).toEqual({ type: 'sans_reponse', jours: 9, ton: 'warning' })
+    expect(etatRelanceDevis({ status: 'sent', quote_date: '2026-11-16' }, auj)).toBeNull()
+    expect(etatRelanceDevis({ status: 'accepted', quote_date: '2026-10-01' }, auj)).toBeNull()
+    expect(etatRelanceDevis({ status: 'sent', quote_date: '2026-10-01', followup_state: 'veille', veille_until: '2026-12-01' }, auj)).toBeNull()
+  })
+})

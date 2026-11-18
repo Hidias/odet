@@ -198,6 +198,19 @@ export function devisARelancer(q, today = todayStr()) {
   return !!due && due <= today
 }
 
+// Badge d'un devis envoyé, liste des devis et accueil (retour de H du 09/11) : une relance datée dans le futur
+// s'affiche en neutre (« Relance le 04/12 ») au lieu de « Nj sans réponse ». Sinon, à partir de 7 jours depuis la
+// date du devis (plus depuis sa dernière modification) : avertissement, rouge à partir de 15 jours.
+// Retourne null (rien à afficher), { type: 'relance', date } ou { type: 'sans_reponse', jours, ton }.
+export function etatRelanceDevis(q, today = todayStr()) {
+  if (!q || !['sent', 'pending'].includes(q.status) || isQuoteSleeping(q, today)) return null
+  if (q.next_followup_date && String(q.next_followup_date).slice(0, 10) > today) return { type: 'relance', date: String(q.next_followup_date).slice(0, 10) }
+  const depart = q.quote_date || (q.created_at ? String(q.created_at).slice(0, 10) : null)
+  const jours = depart ? diffDays(depart, today) : 0
+  if (jours < 7) return null
+  return { type: 'sans_reponse', jours, ton: jours >= 15 ? 'danger' : 'warning' }
+}
+
 export function isOldQuote(q, today = todayStr()) {
   if (q.triaged_at) return false
   if (!isQuoteInFollowup(q)) return false
