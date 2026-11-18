@@ -114,3 +114,70 @@ describe('Création', () => {
     await expect(creerActionAppel({ fiche: null })).rejects.toThrow()
   })
 })
+
+// B111 : écran unique, responsable par défaut, action sans fiche, filtre « À attribuer »
+const { estTelephone, responsableParDefaut, etatEnregistrement } = await import('../src/core/point/appelEntrant.js')
+const { pourPersonne } = await import('../src/core/point/actions.js')
+
+describe('Écran unique (B111)', () => {
+  it('reconnaît un numéro saisi', () => {
+    expect(estTelephone('06 12 34 56 78')).toBe(true)
+    expect(estTelephone('+33 6 12 34 56 78')).toBe(true)
+    expect(estTelephone('Garage 29')).toBe(false)
+    expect(estTelephone('0612')).toBe(false)
+  })
+  it('responsable : celui qui décroche s\'il peut traiter, sinon à attribuer', () => {
+    expect(responsableParDefaut('u1', true)).toBe('u1')
+    expect(responsableParDefaut('u1', false)).toBe('')
+    expect(responsableParDefaut(undefined, true)).toBe('')
+  })
+  const base = { fiche: null, texte: 'Hôtel', nom: '', aJour: true, nbResultats: 0, nouveauConfirme: false, peutCreerFiche: true }
+  it('attend la fin de la recherche avant de proposer une création', () => {
+    expect(etatEnregistrement({ ...base, aJour: false })).toBe('attendre')
+    expect(etatEnregistrement({ ...base, texte: 'H' })).toBe('attendre')
+  })
+  it('fiche choisie : action reliée', () => {
+    expect(etatEnregistrement({ ...base, fiche: { id: 'f1' }, nbResultats: 3 })).toBe('fiche')
+  })
+  it('des fiches correspondent : choisir ou confirmer le nouveau prospect (pas de doublon par défaut)', () => {
+    expect(etatEnregistrement({ ...base, nbResultats: 2 })).toBe('choisir')
+    expect(etatEnregistrement({ ...base, nbResultats: 2, nouveauConfirme: true })).toBe('creer')
+    expect(etatEnregistrement({ ...base, nbResultats: 9, nouveauConfirme: true })).toBe('preciser')
+  })
+  it('numéro seul : un nom est demandé pour créer la fiche', () => {
+    expect(etatEnregistrement({ ...base, texte: '06 12 34 56 78' })).toBe('nommer')
+    expect(etatEnregistrement({ ...base, texte: '06 12 34 56 78', nom: 'Boulangerie' })).toBe('creer')
+  })
+  it('sans droit de créer la fiche : action seule', () => {
+    expect(etatEnregistrement({ ...base, peutCreerFiche: false })).toBe('sans_fiche')
+    expect(etatEnregistrement({ ...base, texte: '06 12 34 56 78', peutCreerFiche: false })).toBe('sans_fiche')
+  })
+  it('action sans fiche : intitulé avec le nom saisi, sans client_id', async () => {
+    await creerActionAppel({ fiche: null, nomLibre: '06 12 34 56 78', suite: 'rappeler', motif: 'devis', telephone: '06 12 34 56 78' })
+    const ins = appels.find((x) => x.table === 'team_actions').insert
+    expect(ins.client_id).toBe(null)
+    expect(ins.title).toBe('Rappeler 06 12 34 56 78 (appel entrant) : devis')
+    expect(ins.owner_id).toBe(null)
+  })
+  it('refuse une action sans fiche ni nom', async () => {
+    await expect(creerActionAppel({ fiche: null, nomLibre: '' })).rejects.toThrow()
+  })
+})
+
+describe('Filtre Personne des Actions (B111)', () => {
+  const a = (owner_id) => ({ owner_id })
+  it('Mes actions inclut les actions à attribuer', () => {
+    expect(pourPersonne(a('u1'), 'moi', 'u1')).toBe(true)
+    expect(pourPersonne(a(null), 'moi', 'u1')).toBe(true)
+    expect(pourPersonne(a('u2'), 'moi', 'u1')).toBe(false)
+  })
+  it('À attribuer ne montre que les actions sans responsable', () => {
+    expect(pourPersonne(a(null), 'a_attribuer', 'u1')).toBe(true)
+    expect(pourPersonne(a('u1'), 'a_attribuer', 'u1')).toBe(false)
+  })
+  it('Tous et une personne précise', () => {
+    expect(pourPersonne(a('u2'), 'tous', 'u1')).toBe(true)
+    expect(pourPersonne(a('u2'), 'u2', 'u1')).toBe(true)
+    expect(pourPersonne(a(null), 'u2', 'u1')).toBe(false)
+  })
+})

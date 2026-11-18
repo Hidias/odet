@@ -12,7 +12,7 @@ import { Sheet } from '../../ui/Sheet'
 import { Kanban, CLASSE_ITEM_MENU } from '../../ui/Kanban'
 import { ChoixVue, useVue } from '../../ui/ChoixVue'
 import {
-  chargerEquipe, nomProfil, creerAction, modifierAction, supprimerAction, dateReport, groupeEcheance, GROUPES, colonnesActions, changementColonne, choixAction,
+  chargerEquipe, nomProfil, pourPersonne, creerAction, modifierAction, supprimerAction, dateReport, groupeEcheance, GROUPES, colonnesActions, changementColonne, choixAction,
 } from './actions'
 import { jjmm } from './pointSemaine'
 import { chargerTypes, choixType, typeActif, suiteProposee, libelleType, enVueGroupe } from './typesActions'
@@ -65,7 +65,7 @@ export default function ActionsEquipe() {
   const typesActifs = useMemo(() => (types || []).filter((t) => t.active !== false), [types])
   const nomsTypes = useMemo(() => Object.fromEntries((types || []).map((t) => [t.id, t.name])), [types])
   const noms = useMemo(() => Object.fromEntries(equipe.map((p) => [p.id, nomProfil(p)])), [equipe])
-  const liste = useMemo(() => (actions || []).filter((a) => (qui === 'moi' ? a.owner_id === moi?.id || (!a.owner_id && a.created_by === moi?.id) : qui === 'tous' ? true : a.owner_id === qui)
+  const liste = useMemo(() => (actions || []).filter((a) => pourPersonne(a, qui, moi?.id)
     && (voirTerminees || a.status === 'a_faire')), [actions, qui, voirTerminees, moi?.id])
   const colonnes = useMemo(() => colonnesActions(liste, { avecTerminees: voirTerminees }), [liste, voirTerminees])
   const peutModifier = (a) => !lecture && (direction || a.owner_id === moi?.id || a.created_by === moi?.id)
@@ -156,6 +156,7 @@ export default function ActionsEquipe() {
         <select className="select w-auto" value={qui} onChange={(e) => setQui(e.target.value)} aria-label="Personne">
           <option value="moi">Mes actions</option>
           <option value="tous">Toute l'équipe</option>
+          <option value="a_attribuer">À attribuer</option>
           {equipe.map((p) => <option key={p.id} value={p.id}>{nomProfil(p)}</option>)}
         </select>
         <label className="inline-flex items-center gap-2 text-ui text-gray-700">
@@ -178,7 +179,7 @@ export default function ActionsEquipe() {
                   {a.urgent && a.status === 'a_faire' && <span className="status status-danger mr-2">Urgent</span>}{a.title}
                 </div>
                 <div className="text-ui-sm text-gray-500">
-                  {[a.owner_id ? noms[a.owner_id] || 'Membre de l\'équipe' : 'Personne en particulier', a.clients?.name || null,
+                  {[a.owner_id ? noms[a.owner_id] || 'Membre de l\'équipe' : 'À attribuer', a.clients?.name || null,
                     a.type_id && nomsTypes[a.type_id] ? nomsTypes[a.type_id] : null,
                     a.due_on ? `pour le ${jjmm(a.due_on)}` : null, a.postponed_count > 0 ? `reporté ${a.postponed_count} fois` : null].filter(Boolean).join(' · ')}
                 </div>
@@ -216,7 +217,7 @@ export default function ActionsEquipe() {
                       {a.link ? <Link to={a.link} className="hover:underline">{a.title}</Link> : a.title}
                     </div>
                     <div className="text-ui-sm text-gray-500">
-                      {[a.owner_id ? noms[a.owner_id] || 'Membre de l\'équipe' : 'Personne en particulier',
+                      {[a.owner_id ? noms[a.owner_id] || 'Membre de l\'équipe' : 'À attribuer',
                         a.clients?.name ? <Link key="c" to={`/clients/${a.clients.id}`} className="hover:underline">{a.clients.name}</Link> : null,
                         a.type_id && nomsTypes[a.type_id] ? nomsTypes[a.type_id] : null,
                         a.postponed_count > 0 ? `reporté ${a.postponed_count} fois` : null,

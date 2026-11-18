@@ -1,15 +1,26 @@
-// Fenêtre « Appel entrant » (B110) : chercher la fiche, ou créer un prospect, puis créer l'action reliée.
+// Fenêtre « Appel entrant » (B110, simplifiée en un seul écran en B111) : « Qui appelle ? », motif, pour qui, Enregistrer.
+// La fiche trouvée est reliée ; sinon la fiche prospect est créée à l'enregistrement (ou, sans ce droit, l'action seule).
+// Le reste (suite, contact, numéro, date, urgent) est replié sous « Plus d'options ».
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Search, UserPlus } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useAuthStore } from '../store'
 import { Sheet } from '../../ui/Sheet'
 import { Banner } from '../../ui/Banner'
 import { StatusBadge } from '../../ui/StatusBadge'
 import { chargerEquipe, nomProfil } from './actions'
 import { iso } from './pointSemaine'
-import { chercherFiches, creerFicheProspect, creerActionAppel, statutFiche, SUITES, LIMITE } from './appelEntrant'
+import {
+  chercherFiches, creerFicheProspect, creerActionAppel, statutFiche, estTelephone, responsableParDefaut, etatEnregistrement,
+  SUITES, LIMITE,
+} from './appelEntrant'
+
+const MESSAGES = {
+  choisir: 'Choisissez la fiche qui appelle, ou indiquez que c\'est un nouveau prospect.',
+  preciser: `Plus de ${LIMITE} fiches correspondent : précisez le nom ou le numéro.`,
+  nommer: 'Indiquez le nom de l\'entreprise ou de la personne pour créer sa fiche.',
+}
 
 export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
   const moi = useAuthStore((s) => s.profile)
@@ -20,20 +31,23 @@ export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
   // Texte dont les résultats sont affichés : tant qu'il diffère de la saisie, la recherche est en cours (rien ne dit
   // « nouveau prospect » avant la réponse, sinon un clic rapide crée un doublon)
   const [cherche, setCherche] = useState('')
-  const [ficheCreee, setFicheCreee] = useState(false)
   const [fiche, setFiche] = useState(null)
-  const [nouvelle, setNouvelle] = useState(null) // { nom, telephone, contact } quand aucune fiche ne convient
-  const [form, setForm] = useState({ suite: 'rappeler', motif: '', contact: '', telephone: '', owner_id: '', due_on: iso(new Date()), urgent: false })
+  const [ficheCreee, setFicheCreee] = useState(false)
+  const [nouveauConfirme, setNouveauConfirme] = useState(false)
+  const [nom, setNom] = useState('') // nom du nouveau prospect quand on a tapé un numéro
+  const [motif, setMotif] = useState('')
+  const [ownerId, setOwnerId] = useState(null) // null : pas encore choisi, défaut appliqué
+  const [plus, setPlus] = useState({ suite: 'rappeler', contact: '', telephone: '', due_on: iso(new Date()), urgent: false })
   const [equipe, setEquipe] = useState([])
   const [busy, setBusy] = useState(false)
   const demande = useRef(0)
 
   useEffect(() => { chargerEquipe().then(setEquipe) }, [])
-  useEffect(() => { if (moi?.id) setForm((f) => (f.owner_id ? f : { ...f, owner_id: moi.id })) }, [moi?.id])
+  const owner = ownerId ?? responsableParDefaut(moi?.id, peutCreerFiche)
 
   // Recherche au fil de la frappe (la réponse d'une frappe ancienne ne remplace pas une plus récente)
   useEffect(() => {
-    if (fiche || nouvelle) return undefined
+    if (fiche) return undefined
     const n = ++demande.current
     const t = setTimeout(async () => {
       const r = await chercherFiches(texte)
@@ -43,77 +57,86 @@ export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
       setCherche(texte)
     }, 250)
     return () => clearTimeout(t)
-  }, [texte, fiche, nouvelle])
+  }, [texte, fiche])
 
+  const saisir = (v) => { setTexte(v); setNouveauConfirme(false) }
   const choisir = (c) => {
     setFiche(c)
-    // Contact et numéro de la fiche choisie (jamais ceux d'une fiche choisie avant « Changer »)
-    setForm((f) => ({ ...f, contact: c.contact_name || '', telephone: c.contact_phone || c.mobile || '' }))
+    // Numéro tapé dans la recherche : c'est celui qui appelle ; sinon celui de la fiche
+    setPlus((p) => ({ ...p, contact: c.contact_name || '', telephone: estTelephone(texte) ? texte.trim() : c.contact_phone || c.mobile || '' }))
   }
-  const ouvrirCreation = () => {
-    const chiffres = texte.replace(/\D/g, '')
-    setNouvelle({ nom: chiffres.length >= 6 ? '' : texte.trim(), telephone: chiffres.length >= 6 ? texte.trim() : '', contact: '' })
-  }
-  const recommencer = () => { setFiche(null); setNouvelle(null); setFicheCreee(false); setCherche(''); setForm((f) => ({ ...f, contact: '', telephone: '' })) }
+  const changer = () => { setFiche(null); setFicheCreee(false); setCherche(''); setPlus((p) => ({ ...p, contact: '', telephone: '' })) }
+
+  const aJour = cherche === texte
+  const etat = erreurLecture && !fiche ? 'attendre'
+    : etatEnregistrement({ fiche, texte, nom, aJour, nbResultats: resultats.length, nouveauConfirme, peutCreerFiche })
+  const pret = ['fiche', 'creer', 'sans_fiche'].includes(etat) && !busy
 
   const valider = async (e) => {
     e.preventDefault()
+    if (!pret) return
     setBusy(true)
     let f = fiche
+    const tel = plus.telephone.trim() || (estTelephone(texte) ? texte.trim() : '')
+    const nomSaisi = estTelephone(texte) ? nom.trim() : texte.trim()
     try {
-      if (!f) {
-        f = await creerFicheProspect(nouvelle)
+      if (etat === 'creer') {
+        f = await creerFicheProspect({ nom: nomSaisi, telephone: tel, contact: plus.contact })
         // Si l'action échoue ensuite, la fiche reste choisie : un nouvel essai ne recrée pas de doublon
         setFiche(f)
         setFicheCreee(true)
-        setForm((x) => ({ ...x, contact: x.contact || nouvelle.contact, telephone: x.telephone || nouvelle.telephone }))
-        setNouvelle(null)
       }
       await creerActionAppel({
-        fiche: f, suite: form.suite, motif: form.motif,
-        contact: form.contact || nouvelle?.contact, telephone: form.telephone || nouvelle?.telephone,
-        owner_id: form.owner_id || null, due_on: form.due_on || null, urgent: form.urgent, ctxSocietes,
+        fiche: f, nomLibre: nomSaisi || tel, suite: plus.suite, motif, contact: plus.contact, telephone: tel,
+        owner_id: owner || null, due_on: plus.due_on || null, urgent: plus.urgent, ctxSocietes,
       })
       try { window.dispatchEvent(new Event('odet:actions-maj')) } catch { /* page Actions fermée : rien à rafraîchir */ }
-      toast.success(fiche ? 'Action créée et reliée à la fiche' : 'Fiche prospect et action créées')
+      toast.success(etat === 'creer' ? 'Fiche prospect et action créées' : etat === 'sans_fiche' ? 'Action créée' : 'Action créée et reliée à la fiche')
       onClose?.()
     } catch (err) {
       const msg = err?.code === '42501' ? 'Enregistrement refusé : vos accès ne le permettent pas.' : err?.message || 'Enregistrement impossible.'
       // La fiche a pu être créée avant le refus de l'action : le dire, pour ne pas laisser un prospect sans suite
-      toast.error(ficheCreee || (!fiche && f) ? `${msg} La fiche prospect, elle, est créée.` : msg)
+      toast.error(ficheCreee || (etat === 'creer' && f) ? `${msg} La fiche prospect, elle, est créée.` : msg)
     } finally { setBusy(false) }
   }
 
-  const aJour = cherche === texte
-  const pret = (fiche || (nouvelle && nouvelle.nom.trim().length >= 2)) && !busy
-  const footer = (fiche || nouvelle) ? (
+  const footer = (
     <>
       <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
-      <button type="submit" form="appel-entrant" className="btn btn-primary" disabled={!pret}>
-        {fiche ? 'Créer l\'action' : 'Créer la fiche et l\'action'}
-      </button>
+      <button type="submit" form="appel-entrant" className="btn btn-primary" disabled={!pret}>Enregistrer</button>
     </>
-  ) : null
+  )
 
   return (
     <Sheet title="Appel entrant" onClose={onClose} footer={footer}>
-      {!fiche && !nouvelle && (
-        <>
-          <div>
-            <label className="label" htmlFor="ae-recherche">Qui appelle ?</label>
+      <form id="appel-entrant" onSubmit={valider} className="grid gap-3">
+        <div>
+          <label className="label" htmlFor="ae-recherche">Qui appelle ?</label>
+          {fiche ? (
+            <div className="flex items-center gap-2 rounded-ui-sm border border-gray-200 px-3 py-2">
+              <span className="flex-1 min-w-0 font-medium text-gray-900 truncate">
+                <Link to={`/clients/${fiche.id}`} onClick={onClose} className="hover:underline">{fiche.name}</Link>
+              </span>
+              <StatusBadge tone={fiche.type === 'client' ? 'success' : 'warning'}>{statutFiche(fiche)}</StatusBadge>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={changer}>Changer</button>
+            </div>
+          ) : (
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true" />
-              <input id="ae-recherche" className="input pl-9" autoFocus value={texte} onChange={(e) => setTexte(e.target.value)}
+              <input id="ae-recherche" className="input pl-9" autoFocus value={texte} onChange={(e) => saisir(e.target.value)}
                 placeholder="Nom de l'entreprise, téléphone ou SIRET" autoComplete="off" />
             </div>
-          </div>
-          {erreurLecture && <Banner tone="warning">La recherche n'a pas abouti. Réessayez dans un instant.</Banner>}
-          {texte.trim().length >= 2 && !erreurLecture && !aJour && (
-            <p className="text-ui text-gray-600" role="status">Recherche en cours…</p>
           )}
-          {texte.trim().length >= 2 && !erreurLecture && aJour && (
-            <>
-              <p className="sr-only" role="status">{resultats.length ? `${Math.min(resultats.length, LIMITE)} fiche(s) trouvée(s)` : 'Aucune fiche trouvée'}</p>
+        </div>
+
+        {!fiche && erreurLecture && <Banner tone="warning">La recherche n'a pas abouti. Réessayez dans un instant.</Banner>}
+        {!fiche && texte.trim().length >= 2 && !erreurLecture && !aJour && (
+          <p className="text-ui text-gray-600" role="status">Recherche en cours…</p>
+        )}
+        {!fiche && texte.trim().length >= 2 && !erreurLecture && aJour && (
+          <>
+            <p className="sr-only" role="status">{resultats.length ? `${Math.min(resultats.length, LIMITE)} fiche(s) trouvée(s)` : 'Aucune fiche trouvée'}</p>
+            {resultats.length > 0 && !nouveauConfirme && (
               <ul className="grid gap-1" aria-label="Fiches trouvées">
                 {resultats.slice(0, LIMITE).map((c) => (
                   <li key={c.id}>
@@ -128,100 +151,76 @@ export default function AppelEntrant({ onClose, peutCreerFiche = false }) {
                     </button>
                   </li>
                 ))}
-                {resultats.length === 0 && <li className="text-ui text-gray-600">Aucune fiche ne correspond : c'est un nouveau prospect.</li>}
+                {resultats.length <= LIMITE && (
+                  <li>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNouveauConfirme(true)}>Aucune de ces fiches : nouveau prospect</button>
+                  </li>
+                )}
               </ul>
-              {resultats.length > LIMITE && (
-                <Banner tone="info">Plus de {LIMITE} fiches correspondent : précisez le nom ou le numéro avant de créer une fiche.</Banner>
-              )}
-              {peutCreerFiche && resultats.length <= LIMITE && (
-                <button type="button" className="btn btn-secondary justify-self-start" onClick={ouvrirCreation}>
-                  <UserPlus className="w-4 h-4" />{resultats.length ? 'Aucune de ces fiches : nouveau prospect' : 'Créer la fiche du nouveau prospect'}
-                </button>
-              )}
-              {!peutCreerFiche && resultats.length === 0 && (
-                <Banner tone="info">La création de fiche ne fait pas partie de vos accès : demandez-la à un collègue.</Banner>
-              )}
-            </>
-          )}
-        </>
-      )}
-
-      {(fiche || nouvelle) && (
-        <form id="appel-entrant" onSubmit={valider} className="grid gap-3">
-          {fiche ? (
-            <div className="flex items-center gap-2 rounded-ui-sm border border-gray-200 px-3 py-2">
-              <span className="flex-1 min-w-0 font-medium text-gray-900 truncate">
-                <Link to={`/clients/${fiche.id}`} onClick={onClose} className="hover:underline">{fiche.name}</Link>
-              </span>
-              <StatusBadge tone={fiche.type === 'client' ? 'success' : 'warning'}>{statutFiche(fiche)}</StatusBadge>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={recommencer}>Changer</button>
-            </div>
-          ) : (
-            <fieldset className="grid gap-2 rounded-ui-sm border border-gray-200 p-3">
-              <legend className="px-1 text-ui font-medium text-gray-900">Nouveau prospect</legend>
+            )}
+            {(resultats.length === 0 || nouveauConfirme) && (
+              <p className="text-ui text-gray-600">
+                {peutCreerFiche ? 'Nouveau prospect : sa fiche sera créée à l\'enregistrement.' : 'Aucune fiche : l\'action sera enregistrée avec le nom et le numéro, un collègue créera la fiche.'}
+                {nouveauConfirme && <> <button type="button" className="underline" onClick={() => setNouveauConfirme(false)}>Revoir les fiches</button></>}
+              </p>
+            )}
+            {(resultats.length === 0 || nouveauConfirme) && estTelephone(texte) && (
               <div>
                 <label className="label" htmlFor="ae-nom">Entreprise ou personne</label>
-                <input id="ae-nom" className="input" value={nouvelle.nom} maxLength={255} autoFocus
-                  onChange={(e) => setNouvelle({ ...nouvelle, nom: e.target.value })} />
+                <input id="ae-nom" className="input" value={nom} maxLength={255} onChange={(e) => setNom(e.target.value)} />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="label" htmlFor="ae-ncontact">Contact</label>
-                  <input id="ae-ncontact" className="input" value={nouvelle.contact} maxLength={255}
-                    onChange={(e) => setNouvelle({ ...nouvelle, contact: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label" htmlFor="ae-ntel">Téléphone</label>
-                  <input id="ae-ntel" className="input" type="tel" value={nouvelle.telephone} maxLength={20}
-                    onChange={(e) => setNouvelle({ ...nouvelle, telephone: e.target.value })} />
-                </div>
-              </div>
-              <button type="button" className="btn btn-ghost btn-sm justify-self-start" onClick={recommencer}>Revenir à la recherche</button>
-            </fieldset>
-          )}
+            )}
+          </>
+        )}
 
-          <div role="radiogroup" aria-label="Suite à donner" className="flex flex-wrap gap-2">
-            {Object.entries(SUITES).map(([k, libelle]) => (
-              <button key={k} type="button" role="radio" aria-checked={form.suite === k} onClick={() => setForm({ ...form, suite: k })}
-                className={`btn btn-sm ${form.suite === k ? 'bg-gray-900 text-white border-gray-900' : 'btn-secondary'}`}>{libelle}</button>
-            ))}
-          </div>
-          <div>
-            <label className="label" htmlFor="ae-motif">Motif de l'appel</label>
-            <textarea id="ae-motif" className="input" rows={2} maxLength={1500} value={form.motif}
-              placeholder="Ex. : demande de devis pour la vérification des extincteurs"
-              onChange={(e) => setForm({ ...form, motif: e.target.value })} />
-          </div>
-          {fiche && (
+        <div>
+          <label className="label" htmlFor="ae-motif">Motif de l'appel</label>
+          <textarea id="ae-motif" className="input" rows={2} maxLength={1500} value={motif}
+            placeholder="Ex. : demande de devis pour la vérification des extincteurs" onChange={(e) => setMotif(e.target.value)} />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-ui text-gray-700" htmlFor="ae-qui">Pour</label>
+          <select id="ae-qui" className="select w-auto" value={owner} onChange={(e) => setOwnerId(e.target.value)}>
+            <option value="">À attribuer</option>
+            {equipe.map((p) => <option key={p.id} value={p.id}>{p.id === moi?.id ? `Moi (${nomProfil(p)})` : nomProfil(p)}</option>)}
+          </select>
+        </div>
+
+        {MESSAGES[etat] && texte.trim().length >= 2 && <p className="text-ui-sm text-gray-600">{MESSAGES[etat]}</p>}
+
+        <details className="rounded-ui-sm border border-gray-200 px-3 py-2">
+          <summary className="cursor-pointer text-ui text-gray-700">Plus d'options</summary>
+          <div className="grid gap-3 pt-3">
+            <div role="radiogroup" aria-label="Suite à donner" className="flex flex-wrap gap-2">
+              {Object.entries(SUITES).map(([k, libelle]) => (
+                <button key={k} type="button" role="radio" aria-checked={plus.suite === k} onClick={() => setPlus({ ...plus, suite: k })}
+                  className={`btn btn-sm ${plus.suite === k ? 'bg-gray-900 text-white border-gray-900' : 'btn-secondary'}`}>{libelle}</button>
+              ))}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="label" htmlFor="ae-contact">Qui a appelé</label>
-                <input id="ae-contact" className="input" value={form.contact} maxLength={255} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+                <input id="ae-contact" className="input" value={plus.contact} maxLength={255} onChange={(e) => setPlus({ ...plus, contact: e.target.value })} />
               </div>
               <div>
                 <label className="label" htmlFor="ae-tel">Numéro à rappeler</label>
-                <input id="ae-tel" className="input" type="tel" value={form.telephone} maxLength={20} onChange={(e) => setForm({ ...form, telephone: e.target.value })} />
+                <input id="ae-tel" className="input" type="tel" value={plus.telephone} maxLength={20}
+                  placeholder={estTelephone(texte) ? texte.trim() : ''} onChange={(e) => setPlus({ ...plus, telephone: e.target.value })} />
               </div>
             </div>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_160px_auto] gap-2 items-end">
-            <div>
-              <label className="label" htmlFor="ae-qui">Qui s'en occupe</label>
-              <select id="ae-qui" className="select" value={form.owner_id} onChange={(e) => setForm({ ...form, owner_id: e.target.value })}>
-                <option value="">Personne en particulier</option>
-                {equipe.map((p) => <option key={p.id} value={p.id}>{nomProfil(p)}</option>)}
-              </select>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="label" htmlFor="ae-date">Pour le</label>
+                <input id="ae-date" type="date" className="input" value={plus.due_on} onChange={(e) => setPlus({ ...plus, due_on: e.target.value })} />
+              </div>
+              <label className="inline-flex items-center gap-2 text-ui pb-2">
+                <input type="checkbox" checked={plus.urgent} onChange={(e) => setPlus({ ...plus, urgent: e.target.checked })} />Urgent
+              </label>
             </div>
-            <div>
-              <label className="label" htmlFor="ae-date">Pour le</label>
-              <input id="ae-date" type="date" className="input" value={form.due_on} onChange={(e) => setForm({ ...form, due_on: e.target.value })} />
-            </div>
-            <label className="inline-flex items-center gap-2 text-ui pb-2">
-              <input type="checkbox" checked={form.urgent} onChange={(e) => setForm({ ...form, urgent: e.target.checked })} />Urgent
-            </label>
           </div>
-        </form>
-      )}
+        </details>
+      </form>
     </Sheet>
   )
 }

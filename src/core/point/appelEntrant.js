@@ -112,17 +112,44 @@ export function societeAction(fiche, enCours = societeActive()) {
   return fiche?.company_id || null
 }
 
-/** Action de l'équipe reliée à la fiche */
-export async function creerActionAppel({ fiche, suite, motif, contact, telephone, owner_id, due_on, urgent, ctxSocietes = null }) {
-  if (!fiche?.id) throw new Error('Choisissez ou créez d\'abord la fiche')
+/** Le texte saisi est un numéro (6 chiffres au moins, rien d'autre que chiffres, espaces, points, tirets, +) */
+export const estTelephone = (t) => /^[\d\s.+\-()]+$/.test(String(t || '').trim()) && chiffres(t).length >= 6
+
+/**
+ * Responsable par défaut (B111, choix de H du 18/11) : celui qui décroche s'il peut traiter l'appel (droit de modifier
+ * les fiches clients, donc commercial) ; sinon personne, l'action est « À attribuer » et visible de tous.
+ */
+export const responsableParDefaut = (moiId, peutTraiter) => (peutTraiter && moiId ? moiId : '')
+
+/**
+ * Ce que l'enregistrement va faire, d'après l'écran unique (B111) :
+ * 'attendre' (recherche en cours ou rien de saisi), 'choisir' (des fiches correspondent : en choisir une ou dire
+ * « nouveau prospect »), 'preciser' (trop de fiches), 'nommer' (numéro seul : il faut un nom pour créer la fiche),
+ * 'fiche' (action reliée à la fiche choisie), 'creer' (fiche prospect puis action), 'sans_fiche' (pas le droit de créer
+ * de fiche : action seule, nom et numéro dans le détail).
+ */
+export function etatEnregistrement({ fiche, texte, nom = '', aJour, nbResultats, nouveauConfirme, peutCreerFiche }) {
+  if (fiche) return 'fiche'
+  const t = String(texte || '').trim()
+  if (t.length < 2 || !aJour) return 'attendre'
+  if (nbResultats > LIMITE) return 'preciser'
+  if (nbResultats > 0 && !nouveauConfirme) return 'choisir'
+  if (!peutCreerFiche) return 'sans_fiche'
+  if (estTelephone(t) && String(nom || '').trim().length < 2) return 'nommer'
+  return 'creer'
+}
+
+/** Action de l'équipe reliée à la fiche (ou sans fiche : nomLibre dans l'intitulé, B111) */
+export async function creerActionAppel({ fiche, nomLibre, suite, motif, contact, telephone, owner_id, due_on, urgent, ctxSocietes = null }) {
+  if (!fiche?.id && String(nomLibre || '').trim().length < 2) throw new Error('Choisissez ou créez d\'abord la fiche')
   return creerAction({
-    title: titreAction(suite, fiche.name, motif),
+    title: titreAction(suite, fiche?.name || nomLibre, motif),
     detail: detailAction({ contact, telephone, motif }),
     owner_id: owner_id || null,
     due_on: due_on || null,
     urgent: !!urgent,
-    client_id: fiche.id,
+    client_id: fiche?.id || null,
     // Société choisie dans l'onglet, sinon société par défaut du compte (contexte des sociétés du compte)
-    company_id: societeAction(fiche, societeActive(ctxSocietes)),
+    company_id: fiche ? societeAction(fiche, societeActive(ctxSocietes)) : societeActive(ctxSocietes) || null,
   })
 }
