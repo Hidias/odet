@@ -534,7 +534,7 @@ function FichePersonne({ peutGerer, peutSalaires, peutRestreints }) {
               </div>
               <EtatDpae contrat={c} peutGerer={peutGerer} onOuvrir={() => setDpae(c)} />
               <Remuneration contrat={c} peutVoir={peutSalaires} peutSaisir={peutSalaires && peutGerer} />
-              <ContratEcrit personne={p} contrat={c} peutGerer={peutGerer} peutRestreints={peutRestreints} onChange={charger} />
+              <ContratEcrit personne={p} contrat={c} peutGerer={peutGerer} peutRestreints={peutRestreints} peutSalaires={peutSalaires} onChange={charger} />
             </div>
           )
         })}

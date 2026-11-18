@@ -9,18 +9,22 @@
 --     au plus tard dans les deux jours ouvrables suivant l'embauche), L1243-13 et L1243-13-1 (renouvellement).
 --   - L4154-2 (postes à risques particuliers, formation renforcée à la sécurité).
 -- Règles :
+--   (relecture du 18/11, tour 1 : sans terme précis limité aux cas de L1242-7 ; avenant signé figé et non supprimable ;
+--    avenants lus avec « Voir les salaires » ; tableau des modifications repéré par une clé ; forfait jours sans la
+--    phrase des heures supplémentaires ; primes et accessoires saisis à la génération)
 --   1. hr_settings : nom de la convention collective (l'IDCC est celui de la société, companies.idcc, sans double saisie),
 --      caisse de retraite complémentaire, organisme de prévoyance, modalités de paie. Rien n'est inventé : tout est saisi.
 --   2. hr_employments : lieux de travail, motif du CDD (L1242-2 : remplacement, accroissement, saisonnier, chef
---      d'entreprise), salarié remplacé, durée minimale (sans terme précis : remplacement ou saisonnier, L1242-7),
+--      d'entreprise), salarié remplacé, durée minimale (sans terme précis : cas de L1242-7 seulement),
 --      renouvelable, poste à risques (L4154-2), contrat remis le, contrat signé (document).
 --   3. hr_contract_models : un modèle par société, type et version ; statut « projet » tant que l'avocat n'a pas validé ;
 --      validé : texte figé (nouvelle version pour toute modification), validateur et date obligatoires. v1 posée en
 --      « projet » pour chaque société (app.hr_modeles_contrat_depart, rejouable par public.hr_modeles_contrat_poser).
 --      Texte : seulement les mentions imposées, renvois aux textes permis par R1221-35 ; aucune clause facultative.
 --   4. hr_contract_amendments : avenant rattaché au contrat (date d'effet, objet, lignes avant et après), document
---      généré et document signé, remis le. Lu par la personne ou avec « Documents restreints » (un avenant peut changer
---      la rémunération), tenu avec « Tenir les dossiers » et « Documents restreints ».
+--      généré et document signé, remis le. Lu par la personne ou avec « Documents restreints » et « Voir les salaires »
+--      (un avenant peut changer la rémunération), tenu avec ces deux droits et « Tenir les dossiers ». Signé : figé,
+--      non supprimable (sauf avec son contrat).
 --   5. hr_documents : generated_from (type@version:statut) et content_sha256 (empreinte du PDF généré).
 --   6. Contrat signé déposé : la ligne « Contrat signé et rangé dans les documents » de la liste d'arrivée se coche seule.
 --   7. v_hr_echeances : « contrat_remis » (contrat écrit à remettre) : CDD à début + 2 jours ouvrables (dimanches et jours
@@ -63,9 +67,10 @@ alter table public.hr_employments add constraint hr_employments_contrat_ecrit ch
   and (cdd_reason is null or (contract_type = 'cdd' and cdd_reason in (
         'remplacement_absence', 'remplacement_temps_partiel', 'remplacement_suspension', 'remplacement_depart',
         'remplacement_attente_cdi', 'accroissement', 'saisonnier', 'remplacement_chef_entreprise')))
-  -- Sans terme précis (L1242-7) : remplacement ou emploi saisonnier, et pas de date de fin
+  -- Sans terme précis (L1242-7, relecture du 18/11) : salarié absent, contrat suspendu, attente d'un CDI, saisonnier,
+  -- chef d'entreprise ; pas pour un passage à temps partiel, un départ avant suppression du poste ni un accroissement
   and (cdd_min_end_on is null or (contract_type = 'cdd' and end_on is null and cdd_min_end_on >= start_on
-        and coalesce(cdd_reason, '') <> 'accroissement'))
+        and coalesce(cdd_reason, '') in ('remplacement_absence', 'remplacement_suspension', 'remplacement_attente_cdi', 'saisonnier', 'remplacement_chef_entreprise')))
   and (contract_type = 'cdd' or not cdd_renewable));
 comment on column public.hr_employments.cdd_reason is 'Motif du CDD (L1242-2) : remplacement (5 cas), accroissement, saisonnier, remplacement d''un chef d''entreprise';
 comment on column public.hr_employments.cdd_min_end_on is 'CDD sans terme précis (L1242-7) : fin de la durée minimale';
@@ -141,7 +146,8 @@ set search_path = ''
 as $$
 begin
   if tg_op = 'DELETE' then
-    if old.status = 'valide' then
+    -- Suppression de la société (cascade) : permise
+    if old.status = 'valide' and exists (select 1 from public.companies c where c.id = old.company_id) then
       raise exception 'Modèle validé : il ne se supprime pas (il a pu servir à des contrats)' using errcode = '22023';
     end if;
     return old;
@@ -154,7 +160,8 @@ begin
     end if;
     new.created_at := old.created_at; new.company_id := old.company_id;
   else
-    new.created_at := now();
+    -- Un modèle naît « projet » : la validation par l'avocat se note ensuite (date et nom), relecture du 18/11
+    new.created_at := now(); new.status := 'projet'; new.validated_on := null; new.validated_by_name := null;
   end if;
   new.updated_at := now();
   return new;
@@ -181,8 +188,9 @@ as $$
       {"titre": "Fonctions", "texte": "{{poste_fonctions}}", "si": "fonctions"},
       {"titre": "Lieu de travail", "texte": "{{lieux_travail}}"},
       {"titre": "Période d'essai", "texte": "Le contrat comporte une période d'essai qui prend fin le {{essai_fin}}. Ses conditions sont celles des articles L1221-19 et suivants du Code du travail et de la convention collective applicable.", "si": "essai"},
-      {"titre": "Durée du travail", "texte": "{{duree_travail}} Les heures supplémentaires et leurs majorations suivent les articles L3121-28 et suivants du Code du travail et la convention collective applicable."},
-      {"titre": "Rémunération", "texte": "Le salarié perçoit une rémunération brute de {{remuneration}}. Elle est versée {{paie_modalites}}."},
+      {"titre": "Durée du travail", "texte": "{{duree_travail}} Les heures supplémentaires et leurs majorations suivent les articles L3121-28 et suivants du Code du travail et la convention collective applicable.", "si": "heures"},
+      {"titre": "Durée du travail", "texte": "{{duree_travail}} Ce forfait s'applique dans les conditions prévues par le Code du travail et par l'accord collectif applicable.", "si": "forfait_jours"},
+      {"titre": "Rémunération", "texte": "Le salarié perçoit une rémunération brute de base de {{remuneration}}. Primes et accessoires : {{remuneration_composantes}}. La rémunération est versée {{paie_modalites}}."},
       {"titre": "Congés payés", "texte": "Le salarié bénéficie des congés payés prévus par les articles L3141-1 et suivants du Code du travail et par la convention collective applicable."},
       {"titre": "Formation", "texte": "Le salarié bénéficie des actions de formation assurées par l'employeur en application de l'article L6321-1 du Code du travail."},
       {"titre": "Convention collective", "texte": "Le contrat relève de la convention collective {{convention_nom}} (IDCC {{convention_idcc}})."},
@@ -202,8 +210,9 @@ as $$
       {"titre": "Poste à risques particuliers", "texte": "Le poste figure sur la liste des postes présentant des risques particuliers pour la santé ou la sécurité (article L4154-2 du Code du travail) ; le salarié bénéficie d'une formation renforcée à la sécurité.", "si": "poste_risque"},
       {"titre": "Lieu de travail", "texte": "{{lieux_travail}}"},
       {"titre": "Période d'essai", "texte": "Le contrat comporte une période d'essai qui prend fin le {{essai_fin}}. Ses conditions sont celles de l'article L1242-10 du Code du travail et de la convention collective applicable.", "si": "essai"},
-      {"titre": "Durée du travail", "texte": "{{duree_travail}} Les heures supplémentaires et leurs majorations suivent les articles L3121-28 et suivants du Code du travail et la convention collective applicable."},
-      {"titre": "Rémunération", "texte": "Le salarié perçoit une rémunération brute de {{remuneration}}. Elle est versée {{paie_modalites}}."},
+      {"titre": "Durée du travail", "texte": "{{duree_travail}} Les heures supplémentaires et leurs majorations suivent les articles L3121-28 et suivants du Code du travail et la convention collective applicable.", "si": "heures"},
+      {"titre": "Durée du travail", "texte": "{{duree_travail}} Ce forfait s'applique dans les conditions prévues par le Code du travail et par l'accord collectif applicable.", "si": "forfait_jours"},
+      {"titre": "Rémunération", "texte": "Le salarié perçoit une rémunération brute de base de {{remuneration}}. Primes et accessoires : {{remuneration_composantes}}. La rémunération est versée {{paie_modalites}}."},
       {"titre": "Congés payés", "texte": "Le salarié bénéficie des congés payés prévus par les articles L3141-1 et suivants du Code du travail et par la convention collective applicable."},
       {"titre": "Formation", "texte": "Le salarié bénéficie des actions de formation assurées par l'employeur en application de l'article L6321-1 du Code du travail."},
       {"titre": "Convention collective", "texte": "Le contrat relève de la convention collective {{convention_nom}} (IDCC {{convention_idcc}})."},
@@ -214,7 +223,7 @@ as $$
     ('avenant', 'Avenant au contrat de travail', $j$[
       {"titre": "Parties", "texte": "{{employeur_nom}}, {{employeur_forme}}, SIREN {{employeur_siren}}, dont le siège est situé {{employeur_adresse}}, ci-après l'employeur, et {{salarie_nom}}, demeurant {{salarie_adresse}}, ci-après le salarié, conviennent du présent avenant au contrat de travail ({{contrat_type}}) qui a pris effet le {{date_debut}}."},
       {"titre": "Objet", "texte": "{{avenant_objet}}"},
-      {"titre": "Modifications", "texte": "À compter du {{avenant_date_effet}}, les dispositions du contrat sont modifiées comme indiqué dans le tableau ci-dessous."},
+      {"titre": "Modifications", "texte": "À compter du {{avenant_date_effet}}, les dispositions du contrat sont modifiées comme indiqué dans le tableau ci-dessous.", "tableau": true},
       {"titre": "Autres dispositions", "texte": "Les autres dispositions du contrat de travail restent inchangées."}
     ]$j$::jsonb)
   ) as m(kind, title, articles)
@@ -251,7 +260,8 @@ create table if not exists public.hr_contract_amendments (
   -- [{ "label": "...", "before": "...", "after": "..." }]
   changes jsonb not null default '[]'::jsonb check (jsonb_typeof(changes) = 'array' and jsonb_array_length(changes) between 1 and 20),
   generated_document_id uuid references public.hr_documents(id) on delete set null,
-  signed_document_id uuid references public.hr_documents(id) on delete set null,
+  -- Document signé : il ne se supprime pas tant que l'avenant existe (relecture du 18/11)
+  signed_document_id uuid references public.hr_documents(id),
   handed_on date,
   created_by uuid default auth.uid(),
   created_at timestamptz not null default now(),
@@ -284,10 +294,11 @@ begin
      or (new.signed_document_id is not null and not exists (select 1 from public.hr_documents d where d.id = new.signed_document_id and d.person_id = new.person_id)) then
     raise exception 'Ce document n''est pas celui de cette personne' using errcode = '22023';
   end if;
-  -- Avenant signé : son contenu ne change plus (un nouvel avenant le corrige)
+  -- Avenant signé : son contenu, son document généré et son document signé ne changent plus (un nouvel avenant le corrige)
   if tg_op = 'UPDATE' and old.signed_document_id is not null
      and (new.effective_on <> old.effective_on or new.subject <> old.subject or new.changes is distinct from old.changes
-          or new.employment_id <> old.employment_id) then
+          or new.employment_id <> old.employment_id or new.signed_document_id is distinct from old.signed_document_id
+          or new.generated_document_id is distinct from old.generated_document_id) then
     raise exception 'Avenant signé : il ne se modifie plus' using errcode = '22023';
   end if;
   if tg_op = 'INSERT' then
@@ -303,6 +314,25 @@ revoke all on function app.hr_avenant_avant() from public, anon, authenticated;
 drop trigger if exists hr_contract_amendments_avant on public.hr_contract_amendments;
 create trigger hr_contract_amendments_avant before insert or update on public.hr_contract_amendments
   for each row execute function app.hr_avenant_avant();
+
+-- Avenant signé : il ne se supprime pas, sauf avec son contrat (cascade : le contrat n'existe plus)
+create or replace function app.hr_avenant_suppression()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if old.signed_document_id is not null and exists (select 1 from public.hr_employments e where e.id = old.employment_id) then
+    raise exception 'Avenant signé : il ne se supprime pas' using errcode = '22023';
+  end if;
+  return old;
+end
+$$;
+revoke all on function app.hr_avenant_suppression() from public, anon, authenticated;
+drop trigger if exists hr_contract_amendments_suppression on public.hr_contract_amendments;
+create trigger hr_contract_amendments_suppression before delete on public.hr_contract_amendments
+  for each row execute function app.hr_avenant_suppression();
 
 -- ── Droits ──
 alter table public.hr_contract_models enable row level security;
@@ -327,20 +357,26 @@ begin
     with check (company_id in (select app.societes_avec_droit('rh.parametres.gerer')));
   create policy hr_contract_models_supprimer on public.hr_contract_models for delete to authenticated
     using (company_id in (select app.societes_avec_droit('rh.parametres.gerer')));
-  -- Avenants : la personne, ou « Documents restreints » (rémunération possible) ; tenus avec « Tenir les dossiers » et « Documents restreints »
+  -- Avenants : la personne, ou « Documents restreints » et « Voir les salaires » (rémunération possible) ; tenus avec
+  -- « Tenir les dossiers », « Documents restreints » et « Voir les salaires » (relecture du 18/11)
   drop policy if exists hr_contract_amendments_lire on public.hr_contract_amendments;
   drop policy if exists hr_contract_amendments_creer on public.hr_contract_amendments;
   drop policy if exists hr_contract_amendments_modifier on public.hr_contract_amendments;
   drop policy if exists hr_contract_amendments_supprimer on public.hr_contract_amendments;
   create policy hr_contract_amendments_lire on public.hr_contract_amendments for select to authenticated
-    using ((company_id in (select app.societes_avec_droit('rh.documents.restreints')) or person_id in (select app.hr_mes_personnes())));
+    using (((company_id in (select app.societes_avec_droit('rh.documents.restreints')) and company_id in (select app.societes_avec_droit('rh.salaires.voir')))
+            or person_id in (select app.hr_mes_personnes())));
   create policy hr_contract_amendments_creer on public.hr_contract_amendments for insert to authenticated
-    with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))));
+    with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))
+      and company_id in (select app.societes_avec_droit('rh.salaires.voir'))));
   create policy hr_contract_amendments_modifier on public.hr_contract_amendments for update to authenticated
-    using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))))
-    with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))));
+    using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))
+      and company_id in (select app.societes_avec_droit('rh.salaires.voir'))))
+    with check ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))
+      and company_id in (select app.societes_avec_droit('rh.salaires.voir'))));
   create policy hr_contract_amendments_supprimer on public.hr_contract_amendments for delete to authenticated
-    using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))));
+    using ((company_id in (select app.societes_avec_droit('rh.dossiers.gerer')) and company_id in (select app.societes_avec_droit('rh.documents.restreints'))
+      and company_id in (select app.societes_avec_droit('rh.salaires.voir'))));
 end $$;
 
 -- Vue groupe en lecture seule (0516) : verrou posé sur les nouvelles tables

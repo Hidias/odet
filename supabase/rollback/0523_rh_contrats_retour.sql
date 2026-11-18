@@ -7,6 +7,7 @@ drop function if exists app.hr_jour_ouvrable_apres(uuid, date, int);
 
 drop table if exists public.hr_contract_amendments;
 drop function if exists app.hr_avenant_avant();
+drop function if exists app.hr_avenant_suppression();
 drop table if exists public.hr_contract_models;
 drop function if exists public.hr_modeles_contrat_poser(uuid);
 drop function if exists app.hr_modeles_contrat_depart(uuid);

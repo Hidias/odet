@@ -40,6 +40,10 @@ begin
   exception when invalid_parameter_value then null;
   end;
   update public.hr_contract_models set note = 'note modifiable' where id = v_m;
+  -- Un modèle naît « projet », même inséré « validé »
+  insert into public.hr_contract_models (company_id, kind, version, title, articles, status, validated_on, validated_by_name)
+    values (v_cie, 'cdi', 2, 'Essai v2', '[{"titre":"x","texte":"y"}]', 'valide', current_date, 'X') returning id into v_m;
+  if (select status from public.hr_contract_models where id = v_m) <> 'projet' then raise exception 'Essai 0523 : modèle inséré directement validé'; end if;
 
   -- 2. Motif de CDD : seulement sur un CDD ; sans terme précis refusé pour un accroissement
   begin
@@ -51,6 +55,17 @@ begin
     insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason, cdd_min_end_on)
       values (v_cie, v_p, 'cdd', current_date, 'accroissement', current_date + 30);
     raise exception 'Essai 0523 : CDD sans terme précis accepté pour un accroissement';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_reason, cdd_min_end_on)
+      values (v_cie, v_p, 'cdd', current_date, 'remplacement_temps_partiel', current_date + 30);
+    raise exception 'Essai 0523 : CDD sans terme précis accepté pour un passage à temps partiel (hors L1242-7)';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.hr_employments (company_id, person_id, contract_type, start_on, cdd_min_end_on) values (v_cie, v_p, 'cdd', current_date, current_date + 30);
+    raise exception 'Essai 0523 : CDD sans terme précis accepté sans motif';
   exception when check_violation then null;
   end;
   begin
@@ -128,6 +143,21 @@ begin
     raise exception 'Essai 0523 : avenant signé modifié';
   exception when invalid_parameter_value then null;
   end;
+  begin
+    update public.hr_contract_amendments set signed_document_id = null where id = v_a;
+    raise exception 'Essai 0523 : signature d''un avenant retirée';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    delete from public.hr_contract_amendments where id = v_a;
+    raise exception 'Essai 0523 : avenant signé supprimé';
+  exception when invalid_parameter_value then null;
+  end;
+  begin
+    delete from public.hr_documents where id = v_d;
+    raise exception 'Essai 0523 : document signé d''un avenant supprimé';
+  exception when foreign_key_violation then null;
+  end;
 
   -- 7. Document généré : traçabilité contrôlée
   begin
@@ -136,6 +166,10 @@ begin
   exception when check_violation then null;
   end;
   update public.hr_documents set generated_from = 'avenant@1:projet', content_sha256 = repeat('a', 64) where id = v_d;
+
+  -- Contrat supprimé : ses avenants partent avec lui, même signés
+  delete from public.hr_employments where id = v_e;
+  if exists (select 1 from public.hr_contract_amendments where id = v_a) then raise exception 'Essai 0523 : avenant resté après la suppression du contrat'; end if;
 
   -- 8. Poser les modèles : droit « Configurer les RH » exigé
   begin

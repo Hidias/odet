@@ -30,6 +30,10 @@ describe('Contrats de travail (0523)', () => {
     expect(estRemplacement('remplacement_absence')).toBe(true)
     expect(sansTermePermis('saisonnier')).toBe(true)
     expect(sansTermePermis('accroissement')).toBe(false)
+    // L1242-7 : ni le passage provisoire à temps partiel ni le départ avant suppression du poste
+    expect(sansTermePermis('remplacement_temps_partiel')).toBe(false)
+    expect(sansTermePermis('remplacement_depart')).toBe(false)
+    expect(sansTermePermis('remplacement_suspension')).toBe(true)
     // Mêmes codes que la contrainte de la base
     for (const k of Object.keys(MOTIFS_CDD)) expect(migration).toContain(`'${k}'`)
   })
@@ -39,7 +43,8 @@ describe('Contrats de travail (0523)', () => {
   })
   it('conditions du CDD', () => {
     const c = conditions({ contract_type: 'cdd', cdd_reason: 'remplacement_absence', cdd_min_end_on: '2027-01-01', cdd_renewable: true, risky_post: true, trial_end_on: '2026-12-10' }, { prevoyance_org: 'P' })
-    expect([...c].sort()).toEqual(['essai', 'poste_risque', 'prevoyance', 'remplacement', 'renouvelable', 'sans_terme'])
+    expect([...c].sort()).toEqual(['essai', 'heures', 'poste_risque', 'prevoyance', 'remplacement', 'renouvelable', 'sans_terme'])
+    expect(conditions({ contract_type: 'cdi', days_per_year: 218 }).has('forfait_jours')).toBe(true)
     expect(conditions({ contract_type: 'cdd', end_on: '2027-01-01' }).has('terme_precis')).toBe(true)
     expect(conditions({ contract_type: 'cdd' }).has('terme_precis')).toBe(true)
     expect(conditions({ contract_type: 'cdi', risky_post: true }).has('poste_risque')).toBe(false)
@@ -47,7 +52,7 @@ describe('Contrats de travail (0523)', () => {
   it('rémunération en vigueur au début, texte sans espace insécable', () => {
     const l = [{ amount: 1, effective_on: '2026-01-01' }, { amount: 2, effective_on: '2026-12-01' }, { amount: 3, effective_on: '2027-02-01' }]
     expect(remunerationAuDebut(l, '2026-12-15').amount).toBe(2)
-    expect(remunerationAuDebut(l, '2025-01-01').amount).toBe(1)
+    expect(remunerationAuDebut(l, '2025-01-01')).toBeNull()
     expect(remunerationAuDebut([], '2026-01-01')).toBeNull()
     expect(texteRemuneration(remu)).toBe('2 100,00 euros par mois')
   })
@@ -57,7 +62,7 @@ describe('Contrats de travail (0523)', () => {
     expect(texteDureeTravail({})).toBe('')
   })
   it('CDI complet : aucune mention manquante, texte rempli', () => {
-    const v = valeurs({ societe, personne, contrat: cdi, reglages, remuneration: remu })
+    const v = valeurs({ societe, personne, contrat: cdi, reglages, remuneration: remu, composantes: 'néant' })
     const art = articlesRetenus(modeles.cdi, conditions(cdi, reglages))
     expect(manquants(art, v)).toEqual([])
     expect(art.some((a) => a.si === 'prevoyance')).toBe(false)
@@ -75,19 +80,33 @@ describe('Contrats de travail (0523)', () => {
     expect(m).toContain(CHAMPS.remuneration)
     expect(m).toContain(CHAMPS.salarie_adresse)
     expect(m).toContain(CHAMPS.caisse_retraite)
+    expect(m).toContain(CHAMPS.remuneration_composantes)
   })
   it('CDD de remplacement sans le nom du remplacé : bloqué', () => {
     const cdd = { ...cdi, contract_type: 'cdd', cdd_reason: 'remplacement_absence', end_on: '2027-03-01' }
-    const v = valeurs({ societe, personne, contrat: cdd, reglages, remuneration: remu })
+    const v = valeurs({ societe, personne, contrat: cdd, reglages, remuneration: remu, composantes: 'néant' })
     const m = manquants(articlesRetenus(modeles.cdd, conditions(cdd, reglages)), v)
     expect(m).toEqual([CHAMPS.remplace_nom, CHAMPS.remplace_qualification])
     expect(v.motif_cdd).toBe('remplacement d\'un salarié absent')
   })
   it('CDD sans motif ni fin : bloqué', () => {
     const cdd = { ...cdi, contract_type: 'cdd' }
-    const m = manquants(articlesRetenus(modeles.cdd, conditions(cdd, reglages)), valeurs({ societe, personne, contrat: cdd, reglages, remuneration: remu }))
+    const m = manquants(articlesRetenus(modeles.cdd, conditions(cdd, reglages)), valeurs({ societe, personne, contrat: cdd, reglages, remuneration: remu, composantes: 'néant' }))
     expect(m).toContain(CHAMPS.motif_cdd)
     expect(m).toContain(CHAMPS.date_fin)
+  })
+  it('forfait jours : pas de phrase sur les heures supplémentaires', () => {
+    const c = { ...cdi, weekly_hours: null, days_per_year: 218 }
+    const art = articlesRetenus(modeles.cdi, conditions(c, reglages))
+    const texte = art.map((a) => remplir(a.texte, valeurs({ societe, personne, contrat: c, reglages, remuneration: remu, composantes: 'néant' }))).join(' ')
+    expect(texte).toContain('218 jours')
+    expect(texte).not.toContain('L3121-28')
+  })
+  it('champ inconnu ou mal écrit : bloqué, jamais imprimé tel quel', () => {
+    expect(manquants([{ texte: 'Bonjour {{Salarie_nom}}' }], { salarie_nom: 'X' })[0]).toMatch(/Champ inconnu/)
+  })
+  it('modèle d\'avenant : le tableau des modifications est repéré par une clé', () => {
+    expect(modeles.avenant.articles.filter((a) => a.tableau)).toHaveLength(1)
   })
   it('avenant : date, objet, une ligne complète', () => {
     const ok = { effective_on: '2026-12-01', subject: 'Horaire', changes: [{ label: 'Durée', before: '35 h', after: '39 h' }] }

@@ -30,8 +30,10 @@ export const MOTIFS_CDD = {
   remplacement_chef_entreprise: 'Remplacement d\'un chef d\'entreprise ou de son conjoint collaborateur (L1242-2, 4°)',
 }
 export const estRemplacement = (motif) => String(motif || '').startsWith('remplacement')
-/** CDD sans terme précis permis (L1242-7) : remplacement ou emploi saisonnier */
-export const sansTermePermis = (motif) => estRemplacement(motif) || motif === 'saisonnier'
+/** CDD sans terme précis permis (L1242-7) : salarié absent, contrat suspendu, attente d'un CDI, saisonnier, chef
+ *  d'entreprise ; pas un passage à temps partiel, un départ avant suppression du poste ni un accroissement */
+export const SANS_TERME = ['remplacement_absence', 'remplacement_suspension', 'remplacement_attente_cdi', 'saisonnier', 'remplacement_chef_entreprise']
+export const sansTermePermis = (motif) => SANS_TERME.includes(motif)
 
 export const TYPES_MODELE = { cdi: 'CDI', cdd: 'CDD', avenant: 'Avenant' }
 /** Type de modèle d'un contrat ; null : contrat sans modèle (apprentissage, stage, intérim...) */
@@ -57,7 +59,8 @@ export const CHAMPS = {
   lieux_travail: 'Lieux de travail',
   essai_fin: 'Fin de la période d\'essai',
   duree_travail: 'Heures par semaine ou forfait jours',
-  remuneration: 'Rémunération (saisie dans le contrat, droit « Voir les salaires »)',
+  remuneration: 'Rémunération en vigueur au début du contrat (saisie dans le contrat, droit « Voir les salaires »)',
+  remuneration_composantes: 'Primes et accessoires (ou « néant »)',
   paie_modalites: 'Modalités de paie (Personnel › Contrats › Réglages)',
   convention_nom: 'Intitulé de la convention collective (Personnel › Contrats › Réglages)',
   convention_idcc: 'IDCC de la société (Paramètres › Sociétés)',
@@ -73,6 +76,7 @@ export function conditions(contrat = {}, reglages = {}) {
   const c = new Set()
   if (!vide(contrat.job_description)) c.add('fonctions')
   if (contrat.trial_end_on) c.add('essai')
+  c.add(contrat.days_per_year ? 'forfait_jours' : 'heures')
   if (!vide(reglages.prevoyance_org)) c.add('prevoyance')
   if (contrat.contract_type === 'cdd') {
     if (estRemplacement(contrat.cdd_reason)) c.add('remplacement')
@@ -87,8 +91,9 @@ export function conditions(contrat = {}, reglages = {}) {
 /** Rémunération en vigueur au début du contrat (sinon la première saisie) */
 export function remunerationAuDebut(lignes = [], debut) {
   const triees = [...(lignes || [])].sort((a, b) => String(a.effective_on).localeCompare(String(b.effective_on)))
+  // Aucune ligne en vigueur au début : rien (la génération bloque), jamais un salaire postérieur (relecture du 18/11)
   const avant = triees.filter((l) => !debut || String(l.effective_on) <= String(debut))
-  return avant[avant.length - 1] || triees[0] || null
+  return avant[avant.length - 1] || null
 }
 const montant = (n) => Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/ | /g, ' ')
 export const texteRemuneration = (l) => (l && l.amount != null ? `${montant(l.amount)} euros ${PERIODES[l.period] || ''}`.trim() : '')
@@ -100,7 +105,7 @@ export function texteDureeTravail(contrat = {}) {
 }
 
 /** Valeurs des champs du texte, depuis la société, la personne, le contrat, les réglages et la rémunération */
-export function valeurs({ societe = {}, personne = {}, contrat = {}, reglages = {}, remuneration = null, avenant = null } = {}) {
+export function valeurs({ societe = {}, personne = {}, contrat = {}, reglages = {}, remuneration = null, composantes = '', avenant = null } = {}) {
   const adresse = (a, cp, ville) => [a, [cp, ville].filter(Boolean).join(' ')].filter((x) => !vide(x)).join(', ')
   return {
     employeur_nom: societe.legal_name || '',
@@ -122,6 +127,7 @@ export function valeurs({ societe = {}, personne = {}, contrat = {}, reglages = 
     essai_fin: frDate(contrat.trial_end_on),
     duree_travail: texteDureeTravail(contrat),
     remuneration: texteRemuneration(remuneration),
+    remuneration_composantes: String(composantes || '').trim(),
     paie_modalites: reglages.pay_terms || '',
     convention_nom: reglages.collective_agreement_name || '',
     convention_idcc: societe.idcc || '',
@@ -135,13 +141,19 @@ export function valeurs({ societe = {}, personne = {}, contrat = {}, reglages = 
 
 /** Articles retenus pour ce contrat (sans condition, ou condition remplie) */
 export const articlesRetenus = (modele, conds) => (modele?.articles || []).filter((a) => !a.si || conds.has(a.si))
-export const champsDe = (texte) => [...String(texte || '').matchAll(/\{\{\s*([a-z_]+)\s*\}\}/g)].map((m) => m[1])
-export const remplir = (texte, v) => String(texte || '').replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, k) => (vide(v[k]) ? '' : String(v[k])))
+// Tout {{...}} est un champ : un nom inconnu bloque la génération au lieu de s'imprimer tel quel (relecture du 18/11)
+export const champsDe = (texte) => [...String(texte || '').matchAll(/\{\{([^}]*)\}\}/g)].map((m) => m[1].trim())
+export const remplir = (texte, v) => String(texte || '').replace(/\{\{([^}]*)\}\}/g, (_, k) => (vide(v[k.trim()]) ? '' : String(v[k.trim()])))
 
 /** Mentions manquantes (libellés, sans doublon) : un seul manque bloque la génération */
 export function manquants(articles, v) {
   const m = new Set()
-  for (const a of articles) for (const k of champsDe(a.texte)) if (vide(v[k])) m.add(CHAMPS[k] || k)
+  for (const a of articles) {
+    for (const k of champsDe(a.texte)) {
+      if (!CHAMPS[k]) m.add(`Champ inconnu dans le modèle : {{${k}}}`)
+      else if (vide(v[k])) m.add(CHAMPS[k])
+    }
+  }
   return [...m]
 }
 
@@ -173,7 +185,7 @@ export async function construirePDF({ modele, articles, v, changes = null, ville
   articles.forEach((a, i) => {
     f.section(`Article ${i + 1}. ${a.titre}`)
     f.para(remplir(a.texte, v))
-    if (changes && a.titre === 'Modifications') {
+    if (changes && a.tableau) {
       f.table([['Disposition', 'Avant', 'À compter de la date d\'effet']], changes.map((c) => [c.label, c.before || '', c.after]))
     }
   })
@@ -214,11 +226,12 @@ export async function validerModele(id, { validated_on, validated_by_name }) {
 
 export const REGLAGES = ['collective_agreement_name', 'retirement_fund', 'prevoyance_org', 'pay_terms']
 export async function chargerReglagesContrat(companyId) {
-  const [{ data: r }, { data: s }] = await Promise.all([
+  // Erreurs remontées : un refus ne doit pas se lire comme « raison sociale à compléter » (relecture du 18/11)
+  const [r, s] = await Promise.all([
     supabase.from('hr_settings').select(`company_id, ${REGLAGES.join(', ')}`).eq('company_id', companyId).maybeSingle(),
     supabase.from('companies').select('id, legal_name, legal_form, siren, address, postal_code, city, idcc').eq('id', companyId).maybeSingle(),
   ])
-  return { reglages: r || {}, societe: s || {} }
+  return { reglages: must(r) || {}, societe: must(s) || {} }
 }
 export async function enregistrerReglagesContrat(companyId, r) {
   const ligne = { company_id: companyId, ...Object.fromEntries(REGLAGES.map((k) => [k, vide(r[k]) ? null : String(r[k]).trim()])) }
@@ -256,18 +269,21 @@ export async function deposerSigne({ companyId, personId, contrat, avenant = nul
  * Prépare la génération : modèle, articles retenus, valeurs, mentions manquantes.
  * Lit la rémunération (journalisée) seulement si le texte en a besoin.
  */
-export async function preparer({ personne, contrat, avenant = null, modeles = null }) {
+export async function preparer({ personne, contrat, avenant = null, modeles = null, composantes = '', societeEcran = null }) {
+  // En-tête du PDF : celui de la société choisie à l'écran ; elle doit être celle du salarié (relecture du 18/11)
+  if (societeEcran !== personne.company_id) return { erreur: 'Choisissez dans l\'en-tête la société de ce salarié avant de générer' }
   const kind = avenant ? 'avenant' : modelePour(contrat.contract_type)
   if (!kind) return { erreur: `Pas de modèle pour un contrat « ${CONTRATS[contrat.contract_type] || contrat.contract_type} »` }
   const modele = modeleCourant((modeles || await chargerModeles()).filter((m) => m.company_id === personne.company_id), kind)
   if (!modele) return { erreur: 'Aucun modèle : posez les modèles de départ (Personnel › Contrats)' }
   const { reglages, societe } = await chargerReglagesContrat(personne.company_id)
   const articles = articlesRetenus(modele, conditions(contrat, reglages))
+  if (avenant && !articles.some((a) => a.tableau)) return { erreur: 'Le modèle d\'avenant n\'a pas d\'article pour le tableau des modifications' }
   let remuneration = null
   if (articles.some((a) => champsDe(a.texte).includes('remuneration'))) {
     try { remuneration = remunerationAuDebut(await voirRemuneration(contrat.id), contrat.start_on) } catch { remuneration = null }
   }
-  const v = valeurs({ societe, personne, contrat, reglages, remuneration, avenant })
+  const v = valeurs({ societe, personne, contrat, reglages, remuneration, composantes, avenant })
   return { modele, articles, v, manque: manquants(articles, v), ville: societe.city || '' }
 }
 
