@@ -52,7 +52,13 @@ if [ -s "$TRAVAIL/roles.err" ]; then
 fi
 # Les blocs COPY vides (tables internes de Supabase sans aucune ligne, dont certaines
 # ne sont pas modifiables par l'utilisateur postgres) sont retirés : ils n'apportent rien.
+# Les jetons à usage unique (auth.one_time_tokens : liens de connexion et de réinitialisation en cours) sont retirés
+# aussi : éphémères, hors de l'empreinte comparée, et leur table change avec la version d'Auth de la production
+# (colonne link_token_hash ajoutée en production, absente du Supabase local de la CLI : échec du 17/11/2026).
 awk '
+  /^COPY auth\.one_time_tokens / { saute = 1; next }
+  saute && /^\\\.$/ { saute = 0; next }
+  saute { next }
   /^COPY / { bloc = $0; n = 0; dedans = 1; next }
   dedans && /^\\\.$/ { if (n > 0) { print bloc; print tampon; print "\\." } dedans = 0; tampon = ""; next }
   dedans { tampon = (n ? tampon "\n" : "") $0; n++; next }
