@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { AlertTriangle, Copy, Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { confirmer } from '../../../ui/Confirm'
 
 // Seuil de maintien d'une session inter (0421, série du 21/10 n° 29). À 10 jours ou moins du début, si le minimum
@@ -70,7 +71,7 @@ export default function SeuilMaintien({ session, peutModifier }) {
     }
     if (!(await confirmer({ title: `${LIBELLES[decision]} ?`, message: msgs[decision], confirmLabel: 'Confirmer' }))) return
     setBusy(true)
-    const { error } = await supabase.from('sessions').update({ maintien_decision: decision, maintien_decision_at: new Date().toISOString() }).eq('id', session.id)
+    const { error } = await enregistrer(supabase.from('sessions').update({ maintien_decision: decision, maintien_decision_at: new Date().toISOString() }).eq('id', session.id), { attendu: 1 })
     setBusy(false)
     if (error) return toast.error(error.message)
     toast.success('Décision enregistrée')

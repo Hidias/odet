@@ -24,6 +24,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import QRCode from 'qrcode'
 import { supabase } from '../../../core/supabase'
+import { enregistrer, estAucuneLigne } from '../../../core/enregistrer'
 import { buildStorageFileName, ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import SessionDocumentAccess from '../components/SessionDocumentAccess'
 import SSTCertificationTab from '../../prevention/components/SSTCertificationTab'
@@ -518,11 +519,10 @@ export default function SessionDetail() {
       // 2. Mettre à jour l'observation dans session_trainees
       console.log('Mise à jour session_trainees avec:', { stId, observation })
       
-      const { data: updateData, error: updateError } = await supabase
+      const { data: updateData, error: updateError } = await enregistrer(supabase
         .from('session_trainees')
         .update({ admin_observation: observation || null })
-        .eq('id', stId)
-        .select()
+        .eq('id', stId), { attendu: 1 })
       
       console.log('Résultat update session_trainees:', { updateData, updateError })
       
@@ -553,10 +553,12 @@ export default function SessionDetail() {
           })
           
           // Marquer la notification comme envoyée
-          await supabase
+          // Écriture d'appoint après l'envoi : un refus est seulement journalisé (au pire, une seconde notification)
+          const { error: errNotif } = await enregistrer(supabase
             .from('session_trainees')
             .update({ expectations_notification_sent: true })
-            .eq('id', stId)
+            .eq('id', stId))
+          if (errNotif) console.warn('Notification des attentes non marquée envoyée :', errNotif.message)
         }
       }
       
@@ -1384,13 +1386,13 @@ export default function SessionDetail() {
         convention_sent_date: null
       }
       
-      const { error } = await supabase
+      const { error } = await enregistrer(supabase
         .from('sessions')
         .update(updateData)
-        .eq('id', id)
+        .eq('id', id), { attendu: 1 })
       
       if (error) {
-        toast.error('Erreur lors de la mise à jour')
+        toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de la mise à jour')
         console.error(error)
         return
       }
@@ -1407,13 +1409,13 @@ export default function SessionDetail() {
       convention_sent_date: datetime
     }
     
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('sessions')
       .update(updateData)
-      .eq('id', id)
+      .eq('id', id), { attendu: 1 })
     
     if (error) {
-      toast.error('Erreur lors de la mise à jour')
+      toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de la mise à jour')
       console.error(error)
       return
     }
@@ -1496,13 +1498,13 @@ export default function SessionDetail() {
       convention_signed_file_url: dateTimeModal.filePath
     }
     
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('sessions')
       .update(updateData)
-      .eq('id', id)
+      .eq('id', id), { attendu: 1 })
     
     if (error) {
-      toast.error('Erreur lors de la mise à jour')
+      toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de la mise à jour')
       console.error(error)
       return
     }
@@ -1681,7 +1683,7 @@ export default function SessionDetail() {
 
   // Ouverture / fermeture des signatures du portail stagiaire
   const handleSignatureMode = async (mode) => {
-    const { error } = await supabase.from('sessions').update({ signature_mode: mode }).eq('id', session.id)
+    const { error } = await enregistrer(supabase.from('sessions').update({ signature_mode: mode }).eq('id', session.id), { attendu: 1 })
     if (error) { toast.error(error.message); return }
     toast.success(mode === 'ferme' ? 'Signatures fermées' : mode === 'ouvert' ? 'Signatures ouvertes' : 'Créneaux normaux rétablis')
     await fetchSessions()
@@ -1760,13 +1762,16 @@ export default function SessionDetail() {
     
     if (existing?.id) {
       // Mettre à jour l'entrée existante
-      const { data, error } = await supabase
+      const { data, error } = await enregistrer(supabase
         .from('attendance_halfdays')
         .update(updateData)
         .eq('id', existing.id)
-        .select()
+        .select(), { attendu: 1 })
       console.log('UPDATE result:', data, 'error:', error)
-      if (error) console.error('Erreur update présence:', error)
+      if (error) {
+        console.error('Erreur update présence:', error)
+        toast.error(estAucuneLigne(error) ? error.message : 'Présence non enregistrée')
+      }
     } else {
       // Créer une nouvelle entrée
       const { data, error } = await supabase
@@ -1774,7 +1779,10 @@ export default function SessionDetail() {
         .insert(updateData)
         .select()
       console.log('INSERT result:', data, 'error:', error)
-      if (error) console.error('Erreur insert présence:', error)
+      if (error) {
+        console.error('Erreur insert présence:', error)
+        toast.error('Présence non enregistrée')
+      }
     }
     
     // Vérifier si 100% et mettre à jour presence_complete
@@ -1811,6 +1819,7 @@ export default function SessionDetail() {
     const isHalfDaySession = session?.day_type === 'half'
     const isAfternoonHalf = isHalfDaySession && session?.start_time && parseInt(session.start_time.split(':')[0], 10) >= 12
     
+    let echecs = 0
     for (const trainee of sessionTrainees) {
       // Grouper les demi-journées par date
       const dates = [...new Set(halfDays.map(hd => hd.dateStr))]
@@ -1835,11 +1844,10 @@ export default function SessionDetail() {
           .eq('date', dateStr)
           .maybeSingle()
         
-        if (existing?.id) {
-          await supabase.from('attendance_halfdays').update(updateData).eq('id', existing.id)
-        } else {
-          await supabase.from('attendance_halfdays').insert(updateData)
-        }
+        const { error: errPresence } = existing?.id
+          ? await enregistrer(supabase.from('attendance_halfdays').update(updateData).eq('id', existing.id), { attendu: 1 })
+          : await supabase.from('attendance_halfdays').insert(updateData)
+        if (errPresence) { echecs++; console.error('Présence non enregistrée :', errPresence) }
       }
       
       // Recalculer le résultat du stagiaire
@@ -1852,7 +1860,8 @@ export default function SessionDetail() {
       await updatePresenceComplete(session.id, trainee.id, true)
     }
     
-    toast.success('Tous les stagiaires marqués présents ')
+    if (echecs) toast.error(`${echecs} demi-journée${echecs > 1 ? 's' : ''} non enregistrée${echecs > 1 ? 's' : ''} : vérifiez vos droits ou rechargez la page.`, { duration: 8000 })
+    else toast.success('Tous les stagiaires marqués présents ')
   }
   
   // Gérer la présence partielle (arrivée tardive, départ anticipé)
@@ -1899,7 +1908,7 @@ export default function SessionDetail() {
     const hours = hoursTxt === '' ? partialComputed().hours : Number(hoursTxt)
     if (!Number.isFinite(hours) || hours < 0) { toast.error('Heures de présence invalides'); return }
 
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('session_trainees')
       .update({
         early_departure: f.has_departure,
@@ -1911,11 +1920,11 @@ export default function SessionDetail() {
         presence_hours: hours,
       })
       .eq('session_id', session.id)
-      .eq('trainee_id', departureTrainee.id)
+      .eq('trainee_id', departureTrainee.id), { attendu: 1 })
 
     if (error) {
       console.error('Erreur présence partielle:', error)
-      toast.error('Erreur lors de l\'enregistrement')
+      toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de l\'enregistrement')
       return
     }
 
@@ -1928,7 +1937,7 @@ export default function SessionDetail() {
   const handleCancelDeparture = async (trainee) => {
     if (!await confirmer('Annuler la présence partielle de ce stagiaire (arrivée tardive et départ anticipé) ?')) return
 
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('session_trainees')
       .update({
         early_departure: false,
@@ -1940,10 +1949,10 @@ export default function SessionDetail() {
         presence_hours: null,
       })
       .eq('session_id', session.id)
-      .eq('trainee_id', trainee.id)
+      .eq('trainee_id', trainee.id), { attendu: 1 })
 
     if (error) {
-      toast.error('Erreur lors de l\'annulation')
+      toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de l\'annulation')
       return
     }
 
@@ -2257,7 +2266,7 @@ export default function SessionDetail() {
       
       const { error } = await removeTraineeFromSession(id, traineeId)
       if (error) {
-        toast.error('Erreur lors du retrait')
+        toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors du retrait')
       } else {
         toast.success('Stagiaire retiré')
         const { data } = await getSession(id)
@@ -2269,7 +2278,7 @@ export default function SessionDetail() {
       if (!dejaConfirme && !await confirmer('Retirer ce stagiaire de la session ?')) return
       const { error } = await removeTraineeFromSession(id, traineeId)
       if (error) {
-        toast.error('Erreur lors du retrait')
+        toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors du retrait')
       } else {
         toast.success('Stagiaire retiré')
         const { data } = await getSession(id)
@@ -2300,14 +2309,14 @@ export default function SessionDetail() {
         .getPublicUrl(fileName)
       
       // Mettre à jour session_trainees
-      const { error: updateError } = await supabase
+      const { error: updateError } = await enregistrer(supabase
         .from('session_trainees')
         .update({ 
           forprev_card_url: urlData.publicUrl,
           forprev_card_sent: false 
         })
         .eq('session_id', session.id)
-        .eq('trainee_id', traineeId)
+        .eq('trainee_id', traineeId), { attendu: 1 })
       
       if (updateError) throw updateError
       
@@ -2863,8 +2872,10 @@ export default function SessionDetail() {
 
     // Convocation téléchargée : notée remise seulement si on le confirme (sinon à l'envoi par e-mail, 21/10)
     if (docType === 'convocation' && trainee && await confirmer({ title: 'Convocation remise ?', message: `Notez-la comme remise à ${trainee.first_name || ''} ${trainee.last_name || ''} seulement si vous la lui donnez ou l'envoyez vous-même.`, confirmLabel: 'Noter remise' })) {
-      await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
+      // 0 ligne est normal (convocation déjà notée remise) : seule l'erreur compte
+      const { error: errRemise } = await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
         .eq('session_id', session.id).eq('trainee_id', trainee.id).is('convocation_sent_at', null)
+      if (errRemise) toast.error(`Convocation non notée remise : ${errRemise.message}`)
     }
   }
   
@@ -2898,8 +2909,10 @@ export default function SessionDetail() {
 
     // Convocations téléchargées : notées remises seulement si on le confirme (sinon à l'envoi par e-mail, 21/10)
     if (docType === 'convocation' && await confirmer({ title: 'Convocations remises ?', message: 'Notez-les comme remises seulement si vous les donnez ou les envoyez vous-même aux stagiaires.', confirmLabel: 'Noter remises' })) {
-      await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
+      // 0 ligne est normal (toutes déjà notées remises) : seule l'erreur compte
+      const { error: errRemise } = await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
         .eq('session_id', session.id).is('convocation_sent_at', null)
+      if (errRemise) toast.error(`Convocations non notées remises : ${errRemise.message}`)
     }
   }
   

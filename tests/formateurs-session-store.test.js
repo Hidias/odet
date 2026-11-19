@@ -21,7 +21,9 @@ function requete(table) {
     },
     update: (valeurs) => {
       appels.push({ table, op: 'update', valeurs })
-      const chaine = { eq: () => chaine, select: () => ({ single: async () => ({ data: { id: 'S1', trainer_id: valeurs.trainer_id ?? 'A' }, error: null }) }) }
+      const ligne = { id: 'S1', trainer_id: valeurs.trainer_id ?? 'A' }
+      // updateSession passe par « enregistrer » (B114) : la requête porte déjà son select et renvoie une liste de lignes
+      const chaine = { eq: () => chaine, select: () => Object.assign(Promise.resolve({ data: [ligne], error: null }), { url: new URL('http://base/sessions?select=*'), single: async () => ({ data: ligne, error: null }) }) }
       return chaine
     },
   }

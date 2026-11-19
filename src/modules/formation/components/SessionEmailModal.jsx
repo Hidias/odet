@@ -2,6 +2,7 @@ import { orgName, orgCity } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { PHRASE_FROID_EN_LIGNE, froidEnLigne } from '../lib/froidMail'
 import { X, FileText, Send, Loader, CheckCircle, AlertCircle, Upload, Trash2, Eye, Edit3, History, Mail, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -880,10 +881,11 @@ Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le
       // Sync aussi les colonnes sur la table sessions (utilisées par le bloc "Suivi Convention") ; jamais pour une
       // session inter, avec ou sans groupe : elle suit ses conventions groupe par groupe (décision de H, 06/11)
       if (codes.includes('convention_envoyee') && !groupe && session?.session_type !== 'inter') {
-        await supabase
+        const { error: errConvention } = await enregistrer(supabase
           .from('sessions')
           .update({ convention_sent: true, convention_sent_date: now })
-          .eq('id', session.id)
+          .eq('id', session.id), { attendu: 1 })
+        if (errConvention) toast.error(`Envoi fait, mais la convention n'est pas notée envoyée : ${errConvention.message}`, { duration: 8000 })
       }
     } catch (err) {
       console.error('Erreur mise à jour checklist:', err)
@@ -1122,8 +1124,10 @@ Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le
       // Convocations jointes et vraiment envoyées : « envoyée » noté ici seulement (plus au simple téléchargement, 21/10)
       if (emailType === 'before' && session?.id && generatedFiles.some((f) => String(f.id).startsWith('convocation_'))) {
         const ids = generatedFiles.filter((f) => String(f.id).startsWith('convocation_')).map((f) => String(f.id).slice('convocation_'.length))
-        await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
+        // 0 ligne est normal (convocations déjà notées remises) : seule l'erreur compte
+        const { error: errRemise } = await supabase.from('session_trainees').update({ convocation_sent_at: new Date().toISOString() })
           .eq('session_id', session.id).in('trainee_id', ids).is('convocation_sent_at', null)
+        if (errRemise) toast.error(`Envoi fait, mais les convocations ne sont pas notées remises : ${errRemise.message}`)
       }
       // Envoi d'un groupe : après les convocations notées, pour que la case de la session lise le bon état
       if (groupe) await apresEnvoiGroupe()

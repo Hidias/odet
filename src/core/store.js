@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { supabase, ADMIN_EMAILS } from './supabase'
 import { buildStorageFileName } from './storageUtils'
 import { fetchAll, fetchAllIn } from './fetchAll'
+import { enregistrer } from './enregistrer'
 import { configureCompanyContext } from './company/companyContext'
 import { chargerDroits, aLeDroit } from './rights/rights'
 import { chargerContexteSocietes, chargerIdentiteSociete } from './company/societes'
@@ -651,8 +652,9 @@ export const useDataStore = create((set, get) => ({
         }
         
         if (newStatus) {
-          supabase.from('sessions').update({ status: newStatus }).eq('id', s.id).then(() => {
-            console.log(`Session ${s.reference} auto → ${newStatus}`)
+          // Écriture d'appoint en arrière-plan : un refus est seulement journalisé (le statut affiché reste calculé)
+          enregistrer(supabase.from('sessions').update({ status: newStatus }).eq('id', s.id)).then(({ error: errStatut }) => {
+            if (errStatut) console.warn(`Session ${s.reference} : statut ${newStatus} non enregistré :`, errStatut.message)
           })
           s.status = newStatus
         }
@@ -927,17 +929,16 @@ export const useDataStore = create((set, get) => ({
     
     console.log('Updating session:', id, sessionUpdates)
     
-    const { data, error } = await supabase
-      .from('sessions')
-      .update(sessionUpdates)
-      .eq('id', id)
-      .select()
-      .single()
+    const { data: lignesSession, error } = await enregistrer(
+      supabase.from('sessions').update(sessionUpdates).eq('id', id).select(),
+      { attendu: 1, message: "Session non enregistrée : votre compte n'a pas le droit de la modifier, ou elle a été supprimée entre-temps." }
+    )
     
     if (error) {
       console.error('updateSession error:', error)
       return { data: null, error }
     }
+    const data = lignesSession[0]
     
     if (data) {
       // Formateurs fournis (C6) : session_trainers suit la liste, principal compris
@@ -950,16 +951,23 @@ export const useDataStore = create((set, get) => ({
         }
       }
       // Mettre à jour les stagiaires si fournis
+      // Retrait puis réinsertion : 0 ligne retirée est normal (session sans stagiaire), seule l'erreur compte
       if (trainee_ids !== undefined) {
-        await supabase.from('session_trainees').delete().eq('session_id', id)
-        if (trainee_ids.length) {
-          await supabase.from('session_trainees').insert(
+        const { error: errRetrait } = await supabase.from('session_trainees').delete().eq('session_id', id)
+        let errAjout = null
+        if (!errRetrait && trainee_ids.length) {
+          ({ error: errAjout } = await supabase.from('session_trainees').insert(
             trainee_ids.map(tid => ({ 
               session_id: id, 
               trainee_id: tid,
               registration_date: new Date().toISOString()
             }))
-          )
+          ))
+        }
+        const errStagiaires = errRetrait || errAjout
+        if (errStagiaires) {
+          await get().fetchSessions()
+          return { data, error: { ...errStagiaires, message: `Session enregistrée, mais les stagiaires n'ont pas été mis à jour : ${errStagiaires.message}` } }
         }
       }
       await get().fetchSessions()
@@ -970,7 +978,9 @@ export const useDataStore = create((set, get) => ({
   deleteSession: async (id) => {
     // Les inscriptions partent avec la session (clé étrangère en cascade) : la base trace alors une seule
     // suppression de session (0485) au lieu d'autant de retraits que de stagiaires.
-    const { error } = await supabase.from('sessions').delete().eq('id', id)
+    const { error } = await enregistrer(supabase.from('sessions').delete().eq('id', id), {
+      attendu: 1, message: "votre compte n'a pas le droit de supprimer cette session, ou elle l'a déjà été."
+    })
     if (!error) {
       // Ses formateurs partent avec la session (cascade, 0495) ; retrait gardé pour le cas d'un retour arrière de 0495
       const { error: errFormateurs } = await supabase.from('session_trainers').delete().eq('session_id', id)
@@ -996,11 +1006,11 @@ export const useDataStore = create((set, get) => ({
   },
   
   removeTraineeFromSession: async (sessionId, traineeId) => {
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('session_trainees')
       .delete()
       .eq('session_id', sessionId)
-      .eq('trainee_id', traineeId)
+      .eq('trainee_id', traineeId), { message: "Stagiaire non retiré : votre compte n'a pas le droit de modifier cette session, ou il n'y était plus inscrit." })
     if (!error) await get().fetchSessions()
     return { error }
   },
@@ -1024,11 +1034,11 @@ export const useDataStore = create((set, get) => ({
 
   
   updateTraineeStatus: async (sessionId, traineeId, status) => {
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('session_trainees')
       .update({ status })
       .eq('session_id', sessionId)
-      .eq('trainee_id', traineeId)
+      .eq('trainee_id', traineeId))
     if (!error) await get().fetchSessions()
     return { error }
   },
@@ -1842,13 +1852,13 @@ export const useDataStore = create((set, get) => ({
     }
     
     // 5. Mettre à jour session_trainees
-    const { data, error } = await supabase
+    const { data: lignes, error } = await enregistrer(supabase
       .from('session_trainees')
       .update({ result })
       .eq('session_id', sessionId)
       .eq('trainee_id', traineeId)
-      .select()
-      .single()
+      .select(), { attendu: 1 })
+    const data = lignes?.[0] ?? null
     
     if (error) console.error('updateTraineeResult error:', error)
     return { data, error, result, allObjectivesValidated, allPresent }
@@ -1856,7 +1866,7 @@ export const useDataStore = create((set, get) => ({
   
   // Forcer le résultat d'un stagiaire manuellement
   forceTraineeResult: async (sessionId, traineeId, forcedResult, reason = '') => {
-    const { data, error } = await supabase
+    const { data: lignes, error } = await enregistrer(supabase
       .from('session_trainees')
       .update({ 
         result: forcedResult,
@@ -1865,8 +1875,8 @@ export const useDataStore = create((set, get) => ({
       })
       .eq('session_id', sessionId)
       .eq('trainee_id', traineeId)
-      .select()
-      .single()
+      .select(), { attendu: 1 })
+    const data = lignes?.[0] ?? null
     
     if (error) console.error('forceTraineeResult error:', error)
     return { data, error, result: forcedResult }
@@ -1874,13 +1884,13 @@ export const useDataStore = create((set, get) => ({
   
   // Mettre à jour la proposition de remédiation
   updateRemediationProposal: async (sessionId, traineeId, proposal) => {
-    const { data, error } = await supabase
+    const { data: lignes, error } = await enregistrer(supabase
       .from('session_trainees')
       .update({ remediation_proposal: proposal })
       .eq('session_id', sessionId)
       .eq('trainee_id', traineeId)
-      .select()
-      .single()
+      .select(), { attendu: 1 })
+    const data = lignes?.[0] ?? null
     
     if (error) console.error('updateRemediationProposal error:', error)
     return { data, error }
@@ -1888,13 +1898,13 @@ export const useDataStore = create((set, get) => ({
   
   // Mettre à jour le statut de présence complète
   updatePresenceComplete: async (sessionId, traineeId, isComplete) => {
-    const { data, error } = await supabase
+    const { data: lignes, error } = await enregistrer(supabase
       .from('session_trainees')
       .update({ presence_complete: isComplete })
       .eq('session_id', sessionId)
       .eq('trainee_id', traineeId)
-      .select()
-      .single()
+      .select(), { attendu: 1 })
+    const data = lignes?.[0] ?? null
     
     if (error) console.error('updatePresenceComplete error:', error)
     return { data, error }

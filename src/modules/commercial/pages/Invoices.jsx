@@ -1049,13 +1049,16 @@ export default function Invoices() {
       if (mode === 'create' && current.session_id && !isCreditNote) {
         const { data: sessCheck } = await supabase.from('sessions').select('session_type').eq('id', current.session_id).single()
         if (sessCheck?.session_type === 'subcontract') {
-          await supabase.from('sessions').update({ subcontract_invoiced: true, subcontract_invoice_id: iid, updated_at: new Date().toISOString() }).eq('id', current.session_id)
+          const { error: errFacturee } = await enregistrer(supabase.from('sessions').update({ subcontract_invoiced: true, subcontract_invoice_id: iid, updated_at: new Date().toISOString() }).eq('id', current.session_id), { attendu: 1 })
+          if (errFacturee) toast.error(`Facture enregistrée, mais la session n'est pas marquée facturée : ${errFacturee.message}`, { duration: 8000 })
         }
       }
       if (mode === 'create' && current._grouped_session_ids?.length > 0) {
-        await Promise.all(current._grouped_session_ids.map(sid =>
-          supabase.from('sessions').update({ subcontract_invoiced: true, subcontract_invoice_id: iid, updated_at: new Date().toISOString() }).eq('id', sid)
+        const marques = await Promise.all(current._grouped_session_ids.map(sid =>
+          enregistrer(supabase.from('sessions').update({ subcontract_invoiced: true, subcontract_invoice_id: iid, updated_at: new Date().toISOString() }).eq('id', sid), { attendu: 1 })
         ))
+        const nonMarquees = marques.filter((r) => r.error).length
+        if (nonMarquees) toast.error(`Facture enregistrée, mais ${nonMarquees} session${nonMarquees > 1 ? 's ne sont pas marquées facturées' : " n'est pas marquée facturée"} : vérifiez vos droits ou rechargez la page.`, { duration: 8000 })
       }
       toast.success(mode === 'create' ? (current.type === 'credit_note' ? 'Avoir créé' : 'Facture créée') : 'Mise à jour')
       setMode('list'); loadAll()
