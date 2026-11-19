@@ -9,6 +9,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useOuvrirSiDemande } from '../../../ui/useOuvrirSiDemande'
 import { supabase } from '../../../core/supabase'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
+import { enregistrer } from '../../../core/enregistrer'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { generateFacturXPDF, generateInvoicePDF, calcInvoiceTotals, isDraftDoc } from '../pdf/invoiceGenerator'
 import { Sheet } from '../../../ui/Sheet'
@@ -1012,9 +1013,11 @@ export default function Invoices() {
         const { data, error } = await supabase.from('invoices').insert(invData).select().single()
         if (error) throw error; iid = data.id
       } else {
-        const { error } = await supabase.from('invoices').update(invData).eq('id', current.id)
+        // Vérifiée : sans droit de modification, rien n'est touché (lignes comprises)
+        const { error } = await enregistrer(supabase.from('invoices').update(invData).eq('id', current.id), { message: "Facture non modifiée : votre compte n'a pas le droit de la modifier, ou elle a été modifiée ou supprimée entre-temps." })
         if (error) throw error; iid = current.id
-        await supabase.from('invoice_items').delete().eq('invoice_id', iid)
+        const { error: de } = await supabase.from('invoice_items').delete().eq('invoice_id', iid)
+        if (de) throw de
       }
       const toIns = items.filter(it => it.description_title).map((it, i) => ({
         invoice_id: iid, position: i, code: it.code || '', description_title: it.description_title,
@@ -1059,10 +1062,13 @@ export default function Invoices() {
   // ─── Delete ───
   const handleDelete = async (id) => {
     if (!await confirmer({ title: 'Supprimer ce brouillon ?', message: 'Le brouillon et ses lignes seront supprimés. Un document émis, lui, ne se supprime jamais.', confirmLabel: 'Supprimer', danger: true })) return
-    await supabase.from('invoice_items').delete().eq('invoice_id', id)
-    await supabase.from('invoice_payments').delete().eq('invoice_id', id)
-    await supabase.from('invoice_relances').delete().eq('invoice_id', id)
-    await supabase.from('invoices').delete().eq('id', id)
+    // Chaque suppression vérifiée : arrêt à la première erreur, « Supprimée » seulement si la facture a bien disparu
+    for (const table of ['invoice_items', 'invoice_payments', 'invoice_relances']) {
+      const { error } = await supabase.from(table).delete().eq('invoice_id', id)
+      if (error) { toast.error('Suppression impossible : ' + error.message); loadAll(); return }
+    }
+    const { error } = await enregistrer(supabase.from('invoices').delete().eq('id', id), { message: "Brouillon non supprimé : votre compte n'a pas le droit de le supprimer, ou il a déjà été supprimé." })
+    if (error) { toast.error(error.message); loadAll(); return }
     toast.success('Supprimée'); loadAll()
   }
 
@@ -1098,17 +1104,19 @@ export default function Invoices() {
       const remaining = ttc - alreadyPaid - creditedAmt
       updateData.amount_paid = alreadyPaid + Math.max(0, remaining); updateData.amount_due = 0
       if (remaining > 0.01) {
-        await supabase.from('invoice_payments').insert({
+        const { error: pe } = await supabase.from('invoice_payments').insert({
           invoice_id: id, amount: remaining, payment_date: format(new Date(), 'yyyy-MM-dd'),
           payment_method: inv.payment_method || 'virement bancaire', payment_reference: '',
           notes: 'Marquée payée manuellement', created_by: inv.created_by || currentUserName(),
         })
+        if (pe) { toast.error('Paiement non enregistré : ' + pe.message); return }
       }
     }
     if (['draft', 'due', 'overdue'].includes(s) && inv?.status === 'paid') {
       updateData.amount_paid = 0; updateData.amount_due = Math.max(0, (parseFloat(inv.total_ttc) || 0) - creditedAmt)
     }
-    await supabase.from('invoices').update(updateData).eq('id', id)
+    const { error: se } = await enregistrer(supabase.from('invoices').update(updateData).eq('id', id), { message: "Statut non changé : votre compte n'a pas le droit de modifier cette facture, ou elle a été modifiée entre-temps." })
+    if (se) { toast.error(se.message); loadAll(); return }
     toast.success('Statut mis à jour'); loadAll()
   }
 
@@ -1124,13 +1132,15 @@ export default function Invoices() {
     const np = (parseFloat(current.amount_paid) || 0) + amt
     if (current.type === 'credit_note') {
       // Remboursement : le trigger SQL recalcule reste à rembourser et statut
-      await supabase.from('invoices').update({ amount_paid: np, updated_at: new Date().toISOString() }).eq('id', current.id)
-      toast.success('Remboursement enregistré')
+      const { error: ue } = await enregistrer(supabase.from('invoices').update({ amount_paid: np, updated_at: new Date().toISOString() }).eq('id', current.id))
+      if (ue) toast.error('Remboursement enregistré, mais avoir non mis à jour : ' + ue.message)
+      else toast.success('Remboursement enregistré')
     } else {
       const nd = (parseFloat(current.total_ttc) || 0) - np - (parseFloat(current.amount_credited) || 0)
       const ns = nd <= 0.01 ? 'paid' : 'partial'
-      await supabase.from('invoices').update({ amount_paid: np, amount_due: Math.max(0, nd), status: ns, updated_at: new Date().toISOString() }).eq('id', current.id)
-      toast.success('Paiement enregistré')
+      const { error: ue } = await enregistrer(supabase.from('invoices').update({ amount_paid: np, amount_due: Math.max(0, nd), status: ns, updated_at: new Date().toISOString() }).eq('id', current.id))
+      if (ue) toast.error('Paiement enregistré, mais facture non mise à jour : ' + ue.message)
+      else toast.success('Paiement enregistré')
     }
     await refreshCurrent(current.id)
     await loadPayments(current.id); setShowPaymentForm(false)

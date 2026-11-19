@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
 import { fetchAllRows as fetchAll } from '../../../core/fetchAll'
+import { enregistrer } from '../../../core/enregistrer'
 import { useAuthStore, useDataStore } from '../../../core/store'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -602,12 +603,13 @@ function EncaissementsTab({ invoices, payments, loadAll, isDateLocked }) {
       const newPaid = (parseFloat(selectedInvoice.amount_paid) || 0) + amount
       const newDue = Math.max(0, (parseFloat(selectedInvoice.total_ttc) || 0) - newPaid - (parseFloat(selectedInvoice.amount_credited) || 0))
       const newStatus = newDue <= 0.01 ? 'paid' : 'partial'
-      await supabase.from('invoices').update({
+      const { error: ue } = await enregistrer(supabase.from('invoices').update({
         amount_paid: newPaid,
         amount_due: newDue,
         status: newStatus,
         updated_at: new Date().toISOString()
-      }).eq('id', selectedInvoice.id)
+      }).eq('id', selectedInvoice.id))
+      if (ue) throw new Error('encaissement enregistré, mais facture non mise à jour (' + ue.message + ')')
 
       toast.success(`Encaissement de ${fmt(amount)} enregistré`)
       setShowForm(false)
