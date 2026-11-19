@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronRight, Phone, Mail, Moon, CheckCircle2, XCircle, ExternalLink, Loader2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../../core/supabase'
+import { enregistrer } from '../../../../core/enregistrer'
 import { VeilleModal } from './SuiviActionModals'
 import {
   LOST_REASONS, fmtDate, fmtMoney, quoteNextDue, todayStr, diffDays, logInteraction,
@@ -39,7 +40,7 @@ function PerduModal({ quote, author, onClose, onDone }) {
       const lost = reason + (note.trim() ? ' - ' + note.trim() : '')
       const patch = { lost_reason: lost, triaged_at: now, updated_at: now }
       if (!isPartial) patch.status = 'refused'
-      const { error } = await supabase.from('quotes').update(patch).eq('id', quote.id)
+      const { error } = await enregistrer(supabase.from('quotes').update(patch).eq('id', quote.id))
       if (error) throw error
       await logInteraction(supabase, {
         clientId: quote.client_id,
@@ -127,7 +128,7 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
           triaged_at: now,
           updated_at: now,
         }
-        const { error } = await supabase.from('quotes').update(patch).eq('id', q.id)
+        const { error } = await enregistrer(supabase.from('quotes').update(patch).eq('id', q.id))
         if (error) throw error
       }
       await logInteraction(supabase, {
@@ -149,7 +150,7 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
     try {
       const now = new Date().toISOString()
       for (const q of group.quotes) {
-        const { error } = await supabase.from('quotes').update({ triaged_at: now, updated_at: now }).eq('id', q.id)
+        const { error } = await enregistrer(supabase.from('quotes').update({ triaged_at: now, updated_at: now }).eq('id', q.id))
         if (error) throw error
       }
       toast.success('Devis gardés en suivi')
@@ -163,9 +164,9 @@ export function QuoteGroupRow({ group, author, onChanged, onRelanceMail, relance
     if (!await confirmer(`Passer le devis ${q.reference} en « Accepté » ?`)) return
     try {
       const now = new Date().toISOString()
-      const { error } = await supabase.from('quotes')
+      const { error } = await enregistrer(supabase.from('quotes')
         .update({ status: 'accepted', triaged_at: now, updated_at: now })
-        .eq('id', q.id)
+        .eq('id', q.id))
       if (error) throw error
       await logInteraction(supabase, {
         clientId: q.client_id, type: 'devis', title: `Devis ${q.reference} accepté`, author,

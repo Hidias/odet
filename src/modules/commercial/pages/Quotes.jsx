@@ -7,6 +7,7 @@ import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
+import { enregistrer, estAucuneLigne } from '../../../core/enregistrer'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -539,10 +540,13 @@ export default function Quotes() {
         if (error) throw error
         quoteId = data.id
       } else {
-        const { error } = await supabase.from('quotes').update(quoteData).eq('id', currentQuote.id)
+        // Vérifiée : sans droit de modification, rien n'est touché (lignes comprises)
+        const { error } = await enregistrer(supabase.from('quotes').update(quoteData).eq('id', currentQuote.id), { message: "Devis non modifié : votre compte n'a pas le droit de le modifier, ou il a été modifié ou supprimé entre-temps." })
         if (error) throw error
         quoteId = currentQuote.id
-        await supabase.from('quote_items').delete().eq('quote_id', quoteId)
+        // Suppression des anciennes lignes : 0 ligne est normal (devis sans ligne), seule l'erreur compte
+        const { error: de } = await supabase.from('quote_items').delete().eq('quote_id', quoteId)
+        if (de) throw de
       }
       const itemsToInsert = appliquerRegime(items.filter(it => it.description_title), regime || undefined).map((it, i) => ({
         quote_id: quoteId, position: i, code: it.code || '',
@@ -583,9 +587,9 @@ export default function Quotes() {
     }
     if (!await confirmer(confirmationSuppressionDevis(devis))) return false
     // Les lignes partent avec le devis (clé étrangère en cascade) : un devis qui ne peut pas être supprimé garde ses lignes
-    const { error } = await supabase.from('quotes').delete().eq('id', id)
+    const { error } = await enregistrer(supabase.from('quotes').delete().eq('id', id), { message: "Devis non supprimé : votre compte n'a pas le droit de le supprimer, ou il a déjà été supprimé." })
     if (error) {
-      toast.error(messageRefusSuppressionDevis(error, devis?.status))
+      toast.error(estAucuneLigne(error) ? error.message : messageRefusSuppressionDevis(error, devis?.status))
       loadAll()
       return false
     }
@@ -613,7 +617,8 @@ export default function Quotes() {
         ? await confirmer(confirmationPassageEnvoye())
         : await confirmer(`Passer ce devis en "${STATUS_CONFIG[newStatus].label}" ?`)
     if (!ok) return
-    await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id)
+    const { error: se } = await enregistrer(supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', id), { message: "Statut non changé : votre compte n'a pas le droit de modifier ce devis, ou il a été modifié entre-temps." })
+    if (se) { toast.error(se.message); loadAll(); return }
     toast.success(`Statut → ${STATUS_CONFIG[newStatus].label}`)
     // Devis remis (envoyé, accepté même sur papier sans envoi, en partie) : mis à disposition, sauf s'il est signé
     if (['sent', 'accepted', 'partial'].includes(newStatus)) regenererEtPublier(id)
@@ -837,8 +842,8 @@ export default function Quotes() {
       const statutPrevu = prevues.every(d => d === true) ? 'accepted' : 'partial'
       if (!await confirmerAcceptation(statutPrevu)) return
     }
-    const { error } = await supabase.from('quote_items').update({ accepted: acceptedValue }).eq('id', itemId)
-    if (error) { toast.error('Erreur: ' + error.message); return }
+    const { error } = await enregistrer(supabase.from('quote_items').update({ accepted: acceptedValue }).eq('id', itemId), { message: "Décision non enregistrée : votre compte n'a pas le droit de modifier ce devis, ou la ligne a été modifiée entre-temps." })
+    if (error) { toast.error(error.message); return }
 
     setItems(updatedItems)
 
@@ -854,7 +859,8 @@ export default function Quotes() {
     else if (allFalse) newStatus = 'refused'
 
     if (newStatus !== currentQuote.status) {
-      await supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', currentQuote.id)
+      const { error: se } = await enregistrer(supabase.from('quotes').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', currentQuote.id), { message: "Décision enregistrée, mais statut du devis non changé : rechargez la page." })
+      if (se) { toast.error(se.message); return }
       setCurrentQuote(prev => ({ ...prev, status: newStatus }))
       setQuotes(prev => prev.map(q => q.id === currentQuote.id ? { ...q, status: newStatus } : q))
       toast.success(`Statut → ${STATUS_CONFIG[newStatus]?.label || newStatus}`)
@@ -1029,10 +1035,12 @@ export default function Quotes() {
 
       if (createdSessions.length > 0) {
         // Add note to quote with session references
-        await supabase.from('quotes').update({
+        const { error: ne } = await enregistrer(supabase.from('quotes').update({
           notes: (quote.notes ? quote.notes + '\n' : '') + `Sessions créées le ${format(new Date(), 'dd/MM/yyyy')} : ${createdSessions.map(s => s.reference).join(', ')}`,
           updated_at: new Date().toISOString()
-        }).eq('id', quote.id)
+        }).eq('id', quote.id))
+        // Les sessions existent : seule la note du devis manque, on le dit sans bloquer
+        if (ne) toast.error('Sessions créées, mais note du devis non ajoutée : ' + ne.message, { duration: 6000 })
 
         toast.success(`${createdSessions.length} session${createdSessions.length > 1 ? 's' : ''} créée${createdSessions.length > 1 ? 's' : ''} !`, { duration: 4000 })
         setSessionWizard(null)
