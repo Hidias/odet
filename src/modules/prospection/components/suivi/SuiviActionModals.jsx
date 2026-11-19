@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../../core/supabase'
+import { enregistrer } from '../../../../core/enregistrer'
 import { callers, SANS_SUITE_REASONS, quickDates, todayStr, fmtDate, logInteraction } from './suiviUtils'
 
 import { confirmer } from '../../../../ui/Confirm'
@@ -323,7 +324,7 @@ export function VeilleModal({ group, author, onClose, onDone }) {
           triaged_at: now,
           updated_at: now,
         }
-        const { error } = await supabase.from('quotes').update(patch).eq('id', q.id)
+        const { error } = await enregistrer(supabase.from('quotes').update(patch).eq('id', q.id))
         if (error) throw error
       }
       await logInteraction(supabase, {

@@ -1032,7 +1032,11 @@ export default function Invoices() {
       if (current._funding_id && mode === 'create') {
         await supabase.from('session_fundings').update({ invoice_id: iid, status: 'invoiced', updated_at: new Date().toISOString() }).eq('id', current._funding_id)
       }
-      if (current.quote_id && current._from_quote && mode === 'create' && !isCreditNote) { await supabase.from('quotes').update({status: 'invoiced'}).eq('id', current.quote_id) }
+      if (current.quote_id && current._from_quote && mode === 'create' && !isCreditNote) {
+        // La facture existe : un devis non passé en « facturé » est signalé sans bloquer
+        const { error: qe } = await enregistrer(supabase.from('quotes').update({ status: 'invoiced' }).eq('id', current.quote_id))
+        if (qe) toast.error('Facture créée, mais devis non passé en « facturé » : ' + qe.message, { duration: 6000 })
+      }
       // Liaison facture ↔ sessions (mono, globale ou groupée sous-traitance)
       if (mode === 'create' && !isCreditNote) {
         const linkIds = [...new Set([current.session_id, ...(current._session_ids || []), ...(current._grouped_session_ids || [])].filter(Boolean))]

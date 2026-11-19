@@ -8,6 +8,7 @@ import { apiFetch } from '../../../core/api'
 import { texteEnHtml } from '../../../core/html'
 import { useState } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import { chargerCapacites } from '../../../core/capacites'
@@ -151,12 +152,14 @@ export function useRelanceIA() {
       const noteDate = new Date().toLocaleDateString('fr-FR')
       const relanceLabel = relanceNum === 1 ? '1ère' : relanceNum === 2 ? '2ème' : '3ème'
 
-      await supabase.from('quotes').update({
+      // Le mail est parti : si le devis n'est pas mis à jour, on le dit (sinon la relance serait reproposée sans trace)
+      const { error: ue } = await enregistrer(supabase.from('quotes').update({
         relance_count: relanceNum,
         last_relance_date: format(new Date(), 'yyyy-MM-dd'),
         notes: (quote.notes ? quote.notes + '\n' : '') + ` ${relanceLabel} relance envoyée le ${noteDate} à ${clientEmail}`,
         updated_at: new Date().toISOString(),
-      }).eq('id', quote.id)
+      }).eq('id', quote.id))
+      if (ue) toast.error('Relance envoyée, mais devis non mis à jour (compteur et note) : ' + ue.message, { duration: 8000 })
 
       // Logger l'interaction (silencieux si échec)
       try {
