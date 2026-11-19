@@ -1030,7 +1030,9 @@ export default function Invoices() {
       // Devis → « facturé » uniquement quand la facture est créée depuis le devis
       // (un devis peut couvrir plusieurs sessions facturées séparément)
       if (current._funding_id && mode === 'create') {
-        await supabase.from('session_fundings').update({ invoice_id: iid, status: 'invoiced', updated_at: new Date().toISOString() }).eq('id', current._funding_id)
+        // La facture existe : un financement non passé en « facturé » est signalé sans bloquer
+        const { error: fe } = await enregistrer(supabase.from('session_fundings').update({ invoice_id: iid, status: 'invoiced', updated_at: new Date().toISOString() }).eq('id', current._funding_id), { attendu: 1 })
+        if (fe) toast.error('Facture créée, mais financement non passé en « facturé » : ' + fe.message, { duration: 6000 })
       }
       if (current.quote_id && current._from_quote && mode === 'create' && !isCreditNote) {
         // La facture existe : un devis non passé en « facturé » est signalé sans bloquer

@@ -127,7 +127,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       group_name: clients.find((c) => c.id === e.client_id)?.name || e.group_name || null,
     }
     const { error } = e.id
-      ? await supabase.from('session_groups').update(champs).eq('id', e.id)
+      ? await enregistrer(supabase.from('session_groups').update(champs).eq('id', e.id), { attendu: 1 })
       : await supabase.from('session_groups').insert(champs)
     setBusy(false)
     if (error) return toast.error(error.message)
@@ -137,7 +137,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   }
 
   const docStatut = async (g, statut) => {
-    const { error } = await supabase.from('session_groups').update({ doc_status: statut }).eq('id', g.id)
+    const { error } = await enregistrer(supabase.from('session_groups').update({ doc_status: statut }).eq('id', g.id), { attendu: 1 })
     if (error) return toast.error(error.message)
     toast.success(statut === 'signe' && g.kind === 'particulier' ? 'Contrat signé : le délai de rétractation de 10 jours commence' : 'Statut du document enregistré')
     load()
@@ -155,7 +155,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     // Détachement des stagiaires : 0 ligne est normal (groupe vide), seule l'erreur compte
     const { error: errDetache } = await supabase.from('session_trainees').update({ group_id: null }).eq('session_id', session.id).eq('group_id', g.id)
     if (errDetache) return toast.error(`Groupe non supprimé : ses stagiaires n'ont pas pu en être détachés (${errDetache.message})`)
-    const { error } = await supabase.from('session_groups').delete().eq('id', g.id)
+    const { error } = await enregistrer(supabase.from('session_groups').delete().eq('id', g.id), { attendu: 1 })
     if (error) return toast.error(error.message)
     setEdition(null)
     load()
@@ -220,7 +220,11 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
       const label = `${g.kind === 'particulier' ? 'Contrat de formation' : 'Convention de formation'} ${session.reference || ''}`.trim()
       const r = await mettreADisposition({ objectType: 'session_group', objectId: g.id, kind: 'contrat', label, base64: doc.base64 })
       if (!r) throw new Error('Mise à disposition impossible')
-      if (g.doc_status === 'a_envoyer') await supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', g.id)
+      if (g.doc_status === 'a_envoyer') {
+        // Document déjà dans l'espace du client : un statut non noté est signalé sans annuler la mise à disposition
+        const { error: errStatut } = await enregistrer(supabase.from('session_groups').update({ doc_status: 'envoye' }).eq('id', g.id), { attendu: 1 })
+        if (errStatut) toast.error(`Document mis à disposition, mais statut « envoyé » non noté : ${errStatut.message}`)
+      }
       toast.success(r.signe ? 'Déjà signé : le document du client n\'est pas remplacé' : r.deja ? `Déjà dans l'espace du client, en attente de signature${sansAcces ? ' : créez son accès sur sa fiche (Accès entreprise)' : ''}` : sansAcces ? 'Document à signer dans l\'espace du client : créez son accès sur sa fiche (Accès entreprise)' : 'Document à signer dans l\'espace du client', { duration: sansAcces ? 7000 : 4000 })
       load()
     } catch (e) {
