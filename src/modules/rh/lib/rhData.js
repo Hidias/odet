@@ -4,6 +4,7 @@
 
 import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 
@@ -76,19 +77,19 @@ const nettoyer = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k,
 
 export async function enregistrerPersonne(p) {
   const { id, ...reste } = nettoyer(p)
-  if (id) return must(await supabase.from('hr_people').update(reste).eq('id', id).select('id').single())
+  if (id) return (await enregistrerOuLever(supabase.from('hr_people').update(reste).eq('id', id)))[0]
   return must(await supabase.from('hr_people').insert(reste).select('id').single())
 }
 export async function archiverPersonne(id, archive) {
-  must(await supabase.from('hr_people').update({ archived_at: archive ? new Date().toISOString() : null }).eq('id', id))
+  await enregistrerOuLever(supabase.from('hr_people').update({ archived_at: archive ? new Date().toISOString() : null }).eq('id', id))
 }
 export async function enregistrerContrat(c) {
   const { id, hr_teams: _t, manager: _m, ...reste } = nettoyer(c)
   for (const k of ['weekly_hours', 'days_per_year']) reste[k] = reste[k] === '' || reste[k] == null ? null : Number(reste[k])
-  if (id) return must(await supabase.from('hr_employments').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('hr_employments').update(reste).eq('id', id))
   return must(await supabase.from('hr_employments').insert(reste))
 }
-export const supprimerContrat = async (id) => must(await supabase.from('hr_employments').delete().eq('id', id))
+export const supprimerContrat = async (id) => enregistrerOuLever(supabase.from('hr_employments').delete().eq('id', id))
 
 /** Rémunérations d'un contrat : lecture journalisée par la base */
 export const voirRemuneration = async (employmentId) => must(await supabase.rpc('hr_remuneration', { p_employment: employmentId }))

@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { Plus, FileText, Upload, Trash2, Pencil, ExternalLink, Archive, ShieldCheck, HeartPulse, Lock } from 'lucide-react'
 import { Sheet } from '../../../ui/Sheet'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import PadSimple from '../../../ui/signature/PadSimple'
 import MaSignature from '../../../core/signatures/MaSignature'
 import { chargerSignatures } from '../../../core/signatures/signatures'
@@ -280,7 +281,8 @@ function TitreSheet({ companyId, personId, hab, onClose, onSaved }) {
       const nomFichier = `${elec ? 'Titre-habilitation' : 'Autorisation-conduite'}-${ctx.person?.last_name || 'salarie'}-${delivre}.pdf`
       const file = new File([blob], nomFichier, { type: 'application/pdf' })
       const d = await deposerDocument({ companyId, personId, file, category: 'titre', confidentiality: 'normal', title: `${elec ? "Titre d'habilitation électrique" : 'Autorisation de conduite'} du ${fr(delivre)}`, docDate: delivre })
-      await supabase.from('hr_qualifications').update({ delivered_at: delivre, delivered_by: signataire, employee_signed_at: surPapier ? null : new Date().toISOString(), title_document_id: d.id, document_id: hab.document_id || d.id }).eq('id', hab.id)
+      await enregistrerOuLever(supabase.from('hr_qualifications').update({ delivered_at: delivre, delivered_by: signataire, employee_signed_at: surPapier ? null : new Date().toISOString(), title_document_id: d.id, document_id: hab.document_id || d.id }).eq('id', hab.id),
+        { message: 'Titre rangé dans les documents, mais l\'habilitation n\'a pas été mise à jour (droits ou fiche modifiée) : rechargez la page.' })
       window.open(URL.createObjectURL(blob), '_blank', 'noopener')
       toast.success('Titre édité et rangé dans les documents de la personne')
       onSaved()

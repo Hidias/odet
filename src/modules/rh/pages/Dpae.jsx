@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { ExternalLink, Copy } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { Sheet } from '../../../ui/Sheet'
 import {
   LIEN_DPAE_URSSAF, LIEN_DPAE_NET_ENTREPRISES, etatDpae, LIBELLES_ETAT_DPAE, recapitulatifDpae, texteRecapitulatif, erreurDateEnvoi,
@@ -47,17 +48,16 @@ export function DpaeSheet({ personne, contrat, onClose, onSaved }) {
   const copier = async () => {
     try { await navigator.clipboard.writeText(texteRecapitulatif(lignes)); toast.success('Récapitulatif copié') } catch { toast.error('Copie impossible : sélectionnez le texte à la main') }
   }
-  const enregistrer = async (e) => {
+  const enregistrerDpae = async (e) => {
     e.preventDefault()
     if (v.dpae_reference && !v.dpae_sent_on) { toast.error('Indiquez la date d\'envoi'); return }
     const erreurDate = erreurDateEnvoi(v.dpae_sent_on, contrat.start_on)
     if (erreurDate) { toast.error(erreurDate); return }
     setBusy(true)
-    const { data, error } = await supabase.from('hr_employments')
-      .update({ dpae_sent_on: v.dpae_sent_on || null, dpae_reference: v.dpae_reference.trim() || null }).eq('id', contrat.id).select('id')
+    const { error } = await enregistrer(supabase.from('hr_employments').update({ dpae_sent_on: v.dpae_sent_on || null, dpae_reference: v.dpae_reference.trim() || null }).eq('id', contrat.id),
+      { message: 'Enregistrement refusé : vous n\'avez pas le droit de modifier ce contrat, ou il a été modifié entre-temps' })
     setBusy(false)
     if (error) { toast.error(error.message); return }
-    if (!data?.length) { toast.error('Enregistrement refusé : vous n\'avez pas le droit de modifier ce contrat'); return }
     toast.success(v.dpae_sent_on ? 'DPAE notée' : 'DPAE retirée')
     onSaved()
   }
@@ -88,7 +88,7 @@ export function DpaeSheet({ personne, contrat, onClose, onSaved }) {
             )
           })}
         </dl>
-        <form id="rh-dpae" onSubmit={enregistrer} className="grid gap-3 sm:grid-cols-2">
+        <form id="rh-dpae" onSubmit={enregistrerDpae} className="grid gap-3 sm:grid-cols-2">
           <label className="block"><span className="label">Date d'envoi</span><input className="input" type="date" max={new Date().toISOString().slice(0, 10)} value={v.dpae_sent_on} onChange={(e) => setV({ ...v, dpae_sent_on: e.target.value })} /></label>
           <label className="block"><span className="label">Référence de l'accusé de réception</span><input className="input" maxLength={60} value={v.dpae_reference} onChange={(e) => setV({ ...v, dpae_reference: e.target.value })} /></label>
         </form>
