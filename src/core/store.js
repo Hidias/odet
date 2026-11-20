@@ -2753,10 +2753,10 @@ export const useDataStore = create((set, get) => ({
   
   // Marquer un équipement comme préparé
   toggleEquipmentPrepared: async (sessionEquipmentId, isPrepared) => {
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('session_equipment')
       .update({ is_prepared: isPrepared })
-      .eq('id', sessionEquipmentId)
+      .eq('id', sessionEquipmentId), { attendu: 1 })
     if (error) console.error('toggleEquipmentPrepared error:', error)
     return { error }
   },
@@ -2777,10 +2777,10 @@ export const useDataStore = create((set, get) => ({
   
   // Supprimer un équipement d'une session
   removeSessionEquipment: async (sessionEquipmentId) => {
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('session_equipment')
       .delete()
-      .eq('id', sessionEquipmentId)
+      .eq('id', sessionEquipmentId), { attendu: 1 })
     if (error) console.error('removeSessionEquipment error:', error)
     return { error }
   },

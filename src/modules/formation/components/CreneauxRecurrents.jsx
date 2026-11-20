@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Repeat, Plus, Loader2, Pause, Play, Trash2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { Sheet } from '../../../ui/Sheet'
 import { confirmer } from '../../../ui/Confirm'
 import { finConseillee, finApresDebut } from '../lib/horaires'
@@ -89,7 +90,7 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
     onSessionsCreees?.()
   }
 
-  const enregistrer = async (e) => {
+  const enregistrerCreneau = async (e) => {
     e.preventDefault()
     if (!form.course_id) return toast.error('Choisissez la formation')
     const ligne = {
@@ -111,14 +112,14 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
   }
 
   const basculer = async (c) => {
-    const { error } = await supabase.from('session_recurrences').update({ actif: !c.actif }).eq('id', c.id)
+    const { error } = await enregistrer(supabase.from('session_recurrences').update({ actif: !c.actif }).eq('id', c.id), { attendu: 1 })
     if (error) return toast.error(error.message)
     if (!c.actif) await generer(c.id)
     await charger()
   }
   const supprimer = async (c) => {
     if (!(await confirmer({ title: 'Supprimer ce créneau ?', message: 'Les sessions déjà créées restent dans le planning, sans lien au créneau. Aucune nouvelle session ne sera créée.', confirmLabel: 'Supprimer', danger: true }))) return
-    const { error } = await supabase.from('session_recurrences').delete().eq('id', c.id)
+    const { error } = await enregistrer(supabase.from('session_recurrences').delete().eq('id', c.id), { attendu: 1 })
     if (error) return toast.error(error.message)
     await charger()
   }
@@ -157,7 +158,7 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
         {peutCreer && !form && <button type="button" className="btn btn-primary btn-sm" onClick={() => setForm(vide())}><Plus className="w-4 h-4" />Nouveau créneau</button>}
 
         {form && (
-          <form onSubmit={enregistrer} className="space-y-3 border-t hairline pt-3">
+          <form onSubmit={enregistrerCreneau} className="space-y-3 border-t hairline pt-3">
             <div>
               <label className="label" htmlFor="cr-course">Formation *</label>
               <select id="cr-course" className="select" value={form.course_id} onChange={(e) => {

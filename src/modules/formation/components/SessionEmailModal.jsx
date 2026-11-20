@@ -844,17 +844,19 @@ Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le
       const now = new Date().toISOString()
       const today = now.split('T')[0]
 
+      // Cases non cochées : signalées une fois, le mail est déjà parti
+      const nonCochees = []
       for (const code of codes) {
         const { data: existing } = await supabase
           .from('session_checklists')
-          .select('id', 'is_checked')
+          .select('id, is_checked')
           .eq('session_id', session.id)
           .eq('item_code', code)
           .maybeSingle()
 
         if (existing) {
           if (!existing.is_checked) {
-            await supabase
+            const { error: errCase } = await enregistrer(supabase
               .from('session_checklists')
               .update({
                 is_checked: true,
@@ -862,10 +864,11 @@ Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le
                 checked_by: user?.id,
                 date_realized: today
               })
-              .eq('id', existing.id)
+              .eq('id', existing.id), { attendu: 1 })
+            if (errCase) nonCochees.push(code)
           }
         } else {
-          await supabase
+          const { error: errCase } = await supabase
             .from('session_checklists')
             .insert({
               session_id: session.id,
@@ -875,8 +878,10 @@ Nous vous serions reconnaissants de bien vouloir compléter et nous retourner le
               checked_by: user?.id,
               date_realized: today
             })
+          if (errCase) nonCochees.push(code)
         }
       }
+      if (nonCochees.length) toast.error(`Envoi fait, mais ${nonCochees.length} case${nonCochees.length > 1 ? 's' : ''} de la checklist non cochée${nonCochees.length > 1 ? 's' : ''} : à cocher à la main.`, { duration: 8000 })
 
       // Sync aussi les colonnes sur la table sessions (utilisées par le bloc "Suivi Convention") ; jamais pour une
       // session inter, avec ou sans groupe : elle suit ses conventions groupe par groupe (décision de H, 06/11)

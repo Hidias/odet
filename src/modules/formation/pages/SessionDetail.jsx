@@ -721,35 +721,40 @@ export default function SessionDetail() {
       return
     }
     
-    // Supprimer l'existant
-    await supabase.from('session_equipment').delete().eq('session_id', session.id)
+    // Supprimer l'existant : 0 ligne est normal (session sans matériel), seule l'erreur compte
+    const { error: errVidage } = await supabase.from('session_equipment').delete().eq('session_id', session.id)
+    if (errVidage) return toast.error(`Matériel non recalculé : ${errVidage.message}`)
     
     // Calculer et insérer
+    let echecs = 0
     for (const ce of courseEquipment) {
       const ratio = ce.equipment_catalog?.ratio_per_persons
       const quantity = ratio ? Math.ceil(nbTrainees / ratio) : 1
       
-      await supabase.from('session_equipment').insert({
+      const { error: errAjout } = await supabase.from('session_equipment').insert({
         session_id: session.id,
         equipment_id: ce.equipment_id,
         quantity_required: quantity
       })
+      if (errAjout) echecs++
     }
     
     await loadSessionEquipment(session.id)
-    toast.success(`Matériel généré pour ${nbTrainees} stagiaire(s)`)
+    if (echecs) toast.error(`Matériel incomplet : ${echecs} article${echecs > 1 ? 's' : ''} sur ${courseEquipment.length} non ajouté${echecs > 1 ? 's' : ''}`)
+    else toast.success(`Matériel généré pour ${nbTrainees} stagiaire(s)`)
   }
   
   // Toggle préparé
   const toggleEquipmentPrepared = async (eqId, isPrepared) => {
-    await supabase
+    const { error } = await enregistrer(supabase
       .from('session_equipment')
       .update({ 
         is_prepared: isPrepared,
         prepared_by: isPrepared ? user?.email : null,
         prepared_at: isPrepared ? new Date().toISOString() : null
       })
-      .eq('id', eqId)
+      .eq('id', eqId), { attendu: 1 })
+    if (error) return toast.error(error.message)
     
     setSessionEquipment(sessionEquipment.map(eq => 
       eq.id === eqId ? { 
@@ -793,7 +798,8 @@ export default function SessionDetail() {
   
   // Supprimer un équipement de la session
   const removeEquipmentFromSession = async (eqId) => {
-    await supabase.from('session_equipment').delete().eq('id', eqId)
+    const { error } = await enregistrer(supabase.from('session_equipment').delete().eq('id', eqId), { attendu: 1 })
+    if (error) return toast.error(error.message)
     setSessionEquipment(sessionEquipment.filter(eq => eq.id !== eqId))
     toast.success('Équipement retiré')
   }
@@ -1192,13 +1198,13 @@ export default function SessionDetail() {
   const handleDeleteCost = async (costId) => {
     if (!await confirmer('Supprimer ce coût ?')) return
     
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('session_costs')
       .delete()
-      .eq('id', costId)
+      .eq('id', costId), { attendu: 1 })
     
     if (error) {
-      toast.error('Erreur lors de la suppression')
+      toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de la suppression')
       return
     }
     
@@ -1278,15 +1284,14 @@ export default function SessionDetail() {
     }
 
     if (editingFunding) {
-      const { data, error } = await supabase
+      const { data: lignes, error } = await enregistrer(supabase
         .from('session_fundings')
         .update(payload)
         .eq('id', editingFunding.id)
-        .select('*, clients:funder_client_id(name, siret, address, postal_code, city)')
-        .single()
+        .select('*, clients:funder_client_id(name, siret, address, postal_code, city)'), { attendu: 1 })
 
-      if (error) { toast.error('Erreur modification'); console.error(error); return }
-      setSessionFundings(prev => prev.map(f => f.id === editingFunding.id ? data : f))
+      if (error) { toast.error(estAucuneLigne(error) ? error.message : 'Erreur modification'); console.error(error); return }
+      setSessionFundings(prev => prev.map(f => f.id === editingFunding.id ? lignes[0] : f))
       toast.success('Financement modifié ')
     } else {
       const { data, error } = await supabase
@@ -1306,8 +1311,8 @@ export default function SessionDetail() {
 
   const handleDeleteFunding = async (fundingId) => {
     if (!await confirmer('Supprimer ce financement ?')) return
-    const { error } = await supabase.from('session_fundings').delete().eq('id', fundingId)
-    if (error) { toast.error('Erreur suppression'); return }
+    const { error } = await enregistrer(supabase.from('session_fundings').delete().eq('id', fundingId), { attendu: 1 })
+    if (error) { toast.error(estAucuneLigne(error) ? error.message : 'Erreur suppression'); return }
     setSessionFundings(prev => prev.filter(f => f.id !== fundingId))
     toast.success('Financement supprimé')
   }
@@ -1335,11 +1340,11 @@ export default function SessionDetail() {
   }
 
   const handleFundingStatus = async (fundingId, newStatus) => {
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('session_fundings')
       .update({ status: newStatus })
-      .eq('id', fundingId)
-    if (error) { toast.error('Erreur changement statut'); return }
+      .eq('id', fundingId), { attendu: 1 })
+    if (error) { toast.error(estAucuneLigne(error) ? error.message : 'Erreur changement statut'); return }
     setSessionFundings(prev => prev.map(f => f.id === fundingId ? { ...f, status: newStatus } : f))
     toast.success(`Statut → ${newStatus}`)
   }
@@ -4575,14 +4580,13 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 <button
                   onClick={async () => {
                     const now = new Date().toISOString()
-                    for (const eq of sessionEquipment.filter(e => !e.is_prepared)) {
-                      await supabase
-                        .from('session_equipment')
-                        .update({ is_prepared: true, prepared_by: user?.email, prepared_at: now })
-                        .eq('id', eq.id)
-                    }
+                    const aPreparer = sessionEquipment.filter(e => !e.is_prepared)
+                    const { error } = await enregistrer(supabase.from('session_equipment')
+                      .update({ is_prepared: true, prepared_by: user?.email, prepared_at: now })
+                      .in('id', aPreparer.map(e => e.id)), { attendu: aPreparer.length })
                     await loadSessionEquipment(session.id)
-                    toast.success('Tout le matériel marqué comme préparé')
+                    if (error) toast.error(error.message)
+                    else toast.success('Tout le matériel marqué comme préparé')
                   }}
                   className="btn btn-secondary w-full"
                 >

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer, estAucuneLigne } from '../../../core/enregistrer'
 import { FileCheck, Printer, Download, Save, AlertCircle, CheckCircle, Calendar, Eraser, Upload, Eye, Trash2, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SignatureCanvas from 'react-signature-canvas'
@@ -238,10 +239,10 @@ export default function SessionNeedsAnalysis({ session, organization }) {
       }
 
       if (analysis) {
-        const { error } = await supabase
+        const { error } = await enregistrer(supabase
           .from('session_needs_analysis')
           .update(dataToSave)
-          .eq('id', analysis.id)
+          .eq('id', analysis.id), { attendu: 1 })
 
         if (error) throw error
       } else {
@@ -257,7 +258,7 @@ export default function SessionNeedsAnalysis({ session, organization }) {
       setShowForm(false)
     } catch (error) {
       console.error('Erreur sauvegarde:', error)
-      toast.error('Erreur lors de la sauvegarde')
+      toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
     }

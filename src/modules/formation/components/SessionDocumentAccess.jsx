@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { supabase } from '../../../core/supabase'
+import { enregistrer, estAucuneLigne } from '../../../core/enregistrer'
 import { ouvrirFichier } from '../../../core/storageUtils'
 import { FileText, CheckCircle, XCircle, Eye, Download, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -95,14 +96,14 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
 
       if (access) {
         // Update existing
-        const { error } = await supabase
+        const { error } = await enregistrer(supabase
           .from('session_document_access')
           .update({
             is_active: isActive,
             activated_at: isActive ? new Date().toISOString() : null,
             activated_by: isActive ? userData?.user?.id : null
           })
-          .eq('id', access.id)
+          .eq('id', access.id), { attendu: 1 })
 
         if (error) throw error
       } else {
@@ -129,7 +130,7 @@ export default function SessionDocumentAccess({ sessionId, courseId }) {
       loadData()
     } catch (error) {
       console.error('Erreur mise à jour:', error)
-      toast.error('Erreur lors de la mise à jour')
+      toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de la mise à jour')
     } finally {
       setUpdating(false)
     }

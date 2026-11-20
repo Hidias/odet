@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer, estAucuneLigne } from '../../../core/enregistrer'
 import { Printer, FileCheck, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
@@ -137,10 +138,10 @@ export default function SessionChecklist({ session }) {
 
       if (existingItem) {
         // Update
-        const { error } = await supabase
+        const { error } = await enregistrer(supabase
           .from('session_checklists')
           .update(itemData)
-          .eq('id', existingItem.id)
+          .eq('id', existingItem.id), { attendu: 1 })
 
         if (error) throw error
       } else {
@@ -156,7 +157,7 @@ export default function SessionChecklist({ session }) {
       toast.success('Enregistré')
     } catch (error) {
       console.error('Erreur sauvegarde:', error)
-      toast.error('Erreur lors de la sauvegarde')
+      toast.error(estAucuneLigne(error) ? error.message : 'Erreur lors de la sauvegarde')
     } finally {
       setSaving(false)
     }
