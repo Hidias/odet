@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Users, Loader2, FileSignature, Receipt, PenLine, Download } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
 import { StatusBadge } from '../../../ui/StatusBadge'
@@ -103,7 +104,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     setEdition({ kind: 'entreprise', client_id: '', payer_kind: 'entreprise', payer_client_id: '', dossier_number: '', price_total: '', price_per_person: '', notes: '', doc_status: 'a_envoyer', contact_id: '' })
   }
 
-  const enregistrer = async () => {
+  const enregistrerGroupe = async () => {
     const e = edition
     if (!e.client_id) return toast.error(e.kind === 'particulier' ? 'Choisissez la fiche du particulier' : 'Choisissez l\'entreprise')
     const doublon = doublonDuGroupe(groupes, e)
@@ -143,7 +144,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   }
 
   const rattacher = async (inscrit, groupId) => {
-    const { error } = await supabase.from('session_trainees').update({ group_id: groupId }).eq('id', inscrit.id)
+    const { error } = await enregistrer(supabase.from('session_trainees').update({ group_id: groupId }).eq('id', inscrit.id), { attendu: 1 })
     if (error) return toast.error(error.message)
     setInscrits((l) => l.map((i) => (i.id === inscrit.id ? { ...i, group_id: groupId } : i)))
   }
@@ -151,7 +152,9 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
   const supprimer = async (g) => {
     if (g.invoice_id) return toast.error('Ce groupe a une facture : il ne se supprime pas')
     if (!(await confirmer(`Supprimer le groupe « ${g.clients?.name || g.group_name || ''} » ? Ses stagiaires restent inscrits, sans groupe. Sa convention ou son contrat, s'il est dans l'espace du client, en est retiré (gardé dans l'historique).`))) return
-    await supabase.from('session_trainees').update({ group_id: null }).eq('session_id', session.id).eq('group_id', g.id)
+    // Détachement des stagiaires : 0 ligne est normal (groupe vide), seule l'erreur compte
+    const { error: errDetache } = await supabase.from('session_trainees').update({ group_id: null }).eq('session_id', session.id).eq('group_id', g.id)
+    if (errDetache) return toast.error(`Groupe non supprimé : ses stagiaires n'ont pas pu en être détachés (${errDetache.message})`)
     const { error } = await supabase.from('session_groups').delete().eq('id', g.id)
     if (error) return toast.error(error.message)
     setEdition(null)
@@ -300,7 +303,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
           footer={peutModifier ? <>
             {edition.id && <button type="button" className="btn btn-ghost mr-auto" onClick={() => supprimer(edition)}>Supprimer</button>}
             <button type="button" className="btn btn-secondary" onClick={() => setEdition(null)}>Annuler</button>
-            <button type="button" className="btn btn-primary" onClick={enregistrer} disabled={busy}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Enregistrer</button>
+            <button type="button" className="btn btn-primary" onClick={enregistrerGroupe} disabled={busy}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Enregistrer</button>
           </> : <button type="button" className="btn btn-secondary" onClick={() => setEdition(null)}>Fermer</button>}>
           <div className="flex gap-2" role="radiogroup" aria-label="Nature du groupe">
             {Object.entries(KINDS).map(([k, l]) => (

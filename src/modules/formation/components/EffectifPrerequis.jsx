@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { AlertTriangle, CheckCircle2, FileText, Upload, Receipt } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { etatEffectif, statutDate, dateFinImpossible, finValiditeInterne, decouperGroupes } from '../lib/effectifPrerequis'
 import { confirmer } from '../../../ui/Confirm'
 import { joursAvant } from './SeuilMaintien'
@@ -88,8 +89,8 @@ export default function EffectifPrerequis({ session, peutModifier, peutFacturer 
   const majLigne = async (id, champs) => {
     setBusy(id)
     const { data: u } = await supabase.auth.getUser()
-    const { error } = await supabase.from('session_trainees')
-      .update({ ...champs, prerequis_checked_at: new Date().toISOString(), prerequis_checked_by: u?.user?.id || null }).eq('id', id)
+    const { error } = await enregistrer(supabase.from('session_trainees')
+      .update({ ...champs, prerequis_checked_at: new Date().toISOString(), prerequis_checked_by: u?.user?.id || null }).eq('id', id), { attendu: 1 })
     setBusy(null)
     if (error) { toast.error('Enregistrement impossible : ' + error.message); return false }
     toast.success('Enregistré')

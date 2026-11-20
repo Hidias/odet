@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Target } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { useEcranLarge } from '../../../core/ecran'
 
 // Bilan des attentes en fin de formation (0413) : pour chaque stagiaire, l'attente écrite dans sa fiche de
@@ -71,8 +72,8 @@ export default function BilanAttentes({ sessionId }) {
 
   const noter = async (ligne, champs) => {
     setLignes((ls) => ls.map((l) => (l.id === ligne.id ? { ...l, ...champs } : l)))
-    const { error } = await supabase.from('session_trainees')
-      .update({ ...champs, attentes_bilan_at: new Date().toISOString() }).eq('id', ligne.id)
+    const { error } = await enregistrer(supabase.from('session_trainees')
+      .update({ ...champs, attentes_bilan_at: new Date().toISOString() }).eq('id', ligne.id), { attendu: 1 })
     if (error) { toast.error(`Bilan non enregistré : ${error.message}`); return }
     setEnregistre(ligne.id)
     setTimeout(() => setEnregistre((x) => (x === ligne.id ? null : x)), 1500)

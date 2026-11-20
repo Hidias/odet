@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 
 export const CATEGORIES_F1 = [
   { value: 'a', label: 'Salarié d\'un employeur privé (hors apprenti)' },
@@ -36,7 +37,7 @@ export default function BpfCategories({ session, peutModifier }) {
   const changer = async (st, v) => {
     const avant = valeurs[st.id]
     setValeurs((x) => ({ ...x, [st.id]: v }))
-    const { error } = await supabase.from('session_trainees').update({ bpf_categorie: v || null }).eq('id', st.id)
+    const { error } = await enregistrer(supabase.from('session_trainees').update({ bpf_categorie: v || null }).eq('id', st.id), { attendu: 1 })
     if (error) {
       setValeurs((x) => ({ ...x, [st.id]: avant }))
       toast.error(`Catégorie non enregistrée : ${error.message}`)

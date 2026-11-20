@@ -1003,7 +1003,8 @@ export default function Quotes() {
           if (sel.totalPriceHt) extraUpdates.total_price = sel.totalPriceHt
           if (sel.nbParticipants) extraUpdates.max_participants = sel.nbParticipants
           if (Object.keys(extraUpdates).length > 0) {
-            await supabase.from('sessions').update(extraUpdates).eq('id', newSession.id)
+            const { error: errLien } = await enregistrer(supabase.from('sessions').update(extraUpdates).eq('id', newSession.id), { attendu: 1 })
+            if (errLien) toast.error(`Session créée pour ${course.title}, mais son lien au devis, son prix ou son effectif n'a pas été enregistré : ${errLien.message}`, { duration: 8000 })
           }
           // Financeur du devis repris sur la session ; montant au prorata de la session quand le devis le donne
           if (quote.funding_type) {
