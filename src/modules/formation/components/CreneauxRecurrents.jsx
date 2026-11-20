@@ -90,7 +90,7 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
     onSessionsCreees?.()
   }
 
-  const enregistrer = async (e) => {
+  const enregistrerCreneau = async (e) => {
     e.preventDefault()
     if (!form.course_id) return toast.error('Choisissez la formation')
     const ligne = {
@@ -158,7 +158,7 @@ export default function CreneauxRecurrents({ courses = [], trainers = [], peutCr
         {peutCreer && !form && <button type="button" className="btn btn-primary btn-sm" onClick={() => setForm(vide())}><Plus className="w-4 h-4" />Nouveau créneau</button>}
 
         {form && (
-          <form onSubmit={enregistrer} className="space-y-3 border-t hairline pt-3">
+          <form onSubmit={enregistrerCreneau} className="space-y-3 border-t hairline pt-3">
             <div>
               <label className="label" htmlFor="cr-course">Formation *</label>
               <select id="cr-course" className="select" value={form.course_id} onChange={(e) => {
