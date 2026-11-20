@@ -104,7 +104,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
     setEdition({ kind: 'entreprise', client_id: '', payer_kind: 'entreprise', payer_client_id: '', dossier_number: '', price_total: '', price_per_person: '', notes: '', doc_status: 'a_envoyer', contact_id: '' })
   }
 
-  const enregistrer = async () => {
+  const enregistrerGroupe = async () => {
     const e = edition
     if (!e.client_id) return toast.error(e.kind === 'particulier' ? 'Choisissez la fiche du particulier' : 'Choisissez l\'entreprise')
     const doublon = doublonDuGroupe(groupes, e)
@@ -307,7 +307,7 @@ export default function SessionGroupes({ session, peutModifier, onGroupes }) {
           footer={peutModifier ? <>
             {edition.id && <button type="button" className="btn btn-ghost mr-auto" onClick={() => supprimer(edition)}>Supprimer</button>}
             <button type="button" className="btn btn-secondary" onClick={() => setEdition(null)}>Annuler</button>
-            <button type="button" className="btn btn-primary" onClick={enregistrer} disabled={busy}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Enregistrer</button>
+            <button type="button" className="btn btn-primary" onClick={enregistrerGroupe} disabled={busy}>{busy && <Loader2 className="w-4 h-4 animate-spin" />} Enregistrer</button>
           </> : <button type="button" className="btn btn-secondary" onClick={() => setEdition(null)}>Fermer</button>}>
           <div className="flex gap-2" role="radiogroup" aria-label="Nature du groupe">
             {Object.entries(KINDS).map(([k, l]) => (
