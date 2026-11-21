@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { MapPin, Plus, ChevronDown, ChevronUp, Loader2, Search, Building2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { saveSite } from '../../interventions/lib/itvData'
 import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
@@ -72,8 +73,8 @@ export default function SitesClient({ client, peutModifier, onClientChange }) {
 
   const archiver = async (s, actif) => {
     if (!actif && !(await confirmer(`Archiver le site « ${s.name} » ? Il n'est plus proposé, son historique est conservé.`))) return
-    const { error } = await supabase.from('sites').update({ is_active: actif, updated_at: new Date().toISOString() }).eq('id', s.id)
-    if (error) return toast.error(error.message)
+    try { await enregistrerOuLever(supabase.from('sites').update({ is_active: actif, updated_at: new Date().toISOString() }).eq('id', s.id)) }
+    catch (error) { return toast.error(error.message) }
     toast.success(actif ? 'Site réactivé' : 'Site archivé')
     load()
   }

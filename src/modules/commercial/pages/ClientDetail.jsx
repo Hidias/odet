@@ -6,6 +6,7 @@ import { champsNomContact, nomPourAppel } from '../../../core/nomPersonne'
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { enregistrer, enregistrerOuLever, estAucuneLigne } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 import { ArrowLeft, Building2, MapPin, Phone, Mail, Globe, Edit, Save, X, Plus, Trash2, User, Clock, MessageSquare, Calendar, FileText, GraduationCap, Star, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Send, StickyNote, Receipt, RefreshCw, Briefcase, FileSignature, Smartphone, Loader2, Search, CreditCard, Paperclip, KeyRound, Copy, Power } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -184,9 +185,8 @@ export default function ClientDetail() {
     if (!portalAccess) return
     setPortalBusy(true)
     try {
-      const { data, error } = await supabase.from('client_portal_access')
-        .update({ ...patch, updated_at: new Date().toISOString() }).eq('id', portalAccess.id).select().single()
-      if (error) throw error
+      const [data] = await enregistrerOuLever(supabase.from('client_portal_access')
+        .update({ ...patch, updated_at: new Date().toISOString() }).eq('id', portalAccess.id).select())
       setPortalAccess(data)
       if (msg) toast.success(msg)
     } catch (err) { toast.error('Mise à jour impossible : ' + (err.message || '')) } finally { setPortalBusy(false) }
@@ -362,8 +362,7 @@ export default function ClientDetail() {
     }
 
     try {
-      const { error } = await supabase.from('clients').update(updates).eq('id', id)
-      if (error) throw error
+      await enregistrerOuLever(supabase.from('clients').update(updates).eq('id', id))
       // Marquer les prospects comme deja_client
       await markDejaClient()
       // Rafraîchir
@@ -399,10 +398,12 @@ export default function ClientDetail() {
     if (sirens.size === 0) return
     try {
       for (const siren of sirens) {
-        await supabase.from('prospection_massive').update({
+        // 0 ligne est normal (SIREN absent du répertoire de prospection) : seule l'erreur de la base est vérifiée
+        const { error: erreurMarquage } = await supabase.from('prospection_massive').update({
           prospection_status: 'deja_client',
           updated_at: new Date().toISOString(),
         }).eq('siren', siren)
+        if (erreurMarquage) throw erreurMarquage
       }
       // Rafraîchir les liens
       if (client) loadClientLinks(client)
@@ -473,7 +474,7 @@ export default function ClientDetail() {
       return false
     })()
     
-    const { error } = await supabase.from('clients').update({
+    const { error } = await enregistrer(supabase.from('clients').update({
       name: editForm.name, siret: editForm.siret, siren: sirenVal,
       address: editForm.address,
       postal_code: editForm.postal_code, city: editForm.city,
@@ -496,8 +497,8 @@ export default function ClientDetail() {
       ...(editForm.client_type === 'opco' ? { opco_subrogation_end: editForm.opco_subrogation_end || null } : {}),
       // Sociétés qui voient la fiche (C3), seulement si plusieurs sociétés
       ...(Array.isArray(editForm.company_ids) && editForm._societes_modifiees ? { company_ids: editForm.company_ids } : {}),
-    }).eq('id', id)
-    if (error) return toast.error('Erreur sauvegarde')
+    }).eq('id', id))
+    if (error) return toast.error(estAucuneLigne(error) ? error.message : 'Erreur sauvegarde')
     toast.success(wasAutoPromoted ? 'Fiche complétée : statut passé en Actif' : 'Client mis à jour', wasAutoPromoted ? { icon: '' } : {})
     // Marquer prospect deja_client si des liens détectés
     if (sirenVal && clientLinks) {
@@ -518,11 +519,11 @@ export default function ClientDetail() {
   // ── Toggle do_not_mail (sans passer par le mode édition) ──
   async function toggleDoNotMail() {
     const newVal = !client.do_not_mail
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('clients')
       .update({ do_not_mail: newVal })
-      .eq('id', id)
-    if (error) { toast.error('Erreur mise à jour'); return }
+      .eq('id', id))
+    if (error) { toast.error(estAucuneLigne(error) ? error.message : 'Erreur mise à jour'); return }
     setClient(c => ({ ...c, do_not_mail: newVal }))
     toast.success(newVal ? 'Ce client ne recevra plus les envois groupés' : 'Ce client recevra de nouveau les envois groupés')
   }
@@ -538,7 +539,8 @@ export default function ClientDetail() {
     if (contactForm.is_document_contact) {
       const othersWithFlag = contacts.filter(c => c.is_document_contact && (!editingContact || c.id !== editingContact.id))
       for (const other of othersWithFlag) {
-        await supabase.from('client_contacts').update({ is_document_contact: false }).eq('id', other.id)
+        const { error } = await enregistrer(supabase.from('client_contacts').update({ is_document_contact: false }).eq('id', other.id))
+        if (error) return toast.error(`Contact « documents » de ${other.name || 'un autre contact'} non retiré : ${error.message}`)
       }
     }
 
@@ -546,13 +548,14 @@ export default function ClientDetail() {
     if (contactForm.is_billing) {
       const othersWithBilling = contacts.filter(c => c.is_billing && (!editingContact || c.id !== editingContact.id))
       for (const other of othersWithBilling) {
-        await supabase.from('client_contacts').update({ is_billing: false }).eq('id', other.id)
+        const { error } = await enregistrer(supabase.from('client_contacts').update({ is_billing: false }).eq('id', other.id))
+        if (error) return toast.error(`Contact de facturation ${other.name || 'précédent'} non retiré : ${error.message}`)
       }
     }
 
     const fiche = { ...contactForm, ...noms, civilite: contactForm.civilite || null }
     if (editingContact) {
-      const { error } = await supabase.from('client_contacts').update(fiche).eq('id', editingContact.id)
+      const { error } = await enregistrer(supabase.from('client_contacts').update(fiche).eq('id', editingContact.id))
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Contact modifié')
     } else {
@@ -569,7 +572,8 @@ export default function ClientDetail() {
 
   async function deleteContact(contactId) {
     if (!await confirmer('Supprimer ce contact ?')) return
-    await supabase.from('client_contacts').delete().eq('id', contactId)
+    const { error } = await enregistrer(supabase.from('client_contacts').delete().eq('id', contactId))
+    if (error) return toast.error('Contact non supprimé : ' + error.message)
     await supabase.rpc('client_contact_sync_primary', { p_client_id: id }).then(() => {}, () => {})
     toast.success('Contact supprimé')
     loadContacts()
@@ -607,7 +611,8 @@ export default function ClientDetail() {
 
   async function deleteInteraction(intId) {
     if (!await confirmer('Supprimer cette interaction ?')) return
-    await supabase.from('client_interactions').delete().eq('id', intId)
+    const { error } = await enregistrer(supabase.from('client_interactions').delete().eq('id', intId))
+    if (error) return toast.error('Échange non supprimé : ' + error.message)
     toast.success('Supprimé')
     loadInteractions()
   }

@@ -6,6 +6,7 @@ import { Tabs } from '../../../ui/Tabs'
 import { Link } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { Plus, Search, Edit, Trash2, X, Save, Building2, Mail, Phone, MapPin, User, Eye, Users, Upload, FileSpreadsheet, FileText, RefreshCw, CheckCircle, AlertCircle, Archive, MoreVertical, Smartphone, Loader2 } from 'lucide-react'
 import MenuFlottant from '../../../ui/MenuFlottant'
 import { DataTable } from '../../../ui/DataTable'
@@ -507,7 +508,8 @@ export default function Clients() {
   const handleArchive = async () => {
     if (!confirmArchive) return
     const newStatus = confirmArchive.status === 'archive' ? 'actif' : 'archive'
-    await supabase.from('clients').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', confirmArchive.id)
+    const { error } = await enregistrer(supabase.from('clients').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', confirmArchive.id))
+    if (error) { toast.error(error.message); setConfirmArchive(null); return }
     toast.success(newStatus === 'archive' ? 'Client archivé' : 'Client restauré')
     setConfirmArchive(null)
     fetchClients()
@@ -986,9 +988,9 @@ export default function Clients() {
                               contact={c}
                               buttonLabel={<Edit className="w-4 h-4" />}
                               onEdit={async (id, contactData) => {
-                                const { error } = await supabase.from('client_contacts').update(contactData).eq('id', id)
+                                const { error } = await enregistrer(supabase.from('client_contacts').update(contactData).eq('id', id))
+                                if (error) return toast.error('Contact non modifié : ' + error.message)
                                 await supabase.rpc('client_contact_sync_primary', { p_client_id: selectedClient.id }).then(() => {}, () => {})
-                                if (error) return toast.error('Erreur')
                                 const { data } = await supabase.from('client_contacts').select('*').eq('client_id', selectedClient.id).order('is_primary', { ascending: false })
                                 setContacts(data || [])
                                 toast.success('Contact modifié')
@@ -997,9 +999,9 @@ export default function Clients() {
                             <button
                               onClick={async () => {
                                 if (!await confirmer('Supprimer ce contact ?')) return
-                                const { error } = await supabase.from('client_contacts').delete().eq('id', c.id)
+                                const { error } = await enregistrer(supabase.from('client_contacts').delete().eq('id', c.id))
+                                if (error) return toast.error('Contact non supprimé : ' + error.message)
                                 await supabase.rpc('client_contact_sync_primary', { p_client_id: selectedClient.id }).then(() => {}, () => {})
-                                if (error) return toast.error('Erreur')
                                 const { data } = await supabase.from('client_contacts').select('*').eq('client_id', selectedClient.id).order('is_primary', { ascending: false })
                                 setContacts(data || [])
                                 toast.success('Contact supprimé')

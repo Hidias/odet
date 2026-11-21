@@ -16,10 +16,6 @@ function fichiers(dossier) {
 const EXCEPTIONS = [
   // Suppression des anciennes lignes avant réinsertion : 0 ligne est normal (devis sans ligne), l'erreur est contrôlée
   { fichier: 'Quotes.jsx', motif: "from('quote_items').delete()" },
-  // Résumé des conditions jointes : écriture d'appoint, journalisée, sans effet sur l'écran
-  { fichier: 'conditionsDevis.js', motif: "from('quotes').update(" },
-  // Relance datée d'une affaire : déjà vérifiée par .select('id') et data.length (B109, #379)
-  { fichier: 'AffaireSheets.jsx', motif: "from('quotes').update(" },
 ]
 
 describe('écritures sur les devis', () => {
@@ -33,7 +29,7 @@ describe('écritures sur les devis', () => {
       let m
       while ((m = re.exec(plat))) {
         const avant = plat.slice(Math.max(0, m.index - 40), m.index)
-        if (avant.includes('enregistrer(')) continue
+        if (/enregistrer(OuLever)?\(/.test(avant)) continue
         const exception = EXCEPTIONS.find((e) => chemin.endsWith(e.fichier) && plat.slice(m.index - 6, m.index + 40).includes(e.motif))
         if (exception) continue
         fautes.push(`${chemin} : ${m[0]}`)

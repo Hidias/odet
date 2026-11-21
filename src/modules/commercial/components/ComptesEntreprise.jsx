@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Copy, KeyRound, Link2, Loader2, Plus, Power, UserCog } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { callApi } from '../../../core/api'
 import { Sheet } from '../../../ui/Sheet'
 import { StatusBadge } from '../../../ui/StatusBadge'
@@ -65,7 +66,7 @@ export default function ComptesEntreprise({ client, contacts = [] }) {
   }
 
   const changer = async (a, patch, msg) => {
-    const { error } = await supabase.from('client_accounts').update(patch).eq('id', a.id)
+    const { error } = await enregistrer(supabase.from('client_accounts').update(patch).eq('id', a.id))
     if (error) return toast.error(error.message)
     toast.success(msg)
     load()
