@@ -77,3 +77,14 @@ describe('écritures du module finance', () => {
     expect(b.match(/\.in\('id', ids\), \{ attendu: ids\.length \}\)/g)?.length).toBe(2)
   })
 })
+
+describe('plan d\'action du prévisionnel', () => {
+  const b = readFileSync('src/modules/finance/pages/BudgetModule.jsx', 'utf8')
+  it('le commentaire est saisi à l\'écran et enregistré en quittant le champ', () => {
+    expect(b).toContain('onChange={e => setActionNoteLocal(action.id, e.target.value)}')
+    expect(b).toContain('onBlur={e => updateActionNote(action.id, e.target.value)}')
+  })
+  it('le bouton de statut affiche un libellé visible', () => {
+    expect(b).toContain('{statusLabels[action.status]}\n                  </button>')
+  })
+})

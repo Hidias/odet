@@ -4749,10 +4749,14 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
     setActions(prev => prev.map(a => a.id === id ? { ...a, status } : a))
   }
 
+  // Commentaire : saisi à l'écran (setActionNoteLocal), enregistré en quittant le champ
+  function setActionNoteLocal(id, note) {
+    setActions(prev => prev.map(a => a.id === id ? { ...a, note } : a))
+  }
+
   async function updateActionNote(id, note) {
     const { error } = await enregistrer(supabase.from('budget_actions').update({ note, updated_at: new Date().toISOString() }).eq('id', id))
-    if (error) { toast.error(error.message); return }
-    setActions(prev => prev.map(a => a.id === id ? { ...a, note } : a))
+    if (error) { toast.error(error.message); loadActions(); return }
   }
 
   async function deleteAction(id) {
@@ -5393,7 +5397,6 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
     </ResponsiveContainer>
   )
 
-  const statusIcons = { todo: '', in_progress: '', done: '', partial: '', not_applicable: '' }
   const statusLabels = { todo: 'À faire', in_progress: 'En cours', done: 'Fait', partial: 'Partiel', not_applicable: 'N/A' }
   const statusCycle = ['todo', 'in_progress', 'partial', 'done', 'not_applicable']
 
@@ -6021,13 +6024,12 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
                     const idx = statusCycle.indexOf(action.status)
                     const next = statusCycle[(idx + 1) % statusCycle.length]
                     updateActionStatus(action.id, next)
-                  }} className="text-lg mt-0.5 hover:scale-110 transition-transform" title="Cliquer pour changer le statut">
-                    {statusIcons[action.status]}
+                  }} className="text-ui-sm mt-0.5 px-2 py-0.5 rounded-full border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 whitespace-nowrap" title="Cliquer pour changer le statut">
+                    {statusLabels[action.status]}
                   </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className={`text-ui font-medium ${action.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{action.title}</span>
-                      <span className="text-ui-sm text-gray-300">{statusLabels[action.status]}</span>
                       {action.impact_monthly > 0 && <span className="text-ui-sm bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))] px-1.5 py-0.5 rounded">{fmt(action.impact_monthly)}/mois</span>}
                       {action.due_date && <span className="text-ui-sm text-gray-400">{action.due_date}</span>}
                       <span className={`text-ui-sm px-1.5 py-0.5 rounded ${
@@ -6040,7 +6042,8 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
                     {action.detail && <div className="text-ui-sm text-gray-500 mt-0.5">{action.detail}</div>}
                     {/* Mini note éditable */}
                     <input type="text" placeholder="Ajouter un commentaire..." value={action.note || ''}
-                      onChange={e => updateActionNote(action.id, e.target.value)}
+                      onChange={e => setActionNoteLocal(action.id, e.target.value)}
+                      onBlur={e => updateActionNote(action.id, e.target.value)}
                       className="text-ui-sm border-0 border-b border-transparent hover:border-gray-200 focus:border-[rgb(var(--c-info)/0.3)] w-full mt-1 px-0 py-0.5 bg-transparent focus:outline-none focus:ring-0" />
                   </div>
                   <button onClick={() => deleteAction(action.id)} className="text-gray-300 hover:text-[rgb(var(--c-danger))] text-ui-sm">Supprimer</button>
