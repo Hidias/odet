@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
 import { fetchAllRows as fetchAll } from '../../../core/fetchAll'
-import { enregistrer } from '../../../core/enregistrer'
+import { enregistrer, enregistrerOuLever } from '../../../core/enregistrer'
 import { useAuthStore, useDataStore } from '../../../core/store'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -167,10 +167,10 @@ async function recomputeInvoiceFromPayments(invoiceId) {
     else if (paid > 0.01) status = 'partial'
     else status = (inv.due_date && String(inv.due_date).slice(0, 10) < todayISO()) ? 'overdue' : 'due'
   }
-  const { error } = await supabase.from('invoices')
+  // Lève une erreur si la facture n'a pas été mise à jour (droits, fiche disparue)
+  await enregistrerOuLever(supabase.from('invoices')
     .update({ amount_paid: paid, amount_due: due, status, updated_at: new Date().toISOString() })
-    .eq('id', invoiceId)
-  if (error) throw error
+    .eq('id', invoiceId), { message: 'La facture n\'a pas été recalculée : vérifiez vos droits ou rechargez la page.' })
 }
 
 const STATUS_LABELS = {
@@ -937,11 +937,10 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
       }
 
       // 2. Lien transaction ↔ facture
-      const { error } = await supabase
+      await enregistrerOuLever(supabase
         .from('budget_transactions')
         .update({ linked_invoice_id: invoiceId, reconciled_at: new Date().toISOString() })
-        .eq('id', tx.id)
-      if (error) throw error
+        .eq('id', tx.id))
 
       // 3. Lien détaillé (non bloquant)
       const { error: linkErr } = await supabase.from('budget_transaction_invoices').insert({
@@ -1019,19 +1018,19 @@ function RapprochementTab({ invoices, transactions, loadAll, isDateLocked }) {
           if (amt <= budget + 0.01) { toDelete.push(p.id); budget -= amt }
         }
         if (toDelete.length > 0) {
-          const { error: delErr } = await supabase.from('invoice_payments').delete().in('id', toDelete)
-          if (delErr) throw delErr
+          await enregistrerOuLever(supabase.from('invoice_payments').delete().in('id', toDelete), { attendu: toDelete.length })
           removed += toDelete.length
           await recomputeInvoiceFromPayments(invId)
         }
       }
 
-      await supabase.from('budget_transaction_invoices').delete().eq('transaction_id', tx.id)
-      const { error } = await supabase
+      // Liens détaillés : 0 ligne est normal (rapprochement sans lien détaillé)
+      const { error: liensErr } = await supabase.from('budget_transaction_invoices').delete().eq('transaction_id', tx.id)
+      if (liensErr) throw liensErr
+      await enregistrerOuLever(supabase
         .from('budget_transactions')
         .update({ linked_invoice_id: null, reconciled_at: null })
-        .eq('id', tx.id)
-      if (error) throw error
+        .eq('id', tx.id))
       toast.success(removed > 0
         ? ` Rapprochement supprimé - ${removed} paiement(s) annulé(s), facture(s) recalculée(s)`
         : ' Rapprochement supprimé')
@@ -1314,10 +1313,10 @@ function AnnotationsTab({ transactions, loadAll, isDateLocked }) {
       return
     }
     setSaving(true)
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('budget_transactions')
       .update({ note_comptable: editValue || null })
-      .eq('id', txId)
+      .eq('id', txId))
     if (error) { toast.error('Erreur : ' + error.message) }
     else { toast.success('Note sauvegardée'); loadAll() }
     setEditingId(null)
@@ -1438,11 +1437,10 @@ function CloturesTab({ periods, loadAll, user }) {
     try {
       if (item.period?.locked_at) {
         // Déverrouiller
-        const { error } = await supabase
+        await enregistrerOuLever(supabase
           .from('accounting_periods')
           .update({ locked: false, locked_at: null, locked_by: null })
-          .eq('id', item.period.id)
-        if (error) throw error
+          .eq('id', item.period.id))
         toast.success(`${MONTH_NAMES[item.month]} ${item.year} déverrouillé`)
       } else {
         // Verrouiller
@@ -1457,7 +1455,7 @@ function CloturesTab({ periods, loadAll, user }) {
           notes: note || null,
         }
         const { error } = item.period
-          ? await supabase.from('accounting_periods').update(payload).eq('id', item.period.id)
+          ? await enregistrer(supabase.from('accounting_periods').update(payload).eq('id', item.period.id))
           : await supabase.from('accounting_periods').insert([payload])
         if (error) throw error
         toast.success(`${MONTH_NAMES[item.month]} ${item.year} clôturé`)

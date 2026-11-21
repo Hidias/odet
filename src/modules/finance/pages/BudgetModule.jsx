@@ -4,6 +4,7 @@ import { apiFetch } from '../../../core/api'
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
 import { fetchAll as fetchAllResult, fetchAllIn, fetchAllRows as fetchAll } from '../../../core/fetchAll'
+import { enregistrer, enregistrerOuLever } from '../../../core/enregistrer'
 import toast from 'react-hot-toast'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts'
 import { generateInvoicePDF, generateFacturXPDF, calcInvoiceTotals } from '../../commercial/pdf/invoiceGenerator'
@@ -361,7 +362,8 @@ export default function BudgetModule() {
   async function changeCategory(txId, name) {
     const cat = categories.find(c => c.name === name)
     if (!cat) return
-    await supabase.from('budget_transactions').update({ category_id: cat.id, category_name: cat.name }).eq('id', txId)
+    const { error } = await enregistrer(supabase.from('budget_transactions').update({ category_id: cat.id, category_name: cat.name }).eq('id', txId))
+    if (error) { toast.error(error.message); return }
     setTransactions(p => p.map(t => t.id === txId ? { ...t, category_id: cat.id, category_name: cat.name } : t))
     toast.success(`→ ${cat.icon} ${cat.name}`); setEditingTx(null)
   }
@@ -371,10 +373,10 @@ export default function BudgetModule() {
   async function togglePrivate(tx) {
     if (!canSeePrivate) return
     const next = !tx.is_private
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('budget_transactions')
       .update({ is_private: next, private_owner: next ? userEmail : null })
-      .eq('id', tx.id)
+      .eq('id', tx.id))
     if (error) { toast.error('Erreur : ' + error.message); return }
     setTransactions(p => p.map(t => t.id === tx.id
       ? { ...t, is_private: next, private_owner: next ? userEmail : null }
@@ -384,7 +386,8 @@ export default function BudgetModule() {
 
   async function deleteTx(txId) {
     if (!await confirmer('Supprimer ?')) return
-    await supabase.from('budget_transactions').delete().eq('id', txId)
+    const { error } = await enregistrer(supabase.from('budget_transactions').delete().eq('id', txId))
+    if (error) { toast.error(error.message); return }
     setTransactions(p => p.filter(t => t.id !== txId))
     toast.success('Supprimée'); loadAll()
   }
@@ -621,9 +624,10 @@ async function recomputeInvoiceFromPayments(invoiceId) {
     else if (paid > 0.01) status = 'partial'
     else status = (inv.due_date && String(inv.due_date).slice(0, 10) < today) ? 'overdue' : 'due'
   }
-  await supabase.from('invoices')
+  // Lève une erreur si la facture n'a pas été mise à jour (droits, fiche disparue)
+  await enregistrerOuLever(supabase.from('invoices')
     .update({ amount_paid: paid, amount_due: due, status, updated_at: new Date().toISOString() })
-    .eq('id', invoiceId)
+    .eq('id', invoiceId), { message: 'Paiement enregistré, mais la facture n\'a pas été recalculée : vérifiez vos droits ou rechargez la page.' })
 }
 
 function sanitizeFileName(name) {
@@ -671,9 +675,13 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
   // Supprimer une transaction récente
   async function deleteTxLocal(txId) {
     if (!await confirmer('Supprimer cette transaction ?')) return
-    await supabase.from('budget_receipts').delete().eq('transaction_id', txId)
-    await supabase.from('budget_meal_guests').delete().eq('transaction_id', txId)
-    await supabase.from('budget_transactions').delete().eq('id', txId)
+    // Justificatifs et convives d'abord : 0 ligne est normal (transaction sans pièce ni convive)
+    const { error: er } = await supabase.from('budget_receipts').delete().eq('transaction_id', txId)
+    if (er) { toast.error('Erreur : ' + er.message); return }
+    const { error: eg } = await supabase.from('budget_meal_guests').delete().eq('transaction_id', txId)
+    if (eg) { toast.error('Erreur : ' + eg.message); return }
+    const { error } = await enregistrer(supabase.from('budget_transactions').delete().eq('id', txId))
+    if (error) { toast.error(error.message); return }
     setRecent(prev => prev.filter(t => t.id !== txId))
     toast.success('Supprimée')
     loadAll()
@@ -682,7 +690,7 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
   // Modifier le payeur rapidement
   async function changePayer(txId, newPayer) {
     const isPerso = newPayer !== 'entreprise'
-    const { error } = await supabase.from('budget_transactions').update({ payer: newPayer, is_personal: isPerso }).eq('id', txId)
+    const { error } = await enregistrer(supabase.from('budget_transactions').update({ payer: newPayer, is_personal: isPerso }).eq('id', txId))
     if (error) { toast.error('Erreur: ' + error.message); return }
     setRecent(prev => prev.map(t => t.id === txId ? { ...t, payer: newPayer, is_personal: isPerso } : t))
     toast.success('Payeur modifié')
@@ -985,9 +993,9 @@ function SaisieTab({ categories, rules, loadAll, clients, associates = [], organ
     const isEditing = !!editingTxId
     if (isEditing) {
       // Mode édition - update
-      const { data, error } = await supabase.from('budget_transactions').update(row).eq('id', editingTxId).select().single()
+      const { data, error } = await enregistrer(supabase.from('budget_transactions').update(row).eq('id', editingTxId).select())
       if (error) { toast.error('Erreur: ' + error.message); setSaving(false); return }
-      txData = data
+      txData = data[0]
       setRecent(prev => prev.map(t => t.id === editingTxId ? txData : t))
       toast.success(`Transaction modifiée`)
       setEditingTxId(null)
@@ -1522,7 +1530,8 @@ function RelevesTab({ statements, transactions, loadAll, organization }) {
   async function deleteStatement(st) {
     if (!await confirmer(`Supprimer le relevé du ${fmtDateFR(st.period_end)} ?`)) return
     await supabase.storage.from('bank-statements').remove([st.file_path])
-    await supabase.from('bank_statements').delete().eq('id', st.id)
+    const { error } = await enregistrer(supabase.from('bank_statements').delete().eq('id', st.id))
+    if (error) { toast.error(error.message); loadAll(); return }
     toast.success('Relevé supprimé')
     loadAll()
   }
@@ -1852,10 +1861,10 @@ function ComptableTab({ transactions, receipts, loadAll }) {
     setResetting(true)
     try {
       const ids = [...resendSelected]
-      const { error } = await supabase
+      const { error } = await enregistrer(supabase
         .from('budget_transactions')
         .update({ sent_to_comptable: false, sent_to_comptable_at: null })
-        .in('id', ids)
+        .in('id', ids), { attendu: ids.length })
       if (error) { toast.error('Erreur: ' + error.message); setResetting(false); return }
       toast.success(`${ids.length} opération(s) remise(s) en file d'envoi`)
       setResendSelected(new Set())
@@ -1872,10 +1881,10 @@ function ComptableTab({ transactions, receipts, loadAll }) {
     setResetting(true)
     try {
       const ids = [...invResendSelected]
-      const { error } = await supabase
+      const { error } = await enregistrer(supabase
         .from('invoices')
         .update({ sent_to_comptable: false, sent_to_comptable_at: null })
-        .in('id', ids)
+        .in('id', ids), { attendu: ids.length })
       if (error) { toast.error('Erreur: ' + error.message); setResetting(false); return }
       toast.success(`${ids.length} facture(s) remise(s) en file d'envoi`)
       setInvResendSelected(new Set())
@@ -2803,8 +2812,8 @@ function CategoriesTab({ categories, loadAll }) {
   const [ef, setEf] = useState({})
   const icons = ['','','','','','','','','','','','','','','','','','','','','','','','','↩','']
   async function add() { if(!nw.name.trim()){toast.error('Nom requis');return}; const ms=Math.max(...categories.map(c=>c.sort_order||0),0); const{error}=await supabase.from('budget_categories').insert({...nw,color:'gray',sort_order:ms+1}); if(error){toast.error(error.code==='23505'?'Existe déjà':'Erreur');return}; toast.success('Créée'); setNw({name:'',direction:'depense',type:'variable',icon:''}); loadAll() }
-  async function upd() { if(!ef.name?.trim())return; await supabase.from('budget_categories').update(ef).eq('id',editId); toast.success('Modifié'); setEditId(null); loadAll() }
-  async function del(id,n) { const{count}=await supabase.from('budget_transactions').select('id',{count:'exact',head:true}).eq('category_id',id); if(count>0){toast.error(`${count} transactions utilisent "${n}"`);return}; if(!await confirmer(`Supprimer "${n}" ?`))return; await supabase.from('budget_categories').delete().eq('id',id); toast.success('Supprimé'); loadAll() }
+  async function upd() { if(!ef.name?.trim())return; const{error}=await enregistrer(supabase.from('budget_categories').update(ef).eq('id',editId)); if(error){toast.error(error.message);return}; toast.success('Modifié'); setEditId(null); loadAll() }
+  async function del(id,n) { const{count}=await supabase.from('budget_transactions').select('id',{count:'exact',head:true}).eq('category_id',id); if(count>0){toast.error(`${count} transactions utilisent "${n}"`);return}; if(!await confirmer(`Supprimer "${n}" ?`))return; const{error}=await enregistrer(supabase.from('budget_categories').delete().eq('id',id)); if(error){toast.error(error.message);return}; toast.success('Supprimé'); loadAll() }
 
   return (
     <div className="space-y-4">
@@ -2866,7 +2875,8 @@ function RulesTab({ rules, categories, loadAll }) {
 
   async function del(id, keyword) {
     if (!await confirmer(`Supprimer la règle "${keyword}" ?`)) return
-    await supabase.from('budget_rules').delete().eq('id', id)
+    const { error } = await enregistrer(supabase.from('budget_rules').delete().eq('id', id))
+    if (error) { toast.error(error.message); return }
     toast.success('Règle supprimée')
     loadAll()
   }
@@ -2879,11 +2889,11 @@ function RulesTab({ rules, categories, loadAll }) {
   async function saveEdit() {
     if (!editData.keyword || !editData.category_id) { toast.error('Mot-clé et catégorie requis'); return }
     setSaving(true)
-    const { error } = await supabase.from('budget_rules').update({
+    const { error } = await enregistrer(supabase.from('budget_rules').update({
       keyword: editData.keyword.toUpperCase().trim(),
       category_id: editData.category_id,
       direction: editData.direction,
-    }).eq('id', editId)
+    }).eq('id', editId))
     setSaving(false)
     if (error) { toast.error(error.code === '23505' ? 'Ce mot-clé existe déjà' : 'Erreur: ' + error.message); return }
     toast.success('Règle modifiée')
@@ -3509,9 +3519,9 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
 
         // 2. Si absorption : marquer la saisie manuelle comme rapprochée
         if (isAbsorb) {
-          const { error: reconcileErr } = await supabase.from('budget_transactions')
+          const { error: reconcileErr } = await enregistrer(supabase.from('budget_transactions')
             .update({ reconciled_at: new Date().toISOString() })
-            .eq('id', tx.manualMatch.id)
+            .eq('id', tx.manualMatch.id))
           if (reconcileErr) errors.push(`Rapprochement saisie: ${reconcileErr.message}`)
           else absorbed++
         }
@@ -3537,7 +3547,8 @@ function ImportTab({ loadAll, categories, rules, invoices, clients, transactions
             if (payErr) { errors.push(`Paiement ${inv.reference}: ${payErr.message}`); continue }
 
             // Mettre à jour la facture (payé = somme des paiements, avoirs déduits)
-            await recomputeInvoiceFromPayments(inv.id)
+            try { await recomputeInvoiceFromPayments(inv.id) }
+            catch (e) { errors.push(`Facture ${inv.reference}: ${e.message}`); continue }
 
             reconciled++
           }
@@ -4466,7 +4477,8 @@ ${txList}` }]
     if (!cat) { toast.error('Catégorie non trouvée: ' + suggested); return }
 
     // Update transaction
-    await supabase.from('budget_transactions').update({ category_id: cat.id, category_name: cat.name }).eq('id', s.id)
+    const { error: catErr } = await enregistrer(supabase.from('budget_transactions').update({ category_id: cat.id, category_name: cat.name }).eq('id', s.id))
+    if (catErr) { toast.error(catErr.message); return }
 
     // Auto-create rule if keyword provided
     if (s.keyword && s.keyword.length > 2) {
@@ -4732,18 +4744,21 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
   }
 
   async function updateActionStatus(id, status) {
-    await supabase.from('budget_actions').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+    const { error } = await enregistrer(supabase.from('budget_actions').update({ status, updated_at: new Date().toISOString() }).eq('id', id))
+    if (error) { toast.error(error.message); return }
     setActions(prev => prev.map(a => a.id === id ? { ...a, status } : a))
   }
 
   async function updateActionNote(id, note) {
-    await supabase.from('budget_actions').update({ note, updated_at: new Date().toISOString() }).eq('id', id)
+    const { error } = await enregistrer(supabase.from('budget_actions').update({ note, updated_at: new Date().toISOString() }).eq('id', id))
+    if (error) { toast.error(error.message); return }
     setActions(prev => prev.map(a => a.id === id ? { ...a, note } : a))
   }
 
   async function deleteAction(id) {
     if (!await confirmer('Supprimer cette action ?')) return
-    await supabase.from('budget_actions').delete().eq('id', id)
+    const { error } = await enregistrer(supabase.from('budget_actions').delete().eq('id', id))
+    if (error) { toast.error(error.message); return }
     setActions(prev => prev.filter(a => a.id !== id))
     toast.success('Supprimée')
   }
@@ -4820,13 +4835,15 @@ function PrevisionnelTab({ transactions, categories, invoices, clients, associat
   }
 
   async function updatePipeStatus(id, status) {
-    await supabase.from('budget_pipeline').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+    const { error } = await enregistrer(supabase.from('budget_pipeline').update({ status, updated_at: new Date().toISOString() }).eq('id', id))
+    if (error) toast.error(error.message)
     loadPipeline()
   }
 
   async function deletePipe(id) {
     if (!await confirmer('Supprimer ?')) return
-    await supabase.from('budget_pipeline').delete().eq('id', id)
+    const { error } = await enregistrer(supabase.from('budget_pipeline').delete().eq('id', id))
+    if (error) toast.error(error.message)
     loadPipeline()
   }
 
@@ -6258,8 +6275,9 @@ function MealGuestModal({ transactionId, transaction, clients, associates = [], 
   async function handleSave() {
     setSaving(true)
     try {
-      // Supprimer les anciens
-      await supabase.from('budget_meal_guests').delete().eq('transaction_id', transactionId)
+      // Supprimer les anciens (0 ligne est normal : premier enregistrement des convives)
+      const { error: delErr } = await supabase.from('budget_meal_guests').delete().eq('transaction_id', transactionId)
+      if (delErr) throw delErr
 
       // Insérer les nouveaux
       const guestRows = guests.filter(g => g.name.trim()).map(g => ({
