@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../supabase'
+import { enregistrer } from '../../enregistrer'
 import { Field } from '../shared'
 
 // Impayés (0469) : paliers de relance, mise en demeure, taux directeur de la BCE pour calculer les intérêts de retard.
@@ -21,16 +22,16 @@ export default function ReglagesImpayes() {
       }, () => {})
   }, [])
   if (!r) return null
-  const enregistrer = async () => {
+  const sauvegarder = async () => {
     const paliers = [...new Set(String(f.paliers).split(/[,; ]+/).map((x) => parseInt(x, 10)).filter((x) => x > 0 && x <= 365))].sort((a, b) => a - b)
     const bce = String(f.bce).trim() === '' ? null : Number(String(f.bce).replace(',', '.'))
     if (bce !== null && !Number.isFinite(bce)) return toast.error('Taux BCE invalide')
     if (bce !== null && !f.bce_au) return toast.error('Indiquez la date du taux BCE saisi')
     setOccupe(true)
-    const { error } = await supabase.from('billing_settings').update({
+    const { error } = await enregistrer(supabase.from('billing_settings').update({
       relance_paliers: paliers.length ? paliers : [7, 15, 30], mise_en_demeure_jours: String(f.md).trim() === '' ? null : Math.max(1, Math.min(365, Number(f.md) || 45)),
       taux_bce: bce, taux_bce_au: bce === null ? null : f.bce_au, updated_at: new Date().toISOString(),
-    }).eq('company_id', r.company_id)
+    }).eq('company_id', r.company_id), { colonnes: 'company_id' })
     setOccupe(false)
     if (error) return toast.error(error.message)
     toast.success('Réglages des impayés enregistrés')
@@ -46,7 +47,7 @@ export default function ReglagesImpayes() {
         <Field label="Taux en vigueur au" hint="1er janvier ou 1er juillet du semestre"><input className="input" type="date" value={f.bce_au} onChange={(e) => setF({ ...f, bce_au: e.target.value })} /></Field>
       </div>
       <p className="text-ui-sm text-gray-500 mt-2">Taux de l'opération principale de refinancement, à relever sur le site de la <a className="text-accent-700 hover:underline" href={URL_BCE} target="_blank" rel="noreferrer">Banque centrale européenne</a> : celui du 1er janvier vaut pour le premier semestre, celui du 1er juillet pour le second. Professionnels : taux majoré de 10 points (art. L441-10 du code de commerce) et indemnité de 40 € ; clients publics : majoré de 8 points (code de la commande publique) ; particuliers : intérêts au taux légal à compter de la mise en demeure, sans indemnité.</p>
-      <div className="mt-3"><button type="button" className="btn btn-secondary" disabled={occupe} onClick={enregistrer}>Enregistrer</button></div>
+      <div className="mt-3"><button type="button" className="btn btn-secondary" disabled={occupe} onClick={sauvegarder}>Enregistrer</button></div>
     </>
   )
 }

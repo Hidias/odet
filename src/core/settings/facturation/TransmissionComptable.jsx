@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../supabase'
+import { enregistrer } from '../../enregistrer'
 import { Field } from '../shared'
 
 // Paramètres › Banque et facturation › Transmission au comptable (réglages de facturation de la société, 0366).
@@ -23,13 +24,13 @@ export default function TransmissionComptable() {
   }, [])
   if (!r) return null
 
-  const enregistrer = async () => {
+  const sauvegarder = async () => {
     setOccupe(true)
-    const { error } = await supabase.from('billing_settings').update({
+    const { error } = await enregistrer(supabase.from('billing_settings').update({
       comptable_transmission: r.comptable_transmission || null,
       plateforme_agreee: (r.plateforme_agreee || '').trim() || null,
       updated_at: new Date().toISOString(),
-    }).eq('company_id', r.company_id)
+    }).eq('company_id', r.company_id), { colonnes: 'company_id' })
     setOccupe(false)
     if (error) return toast.error(error.message)
     toast.success('Transmission enregistrée')
@@ -49,7 +50,7 @@ export default function TransmissionComptable() {
           <input className="input" value={r.plateforme_agreee || ''} onChange={(e) => setR({ ...r, plateforme_agreee: e.target.value })} />
         </Field>
       </div>
-      <div><button type="button" className="btn btn-secondary" disabled={occupe} onClick={enregistrer}>Enregistrer la transmission</button></div>
+      <div><button type="button" className="btn btn-secondary" disabled={occupe} onClick={sauvegarder}>Enregistrer la transmission</button></div>
     </>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Plus, Pencil, Star, Archive, Check, X, Loader2, MapPin } from 'lucide-react'
 import { supabase } from '../supabase'
+import { enregistrer } from '../enregistrer'
 import { Field } from './shared'
 
 // Établissements d'une société (0054) : le siège et les sites. L'établissement marqué « adresse principale » est
@@ -29,7 +30,7 @@ export default function Etablissements({ companyId, peutModifier = true, onChang
 
   const apres = async (message) => { toast.success(message); await charger(); onChange?.() }
 
-  const enregistrer = async () => {
+  const sauvegarder = async () => {
     const e = edition
     if (!e.address?.trim() || !e.city?.trim()) return toast.error('Adresse et ville requises')
     const siret = (e.siret || '').replace(/\s+/g, '')
@@ -37,7 +38,7 @@ export default function Etablissements({ companyId, peutModifier = true, onChang
     const champs = { name: e.name?.trim() || null, address: e.address.trim(), postal_code: e.postal_code?.trim() || null, city: e.city.trim(), siret: siret || null }
     setEnCours(true)
     const { error } = e.id
-      ? await supabase.from('company_establishments').update(champs).eq('id', e.id)
+      ? await enregistrer(supabase.from('company_establishments').update(champs).eq('id', e.id))
       : await supabase.from('company_establishments').insert({ company_id: companyId, ...champs, is_main_site: !(liste || []).some((x) => x.is_main_site) })
     setEnCours(false)
     if (error) return toast.error(error.message)
@@ -48,8 +49,9 @@ export default function Etablissements({ companyId, peutModifier = true, onChang
   // Une seule adresse principale par société : on retire d'abord l'ancienne, puis on pose la nouvelle
   const principal = async (e) => {
     setEnCours(true)
+    // Ancienne adresse principale retirée : 0 ligne est normal (aucune encore), l'erreur de la base est vérifiée
     const r1 = await supabase.from('company_establishments').update({ is_main_site: false }).eq('company_id', companyId).eq('is_main_site', true).neq('id', e.id)
-    const r2 = r1.error ? r1 : await supabase.from('company_establishments').update({ is_main_site: true }).eq('id', e.id)
+    const r2 = r1.error ? r1 : await enregistrer(supabase.from('company_establishments').update({ is_main_site: true }).eq('id', e.id))
     setEnCours(false)
     if (r2.error) return toast.error(r2.error.message)
     apres(`${e.name || ligne(e)} : adresse principale`)
@@ -57,7 +59,7 @@ export default function Etablissements({ companyId, peutModifier = true, onChang
 
   const archiver = async (e) => {
     setEnCours(true)
-    const { error } = await supabase.from('company_establishments').update({ status: 'archived', is_main_site: false }).eq('id', e.id)
+    const { error } = await enregistrer(supabase.from('company_establishments').update({ status: 'archived', is_main_site: false }).eq('id', e.id))
     setEnCours(false)
     if (error) return toast.error(error.message)
     apres('Site archivé')
@@ -103,7 +105,7 @@ export default function Etablissements({ companyId, peutModifier = true, onChang
             <Field label="Ville"><input id="etab-ville" className="input" value={edition.city || ''} onChange={(ev) => setEdition({ ...edition, city: ev.target.value })} /></Field>
           </div>
           <div className="flex gap-2">
-            <button type="button" className="btn btn-primary btn-sm" disabled={enCours} onClick={enregistrer}>{enCours ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}Enregistrer</button>
+            <button type="button" className="btn btn-primary btn-sm" disabled={enCours} onClick={sauvegarder}>{enCours ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}Enregistrer</button>
             <button type="button" className="btn btn-ghost btn-sm" disabled={enCours} onClick={() => setEdition(null)}><X className="w-3.5 h-3.5" />Annuler</button>
           </div>
         </div>

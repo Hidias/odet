@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../supabase'
+import { enregistrer } from '../../enregistrer'
 import { Field } from '../shared'
 
 // Contrats de maintenance (0460) : frais d'établissement par durée (ligne ajoutée au devis), préavis et période de
@@ -31,21 +32,22 @@ export default function ReglagesContrats() {
 
   const montant = (v) => { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null }
   const montantOuZero = (v) => { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null }
-  const enregistrer = async () => {
+  const sauvegarder = async () => {
     const frais = Object.fromEntries([1, 3, 5].map((d) => [String(d), montant(f[d])]).filter(([, v]) => v !== null))
     setOccupe(true)
-    const { error } = await supabase.from('billing_settings').update({
+    const { error } = await enregistrer(supabase.from('billing_settings').update({
       contrat_frais_etablissement: frais, contrat_preavis_mois: Math.max(0, Math.min(12, Number(f.preavis) || 0)),
       contrat_reconduction_ans: [1, 3, 5].includes(Number(f.reconduction)) ? Number(f.reconduction) : 1,
       contrat_prix_inventaire: String(f.inventaire).trim() === '' ? null : montantOuZero(f.inventaire),
       contrat_deduction_jours: Math.max(0, Math.min(365, Number(f.deduction) || 0)),
       cout_horaire_intervention: String(f.cout_horaire).trim() === '' ? null : montantOuZero(f.cout_horaire), updated_at: new Date().toISOString(),
-    }).eq('company_id', r.company_id)
+    }).eq('company_id', r.company_id), { colonnes: 'company_id' })
     if (error) { setOccupe(false); return toast.error(error.message) }
     const aGarder = types.filter((t) => String(prix[t.id] ?? '').trim() !== '' && montantOuZero(prix[t.id]) !== null)
       .map((t) => ({ company_id: r.company_id, type_id: t.id, price_ht: montantOuZero(prix[t.id]), updated_at: new Date().toISOString() }))
     const aRetirer = types.filter((t) => String(prix[t.id] ?? '').trim() === '').map((t) => t.id)
-    const e1 = aGarder.length ? (await supabase.from('itv_type_prices').upsert(aGarder, { onConflict: 'company_id,type_id' })).error : null
+    const e1 = aGarder.length ? (await enregistrer(supabase.from('itv_type_prices').upsert(aGarder, { onConflict: 'company_id,type_id' }), { attendu: aGarder.length })).error : null
+    // Prix effacés : 0 ligne est normal (type sans prix enregistré), l'erreur de la base est vérifiée
     const e2 = aRetirer.length ? (await supabase.from('itv_type_prices').delete().eq('company_id', r.company_id).in('type_id', aRetirer)).error : null
     setOccupe(false)
     if (e1 || e2) return toast.error((e1 || e2).message)
@@ -91,7 +93,7 @@ export default function ReglagesContrats() {
           </div>
         </>
       )}
-      <div className="mt-3"><button type="button" className="btn btn-secondary" disabled={occupe} onClick={enregistrer}>Enregistrer</button></div>
+      <div className="mt-3"><button type="button" className="btn btn-secondary" disabled={occupe} onClick={sauvegarder}>Enregistrer</button></div>
     </>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../supabase'
+import { enregistrer } from '../../enregistrer'
 import { Field } from '../shared'
 import { METIERS } from '../../../modules/commercial/lib/metierDevis'
 
@@ -79,7 +80,7 @@ export default function ReglagesDevis() {
   const enregistrerObjets = async () => {
     setOccupe(true)
     const objets = Object.fromEntries(METIERS.map((m) => [m.id, [...new Set(String(textes[m.id] || '').split('\n').map((l) => l.trim()).filter(Boolean))].slice(0, 40)]))
-    const { error } = await supabase.from('billing_settings').update({ objets_devis: objets, updated_at: new Date().toISOString() }).eq('company_id', r.company_id)
+    const { error } = await enregistrer(supabase.from('billing_settings').update({ objets_devis: objets, updated_at: new Date().toISOString() }).eq('company_id', r.company_id), { colonnes: 'company_id' })
     setOccupe(false)
     if (error) return toast.error(error.message)
     toast.success('Objets des devis enregistrés')
@@ -88,7 +89,7 @@ export default function ReglagesDevis() {
   const enregistrerMentions = async () => {
     setOccupe(true)
     const m = Object.fromEntries(MENTIONS.map(([k]) => [k, String(mentions[k] || '').trim()]))
-    const { error } = await supabase.from('billing_settings').update({ mentions_devis: m, updated_at: new Date().toISOString() }).eq('company_id', r.company_id)
+    const { error } = await enregistrer(supabase.from('billing_settings').update({ mentions_devis: m, updated_at: new Date().toISOString() }).eq('company_id', r.company_id), { colonnes: 'company_id' })
     setOccupe(false)
     if (error) return toast.error(error.message)
     toast.success('Mentions des devis enregistrées')
@@ -122,7 +123,7 @@ export default function ReglagesDevis() {
   }
 
   const retirerPiece = async (pc) => {
-    const { error } = await supabase.from('company_papers').delete().eq('id', pc.id)
+    const { error } = await enregistrer(supabase.from('company_papers').delete().eq('id', pc.id))
     if (error) return toast.error(error.message)
     toast.success('Pièce retirée des devis')
     chargerPieces()
