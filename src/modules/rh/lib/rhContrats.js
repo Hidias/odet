@@ -9,6 +9,7 @@
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { startDocument } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
@@ -223,8 +224,7 @@ export function modeleCourant(modeles, kind) {
 export const poserModeles = async (companyId) => must(await supabase.rpc('hr_modeles_contrat_poser', { p_company: companyId }))
 export async function validerModele(id, { validated_on, validated_by_name }) {
   if (!validated_on || vide(validated_by_name)) throw new Error('Date et nom du validateur obligatoires')
-  return must(await supabase.from('hr_contract_models')
-    .update({ status: 'valide', validated_on, validated_by_name: validated_by_name.trim() }).eq('id', id))
+  return enregistrerOuLever(supabase.from('hr_contract_models').update({ status: 'valide', validated_on, validated_by_name: validated_by_name.trim() }).eq('id', id))
 }
 
 export const REGLAGES = ['collective_agreement_name', 'retirement_fund', 'prevoyance_org', 'pay_terms']
@@ -249,12 +249,12 @@ export async function enregistrerAvenant(a) {
   const changes = a.changes.filter((c) => !vide(c.label) || !vide(c.after))
     .map((c) => ({ label: c.label.trim(), before: (c.before || '').trim(), after: c.after.trim() }))
   const ligne = { employment_id: a.employment_id, effective_on: a.effective_on, subject: a.subject.trim(), changes }
-  if (a.id) return must(await supabase.from('hr_contract_amendments').update(ligne).eq('id', a.id).select('*').single())
+  if (a.id) return (await enregistrerOuLever(supabase.from('hr_contract_amendments').update(ligne).eq('id', a.id).select('*')))[0]
   return must(await supabase.from('hr_contract_amendments').insert(ligne).select('*').single())
 }
-export const supprimerAvenant = async (id) => must(await supabase.from('hr_contract_amendments').delete().eq('id', id))
-export const marquerAvenantRemis = async (id, jour) => must(await supabase.from('hr_contract_amendments').update({ handed_on: jour || null }).eq('id', id))
-export const marquerContratRemis = async (id, jour) => must(await supabase.from('hr_employments').update({ contract_handed_on: jour || null }).eq('id', id))
+export const supprimerAvenant = async (id) => enregistrerOuLever(supabase.from('hr_contract_amendments').delete().eq('id', id))
+export const marquerAvenantRemis = async (id, jour) => enregistrerOuLever(supabase.from('hr_contract_amendments').update({ handed_on: jour || null }).eq('id', id))
+export const marquerContratRemis = async (id, jour) => enregistrerOuLever(supabase.from('hr_employments').update({ contract_handed_on: jour || null }).eq('id', id))
 
 /** Contrat ou avenant signé (scan) : rangé dans les documents (restreint), puis relié */
 export async function deposerSigne({ companyId, personId, contrat, avenant = null, file }) {
@@ -263,8 +263,8 @@ export async function deposerSigne({ companyId, personId, contrat, avenant = nul
     category: avenant ? 'avenant' : 'contrat', confidentiality: 'restreint',
     title: avenant ? `Avenant signé du ${frDate(avenant.effective_on)}` : `Contrat signé (${CONTRATS[contrat.contract_type] || 'contrat'} du ${frDate(contrat.start_on)})`,
   })
-  if (avenant) must(await supabase.from('hr_contract_amendments').update({ signed_document_id: doc.id }).eq('id', avenant.id))
-  else must(await supabase.from('hr_employments').update({ signed_document_id: doc.id }).eq('id', contrat.id))
+  if (avenant) await enregistrerOuLever(supabase.from('hr_contract_amendments').update({ signed_document_id: doc.id }).eq('id', avenant.id))
+  else await enregistrerOuLever(supabase.from('hr_employments').update({ signed_document_id: doc.id }).eq('id', contrat.id))
   return doc
 }
 
@@ -307,6 +307,6 @@ export async function generer({ personne, contrat, avenant = null, prep }) {
     title: avenant ? `Avenant du ${frDate(avenant.effective_on)} (à signer)` : `Contrat ${CONTRATS[contrat.contract_type]} (à signer)`,
     generatedFrom: origine(modele), contentSha256: await empreinte(octets),
   })
-  if (avenant) must(await supabase.from('hr_contract_amendments').update({ generated_document_id: d.id }).eq('id', avenant.id))
+  if (avenant) await enregistrerOuLever(supabase.from('hr_contract_amendments').update({ generated_document_id: d.id }).eq('id', avenant.id))
   return { range: true, id: d.id }
 }

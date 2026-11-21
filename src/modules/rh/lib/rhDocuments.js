@@ -5,6 +5,7 @@
 //   - suivi de santé administratif seulement : aucune donnée médicale.
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 const BUCKET = 'rh'
@@ -71,10 +72,10 @@ export const chargerConsignes = async (personId) => must(await supabase.from('hr
 export async function enregistrerConsigne(c) {
   const { id, ...reste } = c
   const ligne = { ...reste, label: reste.label?.trim() || null, ends_on: reste.ends_on || null, starts_on: reste.starts_on || new Date().toISOString().slice(0, 10) }
-  if (id) return must(await supabase.from('hr_work_restrictions').update(ligne).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('hr_work_restrictions').update(ligne).eq('id', id))
   return must(await supabase.from('hr_work_restrictions').insert(ligne))
 }
-export const supprimerConsigne = async (id) => must(await supabase.from('hr_work_restrictions').delete().eq('id', id))
+export const supprimerConsigne = async (id) => enregistrerOuLever(supabase.from('hr_work_restrictions').delete().eq('id', id))
 export async function chargerVigilance() {
   const { data, error } = await supabase.from('v_hr_vigilance').select('*').order('echeance')
   if (error) return []
@@ -153,7 +154,7 @@ export async function supprimerDocument(doc) {
   const { data: effaces, error } = await supabase.storage.from(BUCKET).remove([path])
   if (error) throw error
   if (!effaces?.length) throw new Error('Le fichier n\'a pas pu être effacé : document conservé')
-  must(await supabase.from('hr_documents').delete().eq('id', doc.id))
+  await enregistrerOuLever(supabase.from('hr_documents').delete().eq('id', doc.id), { message: 'Fichier effacé, mais la fiche du document n\'a pas pu être supprimée : rechargez la page et réessayez.' })
 }
 
 // ─── Habilitations ───
@@ -173,10 +174,10 @@ export async function enregistrerHabilitation(h) {
     symbols: Array.isArray(reste.symbols) && reste.symbols.length ? reste.symbols : null,
     scope: reste.scope?.trim() || null,
   }
-  if (id) return must(await supabase.from('hr_qualifications').update(ligne).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('hr_qualifications').update(ligne).eq('id', id))
   return must(await supabase.from('hr_qualifications').insert(ligne))
 }
-export const archiverHabilitation = async (id) => must(await supabase.from('hr_qualifications').update({ archived_at: new Date().toISOString() }).eq('id', id))
+export const archiverHabilitation = async (id) => enregistrerOuLever(supabase.from('hr_qualifications').update({ archived_at: new Date().toISOString() }).eq('id', id))
 
 // ─── Suivi de santé au travail (administratif) ───
 export const chargerSuivisSante = async (personId) => must(await supabase.from('hr_medical_followups')
@@ -195,10 +196,10 @@ export async function enregistrerSuiviSante(s) {
     inaptitude_outcome: reste.conclusion === 'inapte' ? (reste.inaptitude_outcome || null) : null,
     inaptitude_closed_on: reste.conclusion === 'inapte' ? (reste.inaptitude_closed_on || null) : null,
   }
-  if (id) return must(await supabase.from('hr_medical_followups').update(ligne).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('hr_medical_followups').update(ligne).eq('id', id))
   return must(await supabase.from('hr_medical_followups').insert(ligne))
 }
-export const supprimerSuiviSante = async (id) => must(await supabase.from('hr_medical_followups').delete().eq('id', id))
+export const supprimerSuiviSante = async (id) => enregistrerOuLever(supabase.from('hr_medical_followups').delete().eq('id', id))
 
 // ─── Échéances (vue aux droits du lecteur) ───
 export const chargerEcheances = async ({ personId = null, jusquAu = null } = {}) => {
