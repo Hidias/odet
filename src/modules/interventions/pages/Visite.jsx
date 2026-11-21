@@ -9,6 +9,7 @@ import { ChevronLeft, Loader2, Camera, Plus, Minus, Check, FileDown, Share2, Rec
 import FullscreenSignaturePad from '../../../ui/signature/FullscreenSignaturePad'
 import { profileName } from '../../../core/org/currentOrg'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import {
   loadVisit, loadEquipmentForSite, loadVisitItems, loadVisitParts, loadDoneOperations, startVisit, saveVisitItem,
   addVisitItem, addVisitPart, updateVisitPart, removeVisitPart, updateVisit, closeVisit, uploadPhoto, shrinkImage,
@@ -110,8 +111,7 @@ export default function Visite({ settings, types, parts: catalog, technicians, i
     setItems((list) => list.map((i) => (i.result ? i : { ...i, result: 'conforme' })))
     try {
       const now = new Date().toISOString()
-      const { error } = await supabase.from('itv_visit_items').update({ result: 'conforme', checked_at: now }).in('id', rest.map((i) => i.id))
-      if (error) throw error
+      await enregistrerOuLever(supabase.from('itv_visit_items').update({ result: 'conforme', checked_at: now }).in('id', rest.map((i) => i.id)), { attendu: rest.length })
       toast.success(`${rest.length} appareils conformes`)
     } catch (e) { toast.error(e.message); load() }
   }

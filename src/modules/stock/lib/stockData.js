@@ -4,6 +4,7 @@
 // Le technicien passe par des fonctions sans aucun prix (stock_mon_stock, stock_articles_terrain, stock_depots_terrain).
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -57,14 +58,14 @@ export async function enregistrerArticle(a, prixAchat = undefined) {
   // DATI (0522) : seulement pour un article EPI
   if ('dati' in reste) reste.dati = !!(reste.ppe && reste.dati)
   if ('ppe_renew_months' in reste) reste.ppe_renew_months = reste.ppe && reste.ppe_renew_months !== '' && reste.ppe_renew_months != null ? Number(reste.ppe_renew_months) : null
-  const ligne = id ? must(await supabase.from('stock_items').update(reste).eq('id', id).select('id').single())
+  const ligne = id ? (await enregistrerOuLever(supabase.from('stock_items').update(reste).eq('id', id)))[0]
     : must(await supabase.from('stock_items').insert(reste).select('id').single())
   if (prixAchat !== undefined && prixAchat !== '' && prixAchat != null) {
     must(await supabase.from('stock_item_costs').upsert({ item_id: ligne.id, purchase_price_ht: Number(String(prixAchat).replace(',', '.')) }))
   }
   return ligne
 }
-export const archiverArticle = async (id, actif) => must(await supabase.from('stock_items').update({ is_active: actif }).eq('id', id))
+export const archiverArticle = async (id, actif) => enregistrerOuLever(supabase.from('stock_items').update({ is_active: actif }).eq('id', id))
 
 // Désactiver un emplacement : seulement vide (plus aucun article), et pour le stock d'un technicien seulement quand son
 // compte est désactivé (sinon il ne pourrait plus ouvrir « Mon stock »). `quantites` : quantité par article de
@@ -78,20 +79,20 @@ export function peutDesactiverEmplacement(l, quantites = [], compteActif = undef
   }
   return { ok: true }
 }
-export const activerEmplacement = async (id, actif) => must(await supabase.from('stock_locations').update({ is_active: actif }).eq('id', id))
+export const activerEmplacement = async (id, actif) => enregistrerOuLever(supabase.from('stock_locations').update({ is_active: actif }).eq('id', id))
 
 export async function enregistrerEmplacement(l) {
   const { id, ...reste } = nettoyer(l)
-  if (id) return must(await supabase.from('stock_locations').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('stock_locations').update(reste).eq('id', id))
   return must(await supabase.from('stock_locations').insert(reste))
 }
 export async function enregistrerFournisseur(f) {
   const { id, ...reste } = nettoyer(f)
   if (reste.lead_time_days != null) reste.lead_time_days = Number(reste.lead_time_days) || null
-  if (id) return must(await supabase.from('suppliers').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('suppliers').update(reste).eq('id', id))
   return must(await supabase.from('suppliers').insert(reste))
 }
-export const archiverFournisseur = async (id) => must(await supabase.from('suppliers').update({ archived_at: new Date().toISOString() }).eq('id', id))
+export const archiverFournisseur = async (id) => enregistrerOuLever(supabase.from('suppliers').update({ archived_at: new Date().toISOString() }).eq('id', id))
 
 export async function enregistrerSeuil({ item_id, location_id, min_qty, target_qty }) {
   return must(await supabase.from('stock_thresholds').upsert({
@@ -146,12 +147,12 @@ const nombre = (v) => (v === '' || v == null ? null : Number(String(v).replace('
 export async function enregistrerLigne({ id, order_id, item_id, quantity, unit_price_ht }) {
   const ligne = { item_id, quantity: nombre(quantity), unit_price_ht: nombre(unit_price_ht) }
   if (!(ligne.quantity > 0)) throw new Error('Indiquez une quantité supérieure à zéro')
-  if (id) return must(await supabase.from('purchase_order_lines').update(ligne).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('purchase_order_lines').update(ligne).eq('id', id))
   return must(await supabase.from('purchase_order_lines').insert({ ...ligne, order_id }))
 }
-export const supprimerLigne = async (id) => must(await supabase.from('purchase_order_lines').delete().eq('id', id))
-export const modifierCommande = async (id, champs) => must(await supabase.from('purchase_orders').update(champs).eq('id', id))
-export const supprimerCommande = async (id) => must(await supabase.from('purchase_orders').delete().eq('id', id))
+export const supprimerLigne = async (id) => enregistrerOuLever(supabase.from('purchase_order_lines').delete().eq('id', id))
+export const modifierCommande = async (id, champs) => enregistrerOuLever(supabase.from('purchase_orders').update(champs).eq('id', id))
+export const supprimerCommande = async (id) => enregistrerOuLever(supabase.from('purchase_orders').delete().eq('id', id))
 export const soumettreCommande = async (id) => must(await supabase.rpc('stock_commande_soumettre', { p_order: id }))
 export const commandeEnvoyee = async (id) => must(await supabase.rpc('stock_commande_envoyee', { p_order: id }))
 export const annulerCommande = async (id) => must(await supabase.rpc('stock_commande_annuler', { p_order: id }))
@@ -174,6 +175,6 @@ export const chargerSeries = async (itemId) => must(await supabase.from('stock_s
   .select('*, stock_locations(name)').eq('item_id', itemId).order('serial'))
 export async function enregistrerSerie(s) {
   const { id, stock_locations: _l, ...reste } = nettoyer(s)
-  if (id) return must(await supabase.from('stock_serials').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('stock_serials').update(reste).eq('id', id))
   return must(await supabase.from('stock_serials').insert(reste))
 }

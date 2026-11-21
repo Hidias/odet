@@ -2,6 +2,7 @@
 // Techniciens : comptes du personnel (profiles) cochés dans itv_technicians ; nom et téléphone lus dans le compte.
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { chargerTarifs, prixVisite } from '../../../core/tarifs/tarifsClient'
 import { fetchAll, fetchAllIn } from '../../../core/fetchAll'
 import { profileName } from '../../../core/org/currentOrg'
@@ -29,23 +30,23 @@ export async function loadSettings() {
   const s = must(await supabase.from(prixMasques ? 'itv_settings_terrain' : 'itv_settings').select('*').eq('id', 1).maybeSingle()) || {}
   return { ...s, operation_labels: { ...DEFAULT_OPERATION_LABELS, ...(s.operation_labels || {}) } }
 }
-export const saveSettings = async (patch) => must(await supabase.from('itv_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', 1))
+export const saveSettings = async (patch) => enregistrerOuLever(supabase.from('itv_settings').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', 1))
 
 export const loadTypes = async () => must(await supabase.from('itv_equipment_types').select('*').order('sort_order').order('name'))
 export async function saveType(t) {
   const row = { ...t, updated_at: new Date().toISOString() }
-  if (row.id) return must(await supabase.from('itv_equipment_types').update(row).eq('id', row.id).select().single())
+  if (row.id) return (await enregistrerOuLever(supabase.from('itv_equipment_types').update(row).eq('id', row.id).select()))[0]
   return must(await supabase.from('itv_equipment_types').insert(row).select().single())
 }
 export async function removeType(id) {
   const { count } = await supabase.from('itv_equipment').select('id', { count: 'exact', head: true }).eq('type_id', id)
   if (count) throw new Error(`Ce type est utilisé par ${count} appareil${count > 1 ? 's' : ''} : désactivez-le plutôt.`)
-  return must(await supabase.from('itv_equipment_types').delete().eq('id', id))
+  return enregistrerOuLever(supabase.from('itv_equipment_types').delete().eq('id', id))
 }
 
 export const loadParts = async () => must(await supabase.from(prixMasques ? 'itv_parts_terrain' : 'itv_parts').select('*').order('name'))
 export async function savePart(p) {
-  if (p.id) return must(await supabase.from('itv_parts').update(p).eq('id', p.id).select().single())
+  if (p.id) return (await enregistrerOuLever(supabase.from('itv_parts').update(p).eq('id', p.id).select()))[0]
   return must(await supabase.from('itv_parts').insert(p).select().single())
 }
 
@@ -60,9 +61,9 @@ export async function loadTechnicians({ all = false } = {}) {
 export const loadStaffProfiles = async () => must(await supabase.from('profiles').select('id, first_name, last_name, display_name, email, role, is_active').or(FILTRE_EQUIPE).order('created_at'))
 export async function setTechnician(profileId, on, color) {
   if (on) return must(await supabase.from('itv_technicians').upsert({ profile_id: profileId, is_active: true, ...(color ? { color } : {}) }))
-  return must(await supabase.from('itv_technicians').update({ is_active: false }).eq('profile_id', profileId))
+  return enregistrerOuLever(supabase.from('itv_technicians').update({ is_active: false }).eq('profile_id', profileId), { colonnes: 'profile_id' })
 }
-export const setTechnicianColor = async (profileId, color) => must(await supabase.from('itv_technicians').update({ color }).eq('profile_id', profileId))
+export const setTechnicianColor = async (profileId, color) => enregistrerOuLever(supabase.from('itv_technicians').update({ color }).eq('profile_id', profileId), { colonnes: 'profile_id' })
 
 // ─── Clients et sites (tables existantes) ───
 export const loadClientsLight = async () => mustAll(() => supabase.from('clients').select('id, name, city, postal_code, address').order('name'))
@@ -95,7 +96,7 @@ export async function saveSite(site) {
     const g = await geocode(row.address, row.postal_code, row.city)
     if (g) { row.latitude = g.lat; row.longitude = g.lng }
   }
-  if (row.id) return must(await supabase.from('sites').update(row).eq('id', row.id).select().single())
+  if (row.id) return (await enregistrerOuLever(supabase.from('sites').update(row).eq('id', row.id).select()))[0]
   return must(await supabase.from('sites').insert(row).select().single())
 }
 
@@ -121,10 +122,10 @@ export async function saveEquipment(e) {
     const codes = must(await supabase.rpc('itv_next_label', { p_count: 1 }))
     row.label_code = codes[0]
   }
-  if (row.id) return must(await supabase.from('itv_equipment').update(row).eq('id', row.id).select().single())
+  if (row.id) return (await enregistrerOuLever(supabase.from('itv_equipment').update(row).eq('id', row.id).select()))[0]
   return must(await supabase.from('itv_equipment').insert(row).select().single())
 }
-export const retireEquipment = async (id) => must(await supabase.from('itv_equipment').update({ status: 'retire', updated_at: new Date().toISOString() }).eq('id', id))
+export const retireEquipment = async (id) => enregistrerOuLever(supabase.from('itv_equipment').update({ status: 'retire', updated_at: new Date().toISOString() }).eq('id', id))
 
 /** Historique d'un appareil : lignes de visite terminées, de la plus récente à la plus ancienne */
 export async function loadEquipmentHistory(equipmentId) {
@@ -163,7 +164,7 @@ export const loadContracts = async (clientId = null) => {
 export async function saveContract(c) {
   const row = { ...c, updated_at: new Date().toISOString() }
   delete row.clients
-  if (row.id) return must(await supabase.from('itv_contracts').update(row).eq('id', row.id).select().single())
+  if (row.id) return (await enregistrerOuLever(supabase.from('itv_contracts').update(row).eq('id', row.id).select()))[0]
   return must(await supabase.from('itv_contracts').insert(row).select().single())
 }
 export const generateContractVisits = async (contractId, year) => must(await supabase.rpc('itv_generate_contract_visits', { p_contract: contractId, p_year: year }))
@@ -185,7 +186,7 @@ export async function loadVisits({ from = null, to = null, technicianId = null, 
 export const loadVisit = async (id) => must(await supabase.from('itv_visits').select(VISIT_COLS).eq('id', id).single())
 export const loadVisitItems = async (visitId) => must(await supabase.from('itv_visit_items').select('*').eq('visit_id', visitId))
 export const loadVisitParts = async (visitId) => must(await supabase.from(prixMasques ? 'itv_visit_parts_terrain' : 'itv_visit_parts').select('*').eq('visit_id', visitId).order('created_at'))
-export const updateVisit = async (id, patch) => must(await supabase.from('itv_visits').update(patch).eq('id', id).select().single())
+export const updateVisit = async (id, patch) => (await enregistrerOuLever(supabase.from('itv_visits').update(patch).eq('id', id).select()))[0]
 /** Visites terminées depuis une date (date de fin réelle, la plus récente d'abord) : Kanban des visites */
 export async function loadVisitesTerminees(depuis) {
   return mustAll(() => supabase.from('itv_visits').select(VISIT_COLS).eq('status', 'terminee').gte('finished_at', depuis)
@@ -209,7 +210,7 @@ export async function startVisit(visit, equipmentWithOps) {
   }
   return loadVisitItems(visit.id)
 }
-export const saveVisitItem = async (id, patch) => must(await supabase.from('itv_visit_items').update({ ...patch, checked_at: new Date().toISOString() }).eq('id', id).select().single())
+export const saveVisitItem = async (id, patch) => (await enregistrerOuLever(supabase.from('itv_visit_items').update({ ...patch, checked_at: new Date().toISOString() }).eq('id', id).select()))[0]
 export const addVisitItem = async (row) => must(await supabase.from('itv_visit_items').insert(row).select().single())
 // Pièces fournies. Prix masqués : par les fonctions de la base (le prix unitaire n'est ni envoyé ni renvoyé)
 export async function addVisitPart(row) {
@@ -225,11 +226,11 @@ export async function updateVisitPart(id, patch) {
     // Seule la quantité est modifiable sur le terrain
     return must(await supabase.rpc('itv_visit_part_set_quantity', { p_id: id, p_quantity: Number(patch.quantity) }))
   }
-  return must(await supabase.from('itv_visit_parts').update(patch).eq('id', id))
+  return enregistrerOuLever(supabase.from('itv_visit_parts').update(patch).eq('id', id))
 }
 export async function removeVisitPart(id) {
   if (prixMasques) return must(await supabase.rpc('itv_visit_part_remove', { p_id: id }))
-  return must(await supabase.from('itv_visit_parts').delete().eq('id', id))
+  return enregistrerOuLever(supabase.from('itv_visit_parts').delete().eq('id', id))
 }
 export const closeVisit = async (id) => must(await supabase.rpc('itv_close_visit', { p_visit: id }))
 
@@ -346,7 +347,8 @@ export async function planSite(due, { day, technicianId, order = 99, time = null
 
 /** Nouvel ordre de passage d'une journée : ids dans l'ordre */
 export async function reorderVisits(ids) {
-  await Promise.all(ids.map((id, i) => supabase.from('itv_visits').update({ route_order: i + 1 }).eq('id', id)))
+  // Chaque ordre est vérifié : un refus ou une visite supprimée entre-temps n'est plus pris pour un succès
+  await Promise.all(ids.map((id, i) => enregistrerOuLever(supabase.from('itv_visits').update({ route_order: i + 1 }).eq('id', id))))
 }
 
 // ─── Factures et devis pré-remplis (tables existantes, brouillons) ───
