@@ -3,6 +3,7 @@
 // Les anomalies d'un plein sont signalées par la base (statut « à vérifier »), jamais corrigées en silence.
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 import { compresser } from '../../../core/feedback/retours'
 import { FILTRE_EQUIPE } from '../../../core/org/currentOrg'
@@ -44,7 +45,7 @@ export const nomCompte = (p) => (p ? (`${p.first_name || ''} ${p.last_name || ''
 export async function enregistrerVehicule(v) {
   const { id, created_at: _c, updated_at: _u, company_id: _co, ...reste } = propre(v)
   for (const k of ['purchase_price_ttc', 'monthly_cost_ttc', 'insurance_annual_ttc']) if (k in reste) reste[k] = nombre(reste[k])
-  if (id) return must(await supabase.from('vehicles').update(reste).eq('id', id).select('id').single())
+  if (id) return (await enregistrerOuLever(supabase.from('vehicles').update(reste).eq('id', id)))[0]
   return must(await supabase.from('vehicles').insert(reste).select('id').single())
 }
 export async function attribuer({ vehicleId, profileId, startKm, startFuel, startNotes }) {
@@ -53,7 +54,7 @@ export async function attribuer({ vehicleId, profileId, startKm, startFuel, star
   }))
 }
 export async function restituer({ id, endKm, endFuel, endNotes }) {
-  return must(await supabase.from('vehicle_assignments').update({
+  return enregistrerOuLever(supabase.from('vehicle_assignments').update({
     end_on: new Date().toISOString().slice(0, 10), end_km: nombre(endKm), end_fuel: endFuel || null, end_notes: endNotes || null,
   }).eq('id', id))
 }
@@ -63,19 +64,19 @@ export async function enregistrerRegle(r) {
   for (const k of ['every_km', 'every_months', 'last_km', 'alert_days', 'alert_km']) if (k in reste) reste[k] = nombre(reste[k])
   if (reste.alert_days == null) delete reste.alert_days
   if (reste.alert_km == null) delete reste.alert_km
-  if (id) return must(await supabase.from('vehicle_maintenance_rules').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('vehicle_maintenance_rules').update(reste).eq('id', id))
   return must(await supabase.from('vehicle_maintenance_rules').insert(reste))
 }
-export const supprimerRegle = async (id) => must(await supabase.from('vehicle_maintenance_rules').delete().eq('id', id))
+export const supprimerRegle = async (id) => enregistrerOuLever(supabase.from('vehicle_maintenance_rules').delete().eq('id', id))
 export async function enregistrerEvenement(e) {
   const { id, created_at: _c, updated_at: _u, company_id: _co, created_by: _b, ...reste } = propre(e)
   reste.km = nombre(reste.km); reste.cost_ttc = nombre(reste.cost_ttc)
   for (const k of ['deductible', 'indemnity']) if (k in reste) reste[k] = nombre(reste[k])
   for (const k of ['claim_declared_on', 'claim_status', 'at_fault']) if (k in reste && !reste[k]) reste[k] = null
-  if (id) return must(await supabase.from('vehicle_events').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('vehicle_events').update(reste).eq('id', id))
   return must(await supabase.from('vehicle_events').insert(reste).select('id').single())
 }
-export const marquerVerifie = async (id) => must(await supabase.from('vehicle_fuel').update({ status: 'normal' }).eq('id', id))
+export const marquerVerifie = async (id) => enregistrerOuLever(supabase.from('vehicle_fuel').update({ status: 'normal' }).eq('id', id))
 
 async function empreinte(blob) {
   const buf = await blob.arrayBuffer()

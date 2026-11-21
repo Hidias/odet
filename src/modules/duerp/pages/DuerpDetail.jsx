@@ -2,6 +2,7 @@ import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { useDataStore } from '../../../core/store'
 import {
   Building2, Calendar, MapPin, ChevronDown, ChevronUp,
@@ -196,7 +197,7 @@ export default function DuerpDetail() {
   // PROJET - STATUT & INFOS
   // ═══════════════════════════════════════════════════════════
   const updateProjectStatus = async (newStatus) => {
-    const { error } = await supabase.from('duerp_projects').update({ status: newStatus }).eq('id', id)
+    const { error } = await enregistrer(supabase.from('duerp_projects').update({ status: newStatus }).eq('id', id))
     if (error) return toast.error('Erreur mise à jour statut')
     setProject(p => ({ ...p, status: newStatus }))
     toast.success(`Statut → ${STATUS_CONFIG[newStatus]?.label}`)
@@ -205,7 +206,7 @@ export default function DuerpDetail() {
   const saveProjectInfo = async () => {
     if (!editingProject) return
     const { id: _id, created_at, updated_at, created_by, ...fields } = editingProject
-    const { error } = await supabase.from('duerp_projects').update(fields).eq('id', id)
+    const { error } = await enregistrer(supabase.from('duerp_projects').update(fields).eq('id', id))
     if (error) return toast.error('Erreur sauvegarde : ' + error.message)
     setProject(p => ({ ...p, ...fields }))
     setEditingProject(null)
@@ -233,10 +234,10 @@ export default function DuerpDetail() {
       if (error) return toast.error('Erreur création : ' + error.message)
       toast.success('Unité créée')
     } else {
-      const { error } = await supabase.from('duerp_units').update({
+      const { error } = await enregistrer(supabase.from('duerp_units').update({
         code: unitForm.code, name: unitForm.name,
         description: unitForm.description, effectif: effectifInt, metiers: unitForm.metiers,
-      }).eq('id', editingUnit)
+      }).eq('id', editingUnit))
       if (error) return toast.error('Erreur modification : ' + error.message)
       toast.success('Unité modifiée')
     }
@@ -252,7 +253,7 @@ export default function DuerpDetail() {
     } else {
       if (!await confirmer('Supprimer cette unité de travail ?')) return
     }
-    const { error } = await supabase.from('duerp_units').delete().eq('id', unitId)
+    const { error } = await enregistrer(supabase.from('duerp_units').delete().eq('id', unitId))
     if (error) return toast.error('Erreur suppression : ' + error.message)
     toast.success('Unité supprimée')
     loadAll()
@@ -279,7 +280,7 @@ export default function DuerpDetail() {
       notes: riskData.notes,
     }
     if (riskData.id) {
-      const { error } = await supabase.from('duerp_risks').update(payload).eq('id', riskData.id)
+      const { error } = await enregistrer(supabase.from('duerp_risks').update(payload).eq('id', riskData.id))
       if (error) return toast.error('Erreur modification risque : ' + error.message)
       toast.success('Risque mis à jour')
     } else {
@@ -295,7 +296,7 @@ export default function DuerpDetail() {
 
   const deleteRisk = async (riskId) => {
     if (!await confirmer('Supprimer ce risque ?')) return
-    const { error } = await supabase.from('duerp_risks').delete().eq('id', riskId)
+    const { error } = await enregistrer(supabase.from('duerp_risks').delete().eq('id', riskId))
     if (error) return toast.error('Erreur : ' + error.message)
     toast.success('Risque supprimé')
     loadAll()
@@ -319,7 +320,7 @@ export default function DuerpDetail() {
 
   // Cotation tactile inline - écrit UNIQUEMENT le champ modifié
   const updateRiskField = async (riskId, field, value) => {
-    const { error } = await supabase.from('duerp_risks').update({ [field]: value }).eq('id', riskId)
+    const { error } = await enregistrer(supabase.from('duerp_risks').update({ [field]: value }).eq('id', riskId))
     if (error) return toast.error('Erreur : ' + error.message)
     setRisks(prev => prev.map(r => {
       if (r.id !== riskId) return r
@@ -363,7 +364,7 @@ export default function DuerpDetail() {
       if (error) return toast.error('Erreur création action : ' + error.message)
       toast.success('Action créée')
     } else {
-      const { error } = await supabase.from('duerp_actions').update(payload).eq('id', editingAction)
+      const { error } = await enregistrer(supabase.from('duerp_actions').update(payload).eq('id', editingAction))
       if (error) return toast.error('Erreur modification : ' + error.message)
       toast.success('Action modifiée')
     }
@@ -374,7 +375,7 @@ export default function DuerpDetail() {
 
   const deleteAction = async (actionId) => {
     if (!await confirmer('Supprimer cette action ?')) return
-    const { error } = await supabase.from('duerp_actions').delete().eq('id', actionId)
+    const { error } = await enregistrer(supabase.from('duerp_actions').delete().eq('id', actionId))
     if (error) return toast.error('Erreur : ' + error.message)
     toast.success('Action supprimée')
     loadAll()
@@ -383,7 +384,7 @@ export default function DuerpDetail() {
   const updateActionStatus = async (actionId, newStatus) => {
     const updates = { statut: newStatus }
     if (newStatus === 'fait') updates.date_realisation = new Date().toISOString().split('T')[0]
-    const { error } = await supabase.from('duerp_actions').update(updates).eq('id', actionId)
+    const { error } = await enregistrer(supabase.from('duerp_actions').update(updates).eq('id', actionId))
     if (error) return toast.error('Erreur : ' + error.message)
     setActions(prev => prev.map(a => a.id === actionId ? { ...a, ...updates } : a))
     toast.success('Statut mis à jour')
@@ -446,7 +447,7 @@ export default function DuerpDetail() {
     if (aiResult.consequences_completees) updates.consequences = aiResult.consequences_completees
     if (aiResult.description_travail) updates.description_travail = aiResult.description_travail
 
-    const { error } = await supabase.from('duerp_risks').update(updates).eq('id', risk.id)
+    const { error } = await enregistrer(supabase.from('duerp_risks').update(updates).eq('id', risk.id))
     if (error) return toast.error('Erreur sauvegarde : ' + error.message)
 
     // Créer les actions proposées
@@ -616,8 +617,9 @@ export default function DuerpDetail() {
       const datePrefix = new Date().toLocaleDateString('fr-FR')
       const newNote = `[${datePrefix}] ${aiGeneralDescription.trim()}`
       const merged = existing ? `${existing}\n\n${newNote}` : newNote
-      await supabase.from('duerp_projects').update({ notes: merged }).eq('id', id)
-      setProject(p => ({ ...p, notes: merged }))
+      const { error: erreurNotes } = await enregistrer(supabase.from('duerp_projects').update({ notes: merged }).eq('id', id))
+      if (erreurNotes) toast.error('Observations terrain non enregistrées : ' + erreurNotes.message)
+      else setProject(p => ({ ...p, notes: merged }))
     }
 
     // Créer les nouvelles unités si proposées
