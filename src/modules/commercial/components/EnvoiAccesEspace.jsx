@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Send, Loader2, Smartphone } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { callApi } from '../../../core/api'
 import { confirmer } from '../../../ui/Confirm'
 
@@ -58,7 +59,7 @@ export default function EnvoiAccesEspace({ acces, contacts = [], peutGerer, onCh
             {acces.code_changed_at ? ` Code changé par le client le ${quand(acces.code_changed_at)}.` : ''}</p>
           <label className="flex items-start gap-2 text-ui-sm">
             <input type="checkbox" className="mt-0.5" checked={!!acces.code_apart} onChange={async (e) => {
-              const { error } = await supabase.from('client_portal_access').update({ code_apart: e.target.checked, updated_at: new Date().toISOString() }).eq('id', acces.id)
+              const { error } = await enregistrer(supabase.from('client_portal_access').update({ code_apart: e.target.checked, updated_at: new Date().toISOString() }).eq('id', acces.id))
               if (error) toast.error(error.message); else onChange?.()
             }} />
             <span>Code envoyé à part : ne plus l'imprimer sur les devis et conventions (l'encadré « Signer en ligne » renvoie à l'e-mail séparé)</span>

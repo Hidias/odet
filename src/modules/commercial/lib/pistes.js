@@ -4,6 +4,7 @@
 // maintenance » sans prix. Le devis reste un brouillon à relire ; la piste passe « en cours » et le garde.
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { computeDocumentTotals, lineTotal } from '../../../core/billing/totals'
 import { chargerTarifs, tarifPour } from '../../../core/tarifs/tarifsClient'
 
@@ -78,6 +79,6 @@ export async function preparerDevisPiste(lead) {
     object, status: 'draft', tva_rate: 20, tva_applicable: true, total_ht: t.taxBasis, total_tva: t.taxTotal, total_ttc: t.grandTotal,
   }).select().single())
   must(await supabase.from('quote_items').insert(lines.map((l, i) => ({ ...l, quote_id: q.id, position: i, total_ht: lineTotal(l) }))))
-  must(await supabase.from('cross_sell_leads').update({ quote_id: q.id, status: 'en_cours' }).eq('id', lead.id))
+  await enregistrerOuLever(supabase.from('cross_sell_leads').update({ quote_id: q.id, status: 'en_cours' }).eq('id', lead.id), { message: `Devis ${q.reference} créé, mais la piste n'a pas pu passer « en cours » : vérifiez vos droits.` })
   return q
 }

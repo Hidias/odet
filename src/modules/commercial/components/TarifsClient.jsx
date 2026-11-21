@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { BadgeEuro, Plus, Trash2, Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { confirmer } from '../../../ui/Confirm'
 import { valide } from '../../../core/tarifs/tarifsClient'
 import { FRAIS_CATALOGUE } from '../lib/fraisCatalogue'
@@ -81,9 +82,11 @@ export default function TarifsClient({ client, peutModifier }) {
     if (f.kind === 'equipement' && (!ligne.equipment_type_id || ligne.prix_ht == null)) return toast.error('Choisissez le type d\'appareil et son prix par an')
     if (f.kind === 'remise_pieces' && (ligne.remise_pct == null || ligne.remise_pct < 0 || ligne.remise_pct > 100)) return toast.error('Remise entre 0 et 100 %')
     setBusy(true)
-    const { error } = f.id
-      ? await supabase.from('client_prices').update(ligne).eq('id', f.id)
-      : await supabase.from('client_prices').insert(ligne)
+    let error = null
+    try {
+      if (f.id) await enregistrerOuLever(supabase.from('client_prices').update(ligne).eq('id', f.id))
+      else error = (await supabase.from('client_prices').insert(ligne)).error
+    } catch (e) { error = e }
     setBusy(false)
     if (error) return toast.error(/client_prices_unique|duplicate/i.test(error.message) ? 'Ce client a déjà un tarif pour cet élément : modifiez-le' : error.message)
     toast.success('Tarif enregistré')
@@ -93,8 +96,8 @@ export default function TarifsClient({ client, peutModifier }) {
 
   const supprimer = async (t) => {
     if (!(await confirmer({ title: 'Retirer ce tarif ?', message: `${nomDe(t)} : le prix du catalogue s'appliquera de nouveau à ce client.`, confirmLabel: 'Retirer', danger: true }))) return
-    const { error } = await supabase.from('client_prices').delete().eq('id', t.id)
-    if (error) return toast.error(error.message)
+    try { await enregistrerOuLever(supabase.from('client_prices').delete().eq('id', t.id)) }
+    catch (error) { return toast.error(error.message) }
     charger()
   }
 

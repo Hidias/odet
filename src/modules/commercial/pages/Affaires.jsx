@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Plus, Phone, MessageSquare, KanbanSquare, PhoneCall, Settings2, Check } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { useAuthStore } from '../../../core/store'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
@@ -83,9 +84,8 @@ export default function Affaires() {
     if (l.origine === 'devis') return toast('Changez le statut du devis dans Devis : l\'affaire suit')
     if (stage === 'perdue') return setEdition({ affaire: { ...l, stage: 'perdue' } })
     if (stage === 'gagnee' && !(await confirmer({ title: 'Affaire gagnée ?', message: `« ${l.title || l.client_name} » sort du suivi des affaires ouvertes. Elle reste visible dans l'onglet « Gagnées et perdues » et sur la fiche du client.`, confirmLabel: 'Gagnée' }))) return
-    const { data, error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id).select('id')
-    if (error) return toast.error(error.message)
-    if (!data?.length) return toast.error('Affaire non modifiée : vous n\'avez pas le droit de la modifier.')
+    try { await enregistrerOuLever(supabase.from('opportunities').update({ stage }).eq('id', l.id), { message: 'Affaire non modifiée : vous n\'avez pas le droit de la modifier.' }) }
+    catch (error) { return toast.error(error.message) }
     toast.success('Affaire gagnée : elle est dans l\'onglet « Gagnées et perdues »')
     charger()
   }
@@ -97,10 +97,10 @@ export default function Affaires() {
     if (l.origine === 'devis') return toast('Changez le statut du devis dans Devis : l\'affaire suit')
     if (stage === 'gagnee' || stage === 'perdue') return fermer(l, stage)
     setPipeline((p) => (p || []).map((x) => (x.origine === 'affaire' && x.id === l.id ? ligneAEtape(x, stage, listes.etape) : x)))
-    const { data, error } = await supabase.from('opportunities').update({ stage }).eq('id', l.id).select('id')
-    if (error) toast.error(error.message)
-    else if (!data?.length) toast.error('Étape non changée : vous n\'avez pas le droit de modifier cette affaire.')
-    else toast.success(`Étape : ${nomEtape(stage)}`)
+    try {
+      await enregistrerOuLever(supabase.from('opportunities').update({ stage }).eq('id', l.id), { message: 'Étape non changée : vous n\'avez pas le droit de modifier cette affaire.' })
+      toast.success(`Étape : ${nomEtape(stage)}`)
+    } catch (error) { toast.error(error.message) }
     charger()
   }
 
@@ -288,17 +288,16 @@ function ReglagesAffaires({ listes, objectifs, onClose, onSaved }) {
     try {
       for (const [kind, v] of Object.entries(obj)) {
         const ex = objectifs.find((o) => o.kind === kind && !o.profile_id)
-        if (v === '' || v == null) { if (ex) await supabase.from('activity_targets').delete().eq('id', ex.id); continue }
+        if (v === '' || v == null) { if (ex) await enregistrerOuLever(supabase.from('activity_targets').delete().eq('id', ex.id)); continue }
         const n = Math.max(0, Math.min(500, parseInt(v, 10) || 0))
-        const r = ex ? await supabase.from('activity_targets').update({ per_week: n }).eq('id', ex.id)
-          : await supabase.from('activity_targets').insert({ kind, per_week: n, profile_id: null })
+        if (ex) { await enregistrerOuLever(supabase.from('activity_targets').update({ per_week: n }).eq('id', ex.id)); continue }
+        const r = await supabase.from('activity_targets').insert({ kind, per_week: n, profile_id: null })
         if (r.error) throw r.error
       }
       for (const l of lignes) {
         const o = (listes.toutes || []).find((x) => x.id === l.id)
         if (!o || (o.label === l.label && o.is_active === l.is_active && o.probability === l.probability)) continue
-        const r = await supabase.from('commercial_lists').update({ label: l.label, is_active: l.is_active, probability: l.kind === 'etape' ? Number(l.probability) : null }).eq('id', l.id)
-        if (r.error) throw r.error
+        await enregistrerOuLever(supabase.from('commercial_lists').update({ label: l.label, is_active: l.is_active, probability: l.kind === 'etape' ? Number(l.probability) : null }).eq('id', l.id))
       }
       toast.success('Réglages enregistrés')
       onSaved?.()

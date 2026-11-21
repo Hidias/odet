@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Inbox, Loader2, Megaphone, Plus } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { useAuthStore } from '../../../core/store'
 import { PageHeader } from '../../../ui/PageHeader'
 import { StatusBadge } from '../../../ui/StatusBadge'
@@ -49,7 +50,7 @@ export default function EspaceEntrepriseAdmin() {
 
   const traiter = async (status) => {
     setBusy(true)
-    const { error } = await supabase.from('client_requests').update({ status, response: ouverte.response || null }).eq('id', ouverte.id)
+    const { error } = await enregistrer(supabase.from('client_requests').update({ status, response: ouverte.response || null }).eq('id', ouverte.id))
     setBusy(false)
     if (error) return toast.error(error.message)
     toast.success(status === 'traitee' ? 'Demande traitée' : status === 'refusee' ? 'Demande refusée' : 'Demande prise en charge')
@@ -61,7 +62,7 @@ export default function EspaceEntrepriseAdmin() {
     if (!actu.title?.trim()) return toast.error('Titre requis')
     setBusy(true)
     const champs = { title: actu.title.trim(), body: actu.body || null, link: actu.link || null, status: status || actu.status }
-    const { error } = actu.id ? await supabase.from('client_news').update(champs).eq('id', actu.id) : await supabase.from('client_news').insert(champs)
+    const { error } = actu.id ? await enregistrer(supabase.from('client_news').update(champs).eq('id', actu.id)) : await supabase.from('client_news').insert(champs)
     setBusy(false)
     if (error) return toast.error(error.message)
     toast.success(champs.status === 'publie' ? 'Actualité publiée dans les espaces' : 'Actualité enregistrée')
@@ -71,7 +72,7 @@ export default function EspaceEntrepriseAdmin() {
 
   const supprimerActu = async () => {
     if (!(await confirmer('Supprimer cette actualité ?'))) return
-    const { error } = await supabase.from('client_news').delete().eq('id', actu.id)
+    const { error } = await enregistrer(supabase.from('client_news').delete().eq('id', actu.id))
     if (error) return toast.error(error.message)
     toast.success('Actualité supprimée')
     setActu(null)

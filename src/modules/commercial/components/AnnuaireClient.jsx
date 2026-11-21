@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { callApi } from '../../../core/api'
 import { fmtDate } from '../../../core/utils'
 import { annuaireUrl } from '../../../core/org/tva'
@@ -35,7 +36,7 @@ export default function AnnuaireClient({ client, peutModifier, onChange }) {
     setEnCours(true)
     const maj = { address: r.adresse, postal_code: r.code_postal, city: r.ville, updated_at: new Date().toISOString() }
     if (r.etat === 'siege_deplace' && r.siret) maj.siret = r.siret
-    const { error } = await supabase.from('clients').update(maj).eq('id', client.id)
+    const { error } = await enregistrer(supabase.from('clients').update(maj).eq('id', client.id))
     setEnCours(false)
     if (error) return toast.error(error.message)
     toast.success("Adresse de l'annuaire reprise")

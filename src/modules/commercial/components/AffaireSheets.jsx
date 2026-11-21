@@ -4,6 +4,7 @@ import { valeurOrigine, lireOrigine } from '../../../core/apports/apports'
 import toast from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever, estAucuneLigne } from '../../../core/enregistrer'
 import { currentUserFirstName } from '../../../core/org/currentOrg'
 import { Sheet } from '../../../ui/Sheet'
 import SearchSelect, { clientOptions } from '../../../ui/SearchSelect'
@@ -91,9 +92,11 @@ export function AffaireSheet({ affaire = null, clientId = null, listes, onClose,
     if (origines.disponible) Object.assign(ligne, lireOrigine(f.origine), { idea_by: lireOrigine(f.idea_by).introduced_by_profile })
     if (!neuve && ligne.stage === affaire.stage) delete ligne.stage
     setBusy(true)
-    const req = neuve ? supabase.from('opportunities').insert(ligne).select('id').single()
-      : supabase.from('opportunities').update(ligne).eq('id', affaire.id).select('id').single()
-    const { error } = await req
+    let error = null
+    try {
+      if (neuve) error = (await supabase.from('opportunities').insert(ligne).select('id').single()).error
+      else await enregistrerOuLever(supabase.from('opportunities').update(ligne).eq('id', affaire.id))
+    } catch (e) { error = e }
     setBusy(false)
     if (error) return toast.error(error.message.includes('opportunities_prochaine_action') ? 'La date de la prochaine action est obligatoire' : error.message)
     toast.success(neuve ? 'Affaire créée' : 'Affaire enregistrée')
@@ -215,13 +218,16 @@ export function EchangeSheet({ clientId, clientName, affaire = null, typeDepart 
       metadata: affaire ? { opportunity_id: affaire.id } : {},
     })
     if (!error && affaire?.id && affaire.origine !== 'devis') {
-      const r = await supabase.from('opportunities').update({ next_action_on: f.next_action_on || null, next_action: f.next_action.trim() || null }).eq('id', affaire.id).select('id')
-      if (r.error) { setBusy(false); return toast.error(r.error.message.includes('opportunities_prochaine_action') ? 'La date de la prochaine action est obligatoire' : r.error.message) }
-      if (!r.data?.length) avertissement = 'Échange noté, mais prochaine action non changée : vous n\'avez pas le droit de modifier cette affaire.'
+      try {
+        await enregistrerOuLever(supabase.from('opportunities').update({ next_action_on: f.next_action_on || null, next_action: f.next_action.trim() || null }).eq('id', affaire.id))
+      } catch (e) {
+        if (estAucuneLigne(e)) avertissement = 'Échange noté, mais prochaine action non changée : vous n\'avez pas le droit de modifier cette affaire.'
+        else { setBusy(false); return toast.error(e.message.includes('opportunities_prochaine_action') ? 'La date de la prochaine action est obligatoire' : e.message) }
+      }
     }
     if (!error && affaire?.origine === 'devis' && f.next_action_on) {
-      const r = await supabase.from('quotes').update({ next_followup_date: f.next_action_on }).eq('id', affaire.id).select('id')
-      if (r.error || !r.data?.length) avertissement = 'Échange noté, mais date de relance du devis non changée.'
+      try { await enregistrerOuLever(supabase.from('quotes').update({ next_followup_date: f.next_action_on }).eq('id', affaire.id)) }
+      catch { avertissement = 'Échange noté, mais date de relance du devis non changée.' }
     }
     setBusy(false)
     if (error) return toast.error(error.message)

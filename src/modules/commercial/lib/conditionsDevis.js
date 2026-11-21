@@ -5,6 +5,7 @@
 
 import { PDFDocument } from 'pdf-lib'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { documentsAJoindre } from './metierDevis'
 
 const enOctets = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
@@ -56,7 +57,7 @@ export async function preparerDevisPublie(quote, items, client, devisBase64) {
   const resume = resumeConditions(conds)
   if (quote?.id && !['accepted', 'partial', 'refused', 'expired'].includes(quote.status)
       && JSON.stringify(quote.conditions_jointes || []) !== JSON.stringify(resume)) {
-    const { error } = await supabase.from('quotes').update({ conditions_jointes: resume }).eq('id', quote.id)
+    const { error } = await enregistrer(supabase.from('quotes').update({ conditions_jointes: resume }).eq('id', quote.id))
     if (error) console.warn('Conditions jointes au devis :', error.message)
   }
   return { base64, label: libelleDevisPublie(quote, conds), conditions: resume }

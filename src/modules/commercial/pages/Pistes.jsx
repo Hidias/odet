@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Loader2, Route as RouteIcon, FileText } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { useAuthStore } from '../../../core/store'
 import { PageHeader } from '../../../ui/PageHeader'
 import { DataTable } from '../../../ui/DataTable'
@@ -49,7 +50,7 @@ export default function Pistes() {
 
   const changer = async (status) => {
     setBusy(true)
-    const { error } = await supabase.from('cross_sell_leads').update({ status, note: ouverte.note || null }).eq('id', ouverte.id)
+    const { error } = await enregistrer(supabase.from('cross_sell_leads').update({ status, note: ouverte.note || null }).eq('id', ouverte.id))
     setBusy(false)
     if (error) return toast.error(error.message.includes('cross_sell_leads_ouverte') ? 'Une autre piste est déjà ouverte pour ce client et ce sens' : error.message)
     toast.success('Piste mise à jour')
@@ -115,7 +116,7 @@ export default function Pistes() {
             <label className="label" htmlFor="pi-note">Notes</label>
             <textarea id="pi-note" className="input min-h-[120px]" value={ouverte.note || ''} disabled={!peutModifier}
               onChange={(e) => setOuverte((o) => ({ ...o, note: e.target.value }))}
-              onBlur={async () => { const { error } = await supabase.from('cross_sell_leads').update({ note: ouverte.note || null }).eq('id', ouverte.id); if (error) toast.error(error.message); else load() }} />
+              onBlur={async () => { const { error } = await enregistrer(supabase.from('cross_sell_leads').update({ note: ouverte.note || null }).eq('id', ouverte.id)); if (error) toast.error(error.message); else load() }} />
           </div>
         </Sheet>
       )}

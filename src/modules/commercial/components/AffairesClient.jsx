@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { KanbanSquare, Plus, MessageSquare, Pencil } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { AffaireSheet, EchangeSheet, useListesCommerciales } from './AffaireSheets'
 import { urgence, URGENCES, FERMEES, CANAUX, TONS_FERMEES, euros } from '../lib/affaires'
@@ -52,11 +53,11 @@ export default function AffairesClient({ client, peutModifierFiche, peutAffaires
       opposition_canaux: fiche.opposition_canaux, opposition_motif: fiche.opposition_motif || null,
     }
     if (origines.disponible) Object.assign(maj, lireOrigine(fiche.origine))
-    const { data, error } = await supabase.from('clients').update(maj).eq('id', client.id).select().single()
+    const { data, error } = await enregistrer(supabase.from('clients').update(maj).eq('id', client.id).select())
     if (error) return toast.error(error.message)
     toast.success('Fiche enregistrée')
     setFiche(null)
-    onClientChange?.(data)
+    onClientChange?.(data[0])
   }
 
   const canaux = client.opposition_canaux || []

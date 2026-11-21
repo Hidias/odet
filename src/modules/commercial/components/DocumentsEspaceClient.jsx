@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { FolderOpen, Upload, Loader2, ExternalLink, EyeOff, FileSignature } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { demander } from '../../../ui/Confirm'
 import { mettreADisposition, ouvrirDocumentInterne, versBase64 } from '../../../core/portail/documentsClient'
 import { signaturesDesDocuments, telechargerAvecPreuve } from '../../../core/portail/documentSigne'
@@ -49,7 +50,7 @@ export default function DocumentsEspaceClient({ client, peutModifier }) {
   const retirer = async (d) => {
     const motif = await demander(`Retirer « ${d.label} » de l'espace du client ?\n\nIl reste gardé ici (preuve de mise à disposition). Motif :`, { title: 'Retirer le document' })
     if (motif === null) return
-    const { error } = await supabase.from('client_shared_documents').update({ withdrawn_at: new Date().toISOString(), withdrawn_reason: motif.trim() || null }).eq('id', d.id)
+    const { error } = await enregistrer(supabase.from('client_shared_documents').update({ withdrawn_at: new Date().toISOString(), withdrawn_reason: motif.trim() || null }).eq('id', d.id))
     if (error) { toast.error(error.message); return }
     toast.success('Document retiré de l\'espace du client'); charger()
   }

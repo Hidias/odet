@@ -2,6 +2,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 import { RefreshCw, ExternalLink, Loader2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { Sheet } from '../../../ui/Sheet'
 import { Banner } from '../../../ui/Banner'
 import { lireEntreprise, ecartsFiche, photographie, pappers, annuaireOfficiel, libelleEtat } from '../lib/registry'
@@ -34,7 +35,8 @@ export default function RepertoireClient({ client, peutModifier, onChange }) {
       setOuvert(true)
       // La lecture est notée sur la fiche (aucun champ saisi n'est modifié)
       if (peutModifier) {
-        await supabase.from('clients').update({ registry_snapshot: photographie(e), registry_synced_at: new Date().toISOString() }).eq('id', client.id)
+        await enregistrerOuLever(supabase.from('clients').update({ registry_snapshot: photographie(e), registry_synced_at: new Date().toISOString() }).eq('id', client.id))
+          .catch((e2) => toast.error(`Lecture du répertoire non notée sur la fiche : ${e2.message}`))
       }
     } catch (err) {
       toast.error(err.message || 'Répertoire injoignable')
@@ -48,7 +50,8 @@ export default function RepertoireClient({ client, peutModifier, onChange }) {
     if (retenus.length === 0) { setOuvert(false); return }
     const maj = Object.assign({}, ...retenus.map((x) => x.valeur))
     setEnCours(true)
-    const { error } = await supabase.from('clients').update(maj).eq('id', client.id)
+    let error = null
+    try { await enregistrerOuLever(supabase.from('clients').update(maj).eq('id', client.id)) } catch (e) { error = e }
     setEnCours(false)
     if (error) return toast.error(error.message)
     toast.success(`${retenus.length} information${retenus.length > 1 ? 's' : ''} reprise${retenus.length > 1 ? 's' : ''} du répertoire`)
