@@ -3,6 +3,7 @@
 // importé par un export, un PDF, un portail ou un document d'audit (test tests/certification-face-interne.test.js).
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 
 export const DOMAINES = [
   { v: 'apsad', label: 'APSAD et NF Service' },
@@ -27,8 +28,7 @@ export async function chargerPoints() {
 
 export async function enregistrerPoint(id, patch) {
   if (id) {
-    const { error } = await supabase.from('cert_pitfalls').update(patch).eq('id', id)
-    if (error) throw error
+    await enregistrerOuLever(supabase.from('cert_pitfalls').update(patch).eq('id', id), { message: "Point non enregistré : votre compte n'a pas le droit de le modifier, ou il a été supprimé entre-temps." })
   } else {
     const { error } = await supabase.from('cert_pitfalls').insert(patch)
     if (error) throw error
