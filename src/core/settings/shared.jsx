@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../supabase'
+import { enregistrer } from '../enregistrer'
 
 // Éléments partagés entre Paramètres, l'assistant de configuration et la console.
 
@@ -75,7 +76,7 @@ export function ModulesSection({ onChanged, compact = false }) {
   }
   useEffect(() => { load() }, [])
   const toggle = async (m) => {
-    const { error } = await supabase.from('org_modules').update({ enabled: !m.enabled, updated_at: new Date().toISOString() }).eq('key', m.key)
+    const { error } = await enregistrer(supabase.from('org_modules').update({ enabled: !m.enabled, updated_at: new Date().toISOString() }).eq('key', m.key), { colonnes: 'key' })
     if (error) return toast.error(error.message)
     await load()
     if (onChanged) await onChanged()
@@ -83,7 +84,7 @@ export function ModulesSection({ onChanged, compact = false }) {
   // Réglages propres à un module (org_modules.settings)
   const setOption = async (m, key, value) => {
     const settings = { ...(m.settings || {}), [key]: value }
-    const { error } = await supabase.from('org_modules').update({ settings, updated_at: new Date().toISOString() }).eq('key', m.key)
+    const { error } = await enregistrer(supabase.from('org_modules').update({ settings, updated_at: new Date().toISOString() }).eq('key', m.key), { colonnes: 'key' })
     if (error) return toast.error(error.message)
     await load()
   }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Building2, Plus, Search, Loader2, Save, ChevronLeft, ChevronRight, Check } from 'lucide-react'
 import { supabase } from '../../supabase'
+import { enregistrer } from '../../enregistrer'
 import { callApi } from '../../api'
 import { useAuthStore } from '../../store'
 import { Sheet } from '../../../ui/Sheet'
@@ -158,7 +159,7 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
   const instance = societe.is_instance_owner
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }))
 
-  const enregistrer = async () => {
+  const sauvegarder = async () => {
     if ((f.idcc || '').trim() !== (societe.idcc || '') && !idccValide(f.idcc)) return toast.error(MESSAGE_IDCC)
     setEnCours(true)
     const patch = Object.fromEntries(CHAMPS.map(([k]) => [k, (f[k] ?? '') === '' ? null : f[k]]))
@@ -168,10 +169,9 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
     patch.is_training_org = !!f.is_training_org
     patch.fiscal_year_start_month = Number(f.fiscal_year_start_month) || 1
     patch.status = f.status
-    const { data, error } = await supabase.from('companies').update(patch).eq('id', societe.id).select('id')
+    const { error } = await enregistrer(supabase.from('companies').update(patch).eq('id', societe.id), { message: MESSAGE_REFUS })
     setEnCours(false)
     if (error) return toast.error(error.message)
-    if (!data?.length) return toast.error(MESSAGE_REFUS)
     toast.success('Société enregistrée'); onChange()
   }
   // Société de l'instance : son identité vient de Paramètres › Identité, sauf l'IDCC (aucun champ là-bas, jamais recopié)
@@ -179,10 +179,9 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
     const idcc = (f.idcc || '').trim()
     if (!idccValide(idcc)) return toast.error(MESSAGE_IDCC)
     setEnCours(true)
-    const { data, error } = await supabase.from('companies').update({ idcc: idcc || null }).eq('id', societe.id).select('id')
+    const { error } = await enregistrer(supabase.from('companies').update({ idcc: idcc || null }).eq('id', societe.id), { message: MESSAGE_REFUS })
     setEnCours(false)
     if (error) return toast.error(error.message)
-    if (!data?.length) return toast.error(MESSAGE_REFUS)
     toast.success('Convention collective enregistrée'); onChange()
   }
   const module = async (key, enabled) => {
@@ -219,7 +218,7 @@ function FicheSociete({ societe, modules, personnes, membres, onChange }) {
         <Toggle checked={!!f.vat_applicable} onChange={(v) => set('vat_applicable', v)} label="Assujettie à la TVA" disabled={instance} />
         <Toggle checked={!!f.is_training_org} onChange={(v) => set('is_training_org', v)} label="Organisme de formation" disabled={instance} />
       </div>
-      {!instance && <div><button type="button" className="btn btn-primary" disabled={enCours} onClick={enregistrer}><Save className="w-4 h-4" />Enregistrer la société</button></div>}
+      {!instance && <div><button type="button" className="btn btn-primary" disabled={enCours} onClick={sauvegarder}><Save className="w-4 h-4" />Enregistrer la société</button></div>}
       {instance && <div><button type="button" className="btn btn-primary" disabled={enCours || (f.idcc || '') === (societe.idcc || '')} onClick={enregistrerIdcc}><Save className="w-4 h-4" />Enregistrer la convention collective</button></div>}
 
       <div className="grid gap-2">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../supabase'
+import { enregistrer } from '../../enregistrer'
 import { Field, Toggle } from '../shared'
 
 // Paramètres › Banque et facturation › Mentions des factures (réglages de facturation de la société, 0363).
@@ -33,14 +34,14 @@ export default function MentionsFactures() {
   if (!r) return null
 
   const set = (k, v) => setR({ ...r, [k]: v })
-  const enregistrer = async () => {
+  const sauvegarder = async () => {
     setOccupe(true)
     const patch = Object.fromEntries(TEXTES.map(([k]) => [k, (r[k] || '').trim()]))
-    const { error } = await supabase.from('billing_settings').update({
+    const { error } = await enregistrer(supabase.from('billing_settings').update({
       ...patch, option_debits: !!r.option_debits, exoneration_formation_active: !!r.exoneration_formation_active,
       exoneration_attestation_ref: (r.exoneration_attestation_ref || '').trim() || null,
       exoneration_attestation_date: r.exoneration_attestation_date || null, updated_at: new Date().toISOString(),
-    }).eq('company_id', r.company_id)
+    }).eq('company_id', r.company_id), { colonnes: 'company_id' })
     setOccupe(false)
     if (error) return toast.error(error.message)
     toast.success('Mentions enregistrées')
@@ -67,7 +68,7 @@ export default function MentionsFactures() {
           </>
         )}
       </div>
-      <div><button type="button" className="btn btn-secondary" disabled={occupe} onClick={enregistrer}>Enregistrer les mentions</button></div>
+      <div><button type="button" className="btn btn-secondary" disabled={occupe} onClick={sauvegarder}>Enregistrer les mentions</button></div>
     </>
   )
 }

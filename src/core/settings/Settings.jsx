@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useDataStore, useAuthStore } from '../store'
 import { supabase } from '../supabase'
+import { enregistrer } from '../enregistrer'
 import { callApi } from '../api'
 import { useBranding } from '../branding/BrandingProvider'
 import { FONT_PAIRS } from '../branding/presets'
@@ -464,7 +465,7 @@ function QualiteSection({ onReferentHandicap }) {
 
   const choose = async (role, profileId) => {
     setBusy(role.code)
-    const { error } = await supabase.from('quality_roles').update({ profile_id: profileId || null, updated_at: new Date().toISOString() }).eq('code', role.code)
+    const { error } = await enregistrer(supabase.from('quality_roles').update({ profile_id: profileId || null, updated_at: new Date().toISOString() }).eq('code', role.code), { colonnes: 'code' })
     if (error) { setBusy(null); return toast.error(error.message) }
     if (role.code === 'referent_handicap') onReferentHandicap?.()
     setBusy(null)
@@ -474,7 +475,7 @@ function QualiteSection({ onReferentHandicap }) {
 
   const chooseDeputy = async (role, profileId) => {
     setBusy(role.code)
-    const { error } = await supabase.from('quality_roles').update({ deputy_profile_id: profileId || null, updated_at: new Date().toISOString() }).eq('code', role.code)
+    const { error } = await enregistrer(supabase.from('quality_roles').update({ deputy_profile_id: profileId || null, updated_at: new Date().toISOString() }).eq('code', role.code), { colonnes: 'code' })
     setBusy(null)
     if (error) return toast.error(error.message)
     toast.success('Suppléant mis à jour')
@@ -531,7 +532,7 @@ function NomCell({ profile, onSave, onEmail, actions = [] }) {
   const qui = profile.display_name || profile.email
 
   if (mode === 'nom') {
-    const enregistrer = async () => {
+    const enregistrerNom = async () => {
       await onSave({ first_name: prenom.trim() || null, last_name: nom.trim() || null, fonction: fonction.trim() || null, phone: tel.trim() || null })
       setMode(null)
     }
@@ -541,9 +542,9 @@ function NomCell({ profile, onSave, onEmail, actions = [] }) {
         <input className="input" style={{ minHeight: 32 }} placeholder="Nom" aria-label="Nom" value={nom} onChange={(e) => setNom(e.target.value)} />
         <input className="input" style={{ minHeight: 32 }} placeholder="Fonction (signature des emails)" aria-label="Fonction" value={fonction} onChange={(e) => setFonction(e.target.value)} />
         <input className="input" style={{ minHeight: 32 }} placeholder="Téléphone (signature des emails)" aria-label="Téléphone" value={tel} onChange={(e) => setTel(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') enregistrer(); if (e.key === 'Escape') setMode(null) }} />
+          onKeyDown={(e) => { if (e.key === 'Enter') enregistrerNom(); if (e.key === 'Escape') setMode(null) }} />
         <div className="flex gap-1">
-          <button type="button" className="btn btn-primary btn-sm" onClick={enregistrer}><Check className="w-3.5 h-3.5" />Enregistrer</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={enregistrerNom}><Check className="w-3.5 h-3.5" />Enregistrer</button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMode(null)}><X className="w-3.5 h-3.5" />Annuler</button>
         </div>
         <div className="text-ui-sm text-gray-500">{profile.email}</div>
@@ -641,7 +642,7 @@ function UsersSection({ isSuperadmin }) {
     const actuel = dest?.[p.id] || { point: false, bilan: false }
     const ligne = { profile_id: p.id, point: actuel.point, bilan: actuel.bilan, [champ]: v }
     if (societeEnCours()) ligne.company_id = societeEnCours()
-    const { error } = await supabase.from('weekly_brief_recipients').upsert(ligne, { onConflict: 'company_id,profile_id' })
+    const { error } = await enregistrer(supabase.from('weekly_brief_recipients').upsert(ligne, { onConflict: 'company_id,profile_id' }), { colonnes: 'profile_id' })
     if (error) return toast.error(error.message)
     toast.success(v ? `${p.display_name || p.email} recevra le ${champ === 'point' ? 'point du lundi' : 'bilan du vendredi'}` : 'Mis à jour')
     chargerDest()

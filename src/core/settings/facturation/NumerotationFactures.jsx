@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../supabase'
+import { enregistrer } from '../../enregistrer'
 import { Field } from '../shared'
 import { useAuthStore } from '../../store'
 import { useBranding } from '../../branding/BrandingProvider'
@@ -44,13 +45,13 @@ export default function NumerotationFactures() {
 
   const set = (k, v) => setR({ ...r, [k]: v })
   const entier = (v) => (v === '' || v === null || v === undefined ? null : Math.max(0, parseInt(v, 10) || 0))
-  const enregistrer = async () => {
+  const sauvegarder = async () => {
     setOccupe(true)
-    const { error } = await supabase.from('billing_settings').update({
+    const { error } = await enregistrer(supabase.from('billing_settings').update({
       invoice_prefix: (r.invoice_prefix || '').trim().toUpperCase(), credit_prefix: (r.credit_prefix || '').trim().toUpperCase(),
       number_format: r.number_format, invoice_last_number_before: entier(r.invoice_last_number_before),
       credit_last_number_before: entier(r.credit_last_number_before), updated_at: new Date().toISOString(),
-    }).eq('company_id', r.company_id)
+    }).eq('company_id', r.company_id), { colonnes: 'company_id' })
     setOccupe(false)
     if (error) return toast.error(error.message)
     toast.success('Numérotation enregistrée')
@@ -88,7 +89,7 @@ export default function NumerotationFactures() {
       <p className="text-ui-sm text-gray-600">Prochaine facture : <span className="font-medium">{prochain.invoice || '…'}</span> · prochain avoir : <span className="font-medium">{prochain.credit_note || '…'}</span></p>
       <div className="flex flex-wrap gap-2">
         {!(lance.invoice && lance.credit_note) && (
-          <button type="button" className="btn btn-secondary" disabled={occupe} onClick={enregistrer}>Enregistrer la numérotation</button>
+          <button type="button" className="btn btn-secondary" disabled={occupe} onClick={sauvegarder}>Enregistrer la numérotation</button>
         )}
         {demo && role === 'superadmin' && (lance.invoice || lance.credit_note) && (
           <button type="button" className="btn btn-secondary" disabled={occupe} onClick={remettreAZero}>Remettre le compteur à zéro</button>
