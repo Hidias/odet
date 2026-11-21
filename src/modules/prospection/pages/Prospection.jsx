@@ -1,6 +1,7 @@
 import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 import { Plus } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -86,7 +87,7 @@ export default function Prospection() {
     e.stopPropagation()
     if (!await confirmer('Supprimer ce RDV ?')) return
     try {
-      const { error } = await supabase.from('prospect_rdv').delete().eq('id', id)
+      const { error } = await enregistrer(supabase.from('prospect_rdv').delete().eq('id', id))
       if (error) throw error
       toast.success('RDV supprimé')
       loadData()
@@ -209,18 +210,20 @@ export default function Prospection() {
                 key={rdv.id}
                 rdv={rdv}
                 onConvert={async () => {
-                  await supabase.from('prospect_rdv').update({
+                  const { error } = await enregistrer(supabase.from('prospect_rdv').update({
                     source: 'phoning',
                     updated_at: new Date().toISOString(),
-                  }).eq('id', rdv.id)
+                  }).eq('id', rdv.id))
+                  if (error) { toast.error(error.message); return }
                   loadData()
                   toast.success('Converti en prospect chaud')
                 }}
                 onClose={async (result) => {
-                  await supabase.from('prospect_rdv').update({
+                  const { error } = await enregistrer(supabase.from('prospect_rdv').update({
                     status: result,
                     updated_at: new Date().toISOString(),
-                  }).eq('id', rdv.id)
+                  }).eq('id', rdv.id))
+                  if (error) { toast.error(error.message); return }
                   loadData()
                 }}
                 onClick={() => navigate(`/prospection/${rdv.id}`)}

@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ExternalLink, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../../core/supabase'
+import { enregistrer } from '../../../../core/enregistrer'
 import SuiteRdvModal from './SuiteRdvModal'
 import { PlanifierRdvModal, ConvertirRappelModal, DeplacerRappelModal, SansSuiteInline } from './SuiviActionModals'
 import DevisSuiviBlock from './DevisSuiviBlock'
@@ -79,7 +80,7 @@ export default function TriSuiviCommercial({
     try {
       const now = new Date().toISOString()
       for (const id of selected) {
-        const { error } = await supabase.from('prospect_rdv').update({
+        const { error } = await enregistrer(supabase.from('prospect_rdv').update({
           status: 'annule',
           outcome: 'sans_suite',
           outcome_reason: 'Déjà traité (tri de départ)',
@@ -87,7 +88,7 @@ export default function TriSuiviCommercial({
           outcome_by: author,
           triaged_at: now,
           updated_at: now,
-        }).eq('id', id)
+        }).eq('id', id))
         if (error) throw error
         done++
       }
@@ -103,7 +104,7 @@ export default function TriSuiviCommercial({
 
   const keepRdv = async (rdv) => {
     const now = new Date().toISOString()
-    const { error } = await supabase.from('prospect_rdv').update({ triaged_at: now, updated_at: now }).eq('id', rdv.id)
+    const { error } = await enregistrer(supabase.from('prospect_rdv').update({ triaged_at: now, updated_at: now }).eq('id', rdv.id))
     if (error) { toast.error('Action impossible'); return }
     toast.success('Gardé dans le suivi')
     onChanged?.()
@@ -112,9 +113,9 @@ export default function TriSuiviCommercial({
   const pasEuLieu = async (rdv) => {
     if (!await confirmer('Ce RDV n\'a pas eu lieu : le passer en « Annulé » ?')) return
     const now = new Date().toISOString()
-    const { error } = await supabase.from('prospect_rdv')
+    const { error } = await enregistrer(supabase.from('prospect_rdv')
       .update({ status: 'annule', triaged_at: now, updated_at: now })
-      .eq('id', rdv.id)
+      .eq('id', rdv.id))
     if (error) { toast.error('Action impossible'); return }
     toast.success('RDV annulé')
     onChanged?.()

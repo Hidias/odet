@@ -17,6 +17,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { fetchAllOrThrow } from '../../../core/fetchAll'
 import {
   loadMailingExclusions, getAudienceExclusion, EXCLUSION_LABELS, SOFT_EXCLUSIONS,
@@ -306,7 +307,8 @@ export default function MailingAudience({ value, onChange, campaigns = [], filte
   }
   async function deleteSegment(s) {
     if (!await confirmer(`Supprimer le segment « ${s.name} » ?`)) return
-    await supabase.from('mailing_segments').delete().eq('id', s.id)
+    const { error } = await enregistrer(supabase.from('mailing_segments').delete().eq('id', s.id))
+    if (error) { toast.error(error.message); return }
     loadSegments()
   }
   function applySegment(s) {

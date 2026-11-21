@@ -21,6 +21,8 @@ import { orgCity, orgPostalCode } from '../../../core/org/currentOrg'
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
+import toast from 'react-hot-toast'
+import { enregistrer } from '../../../core/enregistrer'
 import { 
   Search, SkipForward, Save, ExternalLink, Phone, Mail, Globe,
   CheckCircle, XCircle, RefreshCw, Loader, User, Briefcase,
@@ -718,26 +720,30 @@ export default function EnrichissementRapide() {
     if (sirenChanged) fichePerso.siren = editSiren.trim()
 
     // 1. UPDATE champs propres à la fiche → WHERE id = current.id
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('prospection_massive')
       .update(fichePerso)
-      .eq('id', current.id)
+      .eq('id', current.id))
+    if (error) toast.error('Fiche non enregistrée : ' + error.message)
+    const avertir = (e, quoi) => { if (e) toast.error(`${quoi} non enregistré : ${e.message}`) }
 
     // 2. UPDATE champs communs au SIREN (dirigeant, groupe) → si présents
     if (!error && Object.keys(sirenCommun).length > 0) {
       sirenCommun.updated_at = new Date().toISOString()
-      await supabase
+      const { error: e2 } = await enregistrer(supabase
         .from('prospection_massive')
         .update(sirenCommun)
-        .eq('siren', current.siren)
+        .eq('siren', current.siren))
+      avertir(e2, 'Dirigeant ou groupe')
     }
 
     // Si SIRET placeholder, mettre à jour cette fiche uniquement
     if (!error && editSiret && (current.siret?.startsWith('MANUAL_') || current.siret?.startsWith('INCONNU'))) {
-      await supabase
+      const { error: e3 } = await enregistrer(supabase
         .from('prospection_massive')
         .update({ siret: editSiret.trim() })
-        .eq('id', current.id)
+        .eq('id', current.id))
+      avertir(e3, 'SIRET')
     }
 
     if (!error) {
@@ -763,7 +769,8 @@ export default function EnrichissementRapide() {
         if (edit.email) { sibUpdate.email = edit.email.trim().toLowerCase(); sibUpdate.email_source = 'manual_pj' }
         if (edit.notes) sibUpdate.enrichment_notes = edit.notes.trim()
         if (siteWeb && !siblings.find(s => s.id === id)?.site_web) sibUpdate.site_web = siteWeb.trim()
-        await supabase.from('prospection_massive').update(sibUpdate).eq('id', id)
+        const { error: e4 } = await enregistrer(supabase.from('prospection_massive').update(sibUpdate).eq('id', id))
+        avertir(e4, 'Établissement lié')
       }
 
       setSessionStats(prev => ({
@@ -783,7 +790,7 @@ export default function EnrichissementRapide() {
 
   async function handleNotFound() {
     if (!current) return
-    await supabase
+    const { error } = await enregistrer(supabase
       .from('prospection_massive')
       .update({
         enrichment_status: 'failed',
@@ -791,7 +798,8 @@ export default function EnrichissementRapide() {
         enrichment_last_attempt: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('siren', current.siren)
+      .eq('siren', current.siren))
+    if (error) { toast.error('Fiche non exclue : ' + error.message); return }
     setSessionStats(prev => ({ ...prev, excluded: prev.excluded + 1 }))
     setTotalRemaining(prev => prev - 1)
     goNext()

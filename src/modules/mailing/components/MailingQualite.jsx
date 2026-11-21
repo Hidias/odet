@@ -12,6 +12,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 import { FLAG_LABELS } from '../lib/mailingExclusions'
 import {
@@ -103,10 +104,10 @@ export default function MailingQualite({ user, onBack }) {
       if (!await confirmer(`${row.email} est utilisée par un client ou un contact.\n\nElle sera seulement exclue du mailing : la fiche client n'est pas modifiée.\n\nContinuer ?`)) return
     }
     setBusy(row.email)
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('mailing_email_status')
       .update({ status, manual: true, decided_by: by, decided_at: new Date().toISOString(), note: note ?? row.note ?? null, updated_at: new Date().toISOString() })
-      .eq('email', row.email)
+      .eq('email', row.email))
     setBusy(null)
     if (error) { toast.error('Erreur : ' + error.message); return }
     toast.success(status === 'ok' ? 'Adresse validée' : 'Adresse invalidée (exclue du mailing)')
@@ -115,10 +116,10 @@ export default function MailingQualite({ user, onBack }) {
 
   async function resetAuto(row) {
     setBusy(row.email)
-    const { error } = await supabase
+    const { error } = await enregistrer(supabase
       .from('mailing_email_status')
       .update({ manual: false, decided_by: null, decided_at: null, updated_at: new Date().toISOString() })
-      .eq('email', row.email)
+      .eq('email', row.email))
     if (error) { setBusy(null); toast.error('Erreur : ' + error.message); return }
     await supabase.rpc('mailing_refresh_email_status')
     setBusy(null)
@@ -177,7 +178,7 @@ export default function MailingQualite({ user, onBack }) {
       ? `L'adresse ${b.value} s'est désabonnée.\n\nNe la retirez de la liste que si cette personne a redonné son accord pour recevoir vos e-mails.\n\nLa retirer quand même ?`
       : `Retirer « ${b.value} » de la liste de blocage ?`
     if (!await confirmer(msg)) return
-    const { error } = await supabase.from('mailing_blocklist').delete().eq('id', b.id)
+    const { error } = await enregistrer(supabase.from('mailing_blocklist').delete().eq('id', b.id))
     if (error) { toast.error(error.message); return }
     toast.success('Retiré de la liste')
     loadBlocklist()

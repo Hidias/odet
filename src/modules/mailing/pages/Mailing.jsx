@@ -10,6 +10,7 @@
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer, enregistrerOuLever } from '../../../core/enregistrer'
 import { fetchAllOrThrow as fetchAll, fetchAll as fetchAllResult } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import {
@@ -294,8 +295,10 @@ export default function Mailing() {
     setBusy(true)
     try {
       if (statuses.includes('error')) {
-        await supabase.from('mailing_sends').update({ status: 'pending', error_message: null })
+        // 0 ligne est normal (aucune erreur restante) : seule l'erreur de la base est vérifiée
+        const { error: reprErr } = await supabase.from('mailing_sends').update({ status: 'pending', error_message: null })
           .eq('campaign_id', campaign.id).eq('status', 'error')
+        if (reprErr) throw reprErr
       }
       const { data: sends } = await fetchAllResult(() => supabase
         .from('mailing_sends')
@@ -305,9 +308,9 @@ export default function Mailing() {
       const ok = await dropBlockedSends(sends || [])
       if (!ok.length) { toast('Aucun envoi à faire'); setBusy(false); return }
       const attachment = await loadCampaignAttachment(campaign).catch(e => { toast.error(e.message); return null })
-      await supabase.from('mailing_campaigns')
+      await enregistrerOuLever(supabase.from('mailing_campaigns')
         .update({ status: 'en_cours', send_mode: 'navigateur', paused_at: null, updated_at: new Date().toISOString() })
-        .eq('id', campaign.id)
+        .eq('id', campaign.id))
       setBusy(false)
       await runBrowserSending({
         campaign,
@@ -326,8 +329,8 @@ export default function Mailing() {
   // ══════════════════════════════════════════════════════════════════════════
   async function updateCampaign(campaign, patch, msg) {
     setBusy(true)
-    const { error } = await supabase.from('mailing_campaigns')
-      .update({ ...patch, updated_at: new Date().toISOString() }).eq('id', campaign.id)
+    const { error } = await enregistrer(supabase.from('mailing_campaigns')
+      .update({ ...patch, updated_at: new Date().toISOString() }).eq('id', campaign.id))
     setBusy(false)
     if (error) { toast.error(error.message); return false }
     if (msg) toast.success(msg)

@@ -8,6 +8,7 @@ import { telephoneLisible, lienTelephone } from '../../../core/telephone'
 import { teamFirstNames, teamFirstNameByEmail } from '../../../core/org/currentOrg'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { useAuthStore } from '../../../core/store'
 import {
   Search, MapPin, Navigation, Phone, Mail, Clock,
@@ -261,12 +262,12 @@ export default function ProspectionTerrain() {
         : callResult === 'wrong_number' ? 'numero_errone'
         : 'a_appeler'
 
-      await supabase.from('prospection_massive').update({
+      await enregistrerOuLever(supabase.from('prospection_massive').update({
         prospection_status: newStatus,
         contacted: true,
         contacted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }).eq('id', selectedProspect.id)
+      }).eq('id', selectedProspect.id))
 
       // Mettre à jour localement
       setProspects(prev => prev.map(p =>

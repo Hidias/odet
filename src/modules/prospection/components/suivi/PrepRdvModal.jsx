@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { X, Loader2, FileDown, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../../core/supabase'
+import { enregistrer } from '../../../../core/enregistrer'
 import { loadCallContext, themeOfTitle } from '../../lib/callContext'
 import { THEMES, labelOf } from '../../lib/phoningLabels'
 import { generatePrepRdvPDF } from '../../pdf/pdfPreparationRdv'
@@ -105,9 +106,9 @@ export default function PrepRdvModal({ rdvId, clientName, onClose, onDone }) {
     setSaving(true)
     try {
       const now = new Date().toISOString()
-      const { error } = await supabase.from('prospect_rdv')
+      const { error } = await enregistrer(supabase.from('prospect_rdv')
         .update({ prep_data: payload(), prep_done_at: now, updated_at: now })
-        .eq('id', rdvId)
+        .eq('id', rdvId))
       if (error) throw error
       toast.success('Préparation enregistrée')
       onDone?.()

@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { X, FileText, Send, CalendarClock, Ban, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../../core/supabase'
+import { enregistrer } from '../../../../core/enregistrer'
 import {
   OUTCOME_LABELS, SANS_SUITE_REASONS, quickDates, todayStr, fmtDate, fmtMoney, logInteraction,
 } from './suiviUtils'
@@ -90,7 +91,7 @@ export default function SuiteRdvModal({ rdv, clientName, author, onClose, onDone
         patch.outcome_reason = reason + (note.trim() ? ' - ' + note.trim() : '')
       }
 
-      const { error } = await supabase.from('prospect_rdv').update(patch).eq('id', rdv.id)
+      const { error } = await enregistrer(supabase.from('prospect_rdv').update(patch).eq('id', rdv.id))
       if (error) throw error
 
       const detail = [

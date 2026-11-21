@@ -3,6 +3,7 @@ import { teamFirstNames } from '../../../core/org/currentOrg'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { enregistrer, enregistrerOuLever } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import {
@@ -247,7 +248,7 @@ export default function ProspectRDVDetail() {
         toast.success('RDV créé')
         navigate(`/prospection/${data.id}`)
       } else {
-        const { error } = await supabase.from('prospect_rdv').update(dataToSave).eq('id', id)
+        const { error } = await enregistrer(supabase.from('prospect_rdv').update(dataToSave).eq('id', id))
         if (error) throw error
         toast.success('RDV mis à jour')
       }
@@ -260,7 +261,7 @@ export default function ProspectRDVDetail() {
   const handleDelete = async () => {
     if (!await confirmer('Supprimer ce RDV ?')) return
     try {
-      const { error } = await supabase.from('prospect_rdv').delete().eq('id', id)
+      const { error } = await enregistrer(supabase.from('prospect_rdv').delete().eq('id', id))
       if (error) throw error
       toast.success('RDV supprimé')
       navigate('/prospection')
@@ -276,7 +277,7 @@ export default function ProspectRDVDetail() {
       if (newStatus === 'realise' && !formData.rdv_date) {
         patch.rdv_date = new Date().toISOString().split('T')[0]
       }
-      await supabase.from('prospect_rdv').update(patch).eq('id', id)
+      await enregistrerOuLever(supabase.from('prospect_rdv').update(patch).eq('id', id))
       setFormData(f => ({ ...f, ...patch }))
       // Log interaction
       if (formData.client_id) {
@@ -331,9 +332,11 @@ export default function ProspectRDVDetail() {
       }]).select().single()
       if (error) throw error
       if (sirenVal) {
-        await supabase.from('prospection_massive').update({
+        // Répertoire de prospection : 0 ligne est normal (SIREN absent), seule l'erreur de la base est vérifiée
+        const { error: repErr } = await supabase.from('prospection_massive').update({
           prospection_status: 'deja_client', updated_at: new Date().toISOString(),
         }).eq('siren', sirenVal)
+        if (repErr) toast.error('Client créé, mais le répertoire de prospection n\'a pas été mis à jour : ' + repErr.message)
       }
       toast.success('Client créé')
       setClients([...clients, data])
