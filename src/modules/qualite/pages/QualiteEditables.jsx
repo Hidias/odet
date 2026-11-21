@@ -343,6 +343,8 @@ export default function QualiteEditables() {
   const [editData, setEditData] = useState({})
   const [saving, setSaving] = useState(false)
   const [savedDocs, setSavedDocs] = useState({})
+  // Documents enregistrés chargés : un document n'est ouvert qu'après, sinon il s'afficherait depuis le modèle (« Brouillon »)
+  const [savedLoaded, setSavedLoaded] = useState(false)
   const [registreData, setRegistreData] = useState({})
   const [loadingData, setLoadingData] = useState(false)
   const [rddData, setRddData] = useState(null)
@@ -357,8 +359,8 @@ export default function QualiteEditables() {
   const [params, setParams] = useSearchParams()
   useEffect(() => {
     const id = params.get('doc')
-    if (id && templates?.[id]) setRichOpen(id)
-  }, [templates, params])
+    if (id && templates?.[id] && savedLoaded) setRichOpen(id)
+  }, [templates, params, savedLoaded])
   
   // Champs {{org.*}}, {{role.*}} : remplis à l'affichage depuis Paramètres (identité et rôles qualité)
   const [tplCtx, setTplCtx] = useState(null)
@@ -375,6 +377,7 @@ export default function QualiteEditables() {
       data.forEach(d => { docs[d.doc_id] = d.content })
       setSavedDocs(docs)
     }
+    setSavedLoaded(true)
   }
   
   const richPDF = async (tpl) => {
@@ -1150,7 +1153,7 @@ export default function QualiteEditables() {
       
       {renderEditor()}
       {dossierPdf && templates && <DossierRelecture templates={templates} onFermer={() => setDossierPdf(false)} />}
-      {richOpen && templates?.[richOpen] && (
+      {richOpen && savedLoaded && templates?.[richOpen] && (
         <RichDocEditor
           key={richOpen}
           tpl={templates[richOpen]}
