@@ -7,6 +7,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Loader2, Plus, CalendarPlus, Pencil, CheckCircle, FileText, Send, Upload, Receipt, Calculator, TrendingUp } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { callApi } from '../../../core/api'
 import { versBase64 } from '../../../core/portail/documentsClient'
 import { confirmer } from '../../../ui/Confirm'
@@ -220,7 +221,9 @@ function PrixParc({ contract, onChange }) {
   const appliquer = async () => {
     if (!(await confirmer(`Prix annuel du contrat : ${eur(r.total)} HT au lieu de ${eur(r.prix_actuel)} HT ?`))) return
     setBusy(true)
-    const { error } = await supabase.from('itv_contracts').update({ annual_price_ht: r.total }).eq('id', contract.id)
+    // Écriture vérifiée (fonction commune sous ce nom : « enregistrer » est déjà le bouton du formulaire de ce fichier)
+    const { error } = await enregistrerOuLever(supabase.from('itv_contracts').update({ annual_price_ht: r.total }).eq('id', contract.id))
+      .then(() => ({ error: null }), (e) => ({ error: e }))
     const { error: errEch } = error ? { error: null } : await supabase.rpc('contrat_echeancier_generer', { p_contract: contract.id })
     setBusy(false)
     if (error) return toast.error(error.message)

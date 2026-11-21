@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Loader2, MailOpen, PenLine, BadgeCheck, Clock } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { mettreADisposition, versBase64 } from '../../../core/portail/documentsClient'
 import { buildAvisPassagePDF } from '../pdf/avisPassagePDF'
 import { Sheet } from './ui'
@@ -84,8 +85,7 @@ export function SignatureADistance({ visit, publierRapport, reload }) {
       // Rapport publié d'abord : sans lui, rien à signer dans l'espace du client
       const out = await publierRapport()
       if (!out?.publication?.id && !out?.publication?.deja) throw new Error('Demande de signature non enregistrée.')
-      const { error } = await supabase.from('itv_visits').update({ remote_signature_requested_at: new Date().toISOString() }).eq('id', visit.id)
-      if (error) throw error
+      await enregistrerOuLever(supabase.from('itv_visits').update({ remote_signature_requested_at: new Date().toISOString() }).eq('id', visit.id))
       toast.success('Rapport envoyé à signer dans l\'espace du client')
       await reload()
     } catch (e) { toast.error(e.message) }
