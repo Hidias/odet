@@ -6,6 +6,7 @@
 //   - fiche service-public reprise par code.travail.gouv.fr, mise à jour du 08/07/2026 (affichages, jusqu'à 10 salariés).
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { societeEnCours } from '../../../core/company/societes'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -35,7 +36,7 @@ export async function enregistrerTravailIsole(jobId, v) {
   const err = erreurTravailIsole(v)
   if (err) throw new Error(err)
   const seul = !!v.lone_work
-  return must(await supabase.from('hr_jobs').update({
+  return enregistrerOuLever(supabase.from('hr_jobs').update({
     lone_work: seul,
     lone_work_measures: seul ? (v.lone_work_measures || []) : [],
     lone_work_note: seul ? (String(v.lone_work_note || '').trim() || null) : null,
@@ -102,7 +103,7 @@ export async function enregistrerAccueil(personId, v) {
     notes: String(v.notes || '').trim() || null,
   }).select('id').single())
 }
-export const supprimerAccueil = async (id) => must(await supabase.from('hr_safety_inductions').delete().eq('id', id))
+export const supprimerAccueil = async (id) => enregistrerOuLever(supabase.from('hr_safety_inductions').delete().eq('id', id))
 
 // ─── Affichages obligatoires ───
 // Référentiel des affichages et diffusions (fiche service-public reprise par code.travail.gouv.fr, mise à jour du
@@ -187,7 +188,7 @@ export async function enregistrerAffichage(code, v) {
     means: String(v.means || '').trim() || null, note: String(v.note || '').trim() || null,
   }, { onConflict: 'company_id,item_code' }))
 }
-export const effacerAffichage = async (id) => must(await supabase.from('hr_postings').delete().eq('id', id))
+export const effacerAffichage = async (id) => enregistrerOuLever(supabase.from('hr_postings').delete().eq('id', id))
 
 export async function chargerLieuPanneau() {
   const rows = must(await supabase.from('hr_settings').select('company_id, posting_location').limit(1))

@@ -3,6 +3,7 @@
 // rien n'est envoyé. Écriture réservée au droit « rh.parametres.gerer » (règles de la base).
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { TYPES_HABILITATION } from './rhDocuments'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
@@ -40,10 +41,10 @@ export const chargerPostes = async () => must(await supabase.from('hr_jobs')
 
 export async function enregistrerPoste({ id, name }) {
   const ligne = { name: String(name || '').trim() }
-  if (id) return must(await supabase.from('hr_jobs').update(ligne).eq('id', id).select('id').single())
+  if (id) return (await enregistrerOuLever(supabase.from('hr_jobs').update(ligne).eq('id', id)))[0]
   return must(await supabase.from('hr_jobs').insert(ligne).select('id').single())
 }
-export const supprimerPoste = async (id) => must(await supabase.from('hr_jobs').delete().eq('id', id))
+export const supprimerPoste = async (id) => enregistrerOuLever(supabase.from('hr_jobs').delete().eq('id', id))
 
 export async function ajouterExigence({ jobId, kind, symboles = [], label = '' }) {
   const s = (symboles || []).filter(Boolean)
@@ -54,12 +55,12 @@ export async function ajouterExigence({ jobId, kind, symboles = [], label = '' }
 }
 export async function modifierExigence({ id, kind, symboles = [], label = '' }) {
   const s = (symboles || []).filter(Boolean)
-  return must(await supabase.from('hr_job_requirements').update({
+  return enregistrerOuLever(supabase.from('hr_job_requirements').update({
     required_kind: kind, required_symbols: s.length ? s : null,
     label: String(label || '').trim() || libelleExigence(kind, s),
   }).eq('id', id))
 }
-export const supprimerExigence = async (id) => must(await supabase.from('hr_job_requirements').delete().eq('id', id))
+export const supprimerExigence = async (id) => enregistrerOuLever(supabase.from('hr_job_requirements').delete().eq('id', id))
 
 /** Compte à qui la nuit confie les actions (sans ligne : personne en particulier) */
 export async function chargerResponsableTitres() {

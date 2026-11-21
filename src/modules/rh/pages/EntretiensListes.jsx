@@ -8,6 +8,7 @@ import { Plus, Pencil, Trash2, MessagesSquare, ListChecks, Check } from 'lucide-
 import { Sheet } from '../../../ui/Sheet'
 import { confirmer } from '../../../ui/Confirm'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { nomComplet, chargerPersonnesChoix } from '../lib/rhData'
 import { etatEcheance } from '../lib/rhDocuments'
 import { todayIso } from '../../certification/lib/certData'
@@ -39,7 +40,7 @@ function EntretienSheet({ companyId, personId, entretien, onClose, onSaved }) {
     if (k === 'done_on' && val && !v.next_due_on && TYPES_ENTRETIEN[v.kind]?.ans) suite.next_due_on = plusAns(val, TYPES_ENTRETIEN[v.kind].ans)
     setV(suite)
   }
-  const enregistrer = async (e) => {
+  const enregistrerEntretien = async (e) => {
     e.preventDefault()
     if (!v.planned_on && !v.done_on && !v.next_due_on) { toast.error('Indiquez au moins une date'); return }
     setBusy(true)
@@ -48,7 +49,7 @@ function EntretienSheet({ companyId, personId, entretien, onClose, onSaved }) {
         kind: v.kind, planned_on: v.planned_on || null, done_on: v.done_on || null, next_due_on: v.next_due_on || null,
         interviewer_person_id: v.interviewer_person_id || null, summary: v.summary?.trim() || null,
       }
-      if (entretien?.id) must(await supabase.from('hr_reviews').update(ligne).eq('id', entretien.id))
+      if (entretien?.id) await enregistrerOuLever(supabase.from('hr_reviews').update(ligne).eq('id', entretien.id))
       else must(await supabase.from('hr_reviews').insert({ ...ligne, company_id: companyId, person_id: personId }))
       toast.success('Entretien enregistré')
       onSaved()
@@ -58,7 +59,7 @@ function EntretienSheet({ companyId, personId, entretien, onClose, onSaved }) {
   return (
     <Sheet title={entretien ? 'Modifier l\'entretien' : 'Prévoir un entretien'} onClose={onClose}
       footer={<><button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button><button type="submit" form="rh-entretien" className="btn btn-primary" disabled={busy}>Enregistrer</button></>}>
-      <form id="rh-entretien" onSubmit={enregistrer} className="space-y-3">
+      <form id="rh-entretien" onSubmit={enregistrerEntretien} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
           <Champ label="Type"><select className="select" value={v.kind} onChange={m('kind')}>{Object.entries(TYPES_ENTRETIEN).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}</select></Champ>
           <Champ label="Conduit par">
@@ -88,7 +89,7 @@ export function EntretiensFiche({ companyId, personId, peutGerer = false, embauc
   useEffect(() => { charger() }, [charger])
   const supprimer = async (r) => {
     if (!(await confirmer('Supprimer cet entretien saisi par erreur ?'))) return
-    try { must(await supabase.from('hr_reviews').delete().eq('id', r.id)); charger() } catch (e) { toast.error(e.message) }
+    try { await enregistrerOuLever(supabase.from('hr_reviews').delete().eq('id', r.id)); charger() } catch (e) { toast.error(e.message) }
   }
   if (liste === null) return null
   if (!liste.length && !peutGerer) return null
@@ -139,7 +140,7 @@ export function ListesFiche({ personId, peutGerer = false }) {
   }
   const cocher = async (l, i) => {
     const items = l.items.map((it, j) => (j === i ? { ...it, done_on: it.done_on ? null : new Date().toISOString().slice(0, 10) } : it))
-    try { must(await supabase.from('hr_checklists').update({ items }).eq('id', l.id)); charger() } catch (e) { toast.error(e.message) }
+    try { await enregistrerOuLever(supabase.from('hr_checklists').update({ items }).eq('id', l.id)); charger() } catch (e) { toast.error(e.message) }
   }
   if (listes === null) return null
   if (!listes.length && !peutGerer) return null
