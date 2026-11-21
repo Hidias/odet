@@ -3,6 +3,7 @@
 // La face interne (conseil de direction) a son propre fichier : certInterne.js.
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 
 export const NATURES = {
   qualiopi: 'Qualiopi',
@@ -122,8 +123,7 @@ export async function chargerCertifications() {
 export async function enregistrerCertification(referentialCode, existante, patch) {
   const propre = Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === '' ? null : v]))
   if (existante?.id) {
-    const { error } = await supabase.from('cert_company_certifications').update(propre).eq('id', existante.id)
-    if (error) throw error
+    await enregistrerOuLever(supabase.from('cert_company_certifications').update(propre).eq('id', existante.id), { message: "Certification non enregistrée : votre compte n'a pas le droit de la modifier, ou elle a été supprimée entre-temps." })
   } else {
     const { error } = await supabase.from('cert_company_certifications').insert({ referential_code: referentialCode, ...propre })
     if (error) throw error

@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { Sheet } from '../../../ui/Sheet'
 import { StatusBadge } from '../../../ui/StatusBadge'
 import { confirmer } from '../../../ui/Confirm'
@@ -50,7 +51,7 @@ export default function SuiviFinanceurs({ canWrite }) {
   const ouvrir = () => setForm({ ...VIDE, date: jourParis(), cle: liste?.[0]?.cle || '' })
   const choisi = form && form.cle ? (liste || []).find((f) => f.cle === form.cle) : null
 
-  const enregistrer = async (ev) => {
+  const noterEchange = async (ev) => {
     ev.preventDefault()
     if (!form.date) return toast.error('Indiquez la date de l\'échange')
     if (form.date > jourParis()) return toast.error('La date de l\'échange ne peut pas être dans le futur')
@@ -70,9 +71,8 @@ export default function SuiviFinanceurs({ canWrite }) {
 
   const retirer = async (x) => {
     if (!(await confirmer(`Retirer l'échange du ${fr(x.happened_on)} avec ${x.funder_name} ? Il ne comptera plus comme preuve.`))) return
-    const { data, error } = await supabase.from('funder_exchanges').delete().eq('id', x.id).select('id')
+    const { error } = await enregistrer(supabase.from('funder_exchanges').delete().eq('id', x.id), { message: 'Votre compte ne peut pas retirer cet échange' })
     if (error) return toast.error(estRefusVueGroupe(error) ? MESSAGE_VUE_GROUPE : error.message)
-    if (!data?.length) return toast.error('Votre compte ne peut pas retirer cet échange')
     toast.success('Échange retiré')
     charger()
   }
@@ -162,7 +162,7 @@ export default function SuiviFinanceurs({ canWrite }) {
       {form && (
         <Sheet title="Noter un échange avec un financeur" onClose={() => setForm(null)}
           footer={<><button type="button" className="btn btn-ghost" onClick={() => setForm(null)}>Annuler</button><button type="submit" form="form-echange" className="btn btn-primary" disabled={busy}>{busy && <Loader2 className="w-4 h-4 animate-spin" />}Enregistrer</button></>}>
-          <form id="form-echange" onSubmit={enregistrer} className="space-y-3">
+          <form id="form-echange" onSubmit={noterEchange} className="space-y-3">
             <label className="block"><span className="label">Financeur</span>
               <select className="select" value={form.cle} onChange={(e) => setForm({ ...form, cle: e.target.value })}>
                 {(liste || []).map((f) => <option key={`${f.company_id}-${f.cle}`} value={f.cle}>{f.nom}</option>)}

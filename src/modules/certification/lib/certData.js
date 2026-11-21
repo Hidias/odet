@@ -5,6 +5,7 @@ import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { sanitizeStorageKey } from '../../../core/storageUtils'
 import { useDataStore } from '../../../core/store'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 
 export const BUCKET = 'certification'
 
@@ -43,10 +44,10 @@ export async function loadSettings() {
  *  par la base (déclencheur cert_settings_sync_org) : on relit seulement l'organisation pour l'affichage. */
 export async function saveSettings(patch, { updateOrganization } = {}) {
   const { data: u } = await supabase.auth.getUser()
-  const { data, error } = await supabase.from('cert_settings')
+  const lignes = await enregistrerOuLever(supabase.from('cert_settings')
     .update({ ...patch, updated_at: new Date().toISOString(), updated_by: u?.user?.id || null })
-    .eq('id', 1).select().single()
-  if (error) throw error
+    .eq('id', 1).select(), { attendu: 1, message: "Suivi non enregistré : votre compte n'a pas le droit de le modifier." })
+  const data = lignes[0]
   if (updateOrganization && ('certified_at' in patch || 'certifier_name' in patch)) {
     await useDataStore.getState().fetchOrganization()
   }
@@ -83,9 +84,9 @@ export async function uploadDocument(kind, file, extra = {}) {
 }
 
 export async function removeDocument(doc) {
+  // Fiche d'abord : si la base refuse, le fichier reste en place (avant B123, il était effacé quand même)
+  await enregistrerOuLever(supabase.from('cert_documents').delete().eq('id', doc.id), { message: "Pièce non retirée : votre compte n'a pas le droit de la supprimer, ou elle a déjà été retirée." })
   if (doc.file_path) await supabase.storage.from(BUCKET).remove([doc.file_path])
-  const { error } = await supabase.from('cert_documents').delete().eq('id', doc.id)
-  if (error) throw error
 }
 
 export async function signedUrl(path, bucket = BUCKET, seconds = 300) {
@@ -129,10 +130,9 @@ export async function loadReferential(code) {
 
 export async function saveIndicatorStatus(code, number, patch) {
   const { data: u } = await supabase.auth.getUser()
-  const { error } = await supabase.from('cert_indicator_status').upsert({
+  await enregistrerOuLever(supabase.from('cert_indicator_status').upsert({
     referential_code: code, number, ...patch, updated_at: new Date().toISOString(), updated_by: u?.user?.id || null,
-  }, { onConflict: 'referential_code,number' })
-  if (error) throw error
+  }, { onConflict: 'referential_code,number' }), { colonnes: 'number', attendu: 1, message: "Indicateur non enregistré : votre compte n'a pas le droit de le modifier." })
 }
 
 export async function addProof(number, { label, note, url, file }, referentialCode = null) {
@@ -153,9 +153,9 @@ export async function addProof(number, { label, note, url, file }, referentialCo
 }
 
 export async function removeProof(p) {
+  // Fiche d'abord : si la base refuse, le fichier de la preuve reste en place
+  await enregistrerOuLever(supabase.from('cert_proofs').delete().eq('id', p.id), { message: "Preuve non retirée : votre compte n'a pas le droit de la supprimer, ou elle a déjà été retirée." })
   if (p.file_path) await supabase.storage.from(BUCKET).remove([p.file_path])
-  const { error } = await supabase.from('cert_proofs').delete().eq('id', p.id)
-  if (error) throw error
 }
 
 /** Écarts d'audit (0391 : chacun porte son référentiel).
@@ -182,10 +182,11 @@ export async function saveFinding(f) {
   const { data: u } = await supabase.auth.getUser()
   const row = { ...f }
   if (!row.id) row.created_by = u?.user?.id || null
-  const q = row.id
-    ? supabase.from('cert_audit_findings').update(row).eq('id', row.id)
-    : supabase.from('cert_audit_findings').insert(row)
-  const { error } = await q
+  if (row.id) {
+    await enregistrerOuLever(supabase.from('cert_audit_findings').update(row).eq('id', row.id), { message: "Écart non enregistré : votre compte n'a pas le droit de le modifier, ou il a été supprimé entre-temps." })
+    return
+  }
+  const { error } = await supabase.from('cert_audit_findings').insert(row)
   if (error) throw error
 }
 

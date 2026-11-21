@@ -9,6 +9,7 @@ import { orgName, orgCity } from '../../../core/org/currentOrg'
 import { buildSocialSystemPrompt, brandHashtag } from '../lib/socialPrompt'
 
 import { confirmer } from '../../../ui/Confirm'
+import { enregistrer, enregistrerOuLever } from '../../../core/enregistrer'
 // ═══════════════════════════════════════════════════════════
 // MODULE RÉSEAUX SOCIAUX
 // Phase 1 : Générateur IA + Calendrier + Médiathèque
@@ -585,7 +586,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
       // Update si on édite un brouillon existant, sinon insert
       if (editingId) {
-        const { error } = await supabase.from('social_posts').update(postData).eq('id', editingId)
+        const { error } = await enregistrer(supabase.from('social_posts').update(postData).eq('id', editingId), { message: 'Brouillon non enregistré : votre compte ne peut pas le modifier, ou il a été supprimé entre-temps.' })
         if (error) throw error
       } else {
         const { error } = await supabase.from('social_posts').insert(postData)
@@ -967,7 +968,7 @@ Réponds UNIQUEMENT en JSON valide (pas de markdown, pas de backticks) avec cett
 
                     let postId = editingId
                     if (editingId) {
-                      await supabase.from('social_posts').update(postData).eq('id', editingId)
+                      await enregistrerOuLever(supabase.from('social_posts').update(postData).eq('id', editingId), { message: 'Publication non enregistrée : votre compte ne peut pas la modifier, ou elle a été supprimée entre-temps.' })
                     } else {
                       const { data: newPost, error } = await supabase.from('social_posts').insert(postData).select('id').single()
                       if (error) throw error
@@ -1310,14 +1311,16 @@ function CalendarTab({ posts, onUpdate }) {
   // Actions sur les posts
   const cancelPost = async (postId) => {
     if (!await confirmer('Annuler cette publication planifiée ?')) return
-    await supabase.from('social_posts').update({ status: 'draft' }).eq('id', postId)
+    const { error } = await enregistrer(supabase.from('social_posts').update({ status: 'draft' }).eq('id', postId))
+    if (error) return toast.error('Publication non annulée : ' + error.message)
     toast.success('Publication annulée → remise en brouillon')
     onUpdate?.()
   }
 
   const deletePost = async (postId) => {
     if (!await confirmer('Supprimer définitivement cette publication ?')) return
-    await supabase.from('social_posts').delete().eq('id', postId)
+    const { error } = await enregistrer(supabase.from('social_posts').delete().eq('id', postId))
+    if (error) return toast.error('Publication non supprimée : ' + error.message)
     toast.success('Publication supprimée')
     onUpdate?.()
   }
@@ -1576,7 +1579,8 @@ function LibraryTab({ media, onUpdate }) {
   const deleteMedia = async (id, fileUrl) => {
     if (!await confirmer('Supprimer cette image ?')) return
     try {
-      await supabase.from('social_media_library').delete().eq('id', id)
+      const { error } = await enregistrer(supabase.from('social_media_library').delete().eq('id', id))
+      if (error) return toast.error('Image non supprimée : ' + error.message)
       toast.success('Supprimé')
       onUpdate?.()
     } catch (err) {
@@ -1629,7 +1633,8 @@ function LibraryTab({ media, onUpdate }) {
 function DraftsTab({ posts, onUpdate, onEdit, onRecycle }) {
   const deleteDraft = async (id) => {
     if (!await confirmer('Supprimer ce brouillon ?')) return
-    await supabase.from('social_posts').delete().eq('id', id)
+    const { error } = await enregistrer(supabase.from('social_posts').delete().eq('id', id))
+    if (error) return toast.error('Brouillon non supprimé : ' + error.message)
     toast.success('Brouillon supprimé')
     onUpdate?.()
   }
