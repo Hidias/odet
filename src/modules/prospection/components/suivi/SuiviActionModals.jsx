@@ -105,7 +105,7 @@ export function PlanifierRdvModal({ rdv, clientName, author, onClose, onDone }) 
         triaged_at: now,
         updated_at: now,
       }
-      const { error } = await supabase.from('prospect_rdv').update(patch).eq('id', rdv.id)
+      const { error } = await enregistrer(supabase.from('prospect_rdv').update(patch).eq('id', rdv.id))
       if (error) throw error
       await logInteraction(supabase, {
         clientId: rdv.client_id,
@@ -185,7 +185,7 @@ export function ConvertirRappelModal({ rdv, clientName, author, onClose, onDone 
         triaged_at: now,
         updated_at: now,
       }
-      const { error } = await supabase.from('prospect_rdv').update(patch).eq('id', rdv.id)
+      const { error } = await enregistrer(supabase.from('prospect_rdv').update(patch).eq('id', rdv.id))
       if (error) throw error
 
       await logInteraction(supabase, {
@@ -243,7 +243,7 @@ export function DeplacerRappelModal({ callback, clientName, author, onClose, onD
     setSaving(true)
     try {
       const patch = { callback_date: date, called_by: who, updated_at: new Date().toISOString() }
-      const { error } = await supabase.from('prospect_calls').update(patch).eq('id', callback.id)
+      const { error } = await enregistrer(supabase.from('prospect_calls').update(patch).eq('id', callback.id))
       if (error) throw error
       toast.success(`Rappel déplacé au ${fmtDate(date)}${who !== callback.called_by ? ' pour ' + who : ''}`)
       onDone?.({ ...callback, ...patch })
@@ -262,7 +262,7 @@ export function DeplacerRappelModal({ callback, clientName, author, onClose, onD
         notes: callback.notes ? `${callback.notes}\n${stamp}` : stamp,
         updated_at: new Date().toISOString(),
       }
-      const { error } = await supabase.from('prospect_calls').update(patch).eq('id', callback.id)
+      const { error } = await enregistrer(supabase.from('prospect_calls').update(patch).eq('id', callback.id))
       if (error) throw error
       await logInteraction(supabase, { clientId: callback.client_id, type: 'note', title: stamp, author })
       toast.success('Rappel abandonné')
@@ -374,7 +374,7 @@ export function SansSuiteInline({ rdv, author, onDone }) {
         status: 'annule', outcome: 'sans_suite', outcome_reason: reason,
         outcome_at: now, outcome_by: author, triaged_at: now, updated_at: now,
       }
-      const { error } = await supabase.from('prospect_rdv').update(patch).eq('id', rdv.id)
+      const { error } = await enregistrer(supabase.from('prospect_rdv').update(patch).eq('id', rdv.id))
       if (error) throw error
       toast.success('Classé sans suite')
       onDone?.()

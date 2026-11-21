@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { FileCheck, Printer, Download, Save, AlertCircle, CheckCircle, Calendar, Eraser } from 'lucide-react'
 import toast from 'react-hot-toast'
 import SignatureCanvas from 'react-signature-canvas'
@@ -204,10 +205,10 @@ export default function ProspectNeedsAnalysis({ clientId, rdvId, onClose }) {
       }
 
       if (analysis) {
-        const { error } = await supabase
+        const { error } = await enregistrer(supabase
           .from('prospect_needs_analysis')
           .update(dataToSave)
-          .eq('id', analysis.id)
+          .eq('id', analysis.id))
 
         if (error) throw error
       } else {

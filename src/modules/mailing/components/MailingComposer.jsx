@@ -16,6 +16,7 @@ import { team, currentUserEmail, currentUserFirstName } from '../../../core/org/
 import { apiFetch } from '../../../core/api'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 import { sanitizeStorageKey } from '../../../core/storageUtils'
 import { loadMailingExclusions, getAudienceExclusion, SOFT_EXCLUSIONS, EXCLUSION_LABELS } from '../lib/mailingExclusions'
@@ -92,9 +93,9 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
     if (!form.subject.trim() || !form.body_html.trim()) { toast.error('Objet et message requis'); return }
     const current = templates.find(t => t.id === templateId)
     if (!asNew && current) {
-      const { error } = await supabase.from('mailing_templates')
+      const { error } = await enregistrer(supabase.from('mailing_templates')
         .update({ subject: form.subject, body_html: form.body_html, signature_caller: form.signature_caller, updated_at: new Date().toISOString() })
-        .eq('id', current.id)
+        .eq('id', current.id))
       if (error) { toast.error(error.message); return }
       toast.success(`Modèle « ${current.name} » mis à jour`)
     } else {
@@ -112,7 +113,8 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
   async function deleteTemplate() {
     const t = templates.find(x => x.id === templateId)
     if (!t || !await confirmer(`Supprimer le modèle « ${t.name} » ?`)) return
-    await supabase.from('mailing_templates').delete().eq('id', t.id)
+    const { error } = await enregistrer(supabase.from('mailing_templates').delete().eq('id', t.id))
+    if (error) { toast.error(error.message); return }
     setTemplateId('')
     loadTemplates()
   }
@@ -279,7 +281,7 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
           .upload(path, new Blob([bin], { type: attachment.contentType }), { contentType: attachment.contentType, upsert: true })
         if (upErr) throw new Error('Pièce jointe : ' + upErr.message)
         const meta = { path, filename: attachment.filename, contentType: attachment.contentType, size: attachment.size || bin.length }
-        const { error: metaErr } = await supabase.from('mailing_campaigns').update({ attachment: meta }).eq('id', camp.id)
+        const { error: metaErr } = await enregistrer(supabase.from('mailing_campaigns').update({ attachment: meta }).eq('id', camp.id))
         if (metaErr) throw metaErr
       }
 
@@ -324,7 +326,8 @@ export default function MailingComposer({ user, campaigns = [], initial = {}, on
       if (campaign) {
         // Nettoyage : rien ne doit partir d'une campagne incomplète
         await supabase.from('mailing_sends').delete().eq('campaign_id', campaign.id)
-        await supabase.from('mailing_campaigns').delete().eq('id', campaign.id)
+        const { error: nettoyageErr } = await enregistrer(supabase.from('mailing_campaigns').delete().eq('id', campaign.id))
+        if (nettoyageErr) toast.error(`La campagne incomplète « ${campaign.name || ''} » n'a pas pu être retirée : ${nettoyageErr.message}`, { duration: 10000 })
         if (attachment) await supabase.storage.from('mailing-attachments').remove([`${campaign.id}/${sanitizeStorageKey(attachment.filename)}`])
       }
     }

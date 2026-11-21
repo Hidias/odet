@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Phone, ExternalLink, Loader2, RefreshCw, ChevronDown, ChevronRight, ListChecks } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 import { useAuthStore } from '../../../core/store'
 import { useRelanceIA } from '../../commercial/lib/useRelanceIA'
@@ -234,9 +235,9 @@ export default function SuiviCommercial() {
   const pasEuLieu = async (rdv) => {
     if (!await confirmer('Ce RDV n\'a pas eu lieu : le passer en « Annulé » ?')) return
     const now = new Date().toISOString()
-    const { error } = await supabase.from('prospect_rdv')
+    const { error } = await enregistrer(supabase.from('prospect_rdv')
       .update({ status: 'annule', triaged_at: now, updated_at: now })
-      .eq('id', rdv.id)
+      .eq('id', rdv.id))
     if (error) { toast.error('Action impossible'); return }
     toast.success('RDV annulé')
     load()
