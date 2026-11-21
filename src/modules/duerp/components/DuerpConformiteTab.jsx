@@ -7,6 +7,7 @@ import { lienTelephone } from '../../../core/telephone'
 import { orgName, orgPhone } from '../../../core/org/currentOrg'
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../../core/supabase'
+import { enregistrer } from '../../../core/enregistrer'
 import {
   Plus, Save, Trash2, X, Edit, AlertTriangle, CheckCircle, Clock,
   Shield, Users, Search, ChevronDown, ChevronUp, Phone, ExternalLink,
@@ -134,7 +135,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
         toast.success('Équipement ajouté')
       }
     } else {
-      const { error } = await supabase.from('duerp_equipements').update(payload).eq('id', editEquip)
+      const { error } = await enregistrer(supabase.from('duerp_equipements').update(payload).eq('id', editEquip))
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Équipement modifié')
     }
@@ -145,7 +146,8 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
   const deleteEquipement = async (eqId) => {
     if (!await confirmer('Supprimer cet équipement ?')) return
-    await supabase.from('duerp_equipements').delete().eq('id', eqId)
+    const { error } = await enregistrer(supabase.from('duerp_equipements').delete().eq('id', eqId))
+    if (error) return toast.error('Erreur: ' + error.message)
     toast.success('Supprimé')
     loadData()
   }
@@ -185,7 +187,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Habilitation ajoutée')
     } else {
-      const { error } = await supabase.from('duerp_habilitations').update(payload).eq('id', editHab)
+      const { error } = await enregistrer(supabase.from('duerp_habilitations').update(payload).eq('id', editHab))
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Habilitation modifiée')
     }
@@ -196,7 +198,8 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
   const deleteHabilitation = async (hId) => {
     if (!await confirmer('Supprimer cette habilitation ?')) return
-    await supabase.from('duerp_habilitations').delete().eq('id', hId)
+    const { error } = await enregistrer(supabase.from('duerp_habilitations').delete().eq('id', hId))
+    if (error) return toast.error('Erreur: ' + error.message)
     toast.success('Supprimée')
     loadData()
   }
@@ -225,7 +228,7 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Vérification enregistrée')
     } else {
-      const { error } = await supabase.from('duerp_verifications').update(payload).eq('id', editVerif)
+      const { error } = await enregistrer(supabase.from('duerp_verifications').update(payload).eq('id', editVerif))
       if (error) return toast.error('Erreur: ' + error.message)
       toast.success('Vérification modifiée')
     }
@@ -236,7 +239,8 @@ export default function DuerpConformiteTab({ projectId, project, risks, units })
 
   const deleteVerification = async (vId) => {
     if (!await confirmer('Supprimer ?')) return
-    await supabase.from('duerp_verifications').delete().eq('id', vId)
+    const { error } = await enregistrer(supabase.from('duerp_verifications').delete().eq('id', vId))
+    if (error) return toast.error('Erreur: ' + error.message)
     toast.success('Supprimée')
     loadData()
   }

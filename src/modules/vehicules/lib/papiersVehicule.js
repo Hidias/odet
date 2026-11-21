@@ -4,6 +4,7 @@
 
 import { PDFDocument, PDFName, StandardFonts, rgb } from 'pdf-lib'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 
@@ -66,7 +67,7 @@ export async function deposerPapier({ companyId, vehicleId = null, eventId = nul
   }
 }
 export async function supprimerPapier(p) {
-  must(await supabase.from('vehicle_papers').delete().eq('id', p.id))
+  await enregistrerOuLever(supabase.from('vehicle_papers').delete().eq('id', p.id))
   await supabase.storage.from('vehicules').remove([p.file_path]).catch(() => {})
 }
 export async function lienPapier(chemin, secondes = 300) {

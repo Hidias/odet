@@ -3,6 +3,7 @@
 // attributions : rien n'est cherché à la main.
 
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 
 const must = ({ data, error }) => { if (error) throw error; return data }
 const nombre = (v) => (v === '' || v == null ? null : Number(String(v).replace(/\s/g, '').replace(',', '.')))
@@ -24,7 +25,7 @@ export async function enregistrerAmende(a) {
   const ligne = Object.fromEntries(Object.entries(reste).map(([k, v]) => [k, vide(v)]))
   ligne.amount = nombre(ligne.amount)
   if (!ligne.offense_at || !ligne.notice_on) throw new Error('Date de l\'infraction et date de l\'avis sont nécessaires')
-  if (id) return must(await supabase.from('vehicle_fines').update(ligne).eq('id', id).select('*').single())
+  if (id) return (await enregistrerOuLever(supabase.from('vehicle_fines').update(ligne).eq('id', id).select('*')))[0]
   return must(await supabase.from('vehicle_fines').insert(ligne).select('*').single())
 }
 
@@ -52,10 +53,10 @@ export const chargerEquipements = async (vehicleId) => must(await supabase.from(
 export async function enregistrerEquipement(q) {
   const { id, created_at: _c, updated_at: _u, company_id: _co, ...reste } = q
   const ligne = Object.fromEntries(Object.entries(reste).map(([k, v]) => [k, vide(v)]))
-  if (id) return must(await supabase.from('vehicle_equipment').update(ligne).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('vehicle_equipment').update(ligne).eq('id', id))
   return must(await supabase.from('vehicle_equipment').insert(ligne))
 }
-export const supprimerEquipement = async (id) => must(await supabase.from('vehicle_equipment').delete().eq('id', id))
+export const supprimerEquipement = async (id) => enregistrerOuLever(supabase.from('vehicle_equipment').delete().eq('id', id))
 
 // ── Coût total ──
 /** Mois entiers écoulés entre deux dates (au moins 0) */

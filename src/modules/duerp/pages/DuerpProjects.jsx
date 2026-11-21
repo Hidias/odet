@@ -2,6 +2,7 @@ import { currentUserName } from '../../../core/org/currentOrg'
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../../core/supabase'
+import { enregistrer, enregistrerOuLever } from '../../../core/enregistrer'
 import { fetchAll } from '../../../core/fetchAll'
 import { useDataStore } from '../../../core/store'
 import {
@@ -320,11 +321,13 @@ export default function DuerpProjects() {
 
       // Si client existant, mettre à jour le naf_code
       if (newProject.client_id && newProject.naf_code) {
-        await supabase.from('clients').update({
+        const { error: erreurClient } = await enregistrer(supabase.from('clients').update({
           naf_code: newProject.naf_code,
           naf_label: newProject.naf_label,
           effectif: newProject.effectif,
-        }).eq('id', newProject.client_id)
+        }).eq('id', newProject.client_id))
+        // Le projet est déjà créé : on prévient sans annuler
+        if (erreurClient) toast.error('Projet créé, mais le code NAF et l\'effectif de la fiche client ne sont pas mis à jour : ' + erreurClient.message)
       }
 
       toast.success(`Projet DUERP créé : ${ref}`)
@@ -370,12 +373,14 @@ export default function DuerpProjects() {
       const toDelete = Object.entries(rattachAssignments).filter(([, unitId]) => unitId === '__skip').map(([riskId]) => riskId)
 
       for (const [riskId, unitId] of updates) {
-        await supabase.from('duerp_risks').update({ unit_id: unitId }).eq('id', riskId)
+        await enregistrerOuLever(supabase.from('duerp_risks').update({ unit_id: unitId }).eq('id', riskId))
       }
       if (toDelete.length) {
         // Supprimer les actions liées aux risques ignorés avant de supprimer les risques
-        await supabase.from('duerp_actions').delete().in('risk_id', toDelete)
-        await supabase.from('duerp_risks').delete().in('id', toDelete)
+        // Aucune action liée est un cas normal (0 ligne) : seule l'erreur de la base est vérifiée
+        const { error: erreurActions } = await supabase.from('duerp_actions').delete().in('risk_id', toDelete)
+        if (erreurActions) throw erreurActions
+        await enregistrerOuLever(supabase.from('duerp_risks').delete().in('id', toDelete), { attendu: toDelete.length })
       }
       toast.success(`Rattachement enregistré - ${updates.length} risque(s) affecté(s)${toDelete.length ? `, ${toDelete.length} supprimé(s)` : ''}`)
       setShowRattachement(false)
@@ -392,7 +397,8 @@ export default function DuerpProjects() {
   // ═══════════════════════════════════════════════════════════
   const deleteProject = async (id) => {
     if (!await confirmer('Supprimer ce projet DUERP et toutes ses données ?')) return
-    await supabase.from('duerp_projects').delete().eq('id', id)
+    const { error } = await enregistrer(supabase.from('duerp_projects').delete().eq('id', id))
+    if (error) return toast.error('Projet non supprimé : ' + error.message)
     toast.success('Projet supprimé')
     setContextMenu(null)
     loadAll()
@@ -456,7 +462,8 @@ export default function DuerpProjects() {
   }
 
   const archiveProject = async (id) => {
-    await supabase.from('duerp_projects').update({ status: 'archive' }).eq('id', id)
+    const { error } = await enregistrer(supabase.from('duerp_projects').update({ status: 'archive' }).eq('id', id))
+    if (error) return toast.error('Projet non archivé : ' + error.message)
     toast.success('Projet archivé')
     setContextMenu(null)
     loadAll()
