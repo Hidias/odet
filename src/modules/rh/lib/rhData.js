@@ -100,13 +100,13 @@ export async function ajouterRemuneration(employmentId, { amount, period, effect
 
 export async function enregistrerEquipe(e) {
   const { id, ...reste } = nettoyer(e)
-  if (id) return must(await supabase.from('hr_teams').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('hr_teams').update(reste).eq('id', id))
   return must(await supabase.from('hr_teams').insert(reste))
 }
-export const supprimerEquipe = async (id) => must(await supabase.from('hr_teams').delete().eq('id', id))
+export const supprimerEquipe = async (id) => enregistrerOuLever(supabase.from('hr_teams').delete().eq('id', id))
 export async function enregistrerHoraire(h) {
   const { id, ...reste } = h
-  if (id) return must(await supabase.from('hr_schedules').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('hr_schedules').update(reste).eq('id', id))
   return must(await supabase.from('hr_schedules').insert(reste))
 }
 
@@ -150,9 +150,9 @@ export const chargerFeries = async (annee = null) => {
   return data || []
 }
 export const feriesNonTravailles = (liste) => (liste || []).filter((h) => !h.is_worked).map((h) => h.day)
-export const marquerFerie = async (id, travaille) => must(await supabase.from('hr_public_holidays').update({ is_worked: travaille }).eq('id', id))
+export const marquerFerie = async (id, travaille) => enregistrerOuLever(supabase.from('hr_public_holidays').update({ is_worked: travaille }).eq('id', id))
 export const ajouterFerie = async ({ day, label }) => must(await supabase.from('hr_public_holidays').insert({ day, label: label?.trim() || 'Jour non travaillé' }))
-export const supprimerFerie = async (id) => must(await supabase.from('hr_public_holidays').delete().eq('id', id))
+export const supprimerFerie = async (id) => enregistrerOuLever(supabase.from('hr_public_holidays').delete().eq('id', id))
 export const poserFeriesAnnee = async (annee) => must(await supabase.rpc('hr_feries_annee', { p_annee: annee }))
 
 export const chargerTypesAbsence = async () => must(await supabase.from('hr_absence_types').select('*').order('position'))
@@ -206,7 +206,7 @@ export async function ajusterSolde({ personId, typeId, kind, days, note, periodL
 }
 export async function enregistrerTypeAbsence(t) {
   const { id, ...reste } = t
-  if (id) return must(await supabase.from('hr_absence_types').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('hr_absence_types').update(reste).eq('id', id))
   return must(await supabase.from('hr_absence_types').insert(reste))
 }
 
@@ -266,9 +266,9 @@ export const chargerContratEnCours = async (personId, lundi) => {
 }
 export async function enregistrerLigne(l) {
   const { id, clients: _c, minutes: _m, ...reste } = l
-  if (id) return must(await supabase.from('hr_time_entries').update(reste).eq('id', id))
+  if (id) return enregistrerOuLever(supabase.from('hr_time_entries').update(reste).eq('id', id))
   return must(await supabase.from('hr_time_entries').insert(reste))
 }
-export const supprimerLigne = async (id) => must(await supabase.from('hr_time_entries').delete().eq('id', id))
+export const supprimerLigne = async (id) => enregistrerOuLever(supabase.from('hr_time_entries').delete().eq('id', id))
 export const preparerSemaine = async (lundi) => must(await supabase.rpc('hr_semaine_preparer', { p_lundi: lundi }))
 export const soumettreSemaine = async (lundi) => must(await supabase.rpc('hr_semaine_soumettre', { p_lundi: lundi }))

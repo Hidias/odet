@@ -5,6 +5,7 @@
 
 import jsPDF from 'jspdf'
 import { supabase } from '../../../core/supabase'
+import { enregistrerOuLever } from '../../../core/enregistrer'
 import { startDocument, drawImageFitted, compacter } from '../../../core/pdf/layout'
 import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { orgHorsFormation } from '../../../core/org/orgUtils'
@@ -30,8 +31,8 @@ export async function remettreEpi(v) {
   }).select('id, renew_on').single())
 }
 
-export const marquerRendu = async (id, jour) => must(await supabase.from('hr_ppe_handovers').update({ returned_on: jour }).eq('id', id))
-export const annulerRemise = async (id) => must(await supabase.from('hr_ppe_handovers').delete().eq('id', id))
+export const marquerRendu = async (id, jour) => enregistrerOuLever(supabase.from('hr_ppe_handovers').update({ returned_on: jour }).eq('id', id))
+export const annulerRemise = async (id) => enregistrerOuLever(supabase.from('hr_ppe_handovers').delete().eq('id', id))
 
 /** État d'une remise à une date : rendu, à renouveler (dépassé), bientôt (30 jours), en cours */
 export function etatRemise(r, aujourdhui = new Date().toISOString().slice(0, 10)) {
