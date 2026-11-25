@@ -41,6 +41,8 @@ const statusLabels = {
   planned: { label: 'Planifiée', class: 'badge-blue' },
   confirmed: { label: 'Confirmée', class: 'badge-brand' },
   in_progress: { label: 'En cours', class: 'badge-yellow' },
+  to_close: { label: 'À clôturer', class: 'badge-warning' },
+  to_invoice: { label: 'À facturer', class: 'badge-info' },
   completed: { label: 'Terminée', class: 'badge-green' },
   cancelled: { label: 'Annulée', class: 'badge-red' },
 }

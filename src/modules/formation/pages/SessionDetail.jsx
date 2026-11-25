@@ -77,6 +77,7 @@ import { envoiParGroupe, sessionDuGroupe, groupesActifs, inscritsDuGroupe, refus
 import { confirmationDecocherConventionEnvoyee } from '../../../core/portail/alertesPublication'
 import { pluriel } from '../../../core/genre'
 import ChoixFormateurs from '../components/ChoixFormateurs'
+import ClotureSession from '../components/ClotureSession'
 import { formateursAEnvoyer } from '../../../core/session/formateursSession'
 import { money } from '../../../core/utils'
 import { Q } from '../lib/indicateursDocuments'
@@ -85,6 +86,8 @@ const statusLabels = {
   planned: { label: 'Planifiée', class: 'badge-blue' },
   confirmed: { label: 'Confirmée', class: 'badge-brand' },
   in_progress: { label: 'En cours', class: 'badge-yellow' },
+  to_close: { label: 'À clôturer', class: 'badge-warning' },
+  to_invoice: { label: 'À facturer', class: 'badge-info' },
   completed: { label: 'Terminée', class: 'badge-green' },
   cancelled: { label: 'Annulée', class: 'badge-red' },
 }
@@ -3274,6 +3277,8 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
                 className="border rounded-ui-sm px-3 py-1.5 text-ui"
               >
                 <option value="confirmed">Confirmée</option>
+                <option value="to_close">À clôturer</option>
+                <option value="to_invoice">À facturer</option>
                 <option value="completed">Terminée</option>
                 <option value="cancelled">Annulée</option>
               </select>
@@ -3440,11 +3445,18 @@ ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
         </div>
       )}
 
-      {/* Bannière persistante - session terminée sans facture */}
-      {!showInvoicePrompt && session.status === 'completed' && sessionHasInvoice === false && (
+      {/* B126 : clôture (ce qui manque pour « À facturer », pas de facture avec motif) */}
+      <ClotureSession session={session} peutModifier={d.modifier} onChange={async () => {
+        const result = await getSession(id)
+        if (result.data) setSession(result.data)
+        fetchSessions()
+      }} />
+
+      {/* Bannière persistante - session à facturer ou terminée sans facture */}
+      {!showInvoicePrompt && ['to_invoice', 'completed'].includes(session.status) && !session.sans_facture_motif && sessionHasInvoice === false && (
         <div className="bg-[rgb(var(--c-warning-bg))] border border-[rgb(var(--c-warning)/0.3)] rounded-ui p-3 flex items-center justify-between">
           <p className="text-ui text-[rgb(var(--c-warning))] flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" /> Formation terminée - aucune facture créée pour cette session
+            <AlertCircle className="w-4 h-4" /> Formation réalisée - aucune facture créée pour cette session
           </p>
           {d.factures && <button onClick={() => navigate(`/factures?from_session=${session.id}`)}
             className="btn btn-secondary btn-sm">

@@ -10,6 +10,7 @@ import { buildSocialSystemPrompt, brandHashtag } from '../lib/socialPrompt'
 
 import { confirmer } from '../../../ui/Confirm'
 import { enregistrer, enregistrerOuLever } from '../../../core/enregistrer'
+import { estRealisee } from '../../../core/session/realisee.js'
 // ═══════════════════════════════════════════════════════════
 // MODULE RÉSEAUX SOCIAUX
 // Phase 1 : Générateur IA + Calendrier + Médiathèque
@@ -144,7 +145,7 @@ export default function SocialMedia() {
 
       if (evalErr) console.warn('Stats évaluations:', evalErr.message)
 
-      const completedSessions = (sessions || []).filter(s => s.status === 'completed' || s.status === 'terminée' || s.status === 'Terminée')
+      const completedSessions = (sessions || []).filter(s => estRealisee(s) || s.status === 'terminée' || s.status === 'Terminée')
 
       // Calculer la note moyenne sur 5 (moyenne de toutes les notes des 14 critères)
       const newKeys = [

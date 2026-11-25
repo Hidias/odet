@@ -36,14 +36,15 @@ describe('B126 formation', () => {
 })
 
 // B126, partie 2 : une seule règle « session réalisée » (changement neutre : aujourd'hui = Terminée)
-import { estRealisee, STATUTS_REALISEE } from '../src/core/session/realisee.js'
+import { estRealisee, STATUTS_REALISEE, statutAffiche, maintenantParis, finSession, LIBELLES_STATUT } from '../src/core/session/realisee.js'
 
 describe('B126 règle « réalisée »', () => {
-  it('estRealisee vaut aujourd\'hui exactement status === completed', () => {
-    expect(STATUTS_REALISEE).toEqual(['completed'])
-    for (const s of ['completed', 'planned', 'confirmed', 'in_progress', 'cancelled', null, undefined, '']) {
-      expect(estRealisee({ status: s })).toBe(s === 'completed')
-      if (typeof s === 'string') expect(estRealisee(s)).toBe(s === 'completed')
+  it('réalisée = À clôturer, À facturer ou Terminée', () => {
+    expect(STATUTS_REALISEE).toEqual(['to_close', 'to_invoice', 'completed'])
+    for (const s of ['completed', 'to_close', 'to_invoice', 'planned', 'confirmed', 'in_progress', 'cancelled', null, undefined, '']) {
+      const attendu = ['completed', 'to_close', 'to_invoice'].includes(s)
+      expect(estRealisee({ status: s })).toBe(attendu)
+      if (typeof s === 'string') expect(estRealisee(s)).toBe(attendu)
     }
     expect(estRealisee(null)).toBe(false)
     expect(() => { STATUTS_REALISEE.push('x') }).toThrow()
@@ -88,5 +89,72 @@ describe('B126 règle « réalisée »', () => {
     const r = lire('supabase/rollback/0527_session_realisee_retour.sql')
     expect(r).toContain('drop function if exists app.session_realisee(text)')
     expect(r).toContain('retour arrière refusé')
+  })
+})
+
+describe('B126 parcours du statut (partie 3)', () => {
+  it('maintenantParis donne l\'heure de Paris, hiver comme été', () => {
+    expect(maintenantParis(new Date('2026-11-25T13:00:00Z'))).toBe('2026-11-25T14:00')
+    expect(maintenantParis(new Date('2026-07-01T22:30:00Z'))).toBe('2026-07-02T00:30')
+  })
+
+  it('« À clôturer » affiché dès l\'heure de fin, verrou compris, sauf sous-traitance et annulée', () => {
+    const s = { status: 'planned', start_date: '2026-11-25', end_date: '2026-11-25', end_time: '16:00:00' }
+    expect(finSession(s)).toBe('2026-11-25T16:00')
+    expect(statutAffiche(s, '2026-11-25T15:59')).toBe('planned')
+    expect(statutAffiche(s, '2026-11-25T16:00')).toBe('to_close')
+    expect(statutAffiche({ ...s, status_locked: true }, '2026-11-25T18:00')).toBe('to_close')
+    expect(statutAffiche({ ...s, status: 'in_progress' }, '2026-11-26T09:00')).toBe('to_close')
+    expect(statutAffiche({ ...s, session_type: 'subcontract' }, '2026-11-26T09:00')).toBe('planned')
+    for (const st of ['cancelled', 'to_invoice', 'completed']) expect(statutAffiche({ ...s, status: st }, '2026-11-26T09:00')).toBe(st)
+    expect(statutAffiche({ status: 'planned', start_date: '2026-11-25' }, '2026-11-25T23:58')).toBe('planned')
+    expect(LIBELLES_STATUT.to_close).toBe('À clôturer')
+    expect(LIBELLES_STATUT.to_invoice).toBe('À facturer')
+  })
+
+  it('le navigateur n\'écrit plus « Terminée » que pour la sous-traitance', () => {
+    const src = lire('src/core/store.js')
+    const debut = src.indexOf('Statuts des sessions (B126)')
+    const bloc = src.slice(debut, src.indexOf('Créer des maps pour accès rapide', debut))
+    expect(bloc).toContain("s.session_type === 'subcontract' && endDate < today && s.status !== 'completed'")
+    expect(bloc).toContain('statutAffiche(s, maintenant)')
+    expect(bloc.match(/newStatus = 'completed'/g)).toHaveLength(1)
+  })
+
+  it('les libellés connaissent À clôturer et À facturer partout', () => {
+    for (const f of ['src/modules/formation/pages/SessionDetail.jsx', 'src/modules/formation/pages/Sessions.jsx',
+      'src/modules/formation/components/SessionPlanning.jsx', 'src/ui/StatusBadge.jsx']) {
+      const src = lire(f)
+      expect(src, f).toMatch(/to_close: .*'À clôturer'/)
+      expect(src, f).toMatch(/to_invoice: .*'À facturer'/)
+    }
+  })
+
+  it('la fiche session montre la clôture et propose la facture dès « À facturer »', () => {
+    const src = lire('src/modules/formation/pages/SessionDetail.jsx')
+    expect(src).toContain("import ClotureSession from '../components/ClotureSession'")
+    expect(src).toContain("['to_invoice', 'completed'].includes(session.status) && !session.sans_facture_motif && sessionHasInvoice === false")
+    const c = lire('src/modules/formation/components/ClotureSession.jsx')
+    expect(c).toContain("supabase.rpc('session_avancer_statut'")
+    expect(c).toContain("supabase.rpc('session_cloture_etat'")
+    expect(c).toContain('enregistrer(supabase.from(\'sessions\').update({ sans_facture_motif')
+  })
+
+  it('la migration 0528 pose le parcours, garde la sous-traitance et le verrou vers Terminée seulement', () => {
+    const m = lire('supabase/migrations/0528_parcours_statut_session.sql')
+    expect(m).toContain("array['to_close', 'to_invoice', 'completed']")
+    expect(m).toContain("at time zone 'Europe/Paris'")
+    expect(m).toMatch(/if v = 'to_invoice' and not s\.verrou/)
+    expect(m).toContain("s.type_session = 'subcontract'")
+    expect(m).toContain('public.session_half_days(p_session)')
+    expect(m).toContain("m.email_type = 'after'")
+    expect(m).toContain("i.status not in ('draft', 'cancelled')")
+    expect(m).toContain('invoice_sessions')
+    expect(m).toContain("raise exception '0528 : appliquer 0527")
+    expect(m).toContain("'0528_parcours_statut_session'")
+    expect(m).toMatch(/grant execute on function public\.session_avancer_statut\(uuid\) to authenticated/)
+    const r = lire('supabase/rollback/0528_parcours_statut_session_retour.sql')
+    expect(r).toContain('retour arrière refusé')
+    expect(r).toContain("array['completed']")
   })
 })

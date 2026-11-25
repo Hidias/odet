@@ -40,6 +40,7 @@ import { confirmer } from '../../../ui/Confirm'
 import { useCapacites } from '../../../core/capacites'
 import { CHOIX_CIVILITE_CONTACT, civilite as civiliteDe, nomContact } from '../../../core/genre'
 import { telephoneLisible, lienTelephone } from '../../../core/telephone.js'
+import { estRealisee, LIBELLES_STATUT } from '../../../core/session/realisee.js'
 // ═══════════════════════════════════════════════════════════
 // CONSTANTES
 // ═══════════════════════════════════════════════════════════
@@ -884,7 +885,7 @@ export default function ClientDetail() {
 
   const timeline = getMergedTimeline()
   const upcomingSessions = formations.filter(f => f.status === 'planned' || f.status === 'in_progress' || f.status === 'draft')
-  const pastSessions = formations.filter(f => f.status === 'completed' || f.status === 'cancelled')
+  const pastSessions = formations.filter(f => estRealisee(f) || f.status === 'cancelled')
   const docContact = contacts.find(c => c.is_document_contact)
   const billingContact = contacts.find(c => c.is_billing)
 
@@ -1992,8 +1993,8 @@ export default function ClientDetail() {
                                 </p>
                               )}
                             </div>
-                            <span className={'px-2 py-0.5 rounded text-ui-sm font-medium ' + (s.status === 'completed' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]')}>
-                              {s.status === 'completed' ? ' Terminée' : ' Annulée'}
+                            <span className={'px-2 py-0.5 rounded text-ui-sm font-medium ' + (s.status === 'cancelled' ? 'bg-[rgb(var(--c-danger-bg))] text-[rgb(var(--c-danger))]' : s.status === 'completed' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]')}>
+                              {' ' + (LIBELLES_STATUT[s.status] || s.status)}
                             </span>
                           </div>
                         </Link>

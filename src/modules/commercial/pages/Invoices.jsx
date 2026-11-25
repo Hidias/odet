@@ -37,7 +37,7 @@ import { messageFacturePubliee } from '../../../core/portail/alertesPublication'
 import { chargerTarifs, prixFormation, ligneAuTarif } from '../../../core/tarifs/tarifsClient'
 import { DEDOMMAGEMENTS, montantDedommagement } from '../../formation/lib/effectifPrerequis'
 import BadgeTarifClient from '../components/BadgeTarifClient'
-import { STATUTS_REALISEE } from '../../../core/session/realisee.js'
+import { LIBELLES_STATUT, STATUTS_REALISEE } from '../../../core/session/realisee.js'
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
   draft:    { label: 'Brouillon',  color: 'gray',   icon: FileText },
@@ -1601,7 +1601,7 @@ export default function Invoices() {
                     <div><span className="font-medium text-ui">{s.reference}</span><span className="text-gray-500 text-ui ml-2">{s.clients?.name}</span></div>
                     <div className="flex items-center gap-2">
                       {s.already_invoiced && <span className="text-ui-sm bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))] px-1.5 py-0.5 rounded">Déjà facturée</span>}
-                      <span className={`text-ui-sm px-1.5 py-0.5 rounded ${s.status === 'completed' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>{s.status === 'completed' ? 'Terminée' : 'En cours'}</span>
+                      <span className={`text-ui-sm px-1.5 py-0.5 rounded ${s.status === 'completed' ? 'bg-[rgb(var(--c-success-bg))] text-[rgb(var(--c-success))]' : 'bg-[rgb(var(--c-warning-bg))] text-[rgb(var(--c-warning))]'}`}>{LIBELLES_STATUT[s.status] || 'En cours'}</span>
                     </div>
                   </div>
                   <p className="text-ui-sm text-gray-400 mt-1 truncate">{s.courses?.title} - {fmtDateShort(s.start_date)}{s.end_date !== s.start_date ? ' au ' + fmtDateShort(s.end_date) : ''}</p>

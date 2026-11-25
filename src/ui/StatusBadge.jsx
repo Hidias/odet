@@ -8,6 +8,8 @@ export const STATUS = {
     planned: ['info', 'Planifiée'],
     confirmed: ['brand', 'Confirmée'],
     in_progress: ['warning', 'En cours'],
+    to_close: ['warning', 'À clôturer'],
+    to_invoice: ['info', 'À facturer'],
     completed: ['success', 'Terminée'],
     cancelled: ['danger', 'Annulée'],
   },

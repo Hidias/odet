@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { getAdminClient, requireUser, clientDeLAppelant, refusVueGroupe } from './_lib/auth.js'
 import { withErrorLog } from './_lib/errors.js'
 import { finValiditeInterne, statutCertificat, dateFinImpossible } from '../src/modules/formation/lib/effectifPrerequis.js'
+import { estRealisee } from '../src/core/session/realisee.js'
 
 // Documents mis à disposition dans l'espace client (0404), toutes prestations.
 //  - publier (équipe connectée) : range un PDF remis au client (rapport d'intervention, facture émise, devis, contrat,
@@ -228,7 +229,7 @@ async function deposerSigne(req, res) {
 
 // Sessions du client dont la formation exige un certificat à l'entrée, avec l'état de chaque participant (0479)
 async function sessionsAvecCertificat(a) {
-  const ids = a.sessions.filter((x) => !['cancelled', 'annulee', 'completed', 'terminee'].includes(x.status || '')).map((x) => x.id).filter((x) => UUID.test(String(x)))
+  const ids = a.sessions.filter((x) => !['cancelled', 'annulee', 'terminee'].includes(x.status || '') || estRealisee(x.status)).map((x) => x.id).filter((x) => UUID.test(String(x)))
   if (!ids.length) return []
   const { data: sess } = await a.admin.from('sessions').select('id, reference, start_date, status, courses(title, prerequis_certificat_mois)').in('id', ids)
   const exigees = (sess || []).filter((x) => x.courses && x.courses.prerequis_certificat_mois != null)
