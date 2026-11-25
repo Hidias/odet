@@ -10,6 +10,7 @@ import { loadPdfOrg } from '../../../core/pdf/pdfOrg'
 import { StatusBadge } from '../components/ui'
 import { downloadBlob } from '../lib/certData'
 import { buildCriterionPDF, buildSamplePDF } from '../pdf/dossierAuditPDF'
+import { STATUTS_REALISEE } from '../../../core/session/realisee.js'
 
 const safe = (s) => String(s || 'fichier').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/_+/g, '_').substring(0, 80)
 
@@ -55,7 +56,7 @@ export default function CertDossier({ referential: refData, evaluated }) {
       if (opt.sample > 0) {
         const { data } = await supabase.from('sessions')
           .select('id, reference, start_date, end_date, session_type, convention_sent, convention_signed, convention_signed_file_url, courses(title), clients(name), session_trainees(id)')
-          .eq('status', 'completed').order('end_date', { ascending: false }).limit(opt.sample)
+          .in('status', STATUTS_REALISEE).order('end_date', { ascending: false }).limit(opt.sample)
         const sessions = data || []
         // Conventions des sessions inter, groupe par groupe (même lecture que l'accueil, etatConvention)
         const ids = sessions.map((s) => s.id)

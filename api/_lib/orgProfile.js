@@ -1,3 +1,4 @@
+import { estRealisee } from '../../src/core/session/realisee.js'
 // api/_lib/orgProfile.js
 // Profil de l'organisme injecté dans les prompts de l'Aide à la rédaction.
 // Tout vient de organization_settings et du catalogue (courses) : aucune identité en dur.
@@ -100,7 +101,7 @@ async function loadRealStats(admin, since) {
     ])
     const own = sessions
     const ownIds = new Set(own.map((x) => x.id))
-    const completed = new Set(own.filter((x) => x.status === 'completed').map((x) => x.id))
+    const completed = new Set(own.filter((x) => estRealisee(x)).map((x) => x.id))
     const formed = new Set((sts || []).filter((x) => ownIds.has(x.session_id) && (x.presence_complete === true || x.early_departure === true)).map((x) => `${x.session_id}:${x.trainee_id}`))
     const scores = []
     let nEval = 0

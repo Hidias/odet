@@ -23,6 +23,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
+import { estRealisee } from '../../../core/session/realisee.js'
 
 // ===== CONFIG ENTREPRISE =====
 // Identité de l'organisme : lue dans les paramètres au chargement de la page, jamais écrite ici
@@ -519,7 +520,7 @@ export default function QualiteEditables() {
       // Debug log pour vérifier
       console.log('RDD Debug:', {
         totalSessions: allSessions.length,
-        completedSessions: allSessions.filter(s => s.status === 'completed').length,
+        completedSessions: allSessions.filter(s => estRealisee(s)).length,
         stagiaires: totalStagiaires,
         evaluationsCount: evals.length,
         scoresCount: allScores.length,
@@ -531,7 +532,7 @@ export default function QualiteEditables() {
         periode: { start: startDate, end: now },
         sessions: { 
           total: allSessions.length, 
-          terminees: allSessions.filter(s => s.status === 'completed').length 
+          terminees: allSessions.filter(s => estRealisee(s)).length 
         },
         stagiaires: totalStagiaires,
         satisfaction: { score: avgScore, tauxReco },

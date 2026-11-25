@@ -9,6 +9,7 @@ import { enregistrer } from './enregistrer'
 import { configureCompanyContext } from './company/companyContext'
 import { chargerDroits, aLeDroit } from './rights/rights'
 import { chargerContexteSocietes, chargerIdentiteSociete } from './company/societes'
+import { STATUTS_REALISEE, estRealisee } from './session/realisee.js'
 
 // ─── Résolution du rôle et du profil d'un utilisateur connecté ─────
 // Source de vérité : la table profiles (rôle, identité affichée, préférences).
@@ -1973,7 +1974,7 @@ export const useDataStore = create((set, get) => ({
     const { data: completedSessions } = await fetchAll(() => supabase
       .from('sessions')
       .select('id')
-      .eq('status', 'completed'))
+      .in('status', STATUTS_REALISEE))
     
     const completedIds = completedSessions?.map(s => s.id) || []
     
@@ -2100,7 +2101,7 @@ export const useDataStore = create((set, get) => ({
       // (vérifié via courses.objectives)
       
       // Indicateur 11 - Attestations
-      if (s.status === 'completed') {
+      if (estRealisee(s)) {
         // Session terminée devrait avoir des attestations
       }
       

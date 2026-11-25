@@ -7,6 +7,7 @@ import { supabase } from '../../../core/supabase'
 import { fetchAll } from '../../../core/fetchAll'
 import { conventionSigneeEtat, groupesParSession } from '../../formation/lib/etatConvention'
 import { resumeFinanceurs, lignesIndicateur30, anneesFinanceurs } from './financeurs'
+import { STATUTS_REALISEE } from '../../../core/session/realisee.js'
 
 const filled = (v) => v != null && String(v).trim() !== ''
 
@@ -31,7 +32,7 @@ export async function loadEvidence() {
     supabase.from('veille_qualiopi').select('type, action_menee, statut'),
     supabase.from('trainers').select('id, qualifications_list, certifications, is_internal'),
     count('sessions'),
-    count('sessions', (q) => q.eq('status', 'completed')),
+    count('sessions', (q) => q.in('status', STATUTS_REALISEE)),
     supabase.rpc('quality_demo_names_active').then(({ data }) => !!data, () => false),
   ])
   const [

@@ -37,6 +37,7 @@ import { messageFacturePubliee } from '../../../core/portail/alertesPublication'
 import { chargerTarifs, prixFormation, ligneAuTarif } from '../../../core/tarifs/tarifsClient'
 import { DEDOMMAGEMENTS, montantDedommagement } from '../../formation/lib/effectifPrerequis'
 import BadgeTarifClient from '../components/BadgeTarifClient'
+import { STATUTS_REALISEE } from '../../../core/session/realisee.js'
 // sent retiré - dès l'envoi on passe directement en "due"
 const STATUS_MAP = {
   draft:    { label: 'Brouillon',  color: 'gray',   icon: FileText },
@@ -531,7 +532,7 @@ export default function Invoices() {
     setSelectedSessionIds([])
     const { data } = await supabase.from('sessions')
       .select('id,reference,start_date,end_date,status,is_intra,session_type,client_id,clients(name),courses(title),quote_id')
-      .in('status', ['completed', 'in_progress'])
+      .in('status', [...STATUTS_REALISEE, 'in_progress'])
       .order('end_date', {ascending: false})
       .limit(100)
     // Sessions déjà facturées (garde-fou contre la double facturation) : la

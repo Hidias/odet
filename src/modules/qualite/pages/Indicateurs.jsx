@@ -16,6 +16,7 @@ import { statsEmployeurs } from '../lib/froid'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
 import { pluriel } from '../../../core/genre'
+import { estRealisee } from '../../../core/session/realisee.js'
 
 const ratingColor = (value, max = 5) => {
   const percent = (value / max) * 100
@@ -325,7 +326,7 @@ export default function Indicateurs() {
   
   // Filtrer les sessions selon les critères
   const getFilteredSessions = () => {
-    let filtered = sessions.filter(s => s.status === 'completed')
+    let filtered = sessions.filter(s => estRealisee(s))
     
     if (filterTheme) {
       filtered = filtered.filter(s => s.courses?.theme_id === filterTheme)
@@ -510,7 +511,7 @@ export default function Indicateurs() {
   // Calcul des taux pour évaluations à froid (5=Oui, 1=Non)
   const calcColdStats = () => {
     // Total stagiaires FORMÉS des sessions terminées (base pour le taux d'envoi)
-    const completedSessionIds = filteredSessions.filter(s => s.status === 'completed').map(s => s.id)
+    const completedSessionIds = filteredSessions.filter(s => estRealisee(s)).map(s => s.id)
     const totalTraineesInCompleted = traineeResults.filter(r => 
       completedSessionIds.includes(r.session_id) &&
       (r.presence_complete === true || r.early_departure === true)
@@ -570,7 +571,7 @@ export default function Indicateurs() {
   
   // Calcul du taux de réussite (Acquis/Non acquis)
   const calcSuccessRate = () => {
-    const completedSessionIds = filteredSessions.filter(s => s.status === 'completed').map(s => s.id)
+    const completedSessionIds = filteredSessions.filter(s => estRealisee(s)).map(s => s.id)
     const filteredResults = traineeResults.filter(r => completedSessionIds.includes(r.session_id) && r.result)
     
     if (filteredResults.length === 0) return null
@@ -583,7 +584,7 @@ export default function Indicateurs() {
   
   // Calcul du taux de présence (basé sur tous les inscrits vs présents)
   const calcPresenceRate = () => {
-    const completedSessionIds = filteredSessions.filter(s => s.status === 'completed').map(s => s.id)
+    const completedSessionIds = filteredSessions.filter(s => estRealisee(s)).map(s => s.id)
     
     // Base = TOUS les inscrits dans les sessions terminées (y compris absents)
     const allTraineesInCompleted = traineeResults.filter(r => 
@@ -604,7 +605,7 @@ export default function Indicateurs() {
   
   // Calcul du taux d'abandon (basé sur early_departure)
   const calcAbandonRate = () => {
-    const completedSessionIds = filteredSessions.filter(s => s.status === 'completed').map(s => s.id)
+    const completedSessionIds = filteredSessions.filter(s => estRealisee(s)).map(s => s.id)
     // Base = stagiaires formés (presence_complete OU early_departure)
     const traineesFormed = traineeResults.filter(r => 
       completedSessionIds.includes(r.session_id) &&
@@ -632,7 +633,7 @@ export default function Indicateurs() {
   
   // Calcul du nombre total de stagiaires formés (présence_complete OU early_departure)
   const calcTotalTrainees = () => {
-    const completedSessionIds = filteredSessions.filter(s => s.status === 'completed').map(s => s.id)
+    const completedSessionIds = filteredSessions.filter(s => estRealisee(s)).map(s => s.id)
     const traineesInCompleted = traineeResults.filter(r => 
       completedSessionIds.includes(r.session_id) &&
       (r.presence_complete === true || r.early_departure === true)

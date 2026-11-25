@@ -1,3 +1,4 @@
+import { estRealisee } from '../../../core/session/realisee.js'
 // Résultats publiés au titre de l'indicateur 2 (Qualiopi) et leur méthode de calcul.
 // Fonctions pures, sans accès à la base : les données sont passées en paramètre (testables en Node).
 //
@@ -60,7 +61,7 @@ export function plannedHalfDays(session, durationHours) {
 /** Sessions terminées dont la date de fin est dans la période [from, to] (dates AAAA-MM-JJ, bornes incluses) */
 export function sessionsInPeriod(sessions, { from = null, to = null } = {}) {
   return (sessions || []).filter((s) => {
-    if (s.status !== 'completed') return false
+    if (!estRealisee(s)) return false
     const end = String(s.end_date || s.start_date || '').substring(0, 10)
     if (!end) return false
     if (from && end < from) return false
