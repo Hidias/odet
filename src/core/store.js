@@ -1831,11 +1831,16 @@ export const useDataStore = create((set, get) => ({
     }
     
     // 3. Vérifier la présence demi-journées
-    const { data: halfDays } = await supabase
+    // Seules les demi-journées aux dates de la session comptent (B126 : des lignes d'essai ou d'une autre date
+    // ne doivent pas rendre un absent « acquis »)
+    let reqHalfDays = supabase
       .from('attendance_halfdays')
       .select('morning, afternoon')
       .eq('session_id', sessionId)
       .eq('trainee_id', traineeId)
+    if (sessionData?.start_date) reqHalfDays = reqHalfDays.gte('date', sessionData.start_date)
+    if (sessionData?.end_date) reqHalfDays = reqHalfDays.lte('date', sessionData.end_date)
+    const { data: halfDays } = await reqHalfDays
     
     let presentHalfDays = 0
     halfDays?.forEach(h => {

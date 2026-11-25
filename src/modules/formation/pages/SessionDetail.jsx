@@ -2,7 +2,7 @@ import { Tabs } from '../../../ui/Tabs'
 import { PageHeader } from '../../../ui/PageHeader'
 import { fichierDeLInstance } from '../../../core/fichiersInstance'
 import { StatusBadge } from '../../../ui/StatusBadge'
-import { orgName, orgEmail } from '../../../core/org/currentOrg'
+import { orgName } from '../../../core/org/currentOrg'
 import { Fragment, useEffect, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useDataStore, useAuthStore } from '../../../core/store'
@@ -24,6 +24,7 @@ import { fr } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import QRCode from 'qrcode'
 import { supabase } from '../../../core/supabase'
+import { apiFetch } from '../../../core/api'
 import { enregistrer, estAucuneLigne } from '../../../core/enregistrer'
 import { buildStorageFileName, ouvrirFichier, readableUrl } from '../../../core/storageUtils'
 import SessionDocumentAccess from '../components/SessionDocumentAccess'
@@ -3013,15 +3014,8 @@ export default function SessionDetail() {
     setSendingHotEvalReminder(true)
     
     try {
-      // Récupérer la config email de l'utilisateur
+      // L'envoi part de la boîte de l'utilisateur connecté (choisie par la route serveur)
       const { data: { user } } = await supabase.auth.getUser()
-      const { data: emailConfig } = await supabase
-        .from('user_email_configs')
-        .select('email')
-        .eq('user_id', user.id)
-        .maybeSingle()
-      
-      const fromEmail = emailConfig?.email || orgEmail()
       
       let successCount = 0
       let errorCount = 0
@@ -3063,19 +3057,25 @@ Nous vous remercions par avance pour votre contribution.
 Cordialement,
 ${trainer ? `${trainer.first_name} ${trainer.last_name}` : orgName()}`
           
-          // Envoyer l'email via l'API
-          const { error: sendError } = await supabase.functions.invoke('send-email-session', {
-            body: {
+          // Envoi par la même route que les envois de la session (B126 : la fonction Supabase appelée avant
+          // n'existait pas). Chaque relance est tracée datée dans session_emails_sent (indicateur 30).
+          const response = await apiFetch('/api/send-email-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
               to: trainee.email,
-              from: fromEmail,
               subject,
               body,
-              attachments: []
-            }
+              attachmentPaths: [],
+              sessionId: session.id,
+              emailType: 'relance_chaud'
+            })
           })
+          const resultat = await response.json().catch(() => ({}))
           
-          if (sendError) {
-            console.error(`Erreur envoi à ${trainee.email}:`, sendError)
+          if (!response.ok) {
+            console.error(`Erreur envoi à ${trainee.email}:`, resultat.error || response.status)
             errorCount++
           } else {
             successCount++

@@ -842,6 +842,7 @@ export default function ClientDetail() {
     const emailTypeLabels = {
       before: ' Convocation envoyée',
       after: ' Bilan/évaluation envoyé',
+      relance_chaud: ' Relance évaluation à chaud envoyée',
       reminder: ' Rappel envoyé',
       certificate: ' Attestation envoyée',
       convention: ' Convention envoyée',
