@@ -33,6 +33,8 @@ const STATUS_CONFIG = {
   draft: { label: 'Brouillon', dot: 'bg-gray-400' },
   planned: { label: 'Planifiée', dot: 'bg-[rgb(var(--c-info))]' },
   in_progress: { label: 'En cours', dot: 'bg-[rgb(var(--c-warning))]' },
+  to_close: { label: 'À clôturer', dot: 'bg-[rgb(var(--c-warning))]' },
+  to_invoice: { label: 'À facturer', dot: 'bg-[rgb(var(--c-info))]' },
   completed: { label: 'Terminée', dot: 'bg-[rgb(var(--c-success))]' },
   cancelled: { label: 'Annulée', dot: 'bg-[rgb(var(--c-danger))]' },
 }
@@ -43,7 +45,7 @@ export default function SessionPlanning({ sessions, trainers }) {
   const [hoveredSession, setHoveredSession] = useState(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [copiedUrl, setCopiedUrl] = useState(null)
-  const [statusFilter, setStatusFilter] = useState(['planned', 'confirmed', 'in_progress', 'completed'])
+  const [statusFilter, setStatusFilter] = useState(['planned', 'confirmed', 'in_progress', 'to_close', 'to_invoice', 'completed'])
   const containerRef = useRef(null)
   const gridRef = useRef(null)
 

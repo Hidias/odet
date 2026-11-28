@@ -13,6 +13,7 @@ import { SF_MODULE, STATUSES, statusOf, loadSessionFormative, initSession, effec
 import { modalityShort, modalityLabel } from '../lib/sequenceTemplates'
 import { archiveFormativeSheet, openArchive } from '../lib/archive'
 import { buildFicheSuiviPDF } from '../pdf/ficheSuiviPDF'
+import { estRealisee } from '../../../core/session/realisee.js'
 
 const fullName = (t) => `${t.first_name} ${(t.last_name || '').toUpperCase()}`.trim()
 const frDateTime = (d) => (d ? new Date(d).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '')
@@ -136,7 +137,7 @@ export default function SuiviFormatifTab({ sessionId, sessionStatus }) {
       if (row?.remark) remarks.push({ k: `${s.id}${t.id}`, who: fullName(t), seq: `S${i + 1} ${s.title}`, text: row.remark })
     })
   })
-  const sessionDone = ['completed', 'termine', 'terminée', 'done'].includes(String(sessionStatus || '').toLowerCase())
+  const sessionDone = estRealisee(sessionStatus) || ['termine', 'terminée', 'done'].includes(String(sessionStatus || '').toLowerCase())
 
   return (
     <div className="space-y-5">

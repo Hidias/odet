@@ -32,6 +32,7 @@ import MaJournee from './MaJournee'
 import { useUiPrefs } from '../../core/branding/useUiPrefs'
 import { modeParDefaut } from '../../core/branding/presets'
 import { useDroits } from '../../core/rights/useDroit'
+import { estRealisee } from '../../core/session/realisee.js'
 
 // ═══════════════════════════════════════════════════════════
 // WIDGET REGISTRY
@@ -305,7 +306,7 @@ export default function Dashboard() {
   
   const sessionsWithoutTrainer = useMemo(() => sessions.filter(s => (estAVenir(s) || s.status === 'draft') && !s.trainer_id), [sessions])
   const sessionsInProgress = useMemo(() => sessions.filter(s => s.status === 'in_progress'), [sessions])
-  const completedSessions = useMemo(() => sessions.filter(s => s.status === 'completed'), [sessions])
+  const completedSessions = useMemo(() => sessions.filter(s => estRealisee(s)), [sessions])
   
   //  Personnes formées = presence_complete || early_departure || result renseigné
   const personnesFormees = useMemo(() => completedSessions.reduce((t, s) => {

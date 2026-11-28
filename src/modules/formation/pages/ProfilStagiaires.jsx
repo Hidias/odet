@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx-js-style'
 import SearchSelect, { clientOptions, courseOptions } from '../../../ui/SearchSelect'
 import { PageHeader } from '../../../ui/PageHeader'
+import { estRealisee } from '../../../core/session/realisee.js'
 
 export default function ProfilStagiaires() {
   const { sessions, fetchSessions, clients, fetchClients, courses, fetchCourses } = useDataStore()
@@ -52,7 +53,7 @@ export default function ProfilStagiaires() {
   
   const loadTraineesData = async () => {
     // Filtrer les sessions
-    let filteredSessions = sessions.filter(s => s.status === 'completed')
+    let filteredSessions = sessions.filter(s => estRealisee(s))
     
     // Filtre période
     if (filterPeriod === 'year') {

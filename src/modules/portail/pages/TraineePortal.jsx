@@ -31,6 +31,7 @@ import { normaliserNir } from '../../passeport/lib/rules'
 import ChampNir from '../../../core/nir/ChampNir'
 import { verifierNir } from '../../../core/nir/verifierNir'
 import { messagePortail } from '../lib/accesExpire'
+import { estRealisee } from '../../../core/session/realisee.js'
 
 // Portail stagiaire : identification, fiche de renseignement, positionnement (quiz),
 // émargement par signature, entraînement, évaluation des acquis, satisfaction.
@@ -921,7 +922,7 @@ export default function TraineePortal() {
   const signedToday = session.periods.filter((p) => attendanceData[`${today}_${p}`]).length
   const evaluationBank = quizSummary?.evaluation_bank || 0
   const finalDone = !!quizSummary?.final
-  const finalAvailable = finalDone || (inDates && lastDay) || session.status === 'completed' || today > session.end_date
+  const finalAvailable = finalDone || (inDates && lastDay) || estRealisee(session) || today > session.end_date
   const satisfactionDone = !!(evaluationData && evaluationData.questionnaire_submitted)
   const satisfactionAvailable = satisfactionDone || lastDay || today > session.end_date
 

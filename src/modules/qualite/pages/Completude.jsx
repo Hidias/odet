@@ -20,6 +20,7 @@ import SearchSelect from '../../../ui/SearchSelect'
 import { etatConvention, groupesParSession, CONVENTION } from '../../formation/lib/etatConvention'
 import { finCycleFroid } from '../lib/froid'
 import { todayIso } from '../../certification/lib/certData'
+import { STATUTS_REALISEE, estRealisee } from '../../../core/session/realisee.js'
 
 const PRIORITIES = {
   bloquant: { label: 'Bloquant', color: 'red', icon: '' },
@@ -155,7 +156,7 @@ export default function Completude() {
           courses(title),
           trainer_id
         `)
-        .eq('status', 'completed'))
+        .in('status', STATUTS_REALISEE))
 
       // Conventions des sessions inter, groupe par groupe (angle mort A2) ; signée vaut envoyée (A1)
       const interIds = (sessions || []).filter(s => s.session_type === 'inter').map(s => s.id)
@@ -247,7 +248,7 @@ export default function Completude() {
       const { data: doneSessions } = await fetchAll(() => supabase
         .from('sessions')
         .select('id, reference, start_date, end_date, start_time, end_time, status, company_id, courses(title, froid_delai_jours)')
-        .in('status', ['in_progress', 'completed']))
+        .in('status', ['in_progress', ...STATUTS_REALISEE]))
       const sessionById = new Map((doneSessions || []).map((s) => [s.id, s]))
       const doneIds = [...sessionById.keys()]
       const inDone = async (table, cols) => {
@@ -316,7 +317,7 @@ export default function Completude() {
           }
         }
 
-        if (sess.status !== 'completed' || st.absent) return
+        if (!estRealisee(sess) || st.absent) return
 
         // 4. ÉVALUATIONS À CHAUD
         if (!hotDone.has(k)) {
@@ -353,7 +354,7 @@ export default function Completude() {
           courses(title),
           trainer_id, trainers(id, first_name, last_name)
         `)
-        .eq('status', 'completed'))
+        .in('status', STATUTS_REALISEE))
       
       if (trainerEvals) {
         const { data: existingEvals } = await fetchAll(() => supabase

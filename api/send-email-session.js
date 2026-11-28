@@ -143,13 +143,13 @@ async function handler(req, res) {
         const dateStr = now.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })
         const timeStr = now.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })
         const authorName = sender.name
-        const typeLabel = emailType === 'before' ? 'avant' : 'après'
+        const typeLabel = emailType === 'before' ? 'avant formation' : emailType === 'relance_chaud' ? 'de relance (évaluation à chaud)' : 'après formation'
 
         await supabase.from('client_interactions').insert({
           client_id: sessionData.client_id,
           type: 'email',
-          title: `Email ${typeLabel} formation envoyé (${sessionData.reference || ''})`,
-          content: `Email ${typeLabel} formation envoyé par ${authorName} le ${dateStr} à ${timeStr}\nSession : ${sessionData.reference || sessionId}\nDestinataire : ${to}\nObjet : ${subject}`,
+          title: `Email ${typeLabel} envoyé (${sessionData.reference || ''})`,
+          content: `Email ${typeLabel} envoyé par ${authorName} le ${dateStr} à ${timeStr}\nSession : ${sessionData.reference || sessionId}\nDestinataire : ${to}\nObjet : ${subject}`,
           author: authorName,
         })
         console.log('Traçabilité CRM ajoutée pour client:', sessionData.client_id)

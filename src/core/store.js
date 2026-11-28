@@ -9,6 +9,7 @@ import { enregistrer } from './enregistrer'
 import { configureCompanyContext } from './company/companyContext'
 import { chargerDroits, aLeDroit } from './rights/rights'
 import { chargerContexteSocietes, chargerIdentiteSociete } from './company/societes'
+import { STATUTS_REALISEE, estRealisee, maintenantParis, statutAffiche } from './session/realisee.js'
 
 // ─── Résolution du rôle et du profil d'un utilisateur connecté ─────
 // Source de vérité : la table profiles (rôle, identité affichée, préférences).
@@ -626,31 +627,37 @@ export const useDataStore = create((set, get) => ({
         return { data: [], error: sessionsError }
       }
       
-      // Auto-gérer les statuts des sessions (sauf si forcé manuellement)
+      // Statuts des sessions (B126) : la base écrit le parcours (nuit, fiche, facture : app.session_avancer, 0528).
+      // Ici : « À clôturer » affiché dès l'heure de fin, sans écriture ; « En cours » écrit comme avant ;
+      // la sous-traitance garde l'ancienne règle (Terminée le lendemain de la fin, sauf verrou).
       const now = new Date()
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      
+      const maintenant = maintenantParis(now)
+
       for (const s of (sessionsData || [])) {
-        // Ne pas toucher aux sessions annulées ou avec statut verrouillé
-        if (s.status === 'cancelled' || s.status_locked) continue
-        
+        if (s.status === 'cancelled') continue
+        const affiche = statutAffiche(s, maintenant)
+        if (affiche !== s.status) { s.status = affiche; continue }
+        // Ne pas écrire sur une session au statut verrouillé
+        if (s.status_locked) continue
+
         const startDate = new Date(s.start_date)
         startDate.setHours(0, 0, 0, 0)
         const endDate = new Date(s.end_date)
         endDate.setHours(23, 59, 59, 999)
-        
+
         let newStatus = null
-        
-        // Session terminée (date de fin passée)
-        if (endDate < today && s.status !== 'completed') {
+
+        // Sous-traitance terminée (date de fin passée) : règle d'avant
+        if (s.session_type === 'subcontract' && endDate < today && s.status !== 'completed') {
           newStatus = 'completed'
         }
         // Session en cours (entre date début et date fin)
-        else if (startDate <= now && now <= endDate && s.status !== 'in_progress' && s.status !== 'completed') {
+        else if (startDate <= now && now <= endDate && !['in_progress', 'to_close', 'to_invoice', 'completed'].includes(s.status)) {
           newStatus = 'in_progress'
         }
-        
+
         if (newStatus) {
           // Écriture d'appoint en arrière-plan : un refus est seulement journalisé (le statut affiché reste calculé)
           enregistrer(supabase.from('sessions').update({ status: newStatus }).eq('id', s.id)).then(({ error: errStatut }) => {
@@ -901,6 +908,7 @@ export const useDataStore = create((set, get) => ({
     if (rest.day_type !== undefined) sessionUpdates.day_type = rest.day_type
     if (rest.status !== undefined) sessionUpdates.status = rest.status
     if (rest.status_locked !== undefined) sessionUpdates.status_locked = rest.status_locked
+    if (rest.sans_facture_motif !== undefined) sessionUpdates.sans_facture_motif = rest.sans_facture_motif ? String(rest.sans_facture_motif).trim() : null
     if (rest.notes !== undefined) sessionUpdates.notes = rest.notes
     // Calendrier public des sessions inter (0419) : publication et prix public par personne
     if (rest.is_public !== undefined) sessionUpdates.is_public = !!rest.is_public
@@ -1831,11 +1839,16 @@ export const useDataStore = create((set, get) => ({
     }
     
     // 3. Vérifier la présence demi-journées
-    const { data: halfDays } = await supabase
+    // Seules les demi-journées aux dates de la session comptent (B126 : des lignes d'essai ou d'une autre date
+    // ne doivent pas rendre un absent « acquis »)
+    let reqHalfDays = supabase
       .from('attendance_halfdays')
       .select('morning, afternoon')
       .eq('session_id', sessionId)
       .eq('trainee_id', traineeId)
+    if (sessionData?.start_date) reqHalfDays = reqHalfDays.gte('date', sessionData.start_date)
+    if (sessionData?.end_date) reqHalfDays = reqHalfDays.lte('date', sessionData.end_date)
+    const { data: halfDays } = await reqHalfDays
     
     let presentHalfDays = 0
     halfDays?.forEach(h => {
@@ -1968,7 +1981,7 @@ export const useDataStore = create((set, get) => ({
     const { data: completedSessions } = await fetchAll(() => supabase
       .from('sessions')
       .select('id')
-      .eq('status', 'completed'))
+      .in('status', STATUTS_REALISEE))
     
     const completedIds = completedSessions?.map(s => s.id) || []
     
@@ -2095,7 +2108,7 @@ export const useDataStore = create((set, get) => ({
       // (vérifié via courses.objectives)
       
       // Indicateur 11 - Attestations
-      if (s.status === 'completed') {
+      if (estRealisee(s)) {
         // Session terminée devrait avoir des attestations
       }
       

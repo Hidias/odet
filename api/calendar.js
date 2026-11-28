@@ -18,6 +18,7 @@ import { loadTeam, profileFirstName } from './_lib/team.js'
 import { appUrl } from './_lib/internal.js'
 import { withErrorLog } from './_lib/errors.js'
 import { sessionsDuFormateur } from './_lib/sessionsFormateur.js'
+import { estRealisee } from '../src/core/session/realisee.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -316,7 +317,7 @@ async function handler(req, res) {
         `SUMMARY:${escapeIcal(summary)}`,
         location ? `LOCATION:${escapeIcal(location)}` : null,
         `DESCRIPTION:${escapeIcal(descParts.join('\\n'))}`,
-        `STATUS:${session.status === 'completed' ? 'CONFIRMED' : 'TENTATIVE'}`,
+        `STATUS:${estRealisee(session.status) ? 'CONFIRMED' : 'TENTATIVE'}`,
         'BEGIN:VALARM',
         'TRIGGER:-P1D',
         'ACTION:DISPLAY',

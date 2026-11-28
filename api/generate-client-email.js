@@ -81,7 +81,7 @@ TON & STYLE :
         const course = s.courseTitle || 'Formation'
         const dates = s.startDate ? `du ${s.startDate}${s.endDate ? ' au ' + s.endDate : ''}` : ''
         const nbTrainees = s.nbTrainees ? `${s.nbTrainees} stagiaire(s)` : ''
-        const status = s.status === 'completed' ? '✅ terminée' : s.status === 'planned' ? '📅 planifiée' : s.status === 'in_progress' ? '🔄 en cours' : s.status
+        const status = s.status === 'completed' ? '✅ terminée' : s.status === 'to_invoice' ? 'à facturer' : s.status === 'to_close' ? 'à clôturer' : s.status === 'planned' ? '📅 planifiée' : s.status === 'in_progress' ? '🔄 en cours' : s.status
         return `- ${course} ${dates} — ${nbTrainees} — ${status}`
       }).join('\n')
       contextParts.push('FORMATIONS (sessions) :\n' + sessCtx)

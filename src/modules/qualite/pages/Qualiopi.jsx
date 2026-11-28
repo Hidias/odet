@@ -25,6 +25,7 @@ import { StatusChip } from '../richdocs/RichDocEditor'
 import { confirmer } from '../../../ui/Confirm'
 import { PageHeader } from '../../../ui/PageHeader'
 import { Tabs } from '../../../ui/Tabs'
+import { estRealisee } from '../../../core/session/realisee.js'
 // ═══════════════════════════════════════════════════════════════════
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════
@@ -182,7 +183,7 @@ export default function Qualiopi() {
     try {
       // 1. Charger les sessions complétées (fetchAll : pagination complète, pas de troncature à 1 000)
       const { data: allSessions } = await fetchAll(() => supabase.from('sessions').select('id, status'))
-      const completedSessionIds = (allSessions || []).filter(s => s.status === 'completed').map(s => s.id)
+      const completedSessionIds = (allSessions || []).filter(s => estRealisee(s)).map(s => s.id)
       
       // 2. Charger les évaluations à chaud (trainee_evaluations)
       const { data: hotEvals } = await fetchAll(() => supabase.from('trainee_evaluations').select('*'))

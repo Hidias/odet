@@ -1,3 +1,4 @@
+import { estRealisee } from '../../../core/session/realisee.js'
 // Règles de l'accueil (angles morts A7, A8, A9, 04/11) : mêmes statuts et mêmes exclusions qu'ailleurs.
 
 // A9 : une session « Confirmée » est une session à venir comme une session « Prévue »
@@ -76,7 +77,7 @@ const jourUtc = (v) => { const [y, m, d] = String(v).slice(0, 10).split('-').map
 export const cleStagiaire = (sessionId, traineeId) => `${sessionId}:${traineeId}`
 
 export function froidARappeler(s, { reglage, envoyes, repondus, aujourdhui } = {}) {
-  if (!s || s.status !== 'completed') return false
+  if (!s || !estRealisee(s)) return false
   const fin = s.end_date || s.start_date
   if (!fin || !aujourdhui) return false
   if (s.session_type === 'subcontract' || s.clients?.client_type === 'organisme_formation') return false

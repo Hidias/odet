@@ -27,6 +27,7 @@ import { getOrg, isTestEnvironment } from './_lib/mailer.js'
 import { loadTeam, leaders, profileFirstName } from './_lib/team.js'
 import { withErrorLog } from './_lib/errors.js'
 import { sessionsDuFormateur } from './_lib/sessionsFormateur.js'
+import { estRealisee } from '../src/core/session/realisee.js'
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -341,7 +342,7 @@ async function buildExpectedEvents(trainerConfig, pastDate, futureDate) {
         startDateTime: timeToGcal(dayDate, session.start_time || '09:00'),
         endDateTime: timeToGcal(dayDate, session.end_time || '17:00'),
         colorId: COLORS.session,
-        status: session.status === 'completed' ? 'confirmed' : 'tentative',
+        status: estRealisee(session.status) ? 'confirmed' : 'tentative',
       })
     })
   }
